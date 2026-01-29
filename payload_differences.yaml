@@ -1,0 +1,4891 @@
+abandon:
+  N: 0.4
+  V: -0.4
+ability:
+  N: 1.0
+able:
+  N: -0.491
+  Adj: 0.491
+about:
+  Adv: -0.1
+  Prep: 0.1
+above:
+  Adj: -0.138
+  N: 0.1
+  Prep: 0.09
+  Adv: -0.052
+absent:
+  Adj: 0.45
+  Prep: -0.25
+  V: -0.2
+abstract:
+  V: -0.271
+  Adj: 0.229
+  N: 0.041
+absurd:
+  Adj: -0.1
+  N: 0.1
+abuse:
+  V: -0.6
+  N: 0.6
+access:
+  N: 0.6
+  V: -0.6
+accident:
+  N: 1.0
+account:
+  V: -0.7
+  N: 0.7
+acid:
+  Adj: -0.8
+  N: 0.8
+acoustic:
+  N: -0.491
+  Adj: 0.491
+across:
+  Prep: 0.2
+  Adj: -0.5
+  Adv: 0.3
+act:
+  N: 0.139
+  V: -0.139
+action:
+  V: -0.684
+  Intj: -0.316
+  N: 1.0
+actual:
+  Adj: 0.491
+  N: -0.491
+addict:
+  V: -0.339
+  N: 0.339
+address:
+  N: 0.6
+  V: -0.6
+adult:
+  Adj: -0.109
+  N: 0.109
+advance:
+  N: 0.4
+  Adj: -0.175
+  V: -0.225
+advice:
+  N: 1.0
+aerobic:
+  N: -0.491
+  Adj: 0.491
+age:
+  V: -0.7
+  N: 0.7
+ahead:
+  Adj: -0.526
+  Adv: 0.526
+aim:
+  V: -0.5
+  N: 0.5
+air:
+  V: -0.271
+  N: 0.541
+  Adj: -0.271
+alarm:
+  N: 0.7
+  V: -0.7
+alcohol:
+  N: 1.0
+alert:
+  Adj: 0.029
+  V: -0.329
+  N: 0.3
+alien:
+  Adj: 0.229
+  V: -0.471
+  N: 0.241
+all:
+  Pron: -0.175
+  Adj: -0.175
+  Det: 0.35
+almost:
+  Adv: 0.526
+  Adj: -0.526
+alone:
+  Adv: 0.026
+  Adj: -0.026
+alpha:
+  Adj: 0.3
+  N: 0.7
+already:
+  Adv: 0.526
+  Adj: -0.526
+alter:
+  V: 0.361
+  N: -0.361
+amateur:
+  Adj: -0.109
+  N: 0.109
+amazing:
+  V: -0.5
+  Adj: 0.5
+amount:
+  V: -0.439
+  N: 0.439
+amused:
+  Adj: 0.915
+  V: -0.915
+anchor:
+  V: -0.239
+  N: 0.239
+ancient:
+  Adj: 0.491
+  N: -0.491
+anger:
+  N: 0.7
+  V: -0.7
+angle:
+  V: -0.339
+  N: 0.339
+animal:
+  Adj: -1.0
+  N: 1.0
+annual:
+  N: -0.491
+  Adj: 0.491
+answer:
+  N: 0.239
+  V: -0.239
+antique:
+  N: 0.241
+  Adj: 0.229
+  V: -0.471
+anxiety:
+  N: 1.0
+apart:
+  Adj: -0.526
+  Adv: 0.526
+apology:
+  N: 1.0
+apple:
+  N: 1.0
+april:
+  N: 1.0
+arch:
+  V: -0.171
+  Adj: -0.171
+  N: 0.341
+arctic:
+  Adj: 0.091
+  N: -0.091
+area:
+  N: 1.0
+arm:
+  V: -0.339
+  N: 0.339
+armed:
+  V: -0.672
+  Adj: 0.672
+armor:
+  N: 0.8
+  V: -0.8
+around:
+  Prep: 0.279
+  Adv: 0.079
+  Adj: -0.357
+arrest:
+  N: 0.135
+  V: -0.135
+arrow:
+  N: 0.639
+  V: -0.639
+art:
+  N: 1.0
+artwork:
+  N: 1.0
+ask:
+  N: -0.361
+  V: 0.361
+assault:
+  V: -0.127
+  N: 0.5
+  Adj: -0.373
+assist:
+  V: -0.039
+  N: 0.039
+asthma:
+  N: 1.0
+attack:
+  N: 0.5
+  Adj: -0.373
+  V: -0.127
+attitude:
+  N: 1.0
+auction:
+  V: -0.6
+  N: 0.6
+audit:
+  V: -0.139
+  N: 0.139
+august:
+  N: 0.309
+  Adj: -0.309
+author:
+  V: -0.439
+  N: 0.439
+auto:
+  N: -0.4
+  Adj: 0.4
+autumn:
+  Adj: -1.0
+  N: 1.0
+average:
+  N: 0.3
+  Adj: 0.129
+  V: -0.429
+avocado:
+  Adj: -0.509
+  N: 0.509
+awake:
+  Adj: 0.205
+  V: -0.205
+away:
+  Adv: 0.755
+  N: -0.245
+  Intj: -0.245
+  Adj: -0.265
+awful:
+  Adv: -0.474
+  Adj: 0.474
+baby:
+  V: -0.371
+  Adj: -0.171
+  N: 0.541
+bacon:
+  N: 1.0
+badge:
+  N: 0.439
+  V: -0.439
+bag:
+  V: -0.439
+  N: 0.439
+balance:
+  N: 0.6
+  V: -0.6
+ball:
+  V: -0.539
+  N: 0.539
+bamboo:
+  Adj: -1.0
+  N: 1.0
+banner:
+  Adj: -0.409
+  N: 0.409
+bar:
+  Adj: -0.271
+  N: 0.441
+  V: -0.271
+  Prep: 0.1
+bargain:
+  N: 0.341
+  V: -0.071
+  Adj: -0.271
+barrel:
+  V: -0.439
+  N: 0.439
+base:
+  N: 0.241
+  V: -0.071
+  Adj: -0.171
+basic:
+  Adj: 0.491
+  N: -0.491
+battle:
+  N: 0.6
+  V: -0.6
+beach:
+  V: -0.539
+  N: 0.539
+bean:
+  V: -0.639
+  N: 0.639
+beauty:
+  Intj: -1.0
+  N: 1.0
+become:
+  V: 0.049
+  Adj: -0.049
+beef:
+  N: 0.9
+  V: -0.9
+before:
+  Adv: -0.1
+  Prep: 0.1
+behind:
+  Adj: -0.265
+  N: -0.145
+  Prep: 0.355
+  Adv: 0.055
+below:
+  Adv: 0.155
+  Adj: -0.265
+  Prep: 0.355
+  N: -0.245
+belt:
+  N: 0.439
+  V: -0.439
+bench:
+  N: 0.439
+  V: -0.439
+benefit:
+  V: -0.6
+  N: 0.6
+best:
+  N: 0.2
+  V: -0.28
+  Adv: -0.013
+  Adj: 0.093
+better:
+  Adj: 0.124
+  V: -0.131
+  Adv: 0.135
+  N: -0.128
+between:
+  Adv: 0.2
+  Prep: -0.2
+beyond:
+  Adj: -0.338
+  N: -0.225
+  Adv: 0.2
+  Prep: 0.362
+bicycle:
+  V: -0.539
+  N: 0.539
+bid:
+  N: 0.305
+  V: -0.305
+bike:
+  V: -0.439
+  N: 0.439
+bind:
+  V: -0.2
+  N: 0.2
+biology:
+  N: 1.0
+bird:
+  V: -0.639
+  N: 0.639
+birth:
+  V: -0.9
+  N: 0.9
+black:
+  V: -0.629
+  Adj: 0.329
+  N: 0.3
+blade:
+  V: -0.639
+  N: 0.639
+blame:
+  V: -0.131
+  Adj: -0.369
+  N: 0.5
+blanket:
+  V: -0.371
+  Adj: -0.071
+  N: 0.441
+blast:
+  N: 0.5
+  Intj: -0.318
+  V: -0.182
+bleak:
+  N: -0.491
+  Adj: 0.491
+blind:
+  Adj: 0.329
+  N: -0.059
+  V: -0.271
+blood:
+  V: -1.0
+  N: 1.0
+blossom:
+  V: -0.6
+  N: 0.6
+blouse:
+  N: 0.639
+  V: -0.639
+blue:
+  Adj: 0.329
+  N: 0.3
+  V: -0.629
+blur:
+  V: -0.139
+  N: 0.139
+blush:
+  V: -0.031
+  N: 0.4
+  Adj: -0.369
+board:
+  V: -0.339
+  N: 0.339
+boat:
+  V: -0.539
+  N: 0.539
+body:
+  V: -0.627
+  N: 1.0
+  Adj: -0.373
+boil:
+  N: -0.061
+  V: 0.061
+bomb:
+  N: 0.441
+  Adj: -0.271
+  V: -0.171
+bone:
+  V: -0.9
+  N: 0.9
+book:
+  V: -0.339
+  N: 0.339
+boost:
+  V: -0.139
+  N: 0.139
+border:
+  V: -0.171
+  Adj: -0.271
+  N: 0.441
+boring:
+  V: -0.551
+  Adj: 0.551
+borrow:
+  V: 0.361
+  N: -0.361
+boss:
+  Adj: -0.171
+  N: 0.441
+  V: -0.271
+bottom:
+  V: -0.371
+  Adj: 0.029
+  N: 0.341
+bounce:
+  N: 0.4
+  V: -0.4
+box:
+  N: 0.445
+  V: -0.445
+bracket:
+  V: -0.439
+  N: 0.439
+brain:
+  V: -1.0
+  N: 1.0
+brand:
+  N: 0.339
+  V: -0.339
+brass:
+  N: 0.7
+  Adj: -0.7
+brave:
+  V: -0.429
+  Adj: 0.429
+bread:
+  N: 1.0
+  V: -1.0
+breeze:
+  N: 0.8
+  V: -0.8
+brick:
+  Adj: -0.373
+  N: 0.9
+  V: -0.527
+bridge:
+  V: -0.7
+  N: 0.7
+brief:
+  N: 0.3
+  Adj: 0.229
+  V: -0.529
+bright:
+  N: -0.491
+  Adj: 0.491
+brisk:
+  V: -0.605
+  Adj: 0.605
+broccoli:
+  N: 1.0
+broken:
+  Adj: 0.464
+  V: -0.464
+bronze:
+  N: 0.6
+  Adj: -0.071
+  V: -0.529
+broom:
+  N: 1.0
+brown:
+  V: -0.371
+  Adj: 0.329
+  N: 0.041
+brush:
+  V: -0.5
+  N: 0.5
+bubble:
+  N: 0.239
+  V: -0.239
+budget:
+  Adj: -0.071
+  N: 0.341
+  V: -0.271
+buffalo:
+  V: -0.5
+  N: 0.5
+build:
+  V: -0.3
+  N: 0.3
+bulk:
+  N: 0.7
+  V: -0.531
+  Adj: -0.169
+bullet:
+  V: -0.639
+  N: 0.639
+bundle:
+  N: 0.239
+  V: -0.239
+bunker:
+  Adj: -0.271
+  N: 0.541
+  V: -0.271
+burden:
+  V: -0.7
+  N: 0.7
+burst:
+  N: 0.205
+  V: -0.205
+bus:
+  N: 0.539
+  V: -0.539
+business:
+  N: 1.0
+  Adj: -1.0
+busy:
+  V: -0.505
+  Adj: 0.505
+butter:
+  V: -0.9
+  N: 0.9
+buzz:
+  V: -0.139
+  N: 0.139
+cabbage:
+  N: 1.0
+cabin:
+  V: -0.639
+  N: 0.639
+cable:
+  V: -0.8
+  N: 0.8
+cage:
+  V: -0.339
+  N: 0.339
+cake:
+  V: -1.0
+  N: 1.0
+call:
+  V: -0.4
+  N: 0.4
+calm:
+  N: -0.059
+  Adj: 0.229
+  V: -0.171
+camp:
+  Adj: -0.171
+  N: 0.241
+  V: -0.071
+can:
+  N: -0.078
+  V: -0.403
+  Modal: 0.481
+cancel:
+  N: -0.361
+  V: 0.361
+candy:
+  V: -1.0
+  N: 1.0
+cannon:
+  N: 0.5
+  V: -0.5
+canoe:
+  V: -0.339
+  N: 0.339
+canvas:
+  Adj: 0.1
+  N: 0.9
+  V: -1.0
+capital:
+  N: 0.6
+  Adj: -0.6
+captain:
+  N: 0.439
+  V: -0.439
+carbon:
+  Adj: -1.0
+  N: 1.0
+card:
+  N: 0.539
+  V: -0.539
+cargo:
+  N: 1.0
+carpet:
+  N: 0.8
+  V: -0.8
+carry:
+  N: -0.361
+  V: 0.361
+cart:
+  V: -0.439
+  N: 0.439
+case:
+  V: -0.9
+  N: 0.9
+cash:
+  Adj: -0.369
+  N: 0.7
+  V: -0.331
+castle:
+  V: -0.639
+  N: 0.639
+casual:
+  Adj: 0.491
+  N: -0.491
+cat:
+  N: 0.639
+  V: -0.639
+catalog:
+  N: 0.339
+  V: -0.339
+catch:
+  N: -0.061
+  V: 0.061
+caught:
+  Adj: -0.085
+  V: 0.085
+cause:
+  V: -0.5
+  N: 0.5
+caution:
+  V: -0.7
+  N: 0.7
+cave:
+  N: 0.339
+  V: -0.339
+celery:
+  N: 1.0
+cement:
+  V: -0.7
+  N: 0.7
+census:
+  V: -0.639
+  N: 0.639
+cereal:
+  N: 0.9
+  Adj: -0.9
+certain:
+  N: -0.491
+  Adj: 0.491
+chair:
+  N: 0.439
+  V: -0.439
+chalk:
+  V: -0.431
+  Adj: -0.369
+  N: 0.8
+champion:
+  N: 0.541
+  V: -0.271
+  Adj: -0.271
+change:
+  N: 0.5
+  V: -0.5
+chaos:
+  N: 1.0
+chapter:
+  N: 0.639
+  V: -0.639
+charge:
+  N: 0.5
+  V: -0.5
+chase:
+  N: 0.039
+  V: -0.039
+chat:
+  N: 0.039
+  V: -0.039
+cheap:
+  N: -0.491
+  Adj: 0.491
+check:
+  Adj: -0.242
+  N: 0.5
+  Intj: -0.242
+  V: -0.016
+cheese:
+  V: -1.0
+  N: 1.0
+cherry:
+  N: 0.309
+  Adj: -0.309
+chicken:
+  N: 0.641
+  Adj: -0.171
+  V: -0.471
+chief:
+  N: 0.009
+  Adj: -0.009
+choice:
+  N: 0.9
+  Adj: -0.9
+chronic:
+  Adj: 0.491
+  N: -0.491
+chuckle:
+  N: 0.039
+  V: -0.039
+chunk:
+  V: -0.339
+  N: 0.339
+churn:
+  N: 0.4
+  V: -0.4
+cinnamon:
+  Adj: 0.2
+  N: 0.8
+circle:
+  N: 0.239
+  V: -0.239
+city:
+  Adj: -0.509
+  N: 0.509
+claim:
+  V: -0.5
+  N: 0.5
+clap:
+  V: -0.4
+  N: 0.4
+claw:
+  V: -0.339
+  N: 0.339
+clay:
+  N: 1.0
+clean:
+  Adj: 0.229
+  N: -0.259
+  V: 0.029
+clerk:
+  N: 0.639
+  V: -0.639
+click:
+  V: -0.039
+  N: 0.039
+climb:
+  V: 0.061
+  N: -0.061
+clip:
+  N: 0.139
+  V: -0.139
+clock:
+  N: 0.539
+  V: -0.539
+clog:
+  V: -0.039
+  N: 0.039
+close:
+  Adj: 0.093
+  V: 0.086
+  N: -0.189
+  Adv: 0.011
+cloud:
+  V: -0.8
+  N: 0.8
+clown:
+  N: 0.439
+  V: -0.439
+club:
+  V: -0.439
+  N: 0.439
+clump:
+  N: 0.239
+  V: -0.239
+cluster:
+  V: -0.239
+  N: 0.239
+clutch:
+  Adj: -0.271
+  N: 0.241
+  V: 0.029
+coach:
+  V: -0.071
+  Adj: -0.271
+  N: 0.341
+coast:
+  N: 0.439
+  V: -0.439
+coconut:
+  Adj: -0.509
+  N: 0.509
+code:
+  N: 0.7
+  V: -0.7
+coffee:
+  N: 1.0
+coil:
+  V: -0.139
+  N: 0.139
+coin:
+  N: 0.8
+  V: -0.8
+collect:
+  Adj: -0.271
+  V: 0.529
+  N: -0.259
+color:
+  N: 0.7
+  V: -0.327
+  Adj: -0.373
+combine:
+  N: -0.061
+  V: 0.061
+come:
+  V: 0.278
+  Intj: -0.241
+  Adj: -0.037
+comfort:
+  N: 0.6
+  V: -0.6
+comic:
+  N: 0.109
+  Adj: -0.109
+common:
+  N: -0.491
+  Adj: 0.491
+company:
+  N: 1.0
+  V: -1.0
+concert:
+  N: 1.0
+  V: -1.0
+conduct:
+  V: -0.4
+  N: 0.4
+control:
+  N: 0.5
+  V: -0.5
+cook:
+  V: -0.039
+  N: 0.039
+cool:
+  Adj: 0.231
+  V: -0.231
+copper:
+  V: -1.0
+  N: 0.8
+  Adj: 0.2
+copy:
+  V: -0.139
+  N: 0.139
+coral:
+  N: 0.7
+  Adj: -0.7
+core:
+  Adj: -0.071
+  V: -0.371
+  N: 0.441
+corn:
+  V: -1.0
+  N: 1.0
+correct:
+  V: -0.205
+  Adj: 0.205
+cost:
+  N: 0.5
+  Adj: -0.011
+  V: -0.489
+cotton:
+  V: -1.0
+  N: 0.8
+  Adj: 0.2
+couch:
+  N: 0.8
+  V: -0.8
+country:
+  Adj: -0.9
+  N: 0.9
+couple:
+  V: -0.339
+  N: 0.339
+course:
+  N: 1.0
+  V: -1.0
+cover:
+  V: -0.4
+  N: 0.4
+crack:
+  Adj: -0.271
+  N: 0.241
+  V: 0.029
+cradle:
+  N: 0.239
+  V: -0.239
+craft:
+  N: 0.245
+  V: -0.245
+crane:
+  N: 0.339
+  V: -0.339
+crash:
+  Adj: -0.375
+  N: 0.5
+  V: -0.125
+crater:
+  V: -0.639
+  N: 0.639
+crawl:
+  V: 0.061
+  N: -0.061
+crazy:
+  Adj: 0.391
+  N: -0.391
+cream:
+  V: -0.531
+  Adj: -0.169
+  N: 0.7
+credit:
+  N: 0.7
+  V: -0.7
+crew:
+  V: -0.4
+  N: 0.4
+cricket:
+  V: -1.0
+  N: 1.0
+crime:
+  N: 1.0
+crisp:
+  N: 0.041
+  V: -0.471
+  Adj: 0.429
+crop:
+  N: 0.279
+  V: -0.279
+cross:
+  N: 0.141
+  Adj: -0.071
+  V: -0.071
+crouch:
+  N: -0.061
+  V: 0.061
+crowd:
+  V: -0.339
+  N: 0.339
+cruel:
+  Adj: 0.491
+  N: -0.491
+cruise:
+  N: 0.139
+  V: -0.139
+crumble:
+  N: -0.361
+  V: 0.361
+crunch:
+  V: -0.139
+  N: 0.139
+crush:
+  N: 0.4
+  V: -0.4
+cry:
+  N: 0.039
+  V: -0.039
+crystal:
+  N: 0.8
+  Adj: -0.8
+cube:
+  N: 0.439
+  V: -0.439
+culture:
+  V: -0.9
+  N: 0.9
+cup:
+  N: 0.539
+  V: -0.539
+current:
+  Adj: -0.4
+  N: 0.4
+curtain:
+  N: 0.439
+  V: -0.439
+curve:
+  V: -0.239
+  N: 0.239
+cushion:
+  V: -0.339
+  N: 0.339
+custom:
+  N: 0.5
+  Adj: -0.5
+cute:
+  Adj: 0.491
+  N: -0.491
+cycle:
+  V: -0.239
+  N: 0.239
+damage:
+  N: 0.5
+  V: -0.5
+damp:
+  V: -0.531
+  N: 0.1
+  Adj: 0.431
+dance:
+  N: 0.4
+  V: -0.4
+danger:
+  N: 1.0
+daring:
+  Adj: 0.351
+  N: 0.2
+  V: -0.551
+dash:
+  N: 0.5
+  V: -0.5
+dawn:
+  N: 0.8
+  V: -0.8
+day:
+  N: 1.0
+deal:
+  N: 0.139
+  V: -0.139
+debate:
+  N: 0.5
+  V: -0.5
+december:
+  N: 1.0
+decline:
+  V: -0.4
+  N: 0.4
+decrease:
+  V: -0.4
+  N: 0.4
+defense:
+  N: 1.0
+  V: -1.0
+degree:
+  N: 1.0
+  Adj: -1.0
+delay:
+  N: 0.5
+  V: -0.5
+demand:
+  V: -0.5
+  N: 0.5
+demise:
+  N: 0.639
+  V: -0.639
+denial:
+  N: 1.0
+deposit:
+  N: 0.139
+  V: -0.139
+depth:
+  N: 1.0
+deputy:
+  Adj: -0.409
+  N: 0.409
+desert:
+  N: 0.7
+  V: -0.427
+  Adj: -0.273
+design:
+  N: 0.5
+  V: -0.5
+despair:
+  V: -0.7
+  N: 0.7
+detail:
+  N: 0.7
+  V: -0.7
+diagram:
+  V: -0.439
+  N: 0.439
+dial:
+  V: -0.039
+  N: 0.039
+diamond:
+  Adj: -0.409
+  N: 0.409
+dice:
+  N: 0.3
+  V: -0.3
+diesel:
+  N: 0.8
+  V: -1.0
+  Adj: 0.2
+diet:
+  Adj: -0.171
+  V: -0.271
+  N: 0.441
+digital:
+  N: -0.491
+  Adj: 0.491
+dignity:
+  N: 1.0
+dinner:
+  N: 1.0
+  V: -1.0
+direct:
+  V: -0.105
+  Adj: 0.105
+dirt:
+  Adj: -1.0
+  N: 1.0
+disease:
+  N: 1.0
+dish:
+  V: -0.439
+  N: 0.439
+disorder:
+  V: -1.0
+  N: 1.0
+display:
+  N: 0.5
+  V: -0.5
+distance:
+  N: 0.9
+  V: -0.9
+divide:
+  V: 0.061
+  N: -0.061
+divorce:
+  N: 0.5
+  V: -0.5
+dizzy:
+  V: -0.605
+  Adj: 0.605
+doctor:
+  V: -0.9
+  N: 0.9
+document:
+  V: -0.239
+  N: 0.239
+dog:
+  N: 0.539
+  V: -0.539
+doll:
+  N: 0.639
+  V: -0.639
+dose:
+  N: 0.339
+  V: -0.339
+double:
+  N: -0.059
+  Adj: 0.229
+  V: -0.171
+dove:
+  V: -0.529
+  N: 0.529
+draft:
+  V: -0.071
+  N: 0.241
+  Adj: -0.171
+drama:
+  N: 1.0
+draw:
+  N: -0.061
+  V: 0.061
+dream:
+  V: -0.139
+  N: 0.139
+dress:
+  V: -0.127
+  N: 0.5
+  Adj: -0.373
+drift:
+  N: 0.4
+  V: -0.4
+drill:
+  V: -0.5
+  N: 0.5
+drink:
+  V: -0.4
+  N: 0.4
+drip:
+  N: 0.039
+  V: -0.039
+drive:
+  N: 0.4
+  V: -0.4
+drop:
+  V: -0.039
+  N: 0.039
+drum:
+  N: 0.339
+  V: -0.339
+dry:
+  Adj: 0.329
+  N: -0.259
+  V: -0.071
+duck:
+  V: -0.2
+  N: 0.2
+dust:
+  V: -0.6
+  N: 0.6
+dutch:
+  Adj: 0.191
+  N: -0.191
+duty:
+  N: 1.0
+dwarf:
+  V: -0.271
+  Adj: -0.071
+  N: 0.341
+dynamic:
+  Adj: 0.191
+  N: -0.191
+eager:
+  N: -0.491
+  Adj: 0.491
+eagle:
+  N: 0.639
+  V: -0.639
+early:
+  Adj: -0.009
+  Adv: 0.009
+earth:
+  N: 1.0
+  V: -1.0
+east:
+  Adj: -0.19
+  Adv: -0.31
+  N: 0.5
+easy:
+  Adj: 0.491
+  N: -0.491
+echo:
+  V: -0.5
+  N: 0.5
+ecology:
+  N: 1.0
+economy:
+  N: 1.0
+edge:
+  N: 0.441
+  V: -0.171
+  Adj: -0.271
+edit:
+  N: -0.061
+  V: 0.061
+effort:
+  N: 1.0
+egg:
+  N: 0.9
+  V: -0.9
+eight:
+  N: 0.022
+  Adj: -0.022
+either:
+  Adv: -0.033
+  Det: 0.167
+  Conj: -0.133
+elbow:
+  N: 0.439
+  V: -0.439
+elder:
+  N: 0.207
+  Adj: -0.207
+electric:
+  Adj: 0.491
+  N: -0.491
+elite:
+  Adj: -0.009
+  N: 0.009
+else:
+  Adv: 1.0
+  Adj: -1.0
+embrace:
+  V: 0.061
+  N: -0.061
+emotion:
+  N: 1.0
+employ:
+  V: 0.161
+  N: -0.161
+empty:
+  Adj: 0.429
+  V: -0.171
+  N: -0.259
+end:
+  N: 0.239
+  V: -0.239
+enemy:
+  N: 0.509
+  Adj: -0.509
+energy:
+  N: 1.0
+enough:
+  Det: 0.5
+  Adv: -0.01
+  Adj: -0.49
+entire:
+  N: -0.491
+  Adj: 0.491
+entry:
+  N: 1.0
+equal:
+  Adj: 0.329
+  N: -0.059
+  V: -0.271
+erosion:
+  N: 1.0
+error:
+  N: 1.0
+escape:
+  V: -0.4
+  N: 0.4
+essay:
+  V: -0.539
+  N: 0.539
+essence:
+  N: 1.0
+estate:
+  N: 1.0
+eternal:
+  N: -0.491
+  Adj: 0.491
+evidence:
+  V: -1.0
+  N: 1.0
+evil:
+  N: 0.5
+  Adj: -0.5
+exact:
+  V: -0.405
+  Adj: 0.405
+example:
+  V: -1.0
+  N: 1.0
+excess:
+  Adj: -0.109
+  N: 0.109
+exchange:
+  N: 0.5
+  V: -0.5
+excuse:
+  N: 0.5
+  V: -0.5
+exercise:
+  V: -0.6
+  N: 0.6
+exhaust:
+  V: -0.4
+  N: 0.4
+exhibit:
+  N: 0.039
+  V: -0.039
+exile:
+  N: 0.5
+  V: -0.5
+exit:
+  N: 0.139
+  V: -0.139
+exotic:
+  Adj: 0.491
+  N: -0.491
+expose:
+  V: 0.361
+  N: -0.361
+express:
+  Adj: -0.169
+  N: 0.2
+  V: -0.031
+extra:
+  N: -0.091
+  Adj: 0.091
+eye:
+  N: 0.439
+  V: -0.439
+fabric:
+  N: 1.0
+face:
+  V: -0.239
+  N: 0.239
+faculty:
+  N: 1.0
+fade:
+  N: -0.061
+  V: 0.061
+faint:
+  Adj: 0.329
+  N: -0.159
+  V: -0.171
+faith:
+  N: 1.0
+fall:
+  V: -0.4
+  N: 0.4
+'false':
+  Adv: -0.474
+  Adj: 0.474
+fame:
+  N: 1.0
+family:
+  Adj: 0.1
+  Adv: -1.0
+  N: 0.9
+fan:
+  V: -0.439
+  N: 0.439
+fancy:
+  V: -0.171
+  N: -0.059
+  Adj: 0.229
+fantasy:
+  N: 1.0
+  V: -1.0
+farm:
+  Adj: -0.271
+  V: -0.071
+  N: 0.341
+fashion:
+  V: -0.8
+  N: 0.8
+fat:
+  Adj: -0.4
+  N: 0.4
+father:
+  N: 0.539
+  V: -0.539
+fatigue:
+  N: 0.7
+  V: -0.7
+fault:
+  V: -0.439
+  N: 0.439
+favorite:
+  Adj: 0.091
+  N: -0.091
+feature:
+  V: -0.339
+  N: 0.339
+february:
+  N: 1.0
+federal:
+  Adj: 0.491
+  N: -0.491
+fee:
+  V: -1.0
+  N: 1.0
+feed:
+  N: 0.3
+  V: -0.3
+feel:
+  N: -0.161
+  V: 0.161
+female:
+  N: -0.091
+  Adj: 0.091
+fence:
+  V: -0.339
+  N: 0.339
+fetch:
+  N: -0.361
+  V: 0.361
+fever:
+  N: 1.0
+few:
+  Adj: -0.209
+  Det: 0.7
+  N: -0.491
+fiber:
+  N: 1.0
+fiction:
+  N: 1.0
+field:
+  N: 0.439
+  V: -0.439
+figure:
+  N: 0.239
+  V: -0.239
+file:
+  N: 0.139
+  V: -0.139
+film:
+  V: -0.6
+  N: 0.6
+filter:
+  N: 0.139
+  V: -0.139
+final:
+  N: -0.291
+  Adj: 0.291
+find:
+  V: 0.161
+  N: -0.161
+fine:
+  V: -0.214
+  N: 0.011
+  Adj: 0.393
+  Adv: -0.189
+finger:
+  V: -0.439
+  N: 0.439
+finish:
+  N: 0.3
+  V: -0.3
+fire:
+  V: -0.6
+  N: 0.6
+firm:
+  V: -0.271
+  Adj: 0.129
+  N: 0.141
+first:
+  Adj: 0.11
+  Adv: -0.21
+  N: 0.1
+fiscal:
+  Adj: 0.491
+  N: -0.491
+fish:
+  N: 0.245
+  V: -0.245
+fit:
+  N: 0.152
+  Adj: 0.028
+  V: -0.18
+fitness:
+  N: 1.0
+fix:
+  N: -0.061
+  V: 0.061
+flag:
+  N: 0.339
+  V: -0.339
+flame:
+  N: 0.7
+  V: -0.7
+flash:
+  N: 0.5
+  V: -0.127
+  Adj: -0.373
+flat:
+  Adv: 0.2
+  N: 0.041
+  V: -0.471
+  Adj: 0.229
+flavor:
+  N: 0.7
+  V: -0.7
+flight:
+  N: 1.0
+  V: -1.0
+flip:
+  Adj: -0.271
+  V: 0.229
+  N: 0.041
+float:
+  N: -0.061
+  V: 0.061
+flock:
+  V: -0.239
+  N: 0.239
+floor:
+  N: 0.9
+  V: -0.9
+flower:
+  V: -0.539
+  N: 0.539
+fluid:
+  N: 0.5
+  Adj: -0.5
+flush:
+  Adj: -0.171
+  V: -0.129
+  N: 0.3
+fly:
+  Adv: -0.025
+  V: 0.25
+  Adj: -0.263
+  N: 0.037
+foam:
+  V: -0.7
+  N: 0.7
+focus:
+  N: 0.5
+  V: -0.5
+fog:
+  V: -0.8
+  N: 0.8
+foil:
+  V: -0.6
+  N: 0.6
+fold:
+  N: -0.061
+  V: 0.061
+follow:
+  V: 0.361
+  N: -0.361
+foot:
+  N: 0.9
+  V: -0.9
+force:
+  N: 0.5
+  V: -0.5
+forest:
+  N: 1.0
+  V: -1.0
+fork:
+  V: -0.439
+  N: 0.439
+fortune:
+  N: 1.0
+forward:
+  V: -0.308
+  N: -0.084
+  Adj: 0.096
+  Adv: 0.296
+fossil:
+  N: -0.2
+  Adj: 0.2
+foster:
+  Adj: 0.105
+  V: -0.105
+found:
+  Adj: -0.039
+  V: 0.039
+fox:
+  N: 0.639
+  V: -0.639
+frame:
+  N: 0.239
+  V: -0.239
+frequent:
+  Adj: 0.305
+  V: -0.305
+fresh:
+  N: -0.491
+  Adj: 0.491
+friend:
+  N: 0.539
+  V: -0.539
+fringe:
+  V: -0.271
+  Adj: -0.071
+  N: 0.341
+frog:
+  N: 0.639
+  V: -0.639
+front:
+  N: 0.5
+  Adj: 0.029
+  V: -0.529
+frost:
+  N: 0.7
+  V: -0.7
+frown:
+  V: -0.039
+  N: 0.039
+frozen:
+  V: -0.464
+  Adj: 0.464
+fruit:
+  N: 0.545
+  V: -0.545
+fuel:
+  V: -0.239
+  N: 0.239
+fun:
+  Adj: 0.031
+  V: -0.631
+  N: 0.6
+funny:
+  N: -0.491
+  Adj: 0.491
+fury:
+  N: 1.0
+future:
+  N: 0.7
+  Adj: -0.7
+gain:
+  V: -0.5
+  N: 0.5
+game:
+  Adj: -0.373
+  N: 0.9
+  V: -0.527
+gap:
+  N: 0.539
+  V: -0.539
+garage:
+  N: 0.539
+  V: -0.539
+garbage:
+  N: 1.0
+garden:
+  V: -0.7
+  N: 0.7
+garlic:
+  N: 1.0
+gas:
+  V: -0.539
+  N: 0.539
+gasp:
+  N: 0.039
+  V: -0.039
+gate:
+  N: 0.439
+  V: -0.439
+gather:
+  N: -0.361
+  V: 0.361
+gauge:
+  N: 0.5
+  V: -0.5
+gaze:
+  V: -0.039
+  N: 0.039
+general:
+  N: -0.191
+  Adj: 0.191
+genius:
+  N: 0.9
+  Adj: 0.1
+gentle:
+  V: -0.629
+  Adj: 0.629
+gesture:
+  N: 0.7
+  V: -0.7
+ghost:
+  N: 0.539
+  V: -0.539
+giant:
+  N: 0.009
+  Adj: -0.009
+gift:
+  N: 0.439
+  V: -0.439
+giggle:
+  N: 0.039
+  V: -0.039
+ginger:
+  Adj: -0.8
+  N: 0.8
+glad:
+  N: -0.491
+  Adj: 0.491
+glance:
+  N: 0.039
+  V: -0.039
+glare:
+  N: 0.4
+  V: -0.4
+glass:
+  V: -0.471
+  Adj: -0.071
+  N: 0.541
+glide:
+  V: 0.061
+  N: -0.061
+glimpse:
+  V: -0.139
+  N: 0.139
+gloom:
+  N: 1.0
+  V: -1.0
+glory:
+  N: 0.9
+  V: -0.9
+glove:
+  V: -0.639
+  N: 0.639
+glow:
+  N: 0.039
+  V: -0.039
+glue:
+  V: -0.6
+  N: 0.6
+gold:
+  N: 0.6
+  Adj: -0.6
+good:
+  Adj: -0.3
+  N: 0.3
+goose:
+  V: -0.539
+  N: 0.539
+gospel:
+  Adj: -0.8
+  N: 0.8
+gossip:
+  V: -0.5
+  N: 0.5
+gown:
+  V: -0.639
+  N: 0.639
+grab:
+  N: 0.041
+  Adj: -0.271
+  V: 0.229
+grace:
+  V: -0.8
+  N: 0.8
+grain:
+  N: 1.0
+  V: -1.0
+grant:
+  N: 0.4
+  V: -0.4
+grape:
+  N: 1.0
+grass:
+  V: -1.0
+  N: 1.0
+gravity:
+  N: 1.0
+great:
+  Adj: 0.391
+  N: -0.391
+green:
+  N: 0.3
+  Adj: 0.329
+  V: -0.629
+grid:
+  V: 0.1
+  N: -0.1
+grief:
+  N: 1.0
+grit:
+  N: 0.7
+  V: -0.7
+group:
+  V: -0.339
+  N: 0.339
+grunt:
+  N: 0.039
+  V: -0.039
+guard:
+  V: -0.5
+  N: 0.5
+guess:
+  N: 0.039
+  V: -0.039
+guide:
+  V: -0.139
+  N: 0.139
+guilt:
+  N: 1.0
+guitar:
+  N: 1.0
+gun:
+  N: 0.539
+  V: -0.539
+habit:
+  N: 1.0
+hair:
+  N: 1.0
+half:
+  Adv: 0.2
+  N: 0.379
+  Det: -0.879
+  Adj: 0.3
+hammer:
+  N: 0.398
+  Adj: -0.253
+  V: -0.145
+hand:
+  V: -0.7
+  N: 0.7
+harbor:
+  V: -0.339
+  N: 0.339
+hard:
+  Adj: 0.074
+  Adv: -0.074
+harvest:
+  N: 0.139
+  V: -0.139
+hat:
+  N: 0.639
+  V: -0.639
+have:
+  N: -0.125
+  V: 0.125
+hawk:
+  N: 0.439
+  V: -0.439
+hazard:
+  V: -0.8
+  N: 0.8
+head:
+  V: -0.327
+  Adj: -0.373
+  N: 0.7
+health:
+  Intj: -1.0
+  N: 1.0
+heart:
+  N: 1.0
+heavy:
+  Adj: 0.491
+  N: -0.491
+height:
+  N: 1.0
+hello:
+  Intj: 0.7
+  N: -0.7
+help:
+  Intj: -0.321
+  V: -0.079
+  N: 0.4
+hidden:
+  Adj: 0.464
+  V: -0.464
+high:
+  N: -0.291
+  Adj: 0.091
+  Adv: 0.2
+hint:
+  N: 0.139
+  V: -0.139
+hip:
+  Intj: -0.242
+  N: 0.6
+  V: -0.516
+  Adj: 0.158
+hire:
+  N: 0.3
+  V: -0.3
+history:
+  N: 1.0
+hockey:
+  N: 1.0
+hold:
+  N: 0.3
+  V: -0.3
+hole:
+  V: -0.539
+  N: 0.539
+holiday:
+  V: -0.9
+  N: 0.9
+hollow:
+  V: -0.271
+  N: -0.059
+  Adj: 0.329
+home:
+  Adv: -0.053
+  N: 0.6
+  V: -0.494
+  Adj: -0.053
+honey:
+  Adj: -0.369
+  V: -0.631
+  N: 1.0
+hood:
+  V: -0.639
+  N: 0.639
+hope:
+  V: -0.5
+  N: 0.5
+horn:
+  Adj: -1.0
+  N: 1.0
+horror:
+  N: 1.0
+horse:
+  N: 0.4
+  V: -0.4
+hospital:
+  N: 1.0
+host:
+  V: -0.139
+  N: 0.139
+hover:
+  V: 0.361
+  N: -0.361
+human:
+  Adj: 0.091
+  N: -0.091
+humble:
+  Adj: 0.305
+  V: -0.305
+humor:
+  V: -0.7
+  N: 0.7
+hundred:
+  Adj: -0.022
+  N: 0.022
+hunt:
+  N: 0.039
+  V: -0.039
+hurdle:
+  V: -0.139
+  N: 0.139
+hurry:
+  N: -0.061
+  V: 0.061
+hurt:
+  Adj: 0.29
+  V: -0.29
+husband:
+  V: -0.539
+  N: 0.539
+hybrid:
+  Adj: -0.009
+  N: 0.009
+ice:
+  N: 0.8
+  V: -0.8
+idea:
+  N: 1.0
+idle:
+  Adj: 0.305
+  V: -0.305
+illegal:
+  N: -0.491
+  Adj: 0.491
+illness:
+  N: 1.0
+image:
+  N: 0.339
+  V: -0.339
+immune:
+  Adj: 0.191
+  N: -0.191
+impact:
+  V: -0.6
+  N: 0.6
+impulse:
+  N: 1.0
+  V: -1.0
+inch:
+  V: -0.339
+  N: 0.339
+income:
+  N: 1.0
+increase:
+  N: 0.4
+  V: -0.4
+index:
+  V: -0.239
+  N: 0.239
+indoor:
+  N: -0.491
+  Adj: 0.491
+industry:
+  N: 1.0
+infant:
+  N: 0.209
+  Adj: -0.209
+inhale:
+  V: 0.361
+  N: -0.361
+initial:
+  V: -0.471
+  Adj: 0.429
+  N: 0.041
+injury:
+  N: 1.0
+inner:
+  N: -0.491
+  Adj: 0.491
+innocent:
+  Adj: 0.491
+  N: -0.491
+input:
+  V: -0.587
+  N: 0.6
+  Adj: -0.013
+inquiry:
+  N: 1.0
+inside:
+  Adv: 0.055
+  N: -0.045
+  Adj: -0.265
+  Prep: 0.255
+interest:
+  N: 0.6
+  V: -0.6
+invite:
+  N: -0.061
+  V: 0.061
+iron:
+  Adj: -0.169
+  N: 0.6
+  V: -0.431
+issue:
+  V: -0.6
+  N: 0.6
+item:
+  Adj: -0.519
+  N: 0.519
+ivory:
+  Adj: -0.7
+  N: 0.7
+jacket:
+  V: 0.2
+  N: -0.2
+jar:
+  V: -0.339
+  N: 0.339
+jazz:
+  Adj: 0.1
+  N: 0.7
+  V: -0.8
+jelly:
+  Adv: -0.044
+  V: -0.756
+  N: 0.8
+jewel:
+  N: 0.439
+  V: -0.439
+job:
+  V: -0.439
+  N: 0.439
+join:
+  N: -0.361
+  V: 0.361
+joke:
+  V: -0.139
+  N: 0.139
+journey:
+  N: 0.339
+  V: -0.339
+joy:
+  N: 0.9
+  V: -0.9
+judge:
+  N: 0.139
+  V: -0.139
+juice:
+  N: 0.8
+  V: -0.8
+jump:
+  V: 0.061
+  N: -0.061
+jungle:
+  N: 1.0
+junior:
+  Adj: 0.091
+  N: -0.091
+junk:
+  N: 0.6
+  Adj: 0.2
+  V: -0.8
+just:
+  Adj: -0.326
+  Adv: 0.326
+keen:
+  N: -0.259
+  V: -0.471
+  Adj: 0.729
+ketchup:
+  N: 1.0
+key:
+  Adj: 0.029
+  V: -0.271
+  N: 0.241
+kick:
+  N: 0.4
+  V: -0.4
+kid:
+  N: 0.7
+  V: -0.8
+  Adj: 0.1
+kind:
+  Adj: -0.5
+  N: 0.5
+kiss:
+  N: 0.039
+  V: -0.039
+kit:
+  V: -0.7
+  N: 0.7
+kite:
+  V: -0.339
+  N: 0.339
+knee:
+  N: 0.439
+  V: -0.439
+knife:
+  N: 0.439
+  V: -0.439
+knock:
+  V: -0.039
+  N: 0.039
+know:
+  N: -0.361
+  V: 0.361
+label:
+  V: -0.239
+  N: 0.239
+labor:
+  N: 0.6
+  V: -0.6
+ladder:
+  N: 0.639
+  V: -0.639
+lamp:
+  V: -0.639
+  N: 0.639
+language:
+  N: 1.0
+later:
+  Adv: 0.69
+  Adj: -0.69
+latin:
+  N: 0.4
+  Adj: 0.6
+laugh:
+  N: 0.039
+  V: -0.039
+laundry:
+  N: 1.0
+lava:
+  N: 1.0
+law:
+  N: 1.0
+lawn:
+  N: 1.0
+lawsuit:
+  N: 1.0
+layer:
+  N: 0.339
+  V: -0.339
+lazy:
+  V: -0.605
+  Adj: 0.605
+leaf:
+  N: 0.439
+  V: -0.439
+lecture:
+  N: 0.239
+  V: -0.239
+left:
+  Adj: 0.184
+  N: 0.3
+  Adv: 0.2
+  V: -0.684
+leg:
+  N: 0.8
+  V: -0.8
+legal:
+  N: -0.491
+  Adj: 0.491
+legend:
+  N: 1.0
+leisure:
+  Adj: -0.7
+  N: 0.7
+lemon:
+  Adj: 0.2
+  N: 0.8
+length:
+  N: 1.0
+lesson:
+  V: 0.3
+  N: -0.3
+letter:
+  V: -0.339
+  N: 0.339
+level:
+  N: 0.5
+  V: -0.427
+  Adj: -0.073
+liberty:
+  N: 1.0
+library:
+  N: 1.0
+license:
+  N: 0.6
+  V: -0.6
+life:
+  N: 1.0
+lift:
+  N: 0.4
+  V: -0.4
+light:
+  Adv: 0.1
+  V: -0.427
+  N: 0.4
+  Adj: -0.073
+like:
+  V: 0.079
+  Prep: 0.098
+  Adj: 0.007
+  N: -0.184
+limb:
+  N: -0.2
+  V: 0.2
+limit:
+  N: 0.139
+  V: -0.139
+link:
+  V: -0.139
+  N: 0.139
+liquid:
+  Adj: -0.5
+  N: 0.5
+list:
+  V: -0.7
+  N: 0.7
+little:
+  Adv: -0.31
+  Adj: 0.31
+live:
+  Adv: -0.243
+  Adj: 0.03
+  V: 0.214
+load:
+  N: 0.4
+  V: -0.4
+loan:
+  V: -0.6
+  N: 0.6
+local:
+  N: -0.191
+  Adj: 0.191
+lock:
+  V: -0.5
+  N: 0.5
+logic:
+  N: 1.0
+lonely:
+  Adv: -0.067
+  Adj: 0.067
+long:
+  V: -0.488
+  Adv: 0.237
+  Adj: 0.251
+loop:
+  N: 0.239
+  V: -0.239
+loud:
+  Adj: 0.274
+  Adv: -0.274
+lounge:
+  V: -0.339
+  N: 0.339
+love:
+  V: -0.5
+  N: 0.5
+luggage:
+  N: 1.0
+lumber:
+  V: -0.7
+  N: 0.7
+lunch:
+  V: -0.8
+  N: 0.8
+luxury:
+  N: 0.209
+  Adj: -0.209
+lyrics:
+  N: 0.478
+  V: -0.478
+machine:
+  N: 0.439
+  V: -0.439
+mad:
+  V: -0.605
+  Adj: 0.605
+magic:
+  Adj: 0.031
+  N: 0.6
+  V: -0.631
+mail:
+  N: 0.7
+  V: -0.7
+main:
+  N: -0.291
+  Adj: 0.291
+major:
+  Adj: 0.229
+  N: 0.041
+  V: -0.271
+man:
+  N: 0.7
+  V: -0.8
+  Intj: 0.1
+mandate:
+  V: -0.239
+  N: 0.239
+manual:
+  N: -0.091
+  Adj: 0.091
+maple:
+  N: 1.0
+marble:
+  N: 0.7
+  V: -0.531
+  Adj: -0.169
+march:
+  N: 0.4
+  V: -0.4
+margin:
+  N: 0.7
+  V: -0.7
+marine:
+  Adj: 0.191
+  N: -0.191
+market:
+  N: 0.7
+  V: -0.7
+marriage:
+  N: 1.0
+mask:
+  V: -0.339
+  N: 0.339
+mass:
+  Adj: -0.073
+  V: -0.427
+  N: 0.5
+master:
+  N: 0.141
+  V: -0.171
+  Adj: 0.029
+match:
+  N: 0.5
+  V: -0.5
+material:
+  Adj: -0.6
+  N: 0.6
+math:
+  N: 1.0
+matter:
+  V: -0.6
+  N: 0.6
+maximum:
+  N: 0.175
+  Adj: 0.149
+  Adv: -0.325
+maze:
+  N: -0.3
+  V: 0.3
+meadow:
+  N: 1.0
+mean:
+  N: -0.259
+  V: 0.129
+  Adj: 0.129
+measure:
+  N: 0.4
+  V: -0.4
+meat:
+  N: 1.0
+mechanic:
+  N: 0.209
+  Adj: -0.209
+medal:
+  N: -0.3
+  V: 0.3
+media:
+  N: 0.346
+  Adj: -0.346
+melody:
+  N: 1.0
+melt:
+  N: -0.361
+  V: 0.361
+memory:
+  N: 1.0
+mention:
+  N: 0.4
+  V: -0.4
+mercy:
+  N: 1.0
+merit:
+  V: -0.6
+  N: 0.6
+mesh:
+  N: 0.139
+  V: -0.139
+message:
+  V: -0.339
+  N: 0.339
+metal:
+  Adj: -0.109
+  N: 0.109
+method:
+  N: 1.0
+middle:
+  Conj: -0.242
+  N: 0.4
+  V: -0.416
+  Adj: 0.258
+midnight:
+  Adj: -1.0
+  N: 1.0
+milk:
+  N: 0.8
+  Adj: -0.369
+  V: -0.431
+million:
+  N: 0.122
+  Adj: -0.122
+mimic:
+  V: 0.229
+  Adj: -0.271
+  N: 0.041
+mind:
+  N: 0.6
+  V: -0.6
+minimum:
+  N: 0.009
+  Adj: -0.009
+minor:
+  V: -0.371
+  Adj: 0.229
+  N: 0.141
+minute:
+  Adj: 0.129
+  V: -0.471
+  N: 0.341
+mirror:
+  V: -0.339
+  N: 0.339
+misery:
+  N: 1.0
+miss:
+  V: -0.3
+  N: 0.3
+mistake:
+  V: -0.239
+  N: 0.239
+mix:
+  N: 0.039
+  V: -0.039
+mixed:
+  Adj: 0.672
+  V: -0.672
+mixture:
+  N: 1.0
+mobile:
+  Adj: 0.091
+  N: -0.091
+model:
+  N: 0.341
+  Adj: -0.171
+  V: -0.171
+moment:
+  N: 1.0
+monitor:
+  V: -0.139
+  N: 0.139
+monkey:
+  V: -0.439
+  N: 0.439
+monster:
+  N: -0.2
+  Adj: 0.2
+moon:
+  V: -0.439
+  N: 0.439
+moral:
+  N: -0.091
+  Adj: 0.091
+more:
+  Det: 0.5
+  Adj: -1.0
+  Adv: 0.5
+morning:
+  Adj: -0.8
+  N: 0.8
+mother:
+  Adj: 0.1
+  V: -0.8
+  N: 0.7
+motion:
+  N: 0.6
+  V: -0.6
+motor:
+  N: 0.341
+  V: -0.371
+  Adj: 0.029
+mountain:
+  N: 0.509
+  Adj: -0.509
+mouse:
+  V: -0.439
+  N: 0.439
+move:
+  V: 0.061
+  N: -0.061
+much:
+  Det: 0.179
+  Adj: -0.357
+  Adv: 0.179
+multiply:
+  V: 0.349
+  Adv: -0.349
+muscle:
+  V: -0.8
+  N: 0.8
+mushroom:
+  N: 0.439
+  V: -0.439
+music:
+  N: 1.0
+must:
+  Adj: -0.4
+  Modal: 0.4
+mutual:
+  N: -0.491
+  Adj: 0.491
+mystery:
+  N: 1.0
+myth:
+  N: 1.0
+naive:
+  Adj: 0.491
+  N: -0.491
+name:
+  N: 0.339
+  V: -0.339
+narrow:
+  Adj: 0.329
+  N: -0.159
+  V: -0.171
+nasty:
+  N: -0.291
+  Adj: 0.291
+nature:
+  N: 1.0
+near:
+  Adv: 0.104
+  Prep: 0.204
+  V: -0.391
+  Adj: 0.083
+neck:
+  V: -0.439
+  N: 0.439
+need:
+  N: 0.4
+  V: -0.083
+  Modal: -0.317
+negative:
+  N: 0.3
+  V: -0.629
+  Adj: 0.329
+neglect:
+  N: 0.4
+  V: -0.4
+neither:
+  Conj: -0.2
+  Adv: 0.2
+nerve:
+  V: -0.7
+  N: 0.7
+nest:
+  V: -0.339
+  N: 0.339
+net:
+  V: -0.329
+  Adj: -0.271
+  N: 0.6
+network:
+  N: 0.339
+  V: -0.339
+neutral:
+  Adj: 0.291
+  N: -0.291
+never:
+  Adv: 0.5
+  Intj: -0.5
+news:
+  N: 1.0
+next:
+  Adv: 0.05
+  Adj: 0.23
+  Det: -0.25
+  N: -0.03
+night:
+  N: 0.8
+  Adj: -0.8
+noble:
+  Adj: 0.091
+  N: -0.091
+noise:
+  V: -0.7
+  N: 0.7
+noodle:
+  N: 0.439
+  V: -0.439
+normal:
+  Adj: -0.2
+  N: 0.2
+north:
+  Adj: -0.19
+  Adv: -0.31
+  N: 0.5
+nose:
+  V: -0.439
+  N: 0.439
+notable:
+  N: -0.291
+  Adj: 0.291
+note:
+  N: 0.6
+  V: -0.6
+nothing:
+  N: 0.2
+  Adv: -1.0
+  Pron: 0.8
+notice:
+  N: 0.5
+  V: -0.5
+novel:
+  Adj: -0.009
+  N: 0.009
+now:
+  Conj: -0.227
+  Adj: -0.379
+  N: 0.2
+  Adv: 0.406
+number:
+  V: -0.38
+  Adj: -0.32
+  N: 0.7
+nurse:
+  N: 0.7
+  V: -0.7
+nut:
+  V: -0.439
+  N: 0.439
+oak:
+  Adj: -0.519
+  N: 0.519
+object:
+  N: 0.239
+  V: -0.239
+obscure:
+  Adj: 0.329
+  V: -0.329
+october:
+  N: 1.0
+odor:
+  N: 1.0
+off:
+  Adj: -0.017
+  V: -0.391
+  Adv: 0.304
+  Prep: 0.104
+offer:
+  V: -0.039
+  N: 0.039
+office:
+  Adj: 0.1
+  N: 0.9
+often:
+  Adv: 0.526
+  Adj: -0.526
+oil:
+  V: -0.439
+  N: 0.439
+okay:
+  V: -0.471
+  Adj: 0.229
+  Intj: 0.2
+  N: -0.259
+  Adv: 0.3
+old:
+  N: 0.2
+  Adj: -0.2
+olive:
+  Adj: -0.7
+  N: 0.7
+olympic:
+  Adj: 1.0
+once:
+  Adv: 0.064
+  Conj: -0.064
+one:
+  Adj: 0.062
+  N: 0.177
+  Pron: -0.238
+onion:
+  N: 1.0
+online:
+  Adv: -0.074
+  Adj: 0.074
+only:
+  Adj: -0.109
+  Adv: 0.109
+open:
+  V: -0.031
+  Adj: 0.031
+opinion:
+  N: 1.0
+option:
+  V: -0.8
+  N: 0.8
+orange:
+  N: 0.6
+  Adj: -0.6
+orbit:
+  N: 0.6
+  V: -0.6
+order:
+  Intj: -0.317
+  N: 0.5
+  V: -0.183
+orient:
+  N: 0.041
+  Adj: -0.271
+  V: 0.229
+original:
+  N: -0.291
+  Adj: 0.291
+orphan:
+  V: -0.271
+  N: 0.341
+  Adj: -0.071
+other:
+  Det: 0.5
+  Pron: 0.2
+  N: -0.5
+  Adj: -0.2
+outdoor:
+  N: -0.491
+  Adj: 0.491
+outer:
+  Adj: 0.491
+  N: -0.491
+output:
+  N: 0.6
+  V: -0.587
+  Adj: -0.013
+outside:
+  Prep: 0.155
+  Adv: 0.055
+  Adj: -0.165
+  N: -0.045
+oval:
+  N: -0.091
+  Adj: 0.091
+over:
+  N: -0.245
+  Adv: 0.155
+  Prep: 0.255
+  Adj: -0.165
+own:
+  V: -0.005
+  Adj: 0.005
+oxygen:
+  N: 1.0
+ozone:
+  N: 1.0
+paddle:
+  N: 0.139
+  V: -0.139
+page:
+  N: 0.339
+  V: -0.339
+pair:
+  N: 0.239
+  V: -0.239
+palace:
+  N: 1.0
+palm:
+  V: -0.339
+  N: 0.339
+panel:
+  V: -0.339
+  N: 0.339
+panic:
+  Adj: 0.1
+  N: 0.5
+  V: -0.6
+paper:
+  Adj: -0.171
+  N: 0.341
+  V: -0.171
+parade:
+  V: -0.6
+  N: 0.6
+parent:
+  N: 0.339
+  V: -0.339
+park:
+  V: -0.239
+  N: 0.239
+parrot:
+  N: 0.439
+  V: -0.439
+party:
+  V: -0.327
+  N: 0.6
+  Adj: -0.273
+pass:
+  Adj: -0.271
+  V: 0.129
+  N: 0.141
+patch:
+  V: -0.239
+  N: 0.239
+patient:
+  Adj: -0.5
+  N: 0.5
+patrol:
+  V: -0.6
+  N: 0.6
+pattern:
+  V: -0.339
+  N: 0.339
+pause:
+  V: -0.039
+  N: 0.039
+payment:
+  N: 1.0
+peace:
+  N: 1.0
+peanut:
+  N: 0.509
+  Adj: -0.509
+pear:
+  N: 1.0
+peasant:
+  Adj: -0.309
+  N: 0.309
+pen:
+  N: 0.339
+  V: -0.339
+pencil:
+  N: 0.8
+  V: -0.8
+people:
+  N: 0.376
+  V: -0.376
+pepper:
+  V: -0.7
+  N: 0.7
+perfect:
+  N: -0.259
+  V: -0.271
+  Adj: 0.529
+permit:
+  V: -0.039
+  N: 0.039
+pet:
+  Adj: 0.029
+  V: -0.271
+  N: 0.241
+phone:
+  N: 0.339
+  V: -0.339
+photo:
+  V: -0.439
+  N: 0.439
+phrase:
+  N: 0.339
+  V: -0.339
+physical:
+  N: -0.291
+  Adj: 0.291
+piano:
+  Adj: -1.0
+  N: 1.0
+picnic:
+  V: -0.339
+  N: 0.339
+picture:
+  N: 0.339
+  V: -0.339
+piece:
+  N: 0.439
+  V: -0.439
+pig:
+  N: 0.8
+  V: -0.8
+pigeon:
+  N: -0.2
+  V: 0.2
+pill:
+  V: -0.339
+  N: 0.339
+pilot:
+  Adj: -0.171
+  N: 0.341
+  V: -0.171
+pink:
+  N: 0.4
+  Adj: 0.129
+  V: -0.529
+pioneer:
+  V: -0.071
+  N: 0.341
+  Adj: -0.271
+pipe:
+  N: 0.339
+  V: -0.339
+pistol:
+  V: 0.2
+  N: -0.2
+pitch:
+  V: -0.5
+  N: 0.5
+place:
+  V: -0.7
+  N: 0.7
+plastic:
+  N: 0.009
+  Adj: -0.009
+plate:
+  N: 0.7
+  V: -0.7
+play:
+  N: 0.4
+  V: -0.4
+please:
+  V: -0.067
+  Adv: 0.067
+pledge:
+  N: 0.5
+  V: -0.5
+pluck:
+  N: 0.3
+  V: -0.3
+plug:
+  V: -0.139
+  N: 0.139
+plunge:
+  V: -0.039
+  N: 0.039
+point:
+  N: 0.6
+  V: -0.6
+polar:
+  Adj: 0.491
+  N: -0.491
+pole:
+  N: 0.339
+  V: -0.339
+police:
+  V: -0.3
+  Adj: 0.1
+  N: 0.2
+pond:
+  N: 0.439
+  V: -0.439
+pony:
+  N: 0.439
+  V: -0.439
+pool:
+  N: 0.7
+  V: -0.7
+popular:
+  N: -0.491
+  Adj: 0.491
+portion:
+  N: 0.7
+  V: -0.7
+position:
+  N: 0.7
+  V: -0.7
+possible:
+  N: -0.491
+  Adj: 0.491
+post:
+  V: -0.5
+  N: 0.5
+pottery:
+  N: 1.0
+poverty:
+  N: 1.0
+powder:
+  N: 0.7
+  V: -0.7
+power:
+  Adj: -0.273
+  N: 0.6
+  V: -0.327
+practice:
+  V: -0.5
+  N: 0.5
+praise:
+  V: -0.4
+  N: 0.4
+present:
+  Adj: -0.071
+  N: 0.4
+  V: -0.329
+pretty:
+  Adj: 0.393
+  V: -0.414
+  Adv: 0.211
+  N: -0.189
+price:
+  V: -0.7
+  N: 0.7
+pride:
+  V: -0.7
+  N: 0.7
+primary:
+  Adj: 0.291
+  N: -0.291
+print:
+  N: 0.4
+  V: -0.027
+  Adj: -0.373
+priority:
+  N: 1.0
+prison:
+  V: 0.3
+  N: 0.7
+private:
+  N: -0.291
+  Adj: 0.291
+prize:
+  Adj: -0.271
+  N: 0.441
+  V: -0.171
+process:
+  N: 0.5
+  V: -0.5
+produce:
+  V: -0.3
+  N: 0.3
+profit:
+  N: 0.6
+  V: -0.6
+program:
+  N: 0.239
+  V: -0.239
+project:
+  N: 0.6
+  V: -0.6
+proof:
+  N: 0.6
+  V: -0.525
+  Adj: -0.075
+property:
+  N: 1.0
+public:
+  Adj: -0.4
+  N: 0.4
+pudding:
+  N: 1.0
+pull:
+  V: -0.3
+  N: 0.3
+pulp:
+  V: -0.325
+  Adj: -0.375
+  N: 0.7
+pulse:
+  V: -0.6
+  N: 0.6
+punch:
+  V: -0.5
+  N: 0.5
+purchase:
+  V: -0.4
+  N: 0.4
+purity:
+  N: 1.0
+purpose:
+  N: 0.7
+  V: -0.7
+purse:
+  V: -0.439
+  N: 0.439
+push:
+  V: -0.3
+  N: 0.3
+put:
+  V: 0.195
+  N: -0.195
+puzzle:
+  N: 0.239
+  V: -0.239
+pyramid:
+  V: -0.639
+  N: 0.639
+quality:
+  N: 0.7
+  Adj: -0.7
+quantum:
+  Adj: -0.009
+  N: 0.009
+quarter:
+  N: 0.6
+  Adj: -0.273
+  V: -0.327
+question:
+  V: -0.7
+  N: 0.7
+quick:
+  Adv: 0.2
+  Adj: -0.2
+quit:
+  Adj: -0.039
+  V: 0.039
+quiz:
+  N: 0.239
+  V: -0.239
+quote:
+  Intj: -0.241
+  V: -0.018
+  N: 0.259
+rabbit:
+  N: 0.3
+  V: -0.3
+race:
+  Adj: -0.375
+  V: -0.125
+  N: 0.5
+rack:
+  V: -0.7
+  N: 0.7
+radar:
+  N: 1.0
+radio:
+  N: 0.7
+  V: -0.427
+  Adj: -0.273
+rail:
+  V: -0.339
+  N: 0.339
+rain:
+  N: 0.7
+  V: -0.7
+raise:
+  V: 0.061
+  N: -0.061
+rally:
+  Adv: -0.029
+  V: -0.118
+  N: 0.147
+ramp:
+  N: 0.339
+  V: -0.339
+ranch:
+  V: -0.339
+  N: 0.339
+random:
+  N: -0.491
+  Adj: 0.491
+range:
+  V: -0.6
+  N: 0.6
+rapid:
+  Adj: 0.491
+  N: -0.491
+rare:
+  Adj: 0.605
+  V: -0.605
+rate:
+  N: 0.5
+  V: -0.5
+raven:
+  V: -0.371
+  N: 0.441
+  Adj: -0.071
+razor:
+  V: -0.639
+  N: 0.639
+ready:
+  V: -0.405
+  Adj: 0.405
+real:
+  Adj: 0.391
+  Adv: 0.1
+  N: -0.491
+reason:
+  V: -0.6
+  N: 0.6
+rebel:
+  V: -0.071
+  Adj: -0.071
+  N: 0.141
+rebuild:
+  N: -0.361
+  V: 0.361
+recall:
+  V: -0.4
+  N: 0.4
+record:
+  V: -0.129
+  N: 0.5
+  Adj: -0.371
+recycle:
+  V: 0.361
+  N: -0.361
+reform:
+  N: 0.4
+  V: -0.4
+refuse:
+  N: 0.2
+  Adj: -0.369
+  V: 0.169
+regret:
+  N: 0.4
+  V: -0.4
+regular:
+  Adj: 0.391
+  N: -0.391
+reject:
+  V: 0.161
+  N: -0.161
+release:
+  N: 0.4
+  V: -0.4
+relief:
+  N: 1.0
+rely:
+  Adv: -0.038
+  V: 0.038
+remove:
+  N: -0.361
+  V: 0.361
+render:
+  N: -0.361
+  V: 0.361
+rent:
+  Adj: -0.011
+  V: -0.489
+  N: 0.5
+repair:
+  V: -0.4
+  N: 0.4
+repeat:
+  N: -0.061
+  V: 0.061
+report:
+  N: 0.5
+  V: -0.5
+rescue:
+  V: -0.4
+  N: 0.4
+resist:
+  V: 0.361
+  N: -0.361
+resource:
+  V: 0.2
+  N: 0.8
+response:
+  N: 1.0
+result:
+  V: -0.6
+  N: 0.6
+retreat:
+  V: -0.5
+  N: 0.5
+return:
+  V: -0.027
+  N: 0.4
+  Adj: -0.373
+reunion:
+  N: 1.0
+reveal:
+  N: -0.161
+  V: 0.161
+review:
+  N: 0.5
+  V: -0.129
+  Adj: -0.371
+reward:
+  N: 0.5
+  V: -0.5
+rhythm:
+  N: 1.0
+rib:
+  V: -0.439
+  N: 0.439
+ribbon:
+  V: -0.8
+  N: 0.8
+rice:
+  V: -1.0
+  N: 1.0
+rich:
+  N: -0.191
+  Adj: 0.191
+ride:
+  V: -0.039
+  N: 0.039
+ridge:
+  N: 0.339
+  V: -0.339
+rifle:
+  V: -0.439
+  N: 0.439
+right:
+  V: -0.283
+  Adv: 0.076
+  N: 0.2
+  Adj: 0.194
+  Intj: -0.187
+ring:
+  V: -0.139
+  N: 0.139
+riot:
+  V: -0.6
+  N: 0.6
+ripple:
+  N: 0.239
+  V: -0.239
+risk:
+  V: -0.5
+  N: 0.5
+ritual:
+  Adj: -0.7
+  N: 0.7
+rival:
+  V: -0.271
+  N: 0.241
+  Adj: 0.029
+road:
+  N: 1.0
+  Adj: -1.0
+roast:
+  Adj: -0.373
+  V: -0.027
+  N: 0.4
+rocket:
+  N: 0.339
+  V: -0.339
+romance:
+  N: 0.7
+  V: -0.7
+roof:
+  V: -0.7
+  N: 0.7
+rookie:
+  N: 0.209
+  Adj: -0.209
+room:
+  N: 0.8
+  V: -0.8
+rose:
+  N: 0.7
+  V: -0.9
+  Adj: 0.2
+rough:
+  Adv: 0.2
+  V: -0.529
+  Adj: 0.229
+  N: 0.1
+round:
+  Prep: -0.242
+  N: 0.3
+  V: -0.316
+  Adv: 0.1
+  Adj: 0.158
+route:
+  V: -0.7
+  N: 0.7
+royal:
+  N: -0.291
+  Adj: 0.291
+rubber:
+  N: 0.6
+  Adj: -0.7
+  V: 0.1
+rule:
+  V: -0.6
+  N: 0.6
+run:
+  V: -0.053
+  N: 0.053
+saddle:
+  N: 0.339
+  V: -0.339
+sadness:
+  N: 1.0
+safe:
+  N: -0.191
+  Adj: 0.191
+sail:
+  V: -0.4
+  N: 0.4
+salad:
+  N: 1.0
+salmon:
+  N: -0.05
+  Adj: 0.05
+salt:
+  N: 0.8
+  V: -0.481
+  Adj: -0.319
+salute:
+  V: -0.139
+  N: 0.139
+same:
+  Adv: -0.325
+  N: -0.225
+  Adj: 0.349
+  Pron: 0.2
+sample:
+  N: 0.341
+  Adj: -0.171
+  V: -0.171
+sand:
+  N: 0.9
+  V: -0.9
+satoshi:
+  N: 1.0
+sauce:
+  V: -0.95
+  N: 0.95
+sausage:
+  N: 1.0
+save:
+  V: 0.382
+  N: -0.141
+  Prep: -0.241
+say:
+  N: -0.361
+  V: 0.361
+scale:
+  V: -0.6
+  N: 0.6
+scan:
+  V: -0.039
+  N: 0.039
+scare:
+  V: 0.061
+  N: -0.061
+scatter:
+  N: -0.202
+  V: 0.455
+  Adj: -0.253
+scheme:
+  V: -0.339
+  N: 0.339
+school:
+  Adj: 0.05
+  N: 0.85
+  V: -0.9
+science:
+  N: 1.0
+scissors:
+  N: 0.478
+  V: -0.478
+scout:
+  N: 0.239
+  V: -0.239
+scrap:
+  N: 0.5
+  V: -0.229
+  Adj: -0.271
+screen:
+  V: -0.339
+  N: 0.339
+script:
+  N: 0.8
+  V: -0.8
+scrub:
+  N: 0.4
+  Adj: -0.369
+  V: -0.031
+sea:
+  N: 0.95
+  Adj: -0.95
+search:
+  V: -0.5
+  N: 0.5
+season:
+  N: 0.439
+  V: -0.439
+seat:
+  N: 0.439
+  V: -0.439
+second:
+  Adv: 0.2
+  V: -0.68
+  N: 0.4
+  Adj: 0.08
+secret:
+  N: 0.5
+  Adj: -0.5
+section:
+  V: -0.339
+  N: 0.339
+security:
+  N: 0.95
+  Adj: 0.05
+seed:
+  V: -0.427
+  Adj: -0.373
+  N: 0.8
+seek:
+  V: 0.361
+  N: -0.361
+segment:
+  V: -0.339
+  N: 0.339
+select:
+  V: 0.195
+  Adj: -0.195
+sell:
+  V: 0.361
+  N: -0.361
+senior:
+  N: 0.009
+  Adj: -0.009
+sense:
+  V: -0.7
+  N: 0.7
+sentence:
+  V: -0.439
+  N: 0.439
+service:
+  N: 0.8
+  Adj: -0.325
+  V: -0.475
+settle:
+  V: 0.361
+  N: -0.361
+seven:
+  Adj: -0.5
+  N: 0.5
+shadow:
+  N: 0.8
+  V: -0.427
+  Adj: -0.373
+shaft:
+  N: 0.589
+  V: -0.589
+shallow:
+  N: -0.391
+  V: 0.1
+  Adj: 0.291
+share:
+  V: -0.4
+  N: 0.4
+shed:
+  V: -0.305
+  N: 0.305
+shell:
+  N: 0.541
+  V: -0.271
+  Adj: -0.271
+shield:
+  N: 0.339
+  V: -0.339
+shift:
+  N: 0.139
+  V: -0.139
+shine:
+  N: 0.3
+  V: -0.3
+ship:
+  N: 0.339
+  V: -0.339
+shiver:
+  N: 0.039
+  V: -0.039
+shock:
+  V: -0.127
+  N: 0.5
+  Adj: -0.373
+shoe:
+  V: -0.589
+  N: 0.589
+shoot:
+  N: -0.041
+  V: 0.282
+  Intj: -0.241
+shop:
+  N: 0.5
+  V: -0.5
+short:
+  Adj: 0.529
+  N: -0.159
+  Adv: 0.1
+  V: -0.471
+shoulder:
+  V: -0.539
+  N: 0.539
+shove:
+  V: 0.061
+  N: -0.061
+shrimp:
+  N: 0.45
+  V: -0.45
+shrug:
+  N: 0.039
+  V: -0.039
+shuffle:
+  N: -0.061
+  V: 0.061
+shy:
+  V: -0.421
+  Adj: 0.629
+  N: -0.209
+sick:
+  N: -0.259
+  Adj: 0.729
+  V: -0.471
+side:
+  Adj: -0.273
+  N: 0.8
+  V: -0.527
+siege:
+  N: 0.9
+  V: 0.1
+sight:
+  V: -0.9
+  N: 0.9
+sign:
+  N: 0.6
+  V: -0.6
+silent:
+  N: -0.491
+  Adj: 0.491
+silk:
+  N: 0.8
+  Adj: -0.8
+silly:
+  Adj: 0.612
+  Adv: -0.338
+  N: -0.274
+silver:
+  N: 0.5
+  Adj: 0.081
+  V: -0.581
+simple:
+  Adj: 0.491
+  N: -0.491
+since:
+  Conj: -0.033
+  Prep: 0.167
+  Adv: -0.133
+sing:
+  N: -0.361
+  V: 0.361
+siren:
+  N: 0.639
+  V: -0.639
+six:
+  Adj: -0.022
+  N: 0.022
+size:
+  V: -0.527
+  Adj: -0.373
+  N: 0.9
+skate:
+  V: 0.1
+  N: -0.1
+sketch:
+  V: -0.139
+  N: 0.139
+skill:
+  N: 1.0
+skin:
+  Adj: -0.373
+  V: -0.427
+  N: 0.8
+skirt:
+  N: 0.539
+  V: -0.539
+slab:
+  V: -0.539
+  N: 0.539
+slam:
+  V: -0.039
+  N: 0.039
+sleep:
+  N: 0.4
+  V: -0.4
+slice:
+  N: 0.139
+  V: -0.139
+slide:
+  V: -0.139
+  N: 0.139
+slight:
+  Adj: 0.529
+  N: 0.1
+  V: -0.629
+slim:
+  V: -0.455
+  N: 0.05
+  Adj: 0.405
+slot:
+  N: 0.439
+  V: -0.439
+slow:
+  Adv: 0.2
+  V: -0.305
+  Adj: 0.105
+slush:
+  N: 0.9
+  V: -0.9
+small:
+  Adj: 0.491
+  N: -0.491
+smart:
+  N: 0.05
+  V: -0.581
+  Adj: 0.531
+smile:
+  V: -0.139
+  N: 0.139
+smoke:
+  N: 0.5
+  V: -0.5
+smooth:
+  Adj: 0.305
+  V: -0.305
+snack:
+  N: 0.439
+  V: -0.439
+snake:
+  N: 0.539
+  V: -0.539
+snap:
+  Adj: -0.242
+  Intj: -0.242
+  V: 0.084
+  N: 0.4
+sniff:
+  V: 0.061
+  N: -0.061
+snow:
+  V: -0.7
+  N: 0.7
+soap:
+  V: -0.539
+  N: 0.539
+soccer:
+  N: 1.0
+social:
+  N: -0.391
+  Adj: 0.391
+sock:
+  V: -0.539
+  N: 0.539
+soda:
+  N: 1.0
+soft:
+  Adj: 0.4
+  Adv: 0.1
+  Intj: -0.5
+soldier:
+  N: 0.539
+  V: -0.539
+solid:
+  Adj: 0.191
+  N: -0.191
+solution:
+  N: 1.0
+song:
+  N: 1.0
+soon:
+  Adv: 0.526
+  Adj: -0.526
+sorry:
+  Adj: 0.5
+  Intj: -0.5
+sort:
+  N: 0.5
+  V: -0.5
+soul:
+  Adj: -0.95
+  N: 0.95
+sound:
+  Adj: -0.169
+  N: 0.5
+  V: -0.331
+soup:
+  N: 0.95
+  V: -0.95
+source:
+  N: 0.539
+  V: -0.539
+south:
+  N: 0.5
+  Adj: -0.19
+  Adv: -0.31
+space:
+  V: -0.527
+  Adj: -0.373
+  N: 0.9
+spare:
+  V: -0.071
+  Adj: 0.129
+  N: -0.059
+spawn:
+  N: 0.3
+  V: -0.3
+special:
+  N: -0.391
+  Adj: 0.391
+speed:
+  V: -0.6
+  N: 0.6
+spell:
+  V: -0.039
+  N: 0.039
+sphere:
+  N: -0.05
+  V: 0.05
+spice:
+  V: -0.8
+  N: 0.8
+spider:
+  N: 0.589
+  V: -0.589
+spike:
+  N: 0.239
+  V: -0.239
+spin:
+  V: -0.4
+  N: 0.4
+spirit:
+  V: -0.9
+  N: 0.9
+split:
+  N: 0.205
+  V: -0.205
+spoil:
+  N: 0.1
+  V: -0.1
+sponsor:
+  V: -0.139
+  N: 0.139
+spoon:
+  V: -0.539
+  N: 0.539
+sport:
+  Adj: -0.325
+  N: 0.9
+  V: -0.575
+spot:
+  Adj: -0.271
+  V: -0.071
+  N: 0.341
+spray:
+  N: 0.5
+  V: -0.5
+spread:
+  Adj: -0.011
+  V: -0.289
+  N: 0.3
+spring:
+  Adj: -0.273
+  V: -0.327
+  N: 0.6
+spy:
+  V: -0.239
+  N: 0.239
+square:
+  Adj: 0.129
+  V: -0.371
+  N: 0.241
+squeeze:
+  N: 0.3
+  V: -0.3
+squirrel:
+  N: 0.45
+  V: -0.45
+stable:
+  V: -0.471
+  N: 0.141
+  Adj: 0.329
+staff:
+  V: -0.439
+  N: 0.439
+stage:
+  V: -0.7
+  N: 0.7
+stamp:
+  N: 0.239
+  V: -0.239
+stand:
+  V: 0.061
+  N: -0.061
+start:
+  N: 0.4
+  V: -0.4
+state:
+  N: 0.7
+  V: -0.427
+  Adj: -0.273
+stay:
+  N: -0.061
+  V: 0.061
+steak:
+  N: 1.0
+steel:
+  V: -0.581
+  Adj: -0.219
+  N: 0.8
+stem:
+  V: -0.339
+  N: 0.339
+step:
+  V: -0.239
+  N: 0.239
+stereo:
+  Adj: -0.309
+  N: 0.309
+stick:
+  N: 0.5
+  V: -0.5
+still:
+  V: -0.383
+  N: -0.081
+  Adv: 0.455
+  Adj: 0.009
+sting:
+  N: 0.4
+  V: -0.4
+stock:
+  N: 0.7
+  Adj: -0.373
+  V: -0.327
+stomach:
+  N: 0.9
+  V: -0.9
+stone:
+  N: 0.547
+  V: -0.371
+  Adj: -0.176
+stool:
+  V: -0.639
+  N: 0.639
+stove:
+  V: -0.671
+  N: 0.687
+  Adj: -0.016
+strategy:
+  N: 1.0
+street:
+  Adj: -0.459
+  N: 0.459
+strike:
+  V: -0.139
+  N: 0.139
+struggle:
+  V: -0.139
+  N: 0.139
+stuff:
+  N: 0.6
+  V: -0.6
+stumble:
+  N: -0.261
+  V: 0.261
+style:
+  N: 0.7
+  V: -0.7
+subject:
+  N: 0.7
+  V: -0.479
+  Adj: -0.221
+subway:
+  N: -0.05
+  Adj: 0.05
+success:
+  N: 1.0
+such:
+  Adj: 0.2
+  Det: -0.2
+sudden:
+  Adj: 0.491
+  N: -0.491
+sugar:
+  V: -0.9
+  N: 0.9
+suit:
+  V: -0.6
+  N: 0.6
+summer:
+  V: -0.577
+  Adj: -0.323
+  N: 0.9
+sun:
+  V: -0.95
+  N: 0.95
+sunny:
+  Adj: 0.441
+  N: -0.441
+sunset:
+  N: 0.95
+  Adj: -0.323
+  V: -0.627
+super:
+  Adj: 0.235
+  Adv: 0.055
+  Intj: -0.245
+  N: -0.045
+supply:
+  V: -0.161
+  Adv: -0.339
+  N: 0.5
+supreme:
+  Adj: 0.391
+  N: -0.391
+sure:
+  Adv: -0.025
+  N: -0.325
+  Adj: 0.349
+surface:
+  Adj: -0.373
+  V: -0.327
+  N: 0.7
+surge:
+  V: -0.139
+  N: 0.139
+surprise:
+  N: 0.5
+  V: -0.5
+surround:
+  N: -0.361
+  V: 0.361
+survey:
+  N: 0.239
+  V: -0.239
+suspect:
+  V: 0.029
+  Adj: -0.171
+  N: 0.141
+sustain:
+  N: -0.361
+  V: 0.361
+swallow:
+  V: 0.061
+  N: -0.061
+swamp:
+  N: 0.8
+  Adj: -0.369
+  V: -0.431
+swap:
+  N: 0.039
+  V: -0.039
+swarm:
+  V: -0.239
+  N: 0.239
+swear:
+  N: -0.361
+  V: 0.361
+sweet:
+  Adj: -0.3
+  N: 0.3
+swift:
+  N: -0.391
+  Adj: 0.291
+  Adv: 0.1
+swim:
+  N: -0.061
+  V: 0.061
+swing:
+  V: 0.129
+  N: 0.141
+  Adj: -0.271
+switch:
+  Adj: -0.271
+  V: 0.029
+  N: 0.241
+symbol:
+  V: -0.639
+  N: 0.639
+syrup:
+  N: 1.0
+system:
+  N: 1.0
+table:
+  N: 0.539
+  V: -0.539
+tackle:
+  V: -0.4
+  N: 0.4
+tag:
+  V: -0.5
+  N: 0.5
+tail:
+  Adj: -0.271
+  V: -0.271
+  N: 0.541
+talent:
+  N: 1.0
+talk:
+  N: 0.4
+  V: -0.4
+tank:
+  N: 0.539
+  V: -0.539
+tape:
+  V: -0.227
+  Adj: -0.373
+  N: 0.6
+target:
+  V: -0.239
+  N: 0.239
+task:
+  N: 0.539
+  V: -0.539
+taste:
+  N: 0.5
+  V: -0.5
+tattoo:
+  N: 0.339
+  V: -0.339
+taxi:
+  V: -0.3
+  N: 0.3
+team:
+  N: 0.541
+  V: -0.321
+  Adj: -0.221
+tell:
+  N: -0.361
+  V: 0.361
+ten:
+  N: 0.5
+  Adj: -0.5
+tenant:
+  V: -0.539
+  N: 0.539
+tennis:
+  N: 1.0
+tent:
+  Adj: 0.05
+  V: -0.539
+  N: 0.489
+term:
+  V: -0.539
+  N: 0.539
+test:
+  V: 0.029
+  Adj: -0.271
+  N: 0.241
+text:
+  N: 0.7
+  V: -0.7
+thank:
+  V: -0.1
+  N: 0.1
+that:
+  Pron: -0.158
+  Det: -0.142
+  Conj: 0.3
+theme:
+  V: -0.539
+  N: 0.539
+then:
+  N: -0.325
+  Adj: -0.351
+  Adv: 0.575
+  Conj: 0.1
+theory:
+  N: 1.0
+there:
+  Pron: 0.2
+  Adv: 0.185
+  Intj: -0.385
+this:
+  Det: -0.3
+  Pron: 0.3
+thought:
+  V: -0.977
+  N: 0.9
+  Adj: 0.077
+three:
+  N: 0.022
+  Adj: -0.022
+throw:
+  N: -0.161
+  V: 0.161
+thumb:
+  N: 0.439
+  V: -0.439
+thunder:
+  V: -0.8
+  N: 0.8
+ticket:
+  N: 0.539
+  V: -0.539
+tide:
+  V: -0.8
+  N: 0.8
+tilt:
+  V: -0.039
+  N: 0.039
+timber:
+  V: 0.05
+  Intj: -0.95
+  N: 0.9
+time:
+  V: -0.425
+  N: 0.8
+  Adj: -0.375
+tiny:
+  N: 0.05
+  Adj: -0.05
+tip:
+  N: 0.239
+  V: -0.239
+tired:
+  V: -0.662
+  Adj: 0.662
+tissue:
+  N: 1.0
+title:
+  Adj: -0.371
+  N: 0.7
+  V: -0.329
+toast:
+  N: 0.5
+  V: -0.5
+tobacco:
+  N: 1.0
+today:
+  Adj: -0.49
+  N: 0.5
+  Adv: -0.01
+toe:
+  N: 0.641
+  V: -0.371
+  Adj: -0.271
+together:
+  Adj: -0.526
+  Adv: 0.526
+toilet:
+  N: 0.589
+  V: -0.589
+token:
+  Adj: -0.409
+  N: 0.409
+tomato:
+  N: 1.0
+tomorrow:
+  Adv: -0.5
+  N: 0.5
+tone:
+  N: 0.7
+  V: -0.7
+tongue:
+  V: -0.9
+  N: 0.9
+tonight:
+  Adj: -0.49
+  N: 0.4
+  Adv: 0.09
+tool:
+  V: -0.539
+  N: 0.539
+tooth:
+  V: -0.639
+  N: 0.639
+top:
+  Adj: -0.071
+  V: -0.429
+  N: 0.5
+torch:
+  N: 0.439
+  V: -0.439
+toss:
+  V: 0.061
+  N: -0.061
+total:
+  N: 0.041
+  Adj: 0.229
+  V: -0.271
+tourist:
+  N: 1.0
+  Adj: -1.0
+tower:
+  V: -0.489
+  N: 0.489
+town:
+  Adj: -0.95
+  N: 0.95
+toy:
+  Adj: -0.171
+  V: -0.371
+  N: 0.541
+track:
+  N: 0.239
+  V: -0.239
+trade:
+  Adj: -0.373
+  V: -0.127
+  N: 0.5
+traffic:
+  N: 0.9
+  V: -0.9
+tragic:
+  N: -0.491
+  Adj: 0.491
+train:
+  N: 0.139
+  V: -0.139
+transfer:
+  V: -0.5
+  N: 0.5
+trap:
+  N: 0.139
+  V: -0.139
+trash:
+  N: 0.7
+  V: -0.75
+  Adj: 0.05
+travel:
+  N: 0.5
+  V: -0.5
+treat:
+  V: -0.039
+  N: 0.039
+tree:
+  V: -0.95
+  N: 0.95
+trend:
+  N: 0.439
+  V: -0.439
+trial:
+  N: 0.9
+  Adj: -0.273
+  V: -0.627
+trick:
+  V: -0.071
+  Adj: -0.271
+  N: 0.341
+trigger:
+  V: -0.045
+  Adj: -0.253
+  N: 0.298
+trim:
+  Adj: -0.169
+  V: -0.131
+  N: 0.3
+trip:
+  N: 0.239
+  V: -0.239
+trouble:
+  V: -0.7
+  N: 0.7
+truck:
+  N: 0.9
+  V: -0.9
+'true':
+  Adj: 0.729
+  N: -0.259
+  V: -0.471
+trumpet:
+  N: 0.439
+  V: -0.439
+trust:
+  V: -0.5
+  N: 0.5
+truth:
+  N: 1.0
+try:
+  N: -0.161
+  V: 0.161
+tube:
+  V: -0.9
+  N: 0.9
+tuition:
+  N: 1.0
+tumble:
+  V: 0.061
+  N: -0.061
+tunnel:
+  N: 0.439
+  V: -0.439
+turkey:
+  N: 1.0
+turn:
+  V: -0.039
+  N: 0.039
+turtle:
+  V: 0.05
+  N: -0.05
+twelve:
+  N: 0.022
+  Adj: -0.022
+twenty:
+  N: 0.022
+  Adj: -0.022
+twin:
+  V: -0.371
+  N: 0.241
+  Adj: 0.129
+twist:
+  V: -0.4
+  N: 0.4
+two:
+  Adj: -0.022
+  N: 0.022
+type:
+  V: -0.6
+  N: 0.6
+ugly:
+  Adj: 0.067
+  Adv: -0.067
+umbrella:
+  N: 0.459
+  Adj: -0.459
+unaware:
+  Adj: 0.649
+  N: -0.325
+  Adv: -0.325
+under:
+  Prep: 0.3
+  Adj: -0.5
+  Adv: 0.2
+uniform:
+  N: 0.5
+  V: -0.527
+  Adj: 0.027
+unique:
+  Adj: 0.491
+  N: -0.491
+unit:
+  Adj: -0.459
+  N: 0.459
+unknown:
+  Adj: 0.191
+  N: -0.191
+until:
+  Prep: 0.1
+  Conj: -0.1
+update:
+  N: 0.139
+  V: -0.139
+upgrade:
+  Adj: -0.271
+  V: 0.029
+  N: 0.241
+upper:
+  N: -0.353
+  Adj: 0.353
+upset:
+  N: 0.052
+  V: -0.28
+  Adj: 0.228
+urge:
+  V: -0.4
+  N: 0.4
+usage:
+  N: 1.0
+use:
+  N: 0.4
+  V: -0.4
+used:
+  Adj: 0.372
+  V: -0.372
+useful:
+  Adj: 0.491
+  N: -0.491
+utility:
+  Adj: -0.9
+  N: 0.9
+vacuum:
+  Adj: 0.05
+  V: -0.289
+  N: 0.239
+valve:
+  V: -0.539
+  N: 0.539
+van:
+  V: -0.589
+  N: 0.589
+vapor:
+  N: 0.9
+  V: 0.1
+vast:
+  Adj: 0.491
+  N: -0.491
+vault:
+  N: 0.339
+  V: -0.339
+velvet:
+  N: 0.6
+  Adj: -0.6
+venture:
+  V: -0.5
+  N: 0.5
+version:
+  N: 0.589
+  V: -0.589
+very:
+  Adv: 0.4
+  Adj: -0.4
+veteran:
+  N: 0.209
+  Adj: -0.209
+vibrant:
+  N: -0.491
+  Adj: 0.491
+victory:
+  N: 1.0
+video:
+  V: 0.05
+  N: 0.8
+  Adj: -0.85
+view:
+  V: -0.6
+  N: 0.6
+village:
+  Adj: -0.459
+  N: 0.459
+vintage:
+  N: 0.4
+  Adj: -0.4
+virus:
+  N: 1.0
+visa:
+  V: -0.639
+  N: 0.639
+visit:
+  V: -0.039
+  N: 0.039
+visual:
+  N: -0.391
+  Adj: 0.391
+vital:
+  Adj: 0.491
+  N: -0.491
+vocal:
+  N: -0.391
+  Adj: 0.391
+voice:
+  V: -0.8
+  N: 0.8
+void:
+  Adj: 0.129
+  V: -0.271
+  N: 0.141
+volume:
+  Adj: 0.05
+  N: 0.95
+vote:
+  V: -0.139
+  N: 0.139
+voyage:
+  N: 0.339
+  V: -0.339
+wage:
+  N: 0.239
+  V: -0.239
+wait:
+  V: -0.2
+  N: 0.2
+walk:
+  V: -0.039
+  N: 0.039
+wall:
+  N: 0.439
+  V: -0.439
+walnut:
+  Adj: -0.9
+  N: 0.9
+want:
+  V: -0.1
+  N: 0.1
+warfare:
+  N: 1.0
+warm:
+  V: -0.105
+  Adj: 0.105
+wash:
+  V: -0.3
+  N: 0.3
+waste:
+  Adj: -0.273
+  N: 0.4
+  V: -0.127
+water:
+  N: 0.7
+  V: -0.75
+  Adj: 0.05
+wave:
+  V: -0.139
+  N: 0.139
+way:
+  N: 0.9
+  Adv: -0.9
+wealth:
+  N: 1.0
+wear:
+  V: -0.2
+  N: 0.2
+weasel:
+  N: 0.4
+  V: -0.4
+weather:
+  N: 0.8
+  V: -0.481
+  Adj: -0.319
+web:
+  V: -0.539
+  N: 0.539
+wedding:
+  V: -1.0
+  N: 0.9
+  Adj: 0.1
+weekend:
+  N: 0.539
+  V: -0.539
+weird:
+  N: -0.159
+  V: -0.471
+  Adj: 0.629
+welcome:
+  Adj: -0.071
+  V: -0.229
+  N: 0.3
+west:
+  Adj: -0.19
+  N: 0.5
+  Adv: -0.31
+wet:
+  V: -0.596
+  Adj: 0.496
+  N: 0.1
+whale:
+  V: -0.45
+  N: 0.45
+what:
+  Det: 0.6
+  Pron: -0.6
+wheat:
+  N: 1.0
+wheel:
+  N: 0.439
+  V: -0.439
+when:
+  Adv: 0.6
+  Conj: -0.6
+where:
+  Adv: 0.8
+  Conj: 0.2
+whip:
+  N: 0.139
+  V: -0.139
+whisper:
+  N: 0.039
+  V: -0.039
+wide:
+  N: -0.491
+  Adj: 0.291
+  Adv: 0.2
+width:
+  N: 1.0
+wild:
+  Adv: 0.1
+  Adj: 0.191
+  N: -0.291
+will:
+  V: -0.449
+  Modal: 0.249
+  N: 0.2
+win:
+  N: -0.061
+  V: 0.061
+window:
+  V: -0.539
+  N: 0.539
+wine:
+  Adj: 0.05
+  V: -0.9
+  N: 0.85
+wing:
+  N: 0.439
+  V: -0.439
+wink:
+  N: 0.039
+  V: -0.039
+winter:
+  V: -0.525
+  Adj: -0.275
+  N: 0.8
+wire:
+  V: -0.227
+  N: 0.6
+  Adj: -0.373
+wisdom:
+  N: 1.0
+wise:
+  Adj: 0.629
+  N: -0.159
+  V: -0.471
+wish:
+  N: 0.4
+  V: -0.4
+witness:
+  N: 0.5
+  V: -0.5
+wolf:
+  V: -0.4
+  N: 0.4
+woman:
+  N: 1.0
+  Adj: -1.0
+wonder:
+  V: -0.4
+  N: 0.4
+wood:
+  Adj: -0.121
+  V: -0.421
+  N: 0.541
+wool:
+  N: 0.9
+  Adj: 0.1
+word:
+  Intj: 0.05
+  N: 0.489
+  V: -0.539
+work:
+  Adj: -0.369
+  N: 0.5
+  V: -0.131
+world:
+  N: 0.9
+  Adj: -0.9
+worry:
+  V: -0.3
+  N: 0.3
+worth:
+  N: 0.5
+  Adj: -0.5
+wrap:
+  Adj: -0.271
+  N: 0.041
+  V: 0.229
+wreck:
+  V: -0.5
+  N: 0.5
+wrestle:
+  V: 0.361
+  N: -0.361
+wrong:
+  Adj: 0.131
+  V: -0.531
+  N: 0.2
+  Adv: 0.2
+yellow:
+  N: 0.2
+  V: -0.529
+  Adj: 0.329
+you:
+  Pron: -0.05
+  N: 0.05
+young:
+  Adj: 0.331
+  N: -0.331
+youth:
+  Adj: 0.1
+  N: 0.9
+zebra:
+  Adj: 0.05
+  N: -0.05
+zero:
+  Adj: 0.256
+  N: 0.28
+  V: -0.536
+zone:
+  V: -0.339
+  N: 0.339

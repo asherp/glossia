@@ -1,0 +1,2548 @@
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded adler2 v2.0.1
+  Downloaded quote v1.0.44
+  Downloaded serde_regex v1.1.0
+  Downloaded stable_deref_trait v1.2.1
+  Downloaded ipnet v2.11.0
+  Downloaded rustls-pemfile v1.0.4
+  Downloaded zerofrom-derive v0.1.6
+  Downloaded pin-project-lite v0.2.16
+  Downloaded zerofrom v0.1.6
+  Downloaded unicode-ident v1.0.22
+  Downloaded zmij v1.0.16
+  Downloaded writeable v0.6.2
+  Downloaded serde_yaml v0.9.34+deprecated
+  Downloaded hashbrown v0.16.1
+  Downloaded unicase v2.9.0
+  Downloaded zerotrie v0.2.3
+  Downloaded unsafe-libyaml v0.2.11
+  Downloaded zerovec v0.11.5
+  Downloaded serde v1.0.228
+  Downloaded tokio-util v0.7.18
+  Downloaded rayon v1.11.0
+  Downloaded memchr v2.7.6
+  Downloaded pest v2.8.5
+  Downloaded vcpkg v0.2.15
+  Downloaded mio v1.1.1
+  Downloaded syn v1.0.109
+  Downloaded openssl-sys v0.9.111
+  Downloaded zerocopy v0.8.33
+  Downloaded nlprule v0.6.4
+  Downloaded syn v2.0.114
+  Downloaded regex-syntax v0.8.8
+  Downloaded openssl v0.10.75
+  Downloaded encoding_rs v0.8.35
+  Downloaded serde_json v1.0.149
+  Downloaded reqwest v0.11.27
+  Downloaded regex v1.12.2
+  Downloaded typenum v1.19.0
+  Downloaded tracing v0.1.44
+  Downloaded tracing-core v0.1.36
+  Downloaded socket2 v0.6.2
+  Downloaded url v2.5.8
+  Downloaded libc v0.2.180
+  Downloaded regex-automata v0.4.13
+  Downloaded sha2 v0.10.9
+  Downloaded miniz_oxide v0.8.9
+  Downloaded itertools v0.8.2
+  Downloaded srx v0.1.4
+  Downloaded ryu v1.0.22
+  Downloaded proc-macro2 v1.0.106
+  Downloaded futures-util v0.3.31
+  Downloaded rayon-core v1.13.0
+  Downloaded onig_sys v69.9.1
+  Downloaded itertools v0.10.5
+  Downloaded indexmap v2.13.0
+  Downloaded tokio-native-tls v0.3.1
+  Downloaded socket2 v0.5.10
+  Downloaded zerovec-derive v0.11.2
+  Downloaded yoke v0.8.1
+  Downloaded ucd-trie v0.1.7
+  Downloaded try-lock v0.2.5
+  Downloaded tokio v1.49.0
+  Downloaded tinystr v0.8.2
+  Downloaded csv v1.4.0
+  Downloaded fst v0.4.7
+  Downloaded thiserror-impl v1.0.69
+  Downloaded hyper v0.14.32
+  Downloaded http v0.2.12
+  Downloaded aho-corasick v1.1.4
+  Downloaded tower-service v0.3.3
+  Downloaded thiserror v1.0.69
+  Downloaded sync_wrapper v0.1.2
+  Downloaded serde_urlencoded v0.7.1
+  Downloaded log v0.4.29
+  Downloaded idna v1.1.0
+  Downloaded icu_properties_data v2.1.2
+  Downloaded h2 v0.3.27
+  Downloaded clap_builder v4.5.54
+  Downloaded yoke-derive v0.8.1
+  Downloaded want v0.3.1
+  Downloaded version_check v0.9.5
+  Downloaded utf8parse v0.2.2
+  Downloaded utf8_iter v1.0.4
+  Downloaded synstructure v0.13.2
+  Downloaded serde_derive v1.0.228
+  Downloaded serde_core v1.0.228
+  Downloaded pest_meta v2.8.5
+  Downloaded pest_derive v2.8.5
+  Downloaded litemap v0.8.1
+  Downloaded csv-core v0.1.13
+  Downloaded clap v4.5.54
+  Downloaded onig v6.5.1
+  Downloaded native-tls v0.2.14
+  Downloaded icu_normalizer_data v2.1.1
+  Downloaded icu_collections v2.1.1
+  Downloaded getrandom v0.2.17
+  Downloaded flate2 v1.1.8
+  Downloaded equivalent v1.0.2
+  Downloaded crypto-common v0.1.7
+  Downloaded strsim v0.11.1
+  Downloaded smallvec v1.15.1
+  Downloaded slab v0.4.11
+  Downloaded simd-adler32 v0.3.8
+  Downloaded shlex v1.3.0
+  Downloaded rayon-cond v0.1.0
+  Downloaded ppv-lite86 v0.2.21
+  Downloaded potential_utf v0.1.4
+  Downloaded pkg-config v0.3.32
+  Downloaded percent-encoding v2.3.2
+  Downloaded openssl-macros v0.1.1
+  Downloaded lazy_static v1.5.0
+  Downloaded itoa v1.0.17
+  Downloaded enum_dispatch v0.3.13
+  Downloaded either v1.15.0
+  Downloaded digest v0.10.7
+  Downloaded cc v1.2.54
+  Downloaded bytes v1.11.0
+  Downloaded base64 v0.21.7
+  Downloaded icu_provider v2.1.1
+  Downloaded icu_properties v2.1.2
+  Downloaded icu_normalizer v2.1.1
+  Downloaded icu_locale_core v2.1.1
+  Downloaded httparse v1.10.1
+  Downloaded half v1.8.3
+  Downloaded form_urlencoded v1.2.2
+  Downloaded crossbeam-epoch v0.9.18
+  Downloaded anyhow v1.0.100
+  Downloaded futures-channel v0.3.31
+  Downloaded foreign-types v0.3.2
+  Downloaded bitflags v2.10.0
+  Downloaded once_cell v1.21.3
+  Downloaded is_terminal_polyfill v1.70.2
+  Downloaded idna_adapter v1.2.1
+  Downloaded httpdate v1.0.3
+  Downloaded heck v0.5.0
+  Downloaded futures-task v0.3.31
+  Downloaded futures-core v0.3.31
+  Downloaded foreign-types-shared v0.1.1
+  Downloaded find-msvc-tools v0.1.8
+  Downloaded crossbeam-utils v0.8.21
+  Downloaded crossbeam-deque v0.8.6
+  Downloaded crc32fast v1.5.0
+  Downloaded clap_derive v4.5.49
+  Downloaded bincode v1.3.3
+  Downloaded bimap v0.6.3
+  Downloaded autocfg v1.5.0
+  Downloaded anstyle-parse v0.2.7
+  Downloaded anstyle v1.0.13
+  Downloaded anstream v0.6.21
+  Downloaded pest_generator v2.8.5
+  Downloaded openssl-probe v0.1.6
+  Downloaded mime v0.3.17
+  Downloaded hyper-tls v0.5.0
+  Downloaded generic-array v0.14.7
+  Downloaded futures-io v0.3.31
+  Downloaded fs-err v2.11.0
+  Downloaded displaydoc v0.2.5
+  Downloaded colorchoice v1.0.4
+  Downloaded clap_lex v0.7.7
+  Downloaded anstyle-query v1.1.5
+  Downloaded http-body v0.4.6
+  Downloaded futures-sink v0.3.31
+  Downloaded cpufeatures v0.2.17
+  Downloaded cfg-if v1.0.4
+  Downloaded block-buffer v0.10.4
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 5.57s
+     Running `target/debug/validate_pos_weights --file languages/english/cover.yaml --quiet --threshold 0.15`
+Loading nlprule tokenizer and rules...
+Loading words from "languages/english/cover.yaml"...
+Loaded 610 words
+Validating 610 words...
+Processed 50 words...
+Processed 100 words...
+Processed 150 words...
+Processed 200 words...
+Processed 250 words...
+Processed 300 words...
+Processed 350 words...
+Processed 400 words...
+Processed 450 words...
+Processed 500 words...
+Processed 550 words...
+Processed 600 words...
+Validation complete!
+POS Weight Validation Report
+================================================================================
+Threshold: 0.15
+Total words validated: 610
+Words with issues: 401
+
+Word: resort
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: war
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+
+Word: do
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Aux"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: gear
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: fate
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: self
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+
+Word: their
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Extra tags (found by nlprule but not in YAML): ["Pron"]
+
+Word: career
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+
+Word: bottle
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: our
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Extra tags (found by nlprule but not in YAML): ["Pron"]
+
+Word: sin
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: vision
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: weight
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: scope
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: church
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: pine
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: cop
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: flesh
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: jet
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+
+Word: none
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Pron"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+
+Word: does
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Aux"]
+  Extra tags (found by nlprule but not in YAML): ["N", "V"]
+
+Word: how
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Extra tags (found by nlprule but not in YAML): ["N"]
+
+Word: union
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+
+Word: plenty
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+
+Word: jail
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: soil
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: its
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Extra tags (found by nlprule but not in YAML): ["Pron"]
+
+Word: pocket
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+
+Word: pain
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: port
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+
+Word: safety
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+
+Word: most
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "Adv"]
+
+Word: coal
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: part
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+
+Word: mouth
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: sky
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: shore
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: pan
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: mess
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: lip
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+
+Word: chance
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+
+Word: court
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: than
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Conj"]
+  Extra tags (found by nlprule but not in YAML): ["Prep"]
+
+Word: your
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Extra tags (found by nlprule but not in YAML): ["Pron"]
+
+Word: cheek
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+
+Word: golf
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: meeting
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: luck
+  Total difference: 2.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+
+Word: given
+  Total difference: 1.962
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.019, diff 0.981
+
+Word: class
+  Total difference: 1.855
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.073, diff 0.927
+
+Word: effect
+  Total difference: 1.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.100, observed 1.000, diff 0.900
+
+Word: bed
+  Total difference: 1.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.100, observed 1.000, diff 0.900
+
+Word: shade
+  Total difference: 1.600
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.200, observed 1.000, diff 0.800
+
+Word: yeah
+  Total difference: 1.600
+  Missing tags (in YAML but not found by nlprule): ["Intj"]
+  Extra tags (found by nlprule but not in YAML): ["Adj", "N"]
+  Weight differences:
+    Adv: expected 0.200, observed 0.325, diff 0.125
+
+Word: lap
+  Total difference: 1.600
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.200, observed 1.000, diff 0.800
+
+Word: ground
+  Total difference: 1.576
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.200, observed 0.988, diff 0.788
+    Adj: expected 0.100, observed 0.012, diff 0.088
+
+Word: low
+  Total difference: 1.510
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.245, diff 0.755
+
+Word: why
+  Total difference: 1.500
+  Extra tags (found by nlprule but not in YAML): ["Intj", "N", "Conj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.250, diff 0.750
+
+Word: lost
+  Total difference: 1.500
+  Extra tags (found by nlprule but not in YAML): ["N", "V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.250, diff 0.750
+
+Word: mine
+  Total difference: 1.500
+  Extra tags (found by nlprule but not in YAML): ["Pron", "V"]
+  Weight differences:
+    N: expected 1.000, observed 0.250, diff 0.750
+
+Word: even
+  Total difference: 1.489
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V", "N"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.255, diff 0.745
+
+Word: slave
+  Total difference: 1.482
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+  Weight differences:
+    N: expected 1.000, observed 0.259, diff 0.741
+
+Word: center
+  Total difference: 1.482
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.259, diff 0.741
+
+Word: plane
+  Total difference: 1.482
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+  Weight differences:
+    N: expected 1.000, observed 0.259, diff 0.741
+
+Word: guest
+  Total difference: 1.482
+  Extra tags (found by nlprule but not in YAML): ["V", "Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.259, diff 0.741
+
+Word: hot
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["V", "Adv"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.270, diff 0.730
+
+Word: pale
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.271, diff 0.729
+
+Word: tough
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.271, diff 0.729
+
+Word: full
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.271, diff 0.729
+
+Word: sharp
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["N", "V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.271, diff 0.729
+
+Word: clear
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["N", "V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.271, diff 0.729
+
+Word: loose
+  Total difference: 1.459
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.271, diff 0.729
+
+Word: row
+  Total difference: 1.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.300, observed 1.000, diff 0.700
+
+Word: tax
+  Total difference: 1.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.300, observed 1.000, diff 0.700
+
+Word: line
+  Total difference: 1.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.300, observed 1.000, diff 0.700
+
+Word: pace
+  Total difference: 1.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.300, observed 1.000, diff 0.700
+
+Word: rock
+  Total difference: 1.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.300, observed 0.627, diff 0.327
+
+Word: though
+  Total difference: 1.357
+  Extra tags (found by nlprule but not in YAML): ["Adj", "Adv"]
+  Weight differences:
+    Conj: expected 1.000, observed 0.321, diff 0.679
+
+Word: anyway
+  Total difference: 1.351
+  Extra tags (found by nlprule but not in YAML): ["Adj", "N"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.325, diff 0.675
+
+Word: maybe
+  Total difference: 1.351
+  Extra tags (found by nlprule but not in YAML): ["Adj", "N"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.325, diff 0.675
+
+Word: gifted
+  Total difference: 1.344
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.328, diff 0.672
+
+Word: per
+  Total difference: 1.333
+  Extra tags (found by nlprule but not in YAML): ["N", "Adv"]
+  Weight differences:
+    Prep: expected 1.000, observed 0.333, diff 0.667
+
+Word: dear
+  Total difference: 1.325
+  Extra tags (found by nlprule but not in YAML): ["Intj", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.338, diff 0.662
+
+Word: weekly
+  Total difference: 1.324
+  Extra tags (found by nlprule but not in YAML): ["N", "Adj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.338, diff 0.662
+
+Word: holy
+  Total difference: 1.324
+  Extra tags (found by nlprule but not in YAML): ["Adv", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.338, diff 0.662
+
+Word: lovely
+  Total difference: 1.324
+  Extra tags (found by nlprule but not in YAML): ["N", "Adj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.338, diff 0.662
+
+Word: yes
+  Total difference: 1.319
+  Missing tags (in YAML but not found by nlprule): ["Intj"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adv: expected 0.300, observed 0.241, diff 0.059
+    N: expected 0.100, observed 0.241, diff 0.141
+
+Word: dozen
+  Total difference: 1.308
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.346, diff 0.654
+
+Word: dead
+  Total difference: 1.308
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.346, diff 0.654
+
+Word: tight
+  Total difference: 1.299
+  Extra tags (found by nlprule but not in YAML): ["Adv", "N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.351, diff 0.649
+
+Word: rope
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: meter
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: pot
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: tire
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: cow
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: sink
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: guy
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: breast
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: troop
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: deck
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: site
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: bowl
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: corner
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: heel
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: button
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: band
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: gender
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: bell
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: shower
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: bunch
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: gang
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: shirt
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: sigh
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: bill
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: summit
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: factor
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: clue
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: drug
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: pant
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: league
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: sheet
+  Total difference: 1.278
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.361, diff 0.639
+
+Word: thanks
+  Total difference: 1.273
+  Extra tags (found by nlprule but not in YAML): ["V", "Intj"]
+  Weight differences:
+    N: expected 1.000, observed 0.364, diff 0.636
+
+Word: prime
+  Total difference: 1.262
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.369, diff 0.631
+
+Word: quiet
+  Total difference: 1.262
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.369, diff 0.631
+
+Word: single
+  Total difference: 1.258
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.371, diff 0.629
+
+Word: gray
+  Total difference: 1.258
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 0.700, observed 0.371, diff 0.329
+
+Word: thin
+  Total difference: 1.211
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.395, diff 0.605
+
+Word: saving
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["Prep", "N"]
+  Weight differences:
+    Adj: expected 0.300, observed 0.449, diff 0.149
+    V: expected 0.100, observed 0.551, diff 0.451
+
+Word: desire
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: fund
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: care
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: fast
+  Total difference: 1.200
+  Extra tags (found by nlprule but not in YAML): ["V", "N"]
+  Weight differences:
+    Adj: expected 0.500, observed 0.208, diff 0.292
+    Adv: expected 0.500, observed 0.192, diff 0.308
+
+Word: murder
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: rating
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: to
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["To"]
+  Weight differences:
+    Prep: expected 0.400, observed 1.000, diff 0.600
+
+Word: being
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: schedule
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: fear
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: stress
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: plant
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: unless
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["Conj"]
+  Weight differences:
+    Prep: expected 0.400, observed 1.000, diff 0.600
+
+Word: honor
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: string
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: store
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.400, observed 0.627, diff 0.227
+
+Word: dining
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: heat
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: favor
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: expert
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.400, observed 1.000, diff 0.600
+
+Word: value
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: request
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: pile
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: date
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: aid
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: shape
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: rest
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: email
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: wind
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: study
+  Total difference: 1.200
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 1.000, diff 0.600
+
+Word: buck
+  Total difference: 1.189
+  Extra tags (found by nlprule but not in YAML): ["Adj", "V"]
+  Weight differences:
+    N: expected 1.000, observed 0.406, diff 0.594
+
+Word: aside
+  Total difference: 1.151
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    Adv: expected 0.900, observed 0.325, diff 0.575
+    N: expected 0.100, observed 0.325, diff 0.225
+
+Word: less
+  Total difference: 1.126
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Extra tags (found by nlprule but not in YAML): ["Conj"]
+  Weight differences:
+    Adv: expected 0.400, observed 0.237, diff 0.163
+    Adj: expected 0.200, observed 0.526, diff 0.326
+
+Word: star
+  Total difference: 1.082
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.800, observed 0.259, diff 0.541
+    V: expected 0.200, observed 0.471, diff 0.271
+
+Word: coat
+  Total difference: 1.082
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.800, observed 0.259, diff 0.541
+    V: expected 0.200, observed 0.471, diff 0.271
+
+Word: peak
+  Total difference: 1.082
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.800, observed 0.259, diff 0.541
+    V: expected 0.200, observed 0.471, diff 0.271
+
+Word: house
+  Total difference: 1.078
+  Weight differences:
+    N: expected 0.900, observed 0.361, diff 0.539
+    V: expected 0.100, observed 0.639, diff 0.539
+
+Word: bit
+  Total difference: 1.059
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.471, diff 0.529
+
+Word: thus
+  Total difference: 1.053
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.474, diff 0.526
+
+Word: ever
+  Total difference: 1.053
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.474, diff 0.526
+
+Word: while
+  Total difference: 1.024
+  Extra tags (found by nlprule but not in YAML): ["Prep"]
+  Weight differences:
+    Conj: expected 0.600, observed 0.194, diff 0.406
+    N: expected 0.300, observed 0.194, diff 0.106
+    V: expected 0.100, observed 0.418, diff 0.318
+
+Word: period
+  Total difference: 1.019
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.491, diff 0.509
+
+Word: campus
+  Total difference: 1.019
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.491, diff 0.509
+
+Word: county
+  Total difference: 1.019
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.491, diff 0.509
+
+Word: king
+  Total difference: 1.019
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.491, diff 0.509
+
+Word: ease
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: user
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: third
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.500, observed 1.000, diff 0.500
+
+Word: crisis
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: rank
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.400, observed 0.627, diff 0.227
+    Adj: expected 0.100, observed 0.373, diff 0.273
+
+Word: loss
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: signal
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.300, observed 0.627, diff 0.327
+    Adj: expected 0.200, observed 0.373, diff 0.173
+
+Word: death
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: four
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.500, observed 1.000, diff 0.500
+
+Word: medium
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.500, observed 1.000, diff 0.500
+
+Word: poetry
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: regarding
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Prep: expected 1.000, observed 0.500, diff 0.500
+
+Word: beer
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: sir
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: which
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Weight differences:
+    Pron: expected 0.500, observed 1.000, diff 0.500
+
+Word: fwd:
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Prefix"]
+
+Word: money
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: forth
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+
+Word: breath
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: fewer
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Weight differences:
+    Adj: expected 0.500, observed 1.000, diff 0.500
+
+Word: basis
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: belief
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: flow
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: debt
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: versus
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["Conj"]
+  Weight differences:
+    Prep: expected 1.000, observed 0.500, diff 0.500
+
+Word: pie
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: sake
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: cancer
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: form
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: nobody
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Pron"]
+
+Word: yet
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["Conj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.500, diff 0.500
+
+Word: virtue
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: along
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    Prep: expected 0.600, observed 0.500, diff 0.100
+
+Word: sale
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: indeed
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.500, diff 0.500
+
+Word: fact
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: tap
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: meal
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: unlike
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Prep: expected 0.600, observed 0.250, diff 0.350
+    Adj: expected 0.400, observed 0.250, diff 0.150
+
+Word: lack
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: appointment
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: doubt
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: hi
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Intj: expected 1.000, observed 0.500, diff 0.500
+
+Word: terror
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: extent
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: salary
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: speech
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: appeal
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: for
+  Total difference: 1.000
+  Extra tags (found by nlprule but not in YAML): ["Conj"]
+  Weight differences:
+    Prep: expected 1.000, observed 0.500, diff 0.500
+
+Word: re:
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Prefix"]
+
+Word: regard
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: shelf
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: comedy
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: policy
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: growth
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: beside
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    Prep: expected 0.600, observed 0.500, diff 0.100
+
+Word: hell
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: threat
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: goal
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: fyi
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: mark
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 1.000, diff 0.500
+
+Word: elect
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["Adj"]
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 0.500, diff 0.100
+
+Word: heaven
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: status
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: manner
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: origin
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: tea
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: prayer
+  Total difference: 1.000
+  Missing tags (in YAML but not found by nlprule): ["N"]
+
+Word: male
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: remote
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: golden
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: deep
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: active
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: formal
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: whole
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: ethnic
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: odd
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: modern
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: stupid
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: mere
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: broad
+  Total difference: 0.981
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.509, diff 0.491
+
+Word: set
+  Total difference: 0.978
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 0.989, diff 0.489
+    Adj: expected 0.200, observed 0.011, diff 0.189
+
+Word: really
+  Total difference: 0.966
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.517, diff 0.483
+
+Word: terms
+  Total difference: 0.957
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 1.000, observed 0.522, diff 0.478
+
+Word: big
+  Total difference: 0.947
+  Extra tags (found by nlprule but not in YAML): ["Adv"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.526, diff 0.474
+
+Word: asleep
+  Total difference: 0.947
+  Extra tags (found by nlprule but not in YAML): ["Adv"]
+  Weight differences:
+    Adj: expected 1.000, observed 0.526, diff 0.474
+
+Word: shot
+  Total difference: 0.944
+  Weight differences:
+    N: expected 0.500, observed 0.297, diff 0.203
+    Adj: expected 0.300, observed 0.031, diff 0.269
+    V: expected 0.200, observed 0.672, diff 0.472
+
+Word: fair
+  Total difference: 0.941
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 0.700, observed 0.271, diff 0.429
+    N: expected 0.300, observed 0.259, diff 0.041
+
+Word: joint
+  Total difference: 0.941
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adj: expected 0.500, observed 0.271, diff 0.229
+    N: expected 0.500, observed 0.259, diff 0.241
+
+Word: grave
+  Total difference: 0.941
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    N: expected 0.500, observed 0.259, diff 0.241
+    Adj: expected 0.500, observed 0.271, diff 0.229
+
+Word: least
+  Total difference: 0.933
+  Missing tags (in YAML but not found by nlprule): ["Det"]
+  Weight differences:
+    Adv: expected 0.500, observed 0.333, diff 0.167
+    Adj: expected 0.200, observed 0.667, diff 0.467
+
+Word: wound
+  Total difference: 0.905
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.600, observed 0.148, diff 0.452
+    V: expected 0.400, observed 0.680, diff 0.280
+
+Word: root
+  Total difference: 0.882
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.700, observed 0.259, diff 0.441
+    V: expected 0.300, observed 0.471, diff 0.171
+
+Word: bank
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: phase
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: bond
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: branch
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: chain
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: boot
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: chip
+  Total difference: 0.878
+  Weight differences:
+    N: expected 0.800, observed 0.361, diff 0.439
+    V: expected 0.200, observed 0.639, diff 0.439
+
+Word: jury
+  Total difference: 0.863
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.569, diff 0.431
+
+Word: meet
+  Total difference: 0.859
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.900, observed 0.471, diff 0.429
+    N: expected 0.100, observed 0.259, diff 0.159
+
+Word: steady
+  Total difference: 0.859
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 0.700, observed 0.271, diff 0.429
+    V: expected 0.300, observed 0.471, diff 0.171
+
+Word: free
+  Total difference: 0.859
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 0.700, observed 0.271, diff 0.429
+    V: expected 0.300, observed 0.471, diff 0.171
+
+Word: out
+  Total difference: 0.850
+  Missing tags (in YAML but not found by nlprule): ["Adj"]
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    Adv: expected 0.350, observed 0.199, diff 0.151
+    Prep: expected 0.250, observed 0.176, diff 0.074
+    N: expected 0.100, observed 0.176, diff 0.076
+    V: expected 0.100, observed 0.272, diff 0.172
+
+Word: smell
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: within
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Weight differences:
+    Prep: expected 0.600, observed 1.000, diff 0.400
+
+Word: slip
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: paint
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: back
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.300, observed 0.494, diff 0.194
+    Adj: expected 0.200, observed 0.253, diff 0.053
+    Adv: expected 0.100, observed 0.253, diff 0.153
+
+Word: lie
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: watch
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: pop
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    V: expected 0.400, observed 0.516, diff 0.116
+    Adj: expected 0.200, observed 0.242, diff 0.042
+
+Word: look
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: touch
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    V: expected 0.600, observed 0.682, diff 0.082
+
+Word: plus
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["Prep"]
+  Weight differences:
+    Adj: expected 0.300, observed 0.338, diff 0.038
+    N: expected 0.200, observed 0.325, diff 0.125
+    Conj: expected 0.100, observed 0.338, diff 0.238
+
+Word: hide
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: yield
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: show
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: send
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: trace
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: press
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: defeat
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: break
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    V: expected 0.600, observed 0.682, diff 0.082
+
+Word: count
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: many
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["Adj"]
+  Weight differences:
+    Det: expected 0.600, observed 1.000, diff 0.400
+
+Word: yesterday
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adv: expected 0.600, observed 1.000, diff 0.400
+
+Word: launch
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: bite
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: lead
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: fight
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: fill
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.600, observed 1.000, diff 0.400
+
+Word: closer
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Weight differences:
+    Adj: expected 0.500, observed 0.547, diff 0.047
+    N: expected 0.100, observed 0.453, diff 0.353
+
+Word: both
+  Total difference: 0.800
+  Missing tags (in YAML but not found by nlprule): ["Pron"]
+  Extra tags (found by nlprule but not in YAML): ["Conj"]
+  Weight differences:
+    Det: expected 0.600, observed 0.744, diff 0.144
+
+Word: lay
+  Total difference: 0.789
+  Extra tags (found by nlprule but not in YAML): ["Adj", "N"]
+  Weight differences:
+    V: expected 1.000, observed 0.605, diff 0.395
+
+Word: pay
+  Total difference: 0.738
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.700, observed 0.631, diff 0.069
+
+Word: cite
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: burn
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: sit
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: assign
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: cope
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: commit
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: buy
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: listen
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: weigh
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: get
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: see
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: bend
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: wipe
+  Total difference: 0.722
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.639, diff 0.361
+
+Word: shut
+  Total difference: 0.722
+  Weight differences:
+    V: expected 0.600, observed 0.961, diff 0.361
+    Adj: expected 0.400, observed 0.039, diff 0.361
+
+Word: last
+  Total difference: 0.717
+  Extra tags (found by nlprule but not in YAML): ["Det", "N"]
+  Weight differences:
+    Adj: expected 0.400, observed 0.183, diff 0.217
+    V: expected 0.300, observed 0.349, diff 0.049
+    Adv: expected 0.300, observed 0.159, diff 0.141
+
+Word: grand
+  Total difference: 0.708
+  Weight differences:
+    Adj: expected 0.700, observed 0.346, diff 0.354
+    N: expected 0.300, observed 0.654, diff 0.354
+
+Word: living
+  Total difference: 0.702
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.500, observed 0.449, diff 0.051
+    V: expected 0.200, observed 0.551, diff 0.351
+
+Word: sales
+  Total difference: 0.692
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 1.000, observed 0.654, diff 0.346
+
+Word: grade
+  Total difference: 0.682
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.600, observed 0.259, diff 0.341
+    V: expected 0.400, observed 0.471, diff 0.071
+
+Word: trail
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: boom
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: poll
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: land
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: cap
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: stake
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: map
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: chart
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: stroke
+  Total difference: 0.678
+  Weight differences:
+    N: expected 0.700, observed 0.361, diff 0.339
+    V: expected 0.300, observed 0.639, diff 0.339
+
+Word: pray
+  Total difference: 0.667
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    V: expected 1.000, observed 0.667, diff 0.333
+
+Word: marry
+  Total difference: 0.667
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    V: expected 1.000, observed 0.667, diff 0.333
+
+Word: after
+  Total difference: 0.667
+  Extra tags (found by nlprule but not in YAML): ["Conj"]
+  Weight differences:
+    Prep: expected 0.600, observed 0.333, diff 0.267
+    Adv: expected 0.400, observed 0.333, diff 0.067
+
+Word: abroad
+  Total difference: 0.653
+  Weight differences:
+    Adv: expected 0.800, observed 0.474, diff 0.326
+    Adj: expected 0.200, observed 0.526, diff 0.326
+
+Word: daily
+  Total difference: 0.649
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adj: expected 0.500, observed 0.338, diff 0.162
+    Adv: expected 0.500, observed 0.338, diff 0.162
+
+Word: ago
+  Total difference: 0.643
+  Extra tags (found by nlprule but not in YAML): ["Prep"]
+  Weight differences:
+    Adv: expected 0.600, observed 0.321, diff 0.279
+    Adj: expected 0.400, observed 0.357, diff 0.043
+
+Word: well
+  Total difference: 0.640
+  Extra tags (found by nlprule but not in YAML): ["V"]
+  Weight differences:
+    Adv: expected 0.500, observed 0.284, diff 0.216
+    N: expected 0.200, observed 0.136, diff 0.064
+    Adj: expected 0.200, observed 0.160, diff 0.040
+    Intj: expected 0.100, observed 0.136, diff 0.036
+
+Word: bother
+  Total difference: 0.639
+  Extra tags (found by nlprule but not in YAML): ["Intj"]
+  Weight differences:
+    V: expected 1.000, observed 0.681, diff 0.319
+
+Word: are
+  Total difference: 0.632
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    V: expected 1.000, observed 0.684, diff 0.316
+
+Word: teen
+  Total difference: 0.619
+  Weight differences:
+    N: expected 0.800, observed 0.491, diff 0.309
+    Adj: expected 0.200, observed 0.509, diff 0.309
+
+Word: down
+  Total difference: 0.615
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adv: expected 0.350, observed 0.206, diff 0.144
+    Prep: expected 0.250, observed 0.187, diff 0.063
+    V: expected 0.100, observed 0.402, diff 0.302
+
+Word: cast
+  Total difference: 0.613
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.500, observed 0.798, diff 0.298
+    N: expected 0.500, observed 0.193, diff 0.307
+
+Word: reach
+  Total difference: 0.600
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.700, observed 1.000, diff 0.300
+
+Word: red
+  Total difference: 0.600
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.700, observed 1.000, diff 0.300
+
+Word: rush
+  Total difference: 0.600
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 0.627, diff 0.127
+    Adj: expected 0.200, observed 0.373, diff 0.173
+
+Word: former
+  Total difference: 0.581
+  Weight differences:
+    Adj: expected 0.800, observed 0.509, diff 0.291
+    N: expected 0.200, observed 0.491, diff 0.291
+
+Word: scared
+  Total difference: 0.544
+  Weight differences:
+    Adj: expected 0.600, observed 0.328, diff 0.272
+    V: expected 0.400, observed 0.672, diff 0.272
+
+Word: strip
+  Total difference: 0.541
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.600, observed 0.471, diff 0.129
+    N: expected 0.400, observed 0.259, diff 0.141
+
+Word: score
+  Total difference: 0.541
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    N: expected 0.500, observed 0.259, diff 0.241
+    V: expected 0.500, observed 0.471, diff 0.029
+
+Word: dare
+  Total difference: 0.511
+  Extra tags (found by nlprule but not in YAML): ["Modal"]
+  Weight differences:
+    V: expected 0.700, observed 0.489, diff 0.211
+    N: expected 0.300, observed 0.256, diff 0.044
+
+Word: latter
+  Total difference: 0.506
+  Weight differences:
+    Adj: expected 0.800, observed 0.547, diff 0.253
+    N: expected 0.200, observed 0.453, diff 0.253
+
+Word: ally
+  Total difference: 0.494
+  Extra tags (found by nlprule but not in YAML): ["Adv"]
+  Weight differences:
+    N: expected 0.600, observed 0.353, diff 0.247
+    V: expected 0.400, observed 0.618, diff 0.218
+
+Word: tour
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: pound
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: peer
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: block
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: storm
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: stream
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: plot
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: award
+  Total difference: 0.478
+  Weight differences:
+    N: expected 0.600, observed 0.361, diff 0.239
+    V: expected 0.400, observed 0.639, diff 0.239
+
+Word: beat
+  Total difference: 0.413
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.600, observed 0.798, diff 0.198
+    N: expected 0.400, observed 0.193, diff 0.207
+
+Word: hit
+  Total difference: 0.413
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.600, observed 0.798, diff 0.198
+    N: expected 0.400, observed 0.193, diff 0.207
+
+Word: read
+  Total difference: 0.413
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.600, observed 0.798, diff 0.198
+    N: expected 0.400, observed 0.193, diff 0.207
+
+Word: bet
+  Total difference: 0.413
+  Extra tags (found by nlprule but not in YAML): ["Adj"]
+  Weight differences:
+    V: expected 0.600, observed 0.798, diff 0.198
+    N: expected 0.400, observed 0.193, diff 0.207
+
+Word: dirty
+  Total difference: 0.411
+  Weight differences:
+    Adj: expected 0.600, observed 0.395, diff 0.205
+    V: expected 0.400, observed 0.605, diff 0.205
+
+Word: due
+  Total difference: 0.400
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Weight differences:
+    N: expected 0.300, observed 0.491, diff 0.191
+
+Word: prior
+  Total difference: 0.400
+  Missing tags (in YAML but not found by nlprule): ["Adv"]
+  Weight differences:
+    N: expected 0.300, observed 0.491, diff 0.191
+
+Word: poor
+  Total difference: 0.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    Adj: expected 0.800, observed 1.000, diff 0.200
+
+Word: fail
+  Total difference: 0.400
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.800, observed 1.000, diff 0.200
+
+Word: think
+  Total difference: 0.400
+  Missing tags (in YAML but not found by nlprule): ["Adj"]
+  Weight differences:
+    V: expected 0.500, observed 0.639, diff 0.139
+    N: expected 0.300, observed 0.361, diff 0.061
+
+Word: cut
+  Total difference: 0.361
+  Weight differences:
+    V: expected 0.500, observed 0.680, diff 0.180
+    N: expected 0.300, observed 0.148, diff 0.152
+    Adj: expected 0.200, observed 0.172, diff 0.028
+
+Word: let
+  Total difference: 0.348
+  Extra tags (found by nlprule but not in YAML): ["N", "Adj"]
+  Weight differences:
+    V: expected 1.000, observed 0.826, diff 0.174
+
+Word: lower
+  Total difference: 0.333
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 0.667, diff 0.167
+    Adj: expected 0.400, observed 0.333, diff 0.067
+
+Word: rid
+  Total difference: 0.322
+  Weight differences:
+    V: expected 0.800, observed 0.961, diff 0.161
+    Adj: expected 0.200, observed 0.039, diff 0.161
+
+Word: folk
+  Total difference: 0.292
+  Weight differences:
+    N: expected 0.800, observed 0.654, diff 0.146
+    Adj: expected 0.200, observed 0.346, diff 0.146
+
+Word: past
+  Total difference: 0.290
+  Weight differences:
+    Prep: expected 0.300, observed 0.245, diff 0.055
+    Adj: expected 0.300, observed 0.265, diff 0.035
+    N: expected 0.300, observed 0.245, diff 0.055
+    Adv: expected 0.100, observed 0.245, diff 0.145
+
+Word: plan
+  Total difference: 0.278
+  Weight differences:
+    V: expected 0.500, observed 0.639, diff 0.139
+    N: expected 0.500, observed 0.361, diff 0.139
+
+Word: ban
+  Total difference: 0.278
+  Weight differences:
+    N: expected 0.500, observed 0.361, diff 0.139
+    V: expected 0.500, observed 0.639, diff 0.139
+
+Word: mount
+  Total difference: 0.278
+  Weight differences:
+    V: expected 0.500, observed 0.639, diff 0.139
+    N: expected 0.500, observed 0.361, diff 0.139
+
+Word: born
+  Total difference: 0.271
+  Weight differences:
+    V: expected 0.600, observed 0.464, diff 0.136
+    Adj: expected 0.400, observed 0.536, diff 0.136
+
+Word: lean
+  Total difference: 0.262
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.500, observed 0.631, diff 0.131
+    Adj: expected 0.400, observed 0.369, diff 0.031
+
+Word: far
+  Total difference: 0.253
+  Weight differences:
+    Adv: expected 0.600, observed 0.474, diff 0.126
+    Adj: expected 0.400, observed 0.526, diff 0.126
+
+Word: but
+  Total difference: 0.235
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Conj: expected 1.000, observed 0.882, diff 0.118
+
+Word: fellow
+  Total difference: 0.219
+  Weight differences:
+    N: expected 0.600, observed 0.491, diff 0.109
+    Adj: expected 0.400, observed 0.509, diff 0.109
+
+Word: secure
+  Total difference: 0.211
+  Weight differences:
+    Adj: expected 0.500, observed 0.395, diff 0.105
+    V: expected 0.500, observed 0.605, diff 0.105
+
+Word: likely
+  Total difference: 0.182
+  Weight differences:
+    Adj: expected 0.600, observed 0.509, diff 0.091
+    Adv: expected 0.400, observed 0.491, diff 0.091
+
+Word: native
+  Total difference: 0.181
+  Weight differences:
+    Adj: expected 0.600, observed 0.509, diff 0.091
+    N: expected 0.400, observed 0.491, diff 0.091
+
+Word: ideal
+  Total difference: 0.181
+  Weight differences:
+    Adj: expected 0.600, observed 0.509, diff 0.091
+    N: expected 0.400, observed 0.491, diff 0.091
+
+Word: works
+  Total difference: 0.162
+  Weight differences:
+    N: expected 0.600, observed 0.519, diff 0.081
+    V: expected 0.400, observed 0.481, diff 0.081
+
+Word: affect
+  Total difference: 0.100
+  Missing tags (in YAML but not found by nlprule): ["N"]
+  Weight differences:
+    V: expected 0.950, observed 1.000, diff 0.050
+
+Word: reply
+  Total difference: 0.094
+  Extra tags (found by nlprule but not in YAML): ["Adv"]
+  Weight differences:
+    V: expected 0.600, observed 0.618, diff 0.018
+    N: expected 0.400, observed 0.353, diff 0.047
+
+Word: imply
+  Total difference: 0.077
+  Extra tags (found by nlprule but not in YAML): ["Adv"]
+  Weight differences:
+    V: expected 1.000, observed 0.962, diff 0.038
+
+Word: apply
+  Total difference: 0.077
+  Extra tags (found by nlprule but not in YAML): ["Adv"]
+  Weight differences:
+    V: expected 1.000, observed 0.962, diff 0.038
+
+Word: here
+  Total difference: 0.061
+  Extra tags (found by nlprule but not in YAML): ["N"]
+  Weight differences:
+    Adv: expected 1.000, observed 0.970, diff 0.030
+
+Summary Statistics
+================================================================================
+Average total difference: 0.713
+Maximum total difference: 2.000
+Words with issues: 401/610 (65.7%)

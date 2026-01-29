@@ -1,0 +1,78 @@
+# BIP39 Wordlist with POS Tags and Weights
+# Format: word -> { POS: weight, ... }
+# Weights are normalized automatically if they don't sum to 1.0
+# Words are the keys (static wordlist), POS assignments are the values (can be updated)
+
+abandon:
+  V: 0.7
+  N: 0.3
+
+ability:
+  N: 1.0
+
+able:
+  Adj: 1.0
+
+about:
+  Prep: 0.6
+  Adv: 0.4
+
+above:
+  Prep: 0.4
+  Adv: 0.3
+  Adj: 0.2
+  N: 0.1
+
+absent:
+  Adj: 0.6
+  V: 0.4
+
+absorb:
+  V: 1.0
+
+abstract:
+  Adj: 0.5
+  N: 0.3
+  V: 0.2
+
+absurd:
+  Adj: 0.8
+  N: 0.2
+
+abuse:
+  V: 1.0
+
+access:
+  N: 0.6
+  V: 0.4
+
+accident:
+  N: 1.0
+
+account:
+  N: 0.7
+  V: 0.3
+
+accuse:
+  V: 1.0
+
+achieve:
+  V: 1.0
+
+acid:
+  N: 0.6
+  Adj: 0.4
+
+acoustic:
+  Adj: 1.0
+
+acquire:
+  V: 1.0
+
+across:
+  Prep: 0.6
+  Adv: 0.4
+
+act:
+  N: 0.5
+  V: 0.5
