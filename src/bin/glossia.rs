@@ -802,20 +802,23 @@ fn main() {
         // If words provided, use them; otherwise read from stdin
         let input_words: Vec<String> = if !words.is_empty() {
             if payload_separator.is_empty() {
-                // For concatenated payloads, split each arg into individual chars
+                // For concatenated payloads, extract chars only from tokens where
+                // ALL characters are in the payload set (i.e. pure payload blocks).
+                // Tokens with mixed characters (like "BEGIN") are cover words — skip them.
                 let payload_set: std::collections::HashSet<String> = all_words.iter()
                     .map(|w| w.to_lowercase())
                     .collect();
                 words.iter()
                     .flat_map(|w| {
-                        let chars: Vec<String> = w.chars()
-                            .map(|c| c.to_string())
-                            .filter(|c| payload_set.contains(&c.to_lowercase()))
-                            .collect();
-                        if chars.is_empty() {
-                            vec![w.to_lowercase()]
+                        let trimmed = w.trim_matches(|c: char| !c.is_alphanumeric());
+                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                        if all_in_payload {
+                            trimmed.chars()
+                                .map(|c| c.to_lowercase().to_string())
+                                .collect::<Vec<_>>()
                         } else {
-                            chars
+                            vec![]  // Skip cover words
                         }
                     })
                     .collect()
@@ -832,20 +835,22 @@ fn main() {
                 })
                 .unwrap();
             if payload_separator.is_empty() {
-                // For concatenated payloads, split character-by-character
+                // For concatenated payloads, extract chars only from tokens where
+                // ALL characters are in the payload set (pure payload blocks).
                 let payload_set: std::collections::HashSet<String> = all_words.iter()
                     .map(|w| w.to_lowercase())
                     .collect();
                 buffer.split_whitespace()
                     .flat_map(|token| {
-                        let chars: Vec<String> = token.chars()
-                            .map(|c| c.to_string())
-                            .filter(|c| payload_set.contains(&c.to_lowercase()))
-                            .collect();
-                        if chars.is_empty() {
-                            vec![token.to_lowercase()]
+                        let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                        if all_in_payload {
+                            trimmed.chars()
+                                .map(|c| c.to_lowercase().to_string())
+                                .collect::<Vec<_>>()
                         } else {
-                            chars
+                            vec![]  // Skip cover words
                         }
                     })
                     .collect()
@@ -1206,6 +1211,19 @@ fn main() {
         }
     }
 
+    // Load grammar for payload format (needed for validation of concatenated payloads)
+    let encode_grammar = {
+        let dialect = match generation_mode {
+            GenerationMode::Subject => "subject",
+            GenerationMode::Body => "body",
+            GenerationMode::PayloadOnly => "body",
+        };
+        Grammar::from_language_dialect(&language, dialect).ok()
+    };
+    let encode_payload_separator = encode_grammar.as_ref()
+        .map(|g| g.payload_separator().to_string())
+        .unwrap_or_else(|| " ".to_string());
+
     // Generate multiple variations and select the most compact one
     let mut best_text: Option<String> = None;
     let mut best_compactness = 0.0;
@@ -1252,7 +1270,24 @@ fn main() {
         // Skip validation in madlib mode since words are replaced with [POS] placeholders
         // Skip validation in payload-only mode since it's a direct pass-through
         if highlight_mode != HighlightMode::Madlib && generation_mode != GenerationMode::PayloadOnly {
-            let extracted_wordlist_words: Vec<String> = {
+            let extracted_wordlist_words: Vec<String> = if encode_payload_separator.is_empty() {
+                // For concatenated payloads (CS grammar), extract chars only from tokens
+                // where ALL characters are in the payload set (pure payload blocks).
+                text.split_whitespace()
+                    .flat_map(|token| {
+                        let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                        if all_in_payload {
+                            trimmed.chars()
+                                .map(|c| c.to_lowercase().to_string())
+                                .collect::<Vec<_>>()
+                        } else {
+                            vec![]  // Skip cover words
+                        }
+                    })
+                    .collect()
+            } else {
                 text
                     .split_whitespace()
                     .map(normalize_token_for_bip39)
@@ -1329,6 +1364,19 @@ fn main() {
                         non_bip39_chars += normalized.chars().count();
                     }
                 }
+            } else if encode_payload_separator.is_empty() {
+                // For concatenated payloads (CS grammar), count characters individually
+                for word in &words {
+                    let trimmed = word.trim_matches(|c: char| !c.is_alphanumeric());
+                    for ch in trimmed.chars() {
+                        let ch_str = ch.to_lowercase().to_string();
+                        if payload_set.contains(&ch_str) {
+                            bip39_chars += 1;
+                        } else {
+                            non_bip39_chars += 1;
+                        }
+                    }
+                }
             } else {
                 for word in &words {
                     let normalized = normalize_token_for_bip39(word);
@@ -1357,7 +1405,7 @@ fn main() {
             }
 
             // Keep track of the best (most compact) variation
-            if compactness > best_compactness {
+            if compactness >= best_compactness || best_text.is_none() {
                 best_compactness = compactness;
                 best_text = Some(text);
                 best_output_count = output_word_count;

@@ -153,28 +153,23 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
     // For concatenated payloads (separator=""), split each whitespace token
     // into individual characters and check each against the wordlist.
     let extracted: Vec<String> = if payload_separator.is_empty() {
-        // Character-by-character extraction for CS-style grammars
+        // For concatenated payloads (CS grammar), extract chars only from tokens
+        // where ALL characters are in the payload set (pure payload blocks).
+        // Tokens with mixed characters (like "BEGIN") are cover words — skip them.
         let payload_set: HashSet<String> = payload_words.iter()
             .map(|w| w.to_lowercase())
             .collect();
         text.split_whitespace()
             .flat_map(|token| {
                 let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
-                // Try individual characters first (for concatenated payload blocks)
-                let chars: Vec<String> = trimmed.chars()
-                    .map(|c| c.to_string())
-                    .filter(|c| payload_set.contains(&c.to_lowercase()))
-                    .collect();
-                if chars.is_empty() {
-                    // Fall back to whole-token match
-                    let lower = trimmed.to_lowercase();
-                    if payload_set.contains(&lower) {
-                        vec![lower]
-                    } else {
-                        vec![]
-                    }
+                let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                    .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                if all_in_payload {
+                    trimmed.chars()
+                        .map(|c| c.to_lowercase().to_string())
+                        .collect::<Vec<_>>()
                 } else {
-                    chars.iter().map(|c| c.to_lowercase()).collect()
+                    vec![]  // Skip cover words
                 }
             })
             .collect()

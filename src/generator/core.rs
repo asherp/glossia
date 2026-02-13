@@ -1412,7 +1412,8 @@ pub fn generate_text_with_original_payload<R: Rng>(
 
     // Post-fix: ensure output ends with a period (only for body mode, not subject mode)
     // Skip periods for primes language (only integers in vocabulary)
-    if mode == GenerationMode::Body && grammar.grammar_uses_pos(Pos::Dot) {
+    // Skip periods for CS grammar where Dot is a structural token, not punctuation
+    if mode == GenerationMode::Body && grammar.grammar_uses_pos(Pos::Dot) && grammar.dot_is_punctuation() {
         if let Some(last) = words.last_mut() {
             if !last.ends_with('.') {
                 last.push('.');
@@ -1685,7 +1686,8 @@ fn generate_text_merkle_segmented<R: Rng>(
     }
     
     // Post-fix: ensure output ends with a period
-    if grammar.grammar_uses_pos(Pos::Dot) {
+    // Skip for CS grammar where Dot is structural, not punctuation
+    if grammar.grammar_uses_pos(Pos::Dot) && grammar.dot_is_punctuation() {
         if let Some(last) = words.last_mut() {
             if !last.ends_with('.') {
                 last.push('.');
