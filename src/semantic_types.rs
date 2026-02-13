@@ -1,5 +1,12 @@
-// Semantic type system for Montague Grammar
-// Maps POS tags to lambda calculus types
+// Semantic type system for Montague Grammar with CCG combinator support
+//
+// Types form a free algebra over {e, t} with the arrow constructor (→).
+// CCG combinators operate on these types:
+//
+//   Forward application (>):  A/B  B  →  A        where A/B means A→B
+//   Backward application (<): B  A\B  →  A        (= B  B→A  →  A)
+//   Composition (B):          A/B  B/C  →  A/C
+//   Type raising (T):         a  →  (a→b)→b
 
 use crate::types::Pos;
 use serde::{Deserialize, Serialize};
@@ -120,6 +127,132 @@ impl SemanticType {
     /// Check if types are compatible (ignoring refinements)
     pub fn compatible_with(&self, other: &SemanticType) -> bool {
         self.base_type() == other.base_type()
+    }
+
+    // --- CCG combinator type operations ---
+
+    /// Forward composition (B combinator at the type level):
+    ///   Given f : B → C and g : A → B, return f ∘ g : A → C
+    ///
+    /// This checks that f's domain matches g's codomain.
+    pub fn compose_type(f_type: &SemanticType, g_type: &SemanticType) -> Option<SemanticType> {
+        // f : B → C
+        let (b_f, c) = match f_type.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        // g : A → B
+        let (a, b_g) = match g_type.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        // Check B_f == B_g
+        if b_f.base_type() != b_g.base_type() {
+            return None;
+        }
+        // Return A → C
+        Some(SemanticType::Function {
+            domain: Box::new(a.clone()),
+            codomain: Box::new(c.clone()),
+        })
+    }
+
+    /// Type raising (T combinator at the type level):
+    ///   Given a : A, and a target function type (A → B),
+    ///   return the raised type (A → B) → B
+    ///
+    /// In CCG: NP : e  becomes  S/(S\NP) : (e→t)→t
+    pub fn type_raise(base: &SemanticType, target_codomain: &SemanticType) -> SemanticType {
+        // T raises a : A to (A → B) → B
+        let func_type = SemanticType::Function {
+            domain: Box::new(base.clone()),
+            codomain: Box::new(target_codomain.clone()),
+        };
+        SemanticType::Function {
+            domain: Box::new(func_type),
+            codomain: Box::new(target_codomain.clone()),
+        }
+    }
+
+    /// Backward application: given B and B→A, return A.
+    /// This is the type-level operation for backward function application (<).
+    ///   B  A\B → A    (in CCG slash notation)
+    ///   Equivalently: given arg_type and func_type = arg_type → result, return result.
+    pub fn backward_apply(
+        arg_type: &SemanticType,
+        func_type: &SemanticType,
+    ) -> Option<SemanticType> {
+        // func_type must be arg_type → result
+        func_type.can_apply_to(arg_type)
+    }
+
+    /// Flip type (C combinator at the type level):
+    ///   Given f : A → B → C, return C(f) : B → A → C
+    pub fn flip_type(f_type: &SemanticType) -> Option<SemanticType> {
+        // f : A → (B → C)
+        let (a, bc) = match f_type.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        let (b, c) = match bc.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        // Return B → (A → C)
+        Some(SemanticType::Function {
+            domain: Box::new(b.clone()),
+            codomain: Box::new(SemanticType::Function {
+                domain: Box::new(a.clone()),
+                codomain: Box::new(c.clone()),
+            }),
+        })
+    }
+
+    /// Distribution type (S combinator at the type level):
+    ///   Given f : A → B → C and g : A → B, return S(f)(g) : A → C
+    pub fn distribute_type(
+        f_type: &SemanticType,
+        g_type: &SemanticType,
+    ) -> Option<SemanticType> {
+        // f : A → (B → C)
+        let (a_f, bc) = match f_type.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        let (b_f, c) = match bc.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        // g : A → B
+        let (a_g, b_g) = match g_type.base_type() {
+            SemanticType::Function { domain, codomain } => (domain.as_ref(), codomain.as_ref()),
+            _ => return None,
+        };
+        // Check A_f == A_g and B_f == B_g
+        if a_f.base_type() != a_g.base_type() || b_f.base_type() != b_g.base_type() {
+            return None;
+        }
+        // Return A → C
+        Some(SemanticType::Function {
+            domain: Box::new(a_f.clone()),
+            codomain: Box::new(c.clone()),
+        })
+    }
+
+    /// Check if this type is a function type and return domain and codomain
+    pub fn as_function(&self) -> Option<(&SemanticType, &SemanticType)> {
+        match self.base_type() {
+            SemanticType::Function { domain, codomain } => Some((domain, codomain)),
+            _ => None,
+        }
+    }
+
+    /// Convenience: build a function type A → B
+    pub fn arrow(domain: SemanticType, codomain: SemanticType) -> SemanticType {
+        SemanticType::Function {
+            domain: Box::new(domain),
+            codomain: Box::new(codomain),
+        }
     }
 }
 
@@ -312,8 +445,135 @@ mod tests {
     fn test_pos_to_type() {
         let n_type = pos_to_semantic_type(&Pos::N);
         assert_eq!(n_type, SemanticType::from_str("e -> t").unwrap());
-        
+
         let v_type = pos_to_semantic_type(&Pos::V);
         assert_eq!(v_type, SemanticType::from_str("e -> (e -> t)").unwrap());
+    }
+
+    // --- CCG combinator type tests ---
+
+    #[test]
+    fn test_compose_type_prefix_n() {
+        // B Prefix N: compose Prefix:t→t with N:e→t
+        // f = Prefix : t→t  (B=t, C=t)
+        // g = N : e→t       (A=e, B=t)
+        // f.domain = t = g.codomain = t ✓
+        // Result: A→C = e→t
+        let prefix_type = pos_to_semantic_type(&Pos::Prefix); // t→t
+        let n_type = pos_to_semantic_type(&Pos::N);            // e→t
+        let composed = SemanticType::compose_type(&prefix_type, &n_type);
+        assert!(composed.is_some());
+        assert_eq!(composed.unwrap(), SemanticType::from_str("e -> t").unwrap());
+    }
+
+    #[test]
+    fn test_compose_type_adv_cop() {
+        // B Adv Cop: compose Adv:(e→t)→(e→t) with Cop:(e→t)→(e→t)
+        // f = Adv : (e→t)→(e→t)  (B=(e→t), C=(e→t))
+        // g = Cop : (e→t)→(e→t)  (A=(e→t), B=(e→t))
+        // f.domain = (e→t) = g.codomain = (e→t) ✓
+        // Result: (e→t)→(e→t)
+        let adv_type = pos_to_semantic_type(&Pos::Adv);
+        let cop_type = pos_to_semantic_type(&Pos::Cop);
+        let composed = SemanticType::compose_type(&adv_type, &cop_type);
+        assert!(composed.is_some());
+        assert_eq!(
+            composed.unwrap(),
+            SemanticType::from_str("(e -> t) -> (e -> t)").unwrap()
+        );
+    }
+
+    #[test]
+    fn test_det_n_is_application_not_composition() {
+        // Det:(e→t)→(e→t) applied to N:(e→t) gives (e→t) — this is application, not composition
+        let det_type = pos_to_semantic_type(&Pos::Det);
+        let n_type = pos_to_semantic_type(&Pos::N);
+        // Application works:
+        let applied = det_type.can_apply_to(&n_type);
+        assert!(applied.is_some());
+        assert_eq!(applied.unwrap(), SemanticType::from_str("e -> t").unwrap());
+        // Composition doesn't (domain of Det is (e→t), codomain of N is t — mismatch):
+        let composed = SemanticType::compose_type(&det_type, &n_type);
+        assert!(composed.is_none());
+    }
+
+    #[test]
+    fn test_compose_type_mismatch() {
+        // Composing two incompatible types should fail
+        let e_to_t = SemanticType::from_str("e -> t").unwrap();
+        let t_to_t = SemanticType::from_str("t -> t").unwrap();
+        // e_to_t : e→t (B=e, C=t), t_to_t : t→t (A=t, B=t)
+        // B=e ≠ B=t → should fail
+        let composed = SemanticType::compose_type(&e_to_t, &t_to_t);
+        assert!(composed.is_none());
+    }
+
+    #[test]
+    fn test_type_raise_np() {
+        // Type-raise NP:e to (e→t)→t
+        let raised = SemanticType::type_raise(&SemanticType::Entity, &SemanticType::Truth);
+        // Should be (e→t)→t
+        assert_eq!(raised, SemanticType::from_str("(e -> t) -> t").unwrap());
+    }
+
+    #[test]
+    fn test_flip_type_verb() {
+        // C(V): flip V : e→(e→t) to get e→(e→t)
+        // Wait: V : e → (e → t) means A=e, B=e, C=t
+        // C(V) : B → A → C = e → e → t = e → (e → t)
+        // So flipping a verb doesn't change its type (both args are type e)!
+        let v_type = pos_to_semantic_type(&Pos::V); // e → (e → t)
+        let flipped = SemanticType::flip_type(&v_type);
+        assert!(flipped.is_some());
+        // e→(e→t) flipped is still e→(e→t) since both domain levels are e
+        assert_eq!(flipped.unwrap(), v_type);
+    }
+
+    #[test]
+    fn test_flip_type_conj() {
+        // C(Conj): Conj : t→(t→t), A=t, B=t, C=t
+        // C(Conj) : t→(t→t) — same since both args are t
+        let conj_type = pos_to_semantic_type(&Pos::Conj);
+        let flipped = SemanticType::flip_type(&conj_type);
+        assert!(flipped.is_some());
+        assert_eq!(flipped.unwrap(), conj_type);
+    }
+
+    #[test]
+    fn test_backward_apply() {
+        // Backward: NP:e→t applied to Det:(e→t)→(e→t) gives (e→t)
+        let np_type = SemanticType::from_str("e -> t").unwrap();
+        let det_type = pos_to_semantic_type(&Pos::Det); // (e→t)→(e→t)
+        let result = SemanticType::backward_apply(&np_type, &det_type);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), SemanticType::from_str("e -> t").unwrap());
+    }
+
+    #[test]
+    fn test_distribute_type() {
+        // S f g : f:(A→B→C), g:(A→B) → (A→C)
+        // Let f = V : e→(e→t) (A=e, B=e, C=t)
+        // Let g = Adj : e→e    (A=e, B=e)
+        // S(V)(Adj) : e→t
+        let v_type = pos_to_semantic_type(&Pos::V);     // e → (e → t)
+        let adj_type = pos_to_semantic_type(&Pos::Adj); // e → e
+        let result = SemanticType::distribute_type(&v_type, &adj_type);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), SemanticType::from_str("e -> t").unwrap());
+    }
+
+    #[test]
+    fn test_as_function() {
+        let e_to_t = SemanticType::from_str("e -> t").unwrap();
+        let (domain, codomain) = e_to_t.as_function().unwrap();
+        assert_eq!(domain, &SemanticType::Entity);
+        assert_eq!(codomain, &SemanticType::Truth);
+    }
+
+    #[test]
+    fn test_arrow_convenience() {
+        let built = SemanticType::arrow(SemanticType::Entity, SemanticType::Truth);
+        let parsed = SemanticType::from_str("e -> t").unwrap();
+        assert_eq!(built, parsed);
     }
 }

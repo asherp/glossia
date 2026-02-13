@@ -318,21 +318,21 @@ impl Grammar {
         by_k
     }
     
-    /// Type-driven sequence generation using lambda calculus
+    /// Type-driven sequence generation via CCG proof search.
+    ///
+    /// Replaces the old random-sampling approach with exhaustive
+    /// combinator-driven derivation. Each POS sequence is a proof
+    /// that the terminals compose into the target type.
     fn precompute_sequences_type_driven(
         &self,
         config: &LanguageConfig,
         start_symbol: &str,
         max_k: usize,
     ) -> Vec<Vec<SequenceWithProbability>> {
-        use rand::SeedableRng;
-        use rand::rngs::StdRng;
-        
         // Map start symbol to semantic type
         let target_type = match start_symbol {
             "S" | "SContent" => SemanticType::Truth,
             _ => {
-                // Try to infer from symbol name (e.g., "S_N" -> N type)
                 if let Some(pos_str) = start_symbol.strip_prefix("S_") {
                     match pos_str.to_uppercase().as_str() {
                         "N" => pos_to_semantic_type(&Pos::N),
@@ -341,55 +341,32 @@ impl Grammar {
                         "ADV" => pos_to_semantic_type(&Pos::Adv),
                         "PREP" => pos_to_semantic_type(&Pos::Prep),
                         "DET" => pos_to_semantic_type(&Pos::Det),
-                        _ => SemanticType::Truth,  // Default to sentence type
+                        _ => SemanticType::Truth,
                     }
                 } else {
                     SemanticType::Truth
                 }
             }
         };
-        
-        let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
-        let mut rng = StdRng::seed_from_u64(42);  // Deterministic for caching
-        
-        // Generate sequences for each k
-        for k in 1..=max_k {
-            let mut sequences = Vec::new();
-            
-            // Generate multiple variations
-            for _ in 0..100 {  // Generate 100 variations per k
-                match config.generate_from_type(&target_type, k, &mut rng) {
-                    Ok(pos_seq) => {
-                        if pos_seq.len() == k {
-                            let refs = vec![None; pos_seq.len()];
-                            sequences.push(SequenceWithProbability::new(
-                                pos_seq,
-                                refs,
-                                1.0,  // Equal probability for now
-                            ));
-                        }
-                    }
-                    Err(_) => continue,
-                }
-            }
-            
-            // Deduplicate and sort
-            let mut unique: HashMap<(Vec<Pos>, Vec<Option<String>>), f64> = HashMap::new();
-            for seq_prob in sequences {
-                *unique.entry((seq_prob.sequence, seq_prob.refinements)).or_insert(0.0) += seq_prob.probability;
-            }
 
-            by_k[k] = unique.into_iter()
-                .map(|((sequence, refinements), probability)| SequenceWithProbability::new(sequence, refinements, probability))
+        // CCG proof search: derive all type-valid POS sequences
+        let derivations_by_k = config.derive_all(&target_type, max_k);
+
+        // Convert Derivation → SequenceWithProbability
+        let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
+        for k in 0..=max_k {
+            by_k[k] = derivations_by_k[k]
+                .iter()
+                .map(|d| {
+                    SequenceWithProbability::new(
+                        d.sequence.clone(),
+                        d.refinements.clone(),
+                        d.probability,
+                    )
+                })
                 .collect();
-            // Sort by probability (highest first), breaking ties by sequence for determinism
-            by_k[k].sort_by(|a, b| {
-                b.probability.partial_cmp(&a.probability)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| a.sequence.cmp(&b.sequence))
-            });
         }
-        
+
         by_k
     }
     
@@ -879,6 +856,38 @@ mod tests {
         // English subject grammar should use Prefix
         let grammar = Grammar::from_language_dialect("english", "subject").expect("Failed to load grammar");
         assert!(grammar.grammar_uses_pos(Pos::Prefix), "English subject grammar should use Prefix");
+    }
+
+    #[test]
+    fn test_english_prose_dialect_loads() {
+        let grammar = Grammar::from_language_dialect("english", "prose").expect("Failed to load English prose grammar");
+        // Prose dialect should use Conj (conjoined clauses), Pron, and standard POS tags
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Prose grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::V), "Prose grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::Det), "Prose grammar should use Det");
+        assert!(grammar.grammar_uses_pos(Pos::Conj), "Prose grammar should use Conj");
+        assert!(grammar.grammar_uses_pos(Pos::Pron), "Prose grammar should use Pron");
+        // Prose should produce sequences
+        let seqs = grammar.precompute_sequences_with_probability("S", 10);
+        let total: usize = seqs.iter().map(|v| v.len()).sum();
+        assert!(total > 0, "Prose grammar should produce at least some sequences");
+    }
+
+    #[test]
+    fn test_latin_spells_dialect_loads() {
+        let grammar = Grammar::from_language_dialect("latin", "spells").expect("Failed to load Latin spells grammar");
+        // Spells use V, N, Adj, Dot — short formulaic patterns
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Spells grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::V), "Spells grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::N), "Spells grammar should use N");
+        assert!(grammar.grammar_uses_pos(Pos::Adj), "Spells grammar should use Adj");
+        // Spells should NOT use Det (Latin has no articles)
+        assert!(!grammar.grammar_uses_pos(Pos::Det), "Spells grammar should not use Det");
+        // Spells produce short sequences — check k=2 (V Dot), k=3 (V N Dot)
+        let seqs_k2 = grammar.enumerate_sequences_with_probability("S", 2);
+        assert!(!seqs_k2.is_empty(), "Spells should produce k=2 sequences (V Dot, N Dot)");
+        let seqs_k3 = grammar.enumerate_sequences_with_probability("S", 3);
+        assert!(!seqs_k3.is_empty(), "Spells should produce k=3 sequences (V N Dot, Adj N Dot, etc.)");
     }
 
     #[test]

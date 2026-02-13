@@ -8,6 +8,9 @@ pub mod generator;
 pub mod merkle;
 pub mod codec;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 // Re-export key generator types and functions
 pub use generator::types::{GenerationMode, SentenceLengthMode, PayloadTok, Lexicon};
 pub use generator::core::generate_text;
@@ -18,15 +21,19 @@ pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};
 // Re-export codec functions
 pub use codec::{encode, decode, DecodeError};
 
+#[cfg(feature = "native")]
 use nlprule::{Tokenizer, Rules};
+#[cfg(feature = "native")]
 use anyhow::{Result, Context};
 
 /// Helper enum to represent supported languages
+#[cfg(feature = "native")]
 #[derive(Debug, Clone, Copy)]
 pub enum Language {
     English,
 }
 
+#[cfg(feature = "native")]
 impl Language {
     /// Get the language code (ISO 639-1)
     fn code(&self) -> &'static str {
@@ -47,11 +54,13 @@ impl Language {
 }
 
 /// Grammar checker that wraps nlprule functionality
+#[cfg(feature = "native")]
 pub struct GrammarChecker {
     tokenizer: Tokenizer,
     rules: Rules,
 }
 
+#[cfg(feature = "native")]
 impl GrammarChecker {
     /// Create a new GrammarChecker from language, loading tokenizer and rules from paths
     pub fn from_paths(tokenizer_path: &str, rules_path: &str) -> Result<Self> {
@@ -59,7 +68,7 @@ impl GrammarChecker {
             .with_context(|| format!("Failed to load tokenizer from {}", tokenizer_path))?;
         let rules = Rules::new(rules_path)
             .with_context(|| format!("Failed to load rules from {}", rules_path))?;
-        
+
         Ok(Self { tokenizer, rules })
     }
 
@@ -68,7 +77,7 @@ impl GrammarChecker {
     pub fn from_language(language: Language) -> Result<Self> {
         let tokenizer_filename = language.tokenizer_filename();
         let rules_filename = language.rules_filename();
-        
+
         // Try multiple locations (check Docker location first to avoid corrupted local files)
         let locations = vec![
             "/opt/nlprule-data/", // Docker persistent location (check first)
@@ -76,17 +85,17 @@ impl GrammarChecker {
             "data/",              // data subdirectory
             "",                   // current directory
         ];
-        
+
         for location in &locations {
             let tokenizer_path = format!("{}{}", location, tokenizer_filename);
             let rules_path = format!("{}{}", location, rules_filename);
-            
-            if std::path::Path::new(&tokenizer_path).exists() && 
+
+            if std::path::Path::new(&tokenizer_path).exists() &&
                std::path::Path::new(&rules_path).exists() {
                 return Self::from_paths(&tokenizer_path, &rules_path);
             }
         }
-        
+
         // If none found, try the default (current directory) and let it error with a helpful message
         Self::from_paths(&tokenizer_filename, &rules_filename)
             .with_context(|| format!(
@@ -117,7 +126,7 @@ impl GrammarChecker {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "native"))]
 mod tests {
     use super::*;
 
@@ -131,14 +140,14 @@ mod tests {
                 return Ok(());
             }
         };
-        
+
         let sentence = "The quick brown fox jumps over the lazy dog.";
         let suggestions = grammar_checker.check(sentence);
-        
+
         // This is a complete, grammatically correct sentence
         // It should have few or no suggestions
         println!("Suggestions for test sentence: {:?}", suggestions);
-        
+
         Ok(())
     }
 }

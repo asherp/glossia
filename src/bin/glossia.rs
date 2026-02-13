@@ -334,7 +334,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut demerkle_mode = false;
     let mut decode_mode = false;
     let mut merkle_highlight_mode: Option<HighlightMode> = None;
-    let mut wordlist = "bip39".to_string();
+    let mut wordlist = "default".to_string();
     let mut i = 1;
     
     while i < args.len() {
@@ -734,7 +734,14 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
+    // Resolve "default" wordlist to the language's primary profile
+    let wordlist = if wordlist == "default" {
+        glossia::generator::default_wordlist(&language).to_string()
+    } else {
+        wordlist
+    };
+
     // Handle --demerkle mode: parse merkleized sequence and output payload words
     if demerkle_mode {
         use glossia::merkle::parse_merkleized;
@@ -956,7 +963,7 @@ fn main() {
         .unwrap_or_else(|e| {
             eprintln!("Warning: Failed to load POS mapping for language '{}': {}", language, e);
             eprintln!("Falling back to English POS mapping");
-            glossia::generator::build_pos_mapping_for_wordlist("english", "bip39").unwrap_or_else(|_| HashMap::new())
+            glossia::generator::build_pos_mapping("english").unwrap_or_else(|_| HashMap::new())
         });
     
     // Handle merkle mode: expand payload with Merkle proof
