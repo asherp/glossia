@@ -3,12 +3,11 @@ use std::collections::{HashMap, HashSet};
 use crate::types::Pos;
 use crate::grammar::SequenceWithProbability;
 use super::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
-use super::types::Number;
 use super::cache::SequenceCache;
 use super::utils::{
     payload_fits, get_grammar, start_nonterminal_for_pos, capitalize,
     normalize_token_for_bip39, starts_with_vowel_sound, is_bare_verb_form,
-    is_likely_transitive_verb, pluralize_cover_noun,
+    is_likely_transitive_verb,
 };
 
 /// Find the maximum subsequence embedding of payload words into slots.
@@ -74,7 +73,7 @@ pub fn max_subsequence_embedding(
 }
 
 /// Plan a sentence: find the best POS sequence and payload embedding for given k.
-/// Returns (slots, forced_placement_map, j) where j is the number of payload words embedded.
+/// Returns (slots, refinements, forced_placement_map, j) where j is the number of payload words embedded.
 /// If require_prefix is true, only consider sequences that start with Pos::Prefix.
 pub fn plan_sentence<R: Rng>(
     rng: &mut R,
@@ -84,18 +83,18 @@ pub fn plan_sentence<R: Rng>(
     payload: &[PayloadTok],
     payload_start: usize,
     require_prefix: bool,
-) -> Option<(Vec<Pos>, HashMap<usize, usize>, usize)> {
+) -> Option<(Vec<Pos>, Vec<Option<String>>, HashMap<usize, usize>, usize)> {
     let sequences = cache.get(start_symbol, k)?;
-    
+
     if sequences.is_empty() {
         return None;
     }
-    
+
     let remaining_payload = payload.len().saturating_sub(payload_start);
     if remaining_payload == 0 {
         return None;
     }
-    
+
     // Filter sequences if require_prefix is true
     // Keep track of original indices when filtering
     let filtered_with_indices: Vec<(usize, &SequenceWithProbability)> = if require_prefix {
@@ -106,28 +105,28 @@ pub fn plan_sentence<R: Rng>(
     } else {
         sequences.iter().enumerate().collect()
     };
-    
+
     if filtered_with_indices.is_empty() {
         return None;
     }
-    
+
     // m = number of word slots that can hold payload words (excluding Dot and function words)
     // Try j from min(remaining_payload, m) down to 1
     // For each j, try sequences in probability order
-    
+
     // First, figure out m by looking at the first sequence
     // Exclude Dot (punctuation) and function words that must be cover words (Prefix, Aux, Cop, To)
     let first_seq = &filtered_with_indices[0].1.sequence;
     let m = first_seq.iter().filter(|&&pos| {
-        pos != Pos::Dot 
-        && pos != Pos::Prefix 
-        && pos != Pos::Aux 
-        && pos != Pos::Cop 
+        pos != Pos::Dot
+        && pos != Pos::Prefix
+        && pos != Pos::Aux
+        && pos != Pos::Cop
         && pos != Pos::To
     }).count();
-    
+
     let max_j = remaining_payload.min(m);
-    
+
     // Try j from max_j down to 1
     for j in (1..=max_j).rev() {
         // Collect all sequences that can embed j payload words.
@@ -161,47 +160,48 @@ pub fn plan_sentence<R: Rng>(
                 last = Some((*idx, placement.clone()));
                 let w = sequences[*idx].probability;
                 if r <= w {
-                    return Some((sequences[*idx].sequence.clone(), placement.clone(), j));
+                    return Some((sequences[*idx].sequence.clone(), sequences[*idx].refinements.clone(), placement.clone(), j));
                 }
                 r -= w;
             }
 
             // Numerical edge-case: fall back to last feasible candidate.
             let (idx, placement) = last.expect("candidates non-empty");
-            return Some((sequences[idx].sequence.clone(), placement, j));
+            return Some((sequences[idx].sequence.clone(), sequences[idx].refinements.clone(), placement, j));
         } else {
             let (idx, placement) = candidates
                 .choose(rng)
                 .expect("candidates non-empty")
                 .clone();
-            return Some((sequences[idx].sequence.clone(), placement, j));
+            return Some((sequences[idx].sequence.clone(), sequences[idx].refinements.clone(), placement, j));
         }
     }
-    
+
     None
 }
 
 /// Generate a minimal fallback sentence structure that can always embed a payload word.
 /// This ensures payload preservation even if it results in grammar errors.
-/// Returns (slots, forced_placement_map) where the word is forced into the first compatible slot.
+/// Returns (slots, refinements, forced_placement_map) where the word is forced into the first compatible slot.
+/// Uses grammar introspection instead of language-name string checks.
 pub(crate) fn generate_fallback_sentence(
     payload: &[PayloadTok],
     payload_start: usize,
     mode: GenerationMode,
-    language: &str,
-) -> Option<(Vec<Pos>, HashMap<usize, usize>)> {
+    grammar: &crate::grammar::Grammar,
+) -> Option<(Vec<Pos>, Vec<Option<String>>, HashMap<usize, usize>)> {
     if payload_start >= payload.len() {
         return None;
     }
-    
+
     let word = &payload[payload_start];
-    
-    // In subject mode, don't include Dot (email subjects don't have periods)
-    // Also skip Dot for primes language (only integers in vocabulary)
-    let include_dot = mode != GenerationMode::Subject && !language.ends_with("primes");
-    
-    // Latin has no determiners - use empty prefix for Latin, Det for others
-    let use_det = language != "latin";
+
+    // Derive features from grammar instead of language name
+    let has_punctuation = grammar.grammar_uses_pos(Pos::Dot);
+    let has_determiners = grammar.grammar_uses_pos(Pos::Det);
+
+    let include_dot = mode != GenerationMode::Subject && has_punctuation;
+    let use_det = has_determiners;
     let det_prefix = if use_det { vec![Pos::Det] } else { vec![] };
     let det_offset = if use_det { 1 } else { 0 };
     
@@ -302,10 +302,26 @@ pub(crate) fn generate_fallback_sentence(
         }
     };
     
+    let refinements = vec![None; slots.len()];
     let mut forced = HashMap::new();
     forced.insert(slot_idx, payload_start);
-    
-    Some((slots, forced))
+
+    Some((slots, refinements, forced))
+}
+
+/// Apply English indefinite article phonological rule: "a" before consonant, "an" before vowel.
+/// This is the only remaining surface-form rule — a/an have identical denotations in Montague Grammar.
+fn apply_indef_phonology(next_word: Option<&str>) -> String {
+    if let Some(next) = next_word {
+        let normalized = normalize_token_for_bip39(next);
+        if starts_with_vowel_sound(&normalized) {
+            "an".to_string()
+        } else {
+            "a".to_string()
+        }
+    } else {
+        "a".to_string()
+    }
 }
 
 /// Fill a slot stream with cover words + payload words (in-order).
@@ -318,376 +334,164 @@ pub fn fill_slots<R: Rng>(
     rng: &mut R,
     lex: &Lexicon,
     slots: &[Pos],
+    refinements: &[Option<String>],
     payload: &[PayloadTok],
     payload_i: &mut usize,
     prev_words: &[&str],
     _expected_first_pos: Option<Pos>,
     forced_placements: Option<&HashMap<usize, usize>>,
     payload_only_mode: bool,
-    _language: &str,
     prime_constraint_enabled: bool,
 ) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
-    const REPETITION_WINDOW: usize = 3; // Check last 3 words to avoid repetition
-    // Cache for words picked early (for a/an selection) to reuse later
-    let mut word_cache: HashMap<usize, String> = HashMap::new();
-    // Noun number chosen per NP, keyed by the noun slot index within this sentence.
-    let mut noun_number: HashMap<usize, Number> = HashMap::new();
-    // Only used for agreement when we introduce Aux/Cop later; keep it stable now.
-    let mut subject_number: Option<Number> = None;
-    // Track which payload words have been used (by index) to avoid skipping words unnecessarily
+    const REPETITION_WINDOW: usize = 3;
+    // Track which payload words have been used (by index)
     let mut used_payload_indices: HashSet<usize> = HashSet::new();
 
     for (i, &slot) in slots.iter().enumerate() {
-        match slot {
-            Pos::Dot => {
-                if let Some(last) = out.last_mut() {
-                    last.push('.');
-                } else {
-                    out.push(".".to_string());
-                }
+        if slot == Pos::Dot {
+            if let Some(last) = out.last_mut() {
+                last.push('.');
+            } else {
+                out.push(".".to_string());
             }
-            Pos::Det => {
-                // Check if this slot has a forced placement
-                let payload_word_idx = if let Some(forced) = forced_placements {
-                    forced.get(&i).copied()
-                } else {
-                    // Allow embedding payload determiners (e.g., "this", "that") without mutation.
-                    // Use current payload word if it fits, otherwise use cover word (strict order preservation)
-                    if *payload_i < payload.len() 
-                        && !used_payload_indices.contains(payload_i)
-                        && payload_fits(&payload[*payload_i], Pos::Det) {
-                        Some(*payload_i)
-                    } else {
-                        None
-                    }
-                };
-                
-                if let Some(idx) = payload_word_idx {
-                    // Use payload word and advance to next
-                    out.push(payload[idx].word.clone());
-                    used_payload_indices.insert(idx);
-                    // Only advance payload_i if we're not using forced placements
-                    if forced_placements.is_none() {
-                        *payload_i += 1;
-                    }
-                    continue;
-                }
+            continue;
+        }
 
-                // Build recent words list: prev_words + last few words from current output
-                let mut recent_words: Vec<&str> = prev_words.to_vec();
-                let start_idx = out.len().saturating_sub(REPETITION_WINDOW);
-                recent_words.extend(out[start_idx..].iter().map(|s| s.as_str()));
+        // --- Payload placement (same for all POS, unchanged) ---
+        let must_use_cover = !payload_only_mode && matches!(
+            slot,
+            Pos::Aux | Pos::Cop | Pos::To | Pos::Prefix | Pos::Modal | Pos::Conj
+        );
 
-                // Determine NP number (singular/plural) for this NP.
-                // We force the first NP (likely the subject) to singular to reduce agreement issues
-                // when payload nouns are embedded (payload spelling cannot be pluralized).
-                let mut np_number = if subject_number.is_none() {
-                    Number::Singular
-                } else if rng.gen_bool(0.25) {
-                    Number::Plural
-                } else {
-                    Number::Singular
-                };
-
-                // Locate the noun slot for this NP (Det Adj? N).
-                let mut noun_idx = None;
-                let mut j = i + 1;
-                while j < slots.len() && slots[j] == Pos::Adj {
-                    j += 1;
-                }
-                if j < slots.len() && slots[j] == Pos::N {
-                    noun_idx = Some(j);
-                }
-
-                // Record subject number on first NP.
-                if subject_number.is_none() {
-                    subject_number = Some(np_number);
-                }
-
-                if let Some(ni) = noun_idx {
-                    noun_number.insert(ni, np_number);
-                } else {
-                    // No noun slot ahead; fall back to singular-safe determiners.
-                    np_number = Number::Singular;
-                }
-                
-                // Determine what the next word will be (for a/an selection)
-                // Prefer forced placements when present (body/subject mode planning). In that mode,
-                // payload_i is intentionally not advanced inside fill_slots, so "peek by payload_i"
-                // can be wrong.
-                let next_word_str = if let Some(forced) = forced_placements {
-                    if i + 1 < slots.len() {
-                        forced
-                            .get(&(i + 1))
-                            .and_then(|&payload_idx| payload.get(payload_idx))
-                            .map(|t| t.word.as_str())
-                    } else {
-                        None
-                    }
-                } else if *payload_i < payload.len() {
-                    // Check if next slot would fit the current payload word (strict order preservation)
-                    if let Some(next_slot) = slots.get(i + 1) {
-                        // Check if current payload word fits and hasn't been used
-                        if !used_payload_indices.contains(payload_i)
-                            && payload_fits(&payload[*payload_i], *next_slot)
-                        {
-                            // Next word is a payload word - use it directly
-                            Some(payload[*payload_i].word.as_str())
-                        } else {
-                            // Next word will be a cover word - actually pick it now and cache it
-                            let picked_word = lex.pick_cover(rng, *next_slot, &recent_words);
-                            word_cache.insert(i + 1, picked_word.clone());
-                            // Get reference from cache (it was just inserted, so unwrap is safe)
-                            word_cache.get(&(i + 1)).map(|s| s.as_str())
-                        }
-                    } else {
-                        None
-                    }
-                } else if i + 1 < slots.len() {
-                    // No more payload words, next will be a cover word - pick it now and cache it
-                    if let Some(next_slot) = slots.get(i + 1) {
-                        let picked_word = lex.pick_cover(rng, *next_slot, &recent_words);
-                        word_cache.insert(i + 1, picked_word);
-                        // Get reference from cache (it was just inserted, so unwrap is safe)
-                        word_cache.get(&(i + 1)).map(|s| s.as_str())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                let det_word = match np_number {
-                    Number::Singular => {
-                        // Use a/an sometimes when we know the next word, otherwise choose a safer determiner.
-                        // Prioritize shorter words: "the" (3) < "a"/"an" (1-2) < "each"/"some" (4)
-                        if let Some(next) = next_word_str {
-                            if rng.gen_bool(0.35) {
-                                // Normalize the word before checking vowel sound (strip any potential formatting)
-                                let normalized_next = normalize_token_for_bip39(next);
-                                if starts_with_vowel_sound(&normalized_next) {
-                                    "an".to_string()
-                                } else {
-                                    "a".to_string()
-                                }
-                            } else {
-                                // Prefer "the" (shortest) but allow some variety
-                                let det_options = ["the", "each", "some"];
-                                if rng.gen_bool(0.7) {
-                                    "the".to_string() // Prefer shortest
-                                } else {
-                                    det_options.choose(rng).unwrap().to_string()
-                                }
-                            }
-                        } else {
-                            // Prefer "the" (shortest) but allow some variety
-                            let det_options = ["the", "each", "some"];
-                            if rng.gen_bool(0.7) {
-                                "the".to_string() // Prefer shortest
-                            } else {
-                                det_options.choose(rng).unwrap().to_string()
-                            }
-                        }
-                    }
-                    Number::Plural => {
-                        // Avoid these/those because payload nouns cannot be pluralized.
-                        // Prefer "the" (3) over "some" (4)
-                        let det_options = ["the", "some"];
-                        if rng.gen_bool(0.7) {
-                            "the".to_string() // Prefer shortest
-                        } else {
-                            det_options.choose(rng).unwrap().to_string()
-                        }
-                    }
-                };
-
-                // Check if this determiner would repeat a recent word
-                // If so and it's not a/an, pick a different one
-                let final_det = if recent_words.contains(&det_word.as_str()) && det_word != "a" && det_word != "an" {
-                    // Avoid repetition for non-a/an determiners
-                    // Prioritize shorter words when avoiding repetition
-                    let det_options = ["the", "each", "some"];
-                    // Try shortest first, then others
-                    if !recent_words.contains(&"the") {
-                        "the".to_string()
-                    } else {
-                        det_options.iter()
-                            .find(|&&d| !recent_words.contains(&d))
-                            .copied()
-                            .unwrap_or_else(|| det_options.choose(rng).unwrap())
-                            .to_string()
-                    }
-                } else {
-                    det_word
-                };
-                
-                out.push(final_det);
+        let payload_word_idx = if let Some(forced) = forced_placements {
+            forced.get(&i).copied()
+        } else if must_use_cover {
+            None
+        } else if slot == Pos::Det {
+            // Allow embedding payload determiners
+            if *payload_i < payload.len()
+                && !used_payload_indices.contains(payload_i)
+                && payload_fits(&payload[*payload_i], Pos::Det)
+            {
+                Some(*payload_i)
+            } else {
+                None
             }
-            _ => {
-                // Certain slots should never use payload words (grammatical function words)
-                // UNLESS we're in payload-only mode
-                let must_use_cover = !payload_only_mode && matches!(
-                    slot,
-                    Pos::Aux | Pos::Cop | Pos::To | Pos::Prefix | Pos::Modal | Pos::Conj
-                );
-                
-                // Check if this slot has a forced placement
-                let payload_word_idx = if let Some(forced) = forced_placements {
-                    forced.get(&i).copied()
-                } else if must_use_cover {
-                    None
-                } else if *payload_i < payload.len() 
-                    && !used_payload_indices.contains(payload_i)
-                    && (payload_only_mode || payload_fits(&payload[*payload_i], slot)) {
-                    // In payload-only mode, use any payload word regardless of POS fit
-                    Some(*payload_i)
-                } else {
-                    None
-                };
-                
-                if let Some(idx) = payload_word_idx {
-                    // Use payload word and advance to next
-                    out.push(payload[idx].word.clone());
-                    used_payload_indices.insert(idx);
-                    // Only advance payload_i if we're not using forced placements
-                    if forced_placements.is_none() {
-                        *payload_i += 1;
-                    }
-                } else {
-                    // Current word doesn't fit - advance to next unused word if current is already used
-                    if *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
-                        // Current word is already used, advance to next unused
-                        while *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
-                            *payload_i += 1;
-                        }
-                    }
-                    // Use cover word
-                    // Check if we already picked this word (for a/an selection)
-                    if let Some(cached_word) = word_cache.remove(&i) {
-                        out.push(cached_word);
-                    } else {
-                        // Build recent words list: prev_words + last few words from current output
-                        let mut recent_words: Vec<&str> = prev_words.to_vec();
-                        let start_idx = out.len().saturating_sub(REPETITION_WINDOW);
-                        recent_words.extend(out[start_idx..].iter().map(|s| s.as_str()));
-                        
-                        // Apply prime ordering constraint if enabled in grammar
-                        let cover_word = if prime_constraint_enabled {
-                            // Helper to check if a word is a prime (parseable as integer and is prime)
-                            let is_prime_word = |w: &str| -> Option<i64> {
-                                w.parse::<i64>().ok().filter(|&n| {
-                                    if n < 2 { return false; }
-                                    if n == 2 { return true; }
-                                    if n % 2 == 0 { return false; }
-                                    let sqrt_n = (n as f64).sqrt() as i64;
-                                    for i in (3..=sqrt_n).step_by(2) {
-                                        if n % i == 0 { return false; }
-                                    }
-                                    true
-                                })
-                            };
-                            
-                            // Find left prime (last word in output if it's a prime)
-                            let left_prime = out.last()
-                                .and_then(|w| is_prime_word(w.as_str()));
-                            
-                            // Find right prime (next payload word if it's a prime)
-                            let right_prime = if *payload_i < payload.len() 
-                                && !used_payload_indices.contains(payload_i)
-                                && payload_fits(&payload[*payload_i], slots.get(i + 1).copied().unwrap_or(slot)) {
-                                is_prime_word(&payload[*payload_i].word)
-                            } else {
-                                None
-                            };
-                            
-                            // If we have both bounds, use prime constraint
-                            if let (Some(_left), Some(_right)) = (left_prime, right_prime) {
-                                lex.pick_cover_with_prime_constraint(
-                                    rng, 
-                                    slot, 
-                                    &recent_words,
-                                    out.last().map(|s| s.as_str()),
-                                    right_prime.map(|_| payload[*payload_i].word.as_str()),
-                                ).unwrap_or_else(|| lex.pick_cover(rng, slot, &recent_words))
-                            } else {
-                                // No valid bounds, use regular pick_cover
-                                lex.pick_cover(rng, slot, &recent_words)
-                            }
-                        } else if slot == Pos::Aux {
-                            match subject_number.unwrap_or(Number::Singular) {
-                                Number::Singular => "does".to_string(),
-                                Number::Plural => "do".to_string(),
-                            }
-                        } else if slot == Pos::Cop {
-                            match subject_number.unwrap_or(Number::Singular) {
-                                Number::Singular => "is".to_string(),
-                                Number::Plural => "are".to_string(),
-                            }
-                        } else if slot == Pos::V {
-                            // Lightweight agreement constraints:
-                            // - Modal → bare V only
-                            // - V → NP only if (likely) transitive (cover words only)
-                            let prev_slot = if i > 0 { Some(slots[i - 1]) } else { None };
-                            let next_slot = slots.get(i + 1).copied();
-                            let after_modal = matches!(prev_slot, Some(Pos::Modal));
-                            let next_starts_np = matches!(next_slot, Some(Pos::Det) | Some(Pos::N));
-                            let want_transitive = next_starts_np;
+        } else if *payload_i < payload.len()
+            && !used_payload_indices.contains(payload_i)
+            && (payload_only_mode || payload_fits(&payload[*payload_i], slot))
+        {
+            Some(*payload_i)
+        } else {
+            None
+        };
 
-                            let constrained = if after_modal && want_transitive {
-                                lex.pick_cover_filtered(rng, slot, &recent_words, |w| {
-                                    is_bare_verb_form(w) && is_likely_transitive_verb(w)
-                                })
-                            } else if after_modal {
-                                lex.pick_cover_filtered(rng, slot, &recent_words, |w| is_bare_verb_form(w))
-                            } else if want_transitive {
-                                lex.pick_cover_filtered(rng, slot, &recent_words, |w| {
-                                    is_likely_transitive_verb(w)
-                                })
-                            } else {
-                                None
-                            };
+        if let Some(idx) = payload_word_idx {
+            out.push(payload[idx].word.clone());
+            used_payload_indices.insert(idx);
+            if forced_placements.is_none() {
+                *payload_i += 1;
+            }
+            continue;
+        }
 
-                            constrained.unwrap_or_else(|| lex.pick_cover(rng, slot, &recent_words))
-                        } else if slot == Pos::To {
-                            "to".to_string()
-                        } else if slot == Pos::Prefix {
-                            // Prefix words are always cover words (not payload)
-                            lex.pick_cover(rng, slot, &recent_words)
-                        } else if slot == Pos::N {
-                            let num = noun_number.get(&i).copied().unwrap_or(Number::Singular);
-                            match num {
-                                Number::Singular => lex.pick_cover(rng, slot, &recent_words),
-                                Number::Plural => {
-                                    // Attempt a few times to find a plural that won't collide with BIP39.
-                                    const MAX_TRIES: usize = 8;
-                                    let mut chosen = None;
-                                    for _ in 0..MAX_TRIES {
-                                        let base = lex.pick_cover(rng, slot, &recent_words);
-                                        let plural = pluralize_cover_noun(&base);
-                                        let plural_lc = plural.to_lowercase();
-                                        if !lex.wordlist_set.contains(&plural_lc)
-                                            && !recent_words.iter().any(|&rw| rw == plural_lc.as_str())
-                                        {
-                                            chosen = Some(plural);
-                                            break;
-                                        }
-                                    }
-                                    chosen.unwrap_or_else(|| lex.pick_cover(rng, slot, &recent_words))
-                                }
-                            }
-                        } else {
-                            lex.pick_cover(rng, slot, &recent_words)
-                        };
-                        out.push(cover_word);
-                    }
-                }
+        // Advance past used payload words
+        if *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
+            while *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
+                *payload_i += 1;
             }
         }
+
+        // --- Cover word selection (refinement-driven) ---
+        let mut recent_words: Vec<&str> = prev_words.to_vec();
+        let start_idx = out.len().saturating_sub(REPETITION_WINDOW);
+        recent_words.extend(out[start_idx..].iter().map(|s| s.as_str()));
+
+        let ref_tag = refinements.get(i).and_then(|r| r.as_deref());
+
+        let cover_word = if prime_constraint_enabled {
+            // Prime ordering constraint (math/primes language)
+            let is_prime_word = |w: &str| -> Option<i64> {
+                w.parse::<i64>().ok().filter(|&n| {
+                    if n < 2 { return false; }
+                    if n == 2 { return true; }
+                    if n % 2 == 0 { return false; }
+                    let sqrt_n = (n as f64).sqrt() as i64;
+                    for ii in (3..=sqrt_n).step_by(2) {
+                        if n % ii == 0 { return false; }
+                    }
+                    true
+                })
+            };
+
+            let left_prime = out.last().and_then(|w| is_prime_word(w.as_str()));
+            let right_prime = if *payload_i < payload.len()
+                && !used_payload_indices.contains(payload_i)
+                && payload_fits(&payload[*payload_i], slots.get(i + 1).copied().unwrap_or(slot))
+            {
+                is_prime_word(&payload[*payload_i].word)
+            } else {
+                None
+            };
+
+            if let (Some(_left), Some(_right)) = (left_prime, right_prime) {
+                lex.pick_cover_with_prime_constraint(
+                    rng,
+                    slot,
+                    &recent_words,
+                    out.last().map(|s| s.as_str()),
+                    right_prime.map(|_| payload[*payload_i].word.as_str()),
+                ).unwrap_or_else(|| lex.pick_cover(rng, slot, &recent_words))
+            } else {
+                lex.pick_cover(rng, slot, &recent_words)
+            }
+        } else if slot == Pos::V {
+            // Lightweight verb agreement (Modal -> bare V, V -> NP transitivity)
+            let prev_slot = if i > 0 { Some(slots[i - 1]) } else { None };
+            let next_slot = slots.get(i + 1).copied();
+            let after_modal = matches!(prev_slot, Some(Pos::Modal));
+            let want_transitive = matches!(next_slot, Some(Pos::Det) | Some(Pos::N));
+
+            let constrained = if after_modal && want_transitive {
+                lex.pick_cover_filtered(rng, slot, &recent_words, |w| {
+                    is_bare_verb_form(w) && is_likely_transitive_verb(w)
+                })
+            } else if after_modal {
+                lex.pick_cover_filtered(rng, slot, &recent_words, |w| is_bare_verb_form(w))
+            } else if want_transitive {
+                lex.pick_cover_filtered(rng, slot, &recent_words, |w| is_likely_transitive_verb(w))
+            } else {
+                None
+            };
+
+            constrained.unwrap_or_else(|| lex.pick_cover_refined(rng, slot, ref_tag, &recent_words))
+        } else if slot == Pos::Det && ref_tag == Some("indef") {
+            // Special phonological rule for indefinite article: a/an based on next word
+            let next_word_str: Option<String> = if let Some(forced) = forced_placements {
+                forced
+                    .get(&(i + 1))
+                    .and_then(|&pidx| payload.get(pidx))
+                    .map(|t| t.word.clone())
+            } else if *payload_i < payload.len()
+                && !used_payload_indices.contains(payload_i)
+                && slots.get(i + 1).map_or(false, |&ns| payload_fits(&payload[*payload_i], ns))
+            {
+                Some(payload[*payload_i].word.clone())
+            } else {
+                // Peek at what cover word would be chosen for next slot
+                slots.get(i + 1).map(|&ns| lex.pick_cover(rng, ns, &recent_words))
+            };
+            apply_indef_phonology(next_word_str.as_deref())
+        } else {
+            // All other POS: use refinement-aware cover word selection
+            lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)
+        };
+
+        out.push(cover_word);
     }
-    
-    // At the end, advance payload_i to point to the first unused word
-    // This ensures we don't re-check words we've already used
+
+    // Advance payload_i past used words
     while *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
         *payload_i += 1;
     }
@@ -965,7 +769,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             );
             let mut planned = None;
             for k in k_candidates {
-                if let Some((slots, forced_placements, j)) = plan_sentence(
+                if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                     rng,
                     &cache,
                     start_symbol,
@@ -974,7 +778,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     current_payload_i,
                     want_prefix,
                 ) {
-                    planned = Some((slots, forced_placements, j));
+                    planned = Some((slots, refinements, forced_placements, j));
                     break; // Found a plan, use it
                 }
             }
@@ -991,7 +795,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     false,  // Don't require prefix in fallback
                 );
                 for k in k_candidates_fallback {
-                    if let Some((slots, forced_placements, j)) = plan_sentence(
+                    if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                         rng,
                         &cache,
                         start_symbol,
@@ -1000,13 +804,13 @@ pub fn generate_text_with_original_payload<R: Rng>(
                         current_payload_i,
                         false,  // Don't require prefix in fallback
                     ) {
-                        planned = Some((slots, forced_placements, j));
+                        planned = Some((slots, refinements, forced_placements, j));
                         break;
                     }
                 }
             }
             
-            let (slots, forced_placements, _j) = match planned {
+            let (slots, refinements, forced_placements, _j) = match planned {
                 Some(p) => p,
                 None => {
                     // Fallback: generate minimal sentence structure to always embed the word
@@ -1020,19 +824,19 @@ pub fn generate_text_with_original_payload<R: Rng>(
                         eprintln!("Warning: Could not plan sentence for word '{}' (index {}). Using fallback structure (may have grammar errors).", 
                                  word_name, current_payload_i);
                     }
-                    match generate_fallback_sentence(payload, current_payload_i, mode, language) {
-                        Some((fallback_slots, fallback_placements)) => {
-                            (fallback_slots, fallback_placements, 1)
+                    match generate_fallback_sentence(payload, current_payload_i, mode, &grammar) {
+                        Some((fallback_slots, fallback_refs, fallback_placements)) => {
+                            (fallback_slots, fallback_refs, fallback_placements, 1)
                         }
                         None => {
                             // This should never happen, but if it does, panic rather than skip
-                            panic!("BUG: Cannot generate fallback sentence for word '{}' at index {}. This should never happen.", 
+                            panic!("BUG: Cannot generate fallback sentence for word '{}' at index {}. This should never happen.",
                                    word_name, current_payload_i);
                         }
                     }
                 }
             };
-            
+
             let payload_i_before = current_payload_i;
             // Advance payload_i to account for forced placements (they're in order)
             let max_forced_idx = forced_placements.values().max().copied().unwrap_or(current_payload_i.saturating_sub(1));
@@ -1042,22 +846,22 @@ pub fn generate_text_with_original_payload<R: Rng>(
             let prev_words_refs: Vec<&str> = prev_words_strings.iter().map(|s| s.as_str()).collect();
             let payload_only_mode = matches!(mode, GenerationMode::PayloadOnly);
             let mut sentence_words = fill_slots(
-                rng, 
-                lex, 
-                &slots, 
-                payload, 
+                rng,
+                lex,
+                &slots,
+                &refinements,
+                payload,
                 &mut temp_payload_i,
                 &prev_words_refs,
-                None, // start_pos not needed with forced placements
+                None,
                 Some(&forced_placements),
                 payload_only_mode,
-                language,
-                prime_constraint_enabled
+                prime_constraint_enabled,
             );
-            
+
             // Update current_payload_i to reflect what was actually used
             current_payload_i = temp_payload_i.max(max_forced_idx + 1);
-            
+
             // Capitalize the first word of the first sentence only
             if all_sentence_words.is_empty() {
                 if let Some(first) = sentence_words.first_mut() {
@@ -1226,7 +1030,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
         );
         let mut planned = None;
         for k in k_candidates {
-            if let Some((slots, forced_placements, j)) = plan_sentence(
+            if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                 rng,
                 &cache,
                 start_symbol,
@@ -1235,7 +1039,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 payload_i,
                 false,  // Body mode never requires prefix
             ) {
-                planned = Some((slots, forced_placements, j));
+                planned = Some((slots, refinements, forced_placements, j));
                 break; // Found a plan, use it
             }
         }
@@ -1252,7 +1056,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 false,  // Body mode never requires prefix
             );
             for k in k_candidates_fallback {
-                if let Some((slots, forced_placements, j)) = plan_sentence(
+                if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                     rng,
                     &cache,
                     "S",
@@ -1261,7 +1065,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     payload_i,
                     false,  // Body mode never requires prefix
                 ) {
-                    planned = Some((slots, forced_placements, j));
+                    planned = Some((slots, refinements, forced_placements, j));
                     break;
                 }
             }
@@ -1290,7 +1094,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                         false,  // Body mode never requires prefix
                     );
                     for k in k_candidates_alt {
-                        if let Some((slots, forced_placements, j)) = plan_sentence(
+                        if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                             rng,
                             &cache,
                             alt_start,
@@ -1320,7 +1124,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                                 eprintln!("Selected grammar rule (alt): {} -> {} (k={}, j={} payload words)", 
                                          alt_start, grammar_str.join(" "), k, j);
                             }
-                            planned = Some((slots, forced_placements, j));
+                            planned = Some((slots, refinements, forced_placements, j));
                             break;
                         }
                     }
@@ -1332,7 +1136,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             }
         }
         
-        let (slots, forced_placements, _j) = match planned {
+        let (slots, refinements, forced_placements, _j) = match planned {
             Some(p) => p,
             None => {
                 // Fallback: generate minimal sentence structure to always embed the word
@@ -1346,38 +1150,38 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     eprintln!("Warning: Could not plan sentence for word '{}' (index {}). Using fallback structure (may have grammar errors).", 
                              word_name, payload_i);
                 }
-                match generate_fallback_sentence(payload, payload_i, mode, language) {
-                    Some((fallback_slots, fallback_placements)) => {
-                        (fallback_slots, fallback_placements, 1)
+                match generate_fallback_sentence(payload, payload_i, mode, &grammar) {
+                    Some((fallback_slots, fallback_refs, fallback_placements)) => {
+                        (fallback_slots, fallback_refs, fallback_placements, 1)
                     }
                     None => {
                         // This should never happen, but if it does, panic rather than skip
-                        panic!("BUG: Cannot generate fallback sentence for word '{}' at index {}. This should never happen.", 
+                        panic!("BUG: Cannot generate fallback sentence for word '{}' at index {}. This should never happen.",
                                word_name, payload_i);
                     }
                 }
             }
         };
-        
+
         // Advance payload_i to account for forced placements
         let max_forced_idx = forced_placements.values().max().copied().unwrap_or(payload_i_before.saturating_sub(1));
         let mut temp_payload_i = (max_forced_idx + 1).max(payload_i_before);
-        
+
         let payload_only_mode = matches!(mode, GenerationMode::PayloadOnly);
         let mut sentence_words = fill_slots(
-            rng, 
-            lex, 
-            &slots, 
-            payload, 
+            rng,
+            lex,
+            &slots,
+            &refinements,
+            payload,
             &mut temp_payload_i,
             &prev_words_refs,
-            None, // start_pos not needed with forced placements
+            None,
             Some(&forced_placements),
             payload_only_mode,
-            language,
-            prime_constraint_enabled
+            prime_constraint_enabled,
         );
-        
+
         // Update payload_i to reflect what was actually used
         payload_i = temp_payload_i.max(max_forced_idx + 1);
         
@@ -1566,7 +1370,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
 
     // Post-fix: ensure output ends with a period (only for body mode, not subject mode)
     // Skip periods for primes language (only integers in vocabulary)
-    if mode == GenerationMode::Body && !language.ends_with("primes") {
+    if mode == GenerationMode::Body && grammar.grammar_uses_pos(Pos::Dot) {
         if let Some(last) = words.last_mut() {
             if !last.ends_with('.') {
                 last.push('.');
@@ -1593,7 +1397,8 @@ fn generate_text_merkle_segmented<R: Rng>(
     cache: &SequenceCache,
 ) -> (String, HashSet<String>) {
     use super::utils::normalize_token_for_bip39;
-    
+
+    let grammar = get_grammar(GenerationMode::Body, language);
     let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
     let mut words: Vec<String> = Vec::new();
     let mut segment_start = 0;
@@ -1691,7 +1496,7 @@ fn generate_text_merkle_segmented<R: Rng>(
         for k in k_candidates {
             // Plan sentence that embeds the payload words from this segment
             // We need to ensure at least one payload word is placed
-            if let Some((slots, forced_placements, j)) = plan_sentence(
+            if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                 rng,
                 cache,
                 start_symbol,
@@ -1706,7 +1511,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                 });
                 
                 if places_our_payload || j > 0 {
-                    planned = Some((slots, forced_placements, j));
+                    planned = Some((slots, refinements, forced_placements, j));
                     break;
                 }
             }
@@ -1724,7 +1529,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                 false,
             );
             for k in k_candidates_fallback {
-                if let Some((slots, forced_placements, j)) = plan_sentence(
+                if let Some((slots, refinements, forced_placements, j)) = plan_sentence(
                     rng,
                     cache,
                     "S",
@@ -1758,7 +1563,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                             eprintln!("Segment {}: Selected grammar rule (fallback): S -> {} (k={}, j={} payload words)", 
                                      sentence_count, grammar_str.join(" "), k, j);
                         }
-                        planned = Some((slots, forced_placements, j));
+                        planned = Some((slots, refinements, forced_placements, j));
                         break;
                     }
                 }
@@ -1766,16 +1571,16 @@ fn generate_text_merkle_segmented<R: Rng>(
         }
         
         // Generate fallback if planning failed
-        let (slots, forced_placements, _j) = match planned {
-            Some((s, f, j)) => {
-                (s, f, j)
+        let (slots, refinements, forced_placements, _j) = match planned {
+            Some((s, r, f, j)) => {
+                (s, r, f, j)
             }
             None => {
                 if verbose {
                     eprintln!("Warning: Could not plan sentence for segment. Using fallback structure.");
                 }
-                match generate_fallback_sentence(payload, payload_i, GenerationMode::Body, language) {
-                    Some((fallback_slots, fallback_placements)) => {
+                match generate_fallback_sentence(payload, payload_i, GenerationMode::Body, &grammar) {
+                    Some((fallback_slots, fallback_refs, fallback_placements)) => {
                         if verbose {
                             let grammar_str: Vec<String> = fallback_slots.iter().map(|pos| {
                                 match pos {
@@ -1794,10 +1599,10 @@ fn generate_text_merkle_segmented<R: Rng>(
                                     Pos::Prefix => "Prefix".to_string(),
                                 }
                             }).collect();
-                            eprintln!("Segment {}: Fallback grammar rule: {} -> {}", 
+                            eprintln!("Segment {}: Fallback grammar rule: {} -> {}",
                                      sentence_count, start_symbol, grammar_str.join(" "));
                         }
-                        (fallback_slots, fallback_placements, 1)
+                        (fallback_slots, fallback_refs, fallback_placements, 1)
                     }
                     None => {
                         panic!("BUG: Cannot generate fallback sentence for segment starting at {}", segment_start);
@@ -1812,13 +1617,13 @@ fn generate_text_merkle_segmented<R: Rng>(
             rng,
             lex,
             &slots,
+            &refinements,
             payload,
             &mut temp_payload_i,
             &prev_words_refs,
             None,
             Some(&forced_placements),
-            false, // Not payload-only mode
-            language,
+            false,
             prime_constraint_enabled,
         );
         
@@ -1885,7 +1690,7 @@ fn generate_text_merkle_segmented<R: Rng>(
     }
     
     // Post-fix: ensure output ends with a period
-    if !language.ends_with("primes") {
+    if grammar.grammar_uses_pos(Pos::Dot) {
         if let Some(last) = words.last_mut() {
             if !last.ends_with('.') {
                 last.push('.');

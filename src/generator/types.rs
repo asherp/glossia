@@ -54,6 +54,8 @@ pub struct Lexicon {
     payload_set: HashSet<String>,
     /// Lowercased full wordlist set (for collision checks when inflecting cover words).
     pub(crate) wordlist_set: HashSet<String>,
+    /// Cover words indexed by (POS, refinement_tag) for grammar-driven morphology.
+    pub(crate) refined_cover: HashMap<(Pos, String), Vec<String>>,
 }
 
 impl Lexicon {
@@ -62,6 +64,7 @@ impl Lexicon {
             by_pos: HashMap::new(),
             payload_set,
             wordlist_set,
+            refined_cover: HashMap::new(),
         }
     }
 
@@ -70,6 +73,12 @@ impl Lexicon {
             .entry(pos)
             .or_insert_with(Vec::new)
             .extend(words.iter().map(|w| w.to_string()));
+        self
+    }
+
+    /// Set the refined cover word map (populated from cover.yaml refinement tags).
+    pub fn with_refined_cover(mut self, refined_cover: HashMap<(Pos, String), Vec<String>>) -> Self {
+        self.refined_cover = refined_cover;
         self
     }
 
@@ -252,5 +261,56 @@ impl Lexicon {
             .collect();
 
         Some(shortest.choose(rng).unwrap().to_string())
+    }
+
+    /// Pick a cover word matching both POS and refinement tag.
+    /// Falls back to unrefined pick_cover if no refinement specified or no matches found.
+    pub fn pick_cover_refined<R: Rng>(
+        &self,
+        rng: &mut R,
+        pos: Pos,
+        refinement: Option<&str>,
+        recent_words: &[&str],
+    ) -> String {
+        if let Some(tag) = refinement {
+            if let Some(words) = self.refined_cover.get(&(pos, tag.to_string())) {
+                // Filter out payload words and recent words
+                let available: Vec<&String> = words
+                    .iter()
+                    .filter(|w| {
+                        !self.payload_set.contains(&w.to_lowercase())
+                            && !recent_words.iter().any(|&rw| rw == w.as_str())
+                    })
+                    .collect();
+
+                if !available.is_empty() {
+                    // Prefer shorter words
+                    let min_len = available.iter().map(|w| w.len()).min().unwrap_or(0);
+                    let shortest: Vec<&String> = available
+                        .iter()
+                        .filter(|w| w.len() == min_len)
+                        .copied()
+                        .collect();
+                    return shortest.choose(rng).unwrap().to_string();
+                }
+
+                // If all filtered out, try without recent-word filter
+                let fallback: Vec<&String> = words
+                    .iter()
+                    .filter(|w| !self.payload_set.contains(&w.to_lowercase()))
+                    .collect();
+                if !fallback.is_empty() {
+                    let min_len = fallback.iter().map(|w| w.len()).min().unwrap_or(0);
+                    let shortest: Vec<&String> = fallback
+                        .iter()
+                        .filter(|w| w.len() == min_len)
+                        .copied()
+                        .collect();
+                    return shortest.choose(rng).unwrap().to_string();
+                }
+            }
+        }
+        // Fallback: unrefined selection
+        self.pick_cover(rng, pos, recent_words)
     }
 }

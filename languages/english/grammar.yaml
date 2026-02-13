@@ -69,11 +69,20 @@ grammar:
         - production: "N"
           weight: 1.0
           lambda: "N"
-        - production: "Det N"
-          weight: 1.0
+        - production: "Det[def] N"
+          weight: 0.50
           lambda: "Det"
-        - production: "Det Adj N"
-          weight: 1.0
+        - production: "Det[indef] N"
+          weight: 0.25
+          lambda: "Det"
+        - production: "Det[quant] N"
+          weight: 0.10
+          lambda: "Det"
+        - production: "Det[def] Adj N"
+          weight: 0.10
+          lambda: "Det"
+        - production: "Det[indef] Adj N"
+          weight: 0.05
           lambda: "Det"
 
     verb_phrase:
@@ -92,8 +101,11 @@ grammar:
         - production: "Modal V NP"
           weight: 0.30
           lambda: "V"
-        - production: "Cop Adj"
-          weight: 0.15
+        - production: "Cop[sg] Adj"
+          weight: 0.12
+          lambda: "Cop"
+        - production: "Cop[pl] Adj"
+          weight: 0.03
           lambda: "Cop"
         - production: "V NP"
           weight: 0.10
@@ -167,14 +179,32 @@ grammar:
         noun_phrase:
           lambda: "N"
           cfg_productions:
-            - production: "Det Adj N"
-              weight: 1.0
+            - production: "Det[def] Adj N"
+              weight: 0.50
               lambda: "Det"
-            - production: "Det Adj N Adj"
-              weight: 1.0
+            - production: "Det[indef] Adj N"
+              weight: 0.25
               lambda: "Det"
-            - production: "Det N"
-              weight: 1.0
+            - production: "Det[quant] Adj N"
+              weight: 0.25
+              lambda: "Det"
+            - production: "Det[def] Adj N Adj"
+              weight: 0.50
+              lambda: "Det"
+            - production: "Det[indef] Adj N Adj"
+              weight: 0.25
+              lambda: "Det"
+            - production: "Det[quant] Adj N Adj"
+              weight: 0.25
+              lambda: "Det"
+            - production: "Det[def] N"
+              weight: 0.50
+              lambda: "Det"
+            - production: "Det[indef] N"
+              weight: 0.25
+              lambda: "Det"
+            - production: "Det[quant] N"
+              weight: 0.25
               lambda: "Det"
 
         verb_phrase:
@@ -183,8 +213,11 @@ grammar:
             - production: "Modal V NP"
               weight: 0.5
               lambda: "V"
-            - production: "Cop Adj"
-              weight: 0.3
+            - production: "Cop[sg] Adj"
+              weight: 0.24
+              lambda: "Cop"
+            - production: "Cop[pl] Adj"
+              weight: 0.06
               lambda: "Cop"
             - production: "V NP"
               weight: 0.15
@@ -199,8 +232,14 @@ grammar:
             - production: "Prep NP"
               weight: 1.0
               lambda: "Prep"
-            - production: "Prep Det N"
-              weight: 1.0
+            - production: "Prep Det[def] N"
+              weight: 0.50
+              lambda: "Prep"
+            - production: "Prep Det[indef] N"
+              weight: 0.25
+              lambda: "Prep"
+            - production: "Prep Det[quant] N"
+              weight: 0.25
               lambda: "Prep"
 
     payload_only:

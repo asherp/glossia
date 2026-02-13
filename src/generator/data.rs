@@ -391,12 +391,13 @@ pub fn load_payload_tree(language: &str) -> Result<WordlistTree, String> {
 /// Load cover words with POS tags from cover.yaml
 /// Returns a HashMap mapping POS to Vec of words
 /// For English, uses embedded file. For other languages, tries to load from filesystem.
-pub fn load_cover_words_by_pos(wordlist_set: &HashSet<String>, language: &str) -> HashMap<Pos, Vec<String>> {
+pub fn load_cover_words_by_pos(wordlist_set: &HashSet<String>, language: &str) -> (HashMap<Pos, Vec<String>>, HashMap<(Pos, String), Vec<String>>) {
     load_cover_words_by_pos_for_wordlist(wordlist_set, language, "bip39")
 }
 
 /// Load cover words for a specific wordlist profile.
-pub fn load_cover_words_by_pos_for_wordlist(wordlist_set: &HashSet<String>, language: &str, wordlist: &str) -> HashMap<Pos, Vec<String>> {
+/// Returns (by_pos, refined_cover) where refined_cover maps (POS, refinement_tag) -> words.
+pub fn load_cover_words_by_pos_for_wordlist(wordlist_set: &HashSet<String>, language: &str, wordlist: &str) -> (HashMap<Pos, Vec<String>>, HashMap<(Pos, String), Vec<String>>) {
     let (_, cover_filename) = wordlist_filenames(language, wordlist);
     // Load language-specific POS tag mappings
     let pos_mappings = load_pos_mappings(language);
@@ -417,40 +418,73 @@ pub fn load_cover_words_by_pos_for_wordlist(wordlist_set: &HashSet<String>, lang
                 std::process::exit(1);
             })
     };
-    
-    let yaml_data: HashMap<String, HashMap<String, f64>> = serde_yaml::from_str(&yaml_content)
+
+    // Parse with serde_yaml::Value to handle mixed types (f64 weights + string refinement tag)
+    use serde_yaml::Value;
+    let yaml_data: HashMap<String, Value> = serde_yaml::from_str(&yaml_content)
         .unwrap_or_else(|e| {
             eprintln!("Error: Failed to parse cover.yaml as YAML: {}", e);
             std::process::exit(1);
         });
-    
+
     let mut by_pos: HashMap<Pos, Vec<String>> = HashMap::new();
-    
-    for (word, pos_weights) in yaml_data {
+    let mut refined_cover: HashMap<(Pos, String), Vec<String>> = HashMap::new();
+
+    for (word, value) in &yaml_data {
         let word_lower = word.to_lowercase();
-        
+
         // Skip if word is in wordlist set
         if wordlist_set.contains(&word_lower) {
             continue;
         }
-        
-        // Extract POS tags with non-zero weights
-        for (pos_str, weight) in pos_weights {
+
+        let mapping = match value.as_mapping() {
+            Some(m) => m,
+            None => continue,
+        };
+
+        // Extract refinement tag (if present)
+        let refinement = mapping.get("refinement")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        // Extract POS tags with non-zero weights (skip "refinement" key)
+        for (key, val) in mapping {
+            let pos_str = match key.as_str() {
+                Some(s) if s != "refinement" => s,
+                _ => continue,
+            };
+            let weight = match val.as_f64() {
+                Some(w) if w > 0.0 => w,
+                _ => continue,
+            };
+
             if weight > 0.0 {
-                if let Some(pos) = parse_pos_tag(&pos_str, &pos_mappings) {
+                if let Some(pos) = parse_pos_tag(pos_str, &pos_mappings) {
                     by_pos.entry(pos).or_insert_with(Vec::new).push(word.clone());
+
+                    // Also index by (POS, refinement) if refinement is present
+                    if let Some(ref tag) = refinement {
+                        refined_cover.entry((pos, tag.clone()))
+                            .or_insert_with(Vec::new)
+                            .push(word.clone());
+                    }
                 }
             }
         }
     }
-    
+
     // Deduplicate and sort each category
     for words in by_pos.values_mut() {
         words.sort();
         words.dedup();
     }
-    
-    by_pos
+    for words in refined_cover.values_mut() {
+        words.sort();
+        words.dedup();
+    }
+
+    (by_pos, refined_cover)
 }
 
 /// Load cover words in file order from cover.yaml.

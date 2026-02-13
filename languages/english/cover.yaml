@@ -1,5 +1,6 @@
 a:
   Det: 1.0
+  refinement: indef
 
 abroad:
   Adv: 0.8
@@ -58,6 +59,7 @@ along:
 
 an:
   Det: 1.0
+  refinement: indef
 
 and:
   Conj: 1.0
@@ -79,7 +81,8 @@ appointment:
   N: 1.0
 
 are:
-  V: 1.0
+  Cop: 1.0
+  refinement: pl
 
 arise:
   V: 1.0
@@ -461,9 +464,11 @@ dirty:
 
 do:
   Aux: 1.0
+  refinement: pl
 
 does:
   Aux: 1.0
+  refinement: sg
 
 doubt:
   N: 0.5
@@ -496,6 +501,7 @@ due:
 
 each:
   Det: 1.0
+  refinement: quant
 
 ear:
   N: 1.0
@@ -536,6 +542,7 @@ ever:
 
 every:
   Det: 1.0
+  refinement: quant
 
 exceed:
   V: 1.0
@@ -848,10 +855,12 @@ intend:
   V: 1.0
 
 is:
-  V: 1.0
+  Cop: 1.0
+  refinement: sg
 
 its:
   Det: 1.0
+  refinement: def
 
 itself:
   Pron: 1.0
@@ -1185,6 +1194,7 @@ ought:
 
 our:
   Det: 1.0
+  refinement: def
 
 out:
   Adv: 0.35
@@ -1691,6 +1701,7 @@ soil:
 
 some:
   Det: 1.0
+  refinement: quant
 
 son:
   N: 1.0
@@ -1832,15 +1843,18 @@ thanks:
 
 the:
   Det: 1.0
+  refinement: def
 
 their:
   Det: 1.0
+  refinement: def
 
 them:
   Pron: 1.0
 
 these:
   Det: 1.0
+  refinement: def
 
 thick:
   Adj: 1.0
@@ -1863,6 +1877,7 @@ thirty:
 
 those:
   Det: 1.0
+  refinement: def
 
 though:
   Conj: 1.0
@@ -2091,6 +2106,7 @@ yield:
 
 your:
   Det: 1.0
+  refinement: def
 
 yours:
   Pron: 1.0

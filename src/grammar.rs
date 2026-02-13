@@ -8,6 +8,7 @@ use crate::semantic_types::{SemanticType, pos_to_semantic_type};
 #[derive(Clone, Debug)]
 pub struct Production {
     pub symbols: Vec<Sym>,
+    pub refinements: Vec<Option<String>>,  // parallel to symbols; e.g. Det[def] -> Some("def")
     pub weight: f64,
 }
 
@@ -28,6 +29,7 @@ pub struct Grammar {
 #[derive(Clone, Debug)]
 pub struct SequenceWithProbability {
     pub sequence: Vec<crate::types::Pos>,
+    pub refinements: Vec<Option<String>>,  // parallel to sequence
     pub probability: f64,
 }
 
@@ -73,8 +75,8 @@ impl Grammar {
                                 .and_then(|w| w.as_f64())
                                 .unwrap_or(1.0);
 
-                            let symbols = Self::parse_cfg_production_string(production_str)?;
-                            productions.push(Production { symbols, weight });
+                            let (symbols, refinements) = Self::parse_cfg_production_string(production_str)?;
+                            productions.push(Production { symbols, refinements, weight });
                         }
                     }
 
@@ -126,13 +128,25 @@ impl Grammar {
         Ok(rules)
     }
     
-    /// Parse a CFG production string like "Cop Adj" or "Modal V NP" into symbol sequence
-    fn parse_cfg_production_string(production: &str) -> Result<Vec<Sym>, Box<dyn std::error::Error>> {
+    /// Parse a CFG production string like "Cop Adj" or "Det[def] N" into symbol + refinement sequences.
+    /// Refinement syntax: POS[tag] (e.g. Det[def], Cop[sg]).
+    /// Non-terminals and unrefined terminals get refinement None.
+    fn parse_cfg_production_string(production: &str) -> Result<(Vec<Sym>, Vec<Option<String>>), Box<dyn std::error::Error>> {
         let mut symbols = Vec::new();
-        
+        let mut refinements = Vec::new();
+
         for token in production.split_whitespace() {
+            // Split off optional [refinement] suffix
+            let (pos_str, refinement) = if let Some(bracket_start) = token.find('[') {
+                let pos_part = &token[..bracket_start];
+                let ref_part = token[bracket_start+1..].trim_end_matches(']');
+                (pos_part, Some(ref_part.to_string()))
+            } else {
+                (token, None)
+            };
+
             // Check if it's a POS terminal
-            let sym = match token {
+            let sym = match pos_str {
                 "Det" => Sym::T(Pos::Det),
                 "Adj" => Sym::T(Pos::Adj),
                 "N" => Sym::T(Pos::N),
@@ -148,13 +162,17 @@ impl Grammar {
                 "Conj" => Sym::T(Pos::Conj),
                 _ => {
                     // Assume it's a non-terminal
-                    Sym::NT(token.to_string())
+                    Sym::NT(pos_str.to_string())
                 }
             };
+
+            // Non-terminals don't carry refinements
+            let ref_out = if matches!(sym, Sym::T(_)) { refinement } else { None };
             symbols.push(sym);
+            refinements.push(ref_out);
         }
-        
-        Ok(symbols)
+
+        Ok((symbols, refinements))
     }
     
     /// Load grammar from language and dialect (YAML-only)
@@ -258,8 +276,8 @@ impl Grammar {
         start_symbol: &str,
         k: usize,
     ) -> Vec<SequenceWithProbability> {
-        // Memoization: (nonterminal, remaining_length) -> (sequence, probability)
-        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>> = HashMap::new();
+        // Memoization: (nonterminal, remaining_length) -> (sequence, refinements, probability)
+        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)>> = HashMap::new();
 
         self.enumerate_sequences_with_probability_internal(start_symbol, k, &mut memo)
     }
@@ -282,7 +300,7 @@ impl Grammar {
         }
 
         // CFG generation
-        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>> = HashMap::new();
+        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)>> = HashMap::new();
         let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
         for k in 0..=max_k {
             by_k[k] = self.enumerate_sequences_with_probability_internal(start_symbol, k, &mut memo);
@@ -333,8 +351,10 @@ impl Grammar {
                 match config.generate_from_type(&target_type, k, &mut rng) {
                     Ok(pos_seq) => {
                         if pos_seq.len() == k {
+                            let refs = vec![None; pos_seq.len()];
                             sequences.push(SequenceWithProbability {
                                 sequence: pos_seq,
+                                refinements: refs,
                                 probability: 1.0,  // Equal probability for now
                             });
                         }
@@ -344,13 +364,13 @@ impl Grammar {
             }
             
             // Deduplicate and sort
-            let mut unique: HashMap<Vec<Pos>, f64> = HashMap::new();
+            let mut unique: HashMap<(Vec<Pos>, Vec<Option<String>>), f64> = HashMap::new();
             for seq_prob in sequences {
-                *unique.entry(seq_prob.sequence).or_insert(0.0) += seq_prob.probability;
+                *unique.entry((seq_prob.sequence, seq_prob.refinements)).or_insert(0.0) += seq_prob.probability;
             }
-            
+
             by_k[k] = unique.into_iter()
-                .map(|(sequence, probability)| SequenceWithProbability { sequence, probability })
+                .map(|((sequence, refinements), probability)| SequenceWithProbability { sequence, refinements, probability })
                 .collect();
             // Sort by probability (highest first), breaking ties by sequence for determinism
             by_k[k].sort_by(|a, b| {
@@ -368,37 +388,38 @@ impl Grammar {
         &self,
         start_symbol: &str,
         k: usize,
-        memo: &mut HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>>,
+        memo: &mut HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)>>,
     ) -> Vec<SequenceWithProbability> {
         fn enumerate_recursive(
             grammar: &Grammar,
             sym: &Sym,
+            sym_refinement: Option<&str>,
             remaining: usize,
-            memo: &mut HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>>,
-        ) -> Vec<(Vec<crate::types::Pos>, f64)> {
+            memo: &mut HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)>>,
+        ) -> Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)> {
             match sym {
                 Sym::T(pos) => {
                     if remaining == 1 {
-                        vec![(vec![*pos], 1.0)] // Terminal has probability 1.0
+                        vec![(vec![*pos], vec![sym_refinement.map(|s| s.to_string())], 1.0)]
                     } else {
                         Vec::new()
                     }
                 }
                 Sym::Opt(inner) => {
                     let mut results = Vec::new();
-                    
+
                     // Include the optional symbol (probability 0.5)
-                    let include_results = enumerate_recursive(grammar, inner, remaining, memo)
+                    let include_results = enumerate_recursive(grammar, inner, sym_refinement, remaining, memo)
                         .into_iter()
-                        .map(|(seq, prob)| (seq, prob * 0.5))
+                        .map(|(seq, refs, prob)| (seq, refs, prob * 0.5))
                         .collect::<Vec<_>>();
                     results.extend(include_results);
-                    
+
                     // Exclude the optional symbol (probability 0.5, produces empty)
                     if remaining == 0 {
-                        results.push((Vec::new(), 0.5));
+                        results.push((Vec::new(), Vec::new(), 0.5));
                     }
-                    
+
                     results
                 }
                 Sym::NT(nt) => {
@@ -406,112 +427,124 @@ impl Grammar {
                     if let Some(cached) = memo.get(&key) {
                         return cached.clone();
                     }
-                    
+
                     let rule = match grammar.rules.get(nt) {
                         Some(r) => r,
                         None => return Vec::new(),
                     };
-                    
+
                     let mut all_results = Vec::new();
-                    
+
                     // Try each production
                     for prod in &rule.productions {
-                        let prod_weight = prod.weight; // Already normalized to probability
-                        
-                        // Recursively enumerate for each symbol in the production
-                        // We need to try all ways to distribute remaining slots across symbols
-                        let mut production_results = vec![(Vec::new(), 1.0)];
-                        
-                        for symbol in &prod.symbols {
+                        let prod_weight = prod.weight;
+
+                        let mut production_results: Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)> =
+                            vec![(Vec::new(), Vec::new(), 1.0)];
+
+                        for (sym_idx, symbol) in prod.symbols.iter().enumerate() {
                             let mut new_results = Vec::new();
-                            
-                            for (partial_seq, partial_prob) in production_results {
+                            let prod_ref = prod.refinements.get(sym_idx).and_then(|r| r.as_deref());
+
+                            for (partial_seq, partial_refs, partial_prob) in production_results {
                                 let used = partial_seq.len();
                                 let available = remaining.saturating_sub(used);
-                                
-                                // Try allocating 0 to available slots to this symbol
+
                                 for symbol_slots in 0..=available {
                                     let symbol_results = enumerate_recursive(
                                         grammar,
                                         symbol,
+                                        prod_ref,
                                         symbol_slots,
                                         memo,
                                     );
-                                    
-                                    for (symbol_seq, symbol_prob) in symbol_results {
-                                        // Symbol must use exactly the allocated slots
+
+                                    for (symbol_seq, symbol_refs, symbol_prob) in &symbol_results {
                                         if symbol_seq.len() != symbol_slots {
                                             continue;
                                         }
-                                        
-                                        let mut combined = partial_seq.clone();
-                                        combined.extend(symbol_seq);
-                                        
-                                        // Only keep if we haven't exceeded remaining
-                                        if combined.len() <= remaining {
+
+                                        let mut combined_seq = partial_seq.clone();
+                                        combined_seq.extend(symbol_seq.iter().cloned());
+                                        let mut combined_refs = partial_refs.clone();
+                                        combined_refs.extend(symbol_refs.iter().cloned());
+
+                                        if combined_seq.len() <= remaining {
                                             let combined_prob = partial_prob * symbol_prob;
-                                            new_results.push((combined, combined_prob));
+                                            new_results.push((combined_seq, combined_refs, combined_prob));
                                         }
                                     }
                                 }
                             }
-                            
+
                             production_results = new_results;
                         }
-                        
+
                         // Multiply by production weight and filter to exact length
-                        for (seq, symbol_prob) in production_results {
+                        for (seq, refs, symbol_prob) in production_results {
                             if seq.len() == remaining {
-                                // Final probability = production weight * product of symbol probabilities
                                 let final_prob = prod_weight * symbol_prob;
-                                all_results.push((seq, final_prob));
+                                all_results.push((seq, refs, final_prob));
                             }
                         }
                     }
-                    
-                    // Deduplicate: sum probabilities for identical sequences
-                    let mut prob_map: HashMap<Vec<crate::types::Pos>, f64> = HashMap::new();
-                    for (seq, prob) in all_results {
-                        *prob_map.entry(seq).or_insert(0.0) += prob;
+
+                    // Deduplicate: sum probabilities for identical (sequence, refinements) pairs
+                    let mut prob_map: HashMap<(Vec<crate::types::Pos>, Vec<Option<String>>), f64> = HashMap::new();
+                    for (seq, refs, prob) in all_results {
+                        *prob_map.entry((seq, refs)).or_insert(0.0) += prob;
                     }
-                    
-                    let mut final_results: Vec<(Vec<crate::types::Pos>, f64)> = prob_map.into_iter().collect();
-                    // Sort for deterministic memoization (HashMap iteration order is random)
-                    final_results.sort_by(|a, b| a.0.cmp(&b.0));
+
+                    let mut final_results: Vec<(Vec<crate::types::Pos>, Vec<Option<String>>, f64)> =
+                        prob_map.into_iter().map(|((seq, refs), prob)| (seq, refs, prob)).collect();
+                    // Sort for deterministic memoization
+                    final_results.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)));
                     memo.insert(key, final_results.clone());
-                    
+
                     final_results
                 }
             }
         }
-        
+
         let start_sym = Sym::NT(start_symbol.to_string());
-        let results = enumerate_recursive(self, &start_sym, k, memo);
-        
+        let results = enumerate_recursive(self, &start_sym, None, k, memo);
+
         // Deduplicate final results and convert to SequenceWithProbability
-        let mut prob_map: HashMap<Vec<crate::types::Pos>, f64> = HashMap::new();
-        for (seq, prob) in results {
-            *prob_map.entry(seq).or_insert(0.0) += prob;
+        let mut prob_map: HashMap<(Vec<crate::types::Pos>, Vec<Option<String>>), f64> = HashMap::new();
+        for (seq, refs, prob) in results {
+            *prob_map.entry((seq, refs)).or_insert(0.0) += prob;
         }
-        
+
         let mut sequences: Vec<SequenceWithProbability> = prob_map
             .into_iter()
-            .map(|(sequence, probability)| SequenceWithProbability {
+            .map(|((sequence, refinements), probability)| SequenceWithProbability {
                 sequence,
+                refinements,
                 probability,
             })
             .collect();
-        
+
         // Sort by probability (highest first), breaking ties by sequence for determinism
         sequences.sort_by(|a, b| {
             b.probability.partial_cmp(&a.probability)
                 .unwrap_or(std::cmp::Ordering::Equal)
                 .then_with(|| a.sequence.cmp(&b.sequence))
+                .then_with(|| a.refinements.cmp(&b.refinements))
         });
-        
+
         sequences
     }
     
+    /// Check whether any production in this grammar uses a given POS terminal.
+    /// Used to derive language features from the grammar instead of language-name string checks.
+    pub fn grammar_uses_pos(&self, pos: Pos) -> bool {
+        self.rules.values().any(|rule|
+            rule.productions.iter().any(|prod|
+                prod.symbols.iter().any(|sym| matches!(sym, Sym::T(p) if *p == pos))
+            )
+        )
+    }
+
     /// Format the grammar rules in a concise text representation
     pub fn format_concise(&self) -> String {
         let mut output = String::new();
@@ -526,10 +559,9 @@ impl Grammar {
             output.push_str(&format!("{} = ", non_terminal));
             
             let productions_str: Vec<String> = rule.productions.iter().map(|prod| {
-                let symbols_str: Vec<String> = prod.symbols.iter().map(|sym| {
-                    match sym {
+                let symbols_str: Vec<String> = prod.symbols.iter().enumerate().map(|(idx, sym)| {
+                    let base = match sym {
                         Sym::T(pos) => {
-                            // Format POS tags concisely
                             match pos {
                                 Pos::Det => "Det".to_string(),
                                 Pos::Adj => "Adj".to_string(),
@@ -552,6 +584,12 @@ impl Grammar {
                             Sym::NT(nt) => format!("{}?", nt),
                             Sym::Opt(_) => "Opt?".to_string(),
                         },
+                    };
+                    // Append refinement if present
+                    if let Some(Some(ref tag)) = prod.refinements.get(idx) {
+                        format!("{}[{}]", base, tag)
+                    } else {
+                        base
                     }
                 }).collect();
                 let prod_str = symbols_str.join(" ");

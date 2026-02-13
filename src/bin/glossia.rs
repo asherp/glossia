@@ -1051,7 +1051,7 @@ fn main() {
     // Load cover words with explicit POS tags from cover.yaml
     // No fallback defaults — cover.yaml must provide all needed POS categories.
     // Disjointness with payload is validated at build time.
-    let cover_by_pos = glossia::generator::load_cover_words_by_pos_for_wordlist(&wordlist_set, &language, &wordlist);
+    let (cover_by_pos, refined_cover) = glossia::generator::load_cover_words_by_pos_for_wordlist(&wordlist_set, &language, &wordlist);
 
     let get_cover = |pos: &Pos| -> Vec<&str> {
         cover_by_pos.get(pos)
@@ -1133,6 +1133,7 @@ fn main() {
             .with_words(Pos::V, &v_s)
             .with_words(Pos::Prep, &prep_s)
             .with_words(Pos::Adv, &adv_s)
+            .with_refined_cover(refined_cover.clone())
     } else {
         Lexicon::new(payload_set.clone(), wordlist_set.clone())
             .with_words(Pos::Det, &det_words)
@@ -1147,6 +1148,7 @@ fn main() {
             .with_words(Pos::V, &v_words)
             .with_words(Pos::Prep, &prep_words)
             .with_words(Pos::Adv, &adv_words)
+            .with_refined_cover(refined_cover.clone())
     };
 
     let input_word_count = if merkle_mode {
@@ -1520,7 +1522,7 @@ mod tests {
         // Plan for k=5 (should fit at least 2 words, maybe 3)
         let result = plan_sentence(&mut rng, &cache, "S", 5, &payload, 0, false);
         assert!(result.is_some());
-        let (slots, forced_placements, j) = result.unwrap();
+        let (slots, _refs, forced_placements, j) = result.unwrap();
         assert!(j >= 1, "Should embed at least 1 word");
         assert_eq!(forced_placements.len(), j);
         
@@ -1615,18 +1617,20 @@ mod tests {
 
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
+        // Det slot at index 1 needs "indef" refinement to trigger a/an phonological rule
+        let refs = vec![None, Some("indef".to_string()), None, None, None];
         let out = fill_slots(
             &mut rng,
             &lex,
             &slots,
+            &refs,
             &payload,
             &mut payload_i,
             &[],
             None,
             Some(&forced),
-            false, // payload_only_mode = false for tests
-            "english", // test language
-            false // prime_constraint_enabled = false for tests
+            false,
+            false,
         );
 
         assert_eq!(out[1], "an", "Expected 'an' before forced 'ivory'");
@@ -1647,7 +1651,8 @@ mod tests {
         let slots = vec![Pos::Modal, Pos::V, Pos::Dot];
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
-        let out = fill_slots(&mut rng, &lex, &slots, &payload, &mut payload_i, &[], None, None, false, "english", false);
+        let refs = vec![None; slots.len()];
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false);
 
         assert_eq!(out[0], "can");
         assert_eq!(out[1].trim_end_matches('.'), "walk", "Expected bare verb after modal");
@@ -1669,7 +1674,8 @@ mod tests {
         let slots = vec![Pos::Det, Pos::N, Pos::V, Pos::Det, Pos::N, Pos::Dot];
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
-        let out = fill_slots(&mut rng, &lex, &slots, &payload, &mut payload_i, &[], None, None, false, "english", false);
+        let refs = vec![None; slots.len()];
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false);
 
         assert_eq!(out[2], "send", "Expected transitive verb before NP object");
     }
