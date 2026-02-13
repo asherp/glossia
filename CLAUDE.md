@@ -41,7 +41,7 @@ LambdaTerm: Variable | Constant(Pos) | Application(f, a) | Abstraction(var, type
 
 ## Agents
 
-Seven specialist agents are available via `/agents`. Each has deep context on its domain and the relevant files. See `.claude/agents/` for definitions.
+Eight specialist agents are available via `/agents`. Each has deep context on its domain and the relevant files. See `.claude/agents/` for definitions.
 
 | Agent | Focus |
 |-------|-------|
@@ -49,6 +49,7 @@ Seven specialist agents are available via `/agents`. Each has deep context on it
 | `language-designer` | Wordlist generation toolchain, CFG authoring, POS tagging, new language setup |
 | `cryptographer` | Encoding/decoding correctness, wordlist security, Merkle proofs |
 | `rust-engineer` | Generator engine, pest parsers, caching, build system, CLI |
+| `test-engineer` | Test coverage, round-trip verification, regression tests, cross-language validation |
 | `mathematician` | Prime encodings, Merkle arithmetic, constructive number systems |
 | `physicist` | Entropy-conserving exact simulations via prime factorization arithmetic |
 | `image-artist` | Visual encoding - compositional grammar over shapes, colors, positions to embed payloads in images |

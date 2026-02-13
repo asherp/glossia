@@ -314,3 +314,174 @@ impl Lexicon {
         self.pick_cover(rng, pos, recent_words)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
+
+    /// Build a minimal Lexicon for testing with refined cover words.
+    fn test_lexicon_with_refinements() -> Lexicon {
+        let payload_set: HashSet<String> = HashSet::new();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let mut refined_cover: HashMap<(Pos, String), Vec<String>> = HashMap::new();
+        refined_cover.insert(
+            (Pos::Det, "def".to_string()),
+            vec!["the".to_string(), "its".to_string(), "our".to_string()],
+        );
+        refined_cover.insert(
+            (Pos::Det, "indef".to_string()),
+            vec!["a".to_string(), "an".to_string()],
+        );
+        refined_cover.insert(
+            (Pos::Cop, "sg".to_string()),
+            vec!["is".to_string()],
+        );
+        refined_cover.insert(
+            (Pos::Cop, "pl".to_string()),
+            vec!["are".to_string()],
+        );
+
+        Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::Det, &["the", "a", "an", "its", "our", "some", "each"])
+            .with_words(Pos::Cop, &["is", "are"])
+            .with_words(Pos::N, &["user", "node"])
+            .with_words(Pos::V, &["send", "relay"])
+            .with_words(Pos::Adj, &["clear", "plain"])
+            .with_refined_cover(refined_cover)
+    }
+
+    #[test]
+    fn test_pick_cover_refined_with_matching_tag() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Pick from Det[def] -- should return one of "the", "its", "our"
+        let def_words: HashSet<&str> = ["the", "its", "our"].iter().copied().collect();
+        for _ in 0..20 {
+            let word = lex.pick_cover_refined(&mut rng, Pos::Det, Some("def"), &[]);
+            assert!(
+                def_words.contains(word.as_str()),
+                "Expected a definite Det (the/its/our), got: '{}'",
+                word
+            );
+        }
+    }
+
+    #[test]
+    fn test_pick_cover_refined_cop_sg() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Cop[sg] should produce "is"
+        for _ in 0..10 {
+            let word = lex.pick_cover_refined(&mut rng, Pos::Cop, Some("sg"), &[]);
+            assert_eq!(word, "is", "Cop[sg] should produce 'is'");
+        }
+    }
+
+    #[test]
+    fn test_pick_cover_refined_cop_pl() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Cop[pl] should produce "are"
+        for _ in 0..10 {
+            let word = lex.pick_cover_refined(&mut rng, Pos::Cop, Some("pl"), &[]);
+            assert_eq!(word, "are", "Cop[pl] should produce 'are'");
+        }
+    }
+
+    #[test]
+    fn test_pick_cover_refined_fallback_no_refinement() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // No refinement tag -> falls back to unrefined pick_cover
+        let word = lex.pick_cover_refined(&mut rng, Pos::Det, None, &[]);
+        // Should pick from all Det words (shortest first: "a")
+        assert!(!word.is_empty(), "Should pick some Det word");
+    }
+
+    #[test]
+    fn test_pick_cover_refined_fallback_unknown_tag() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Unknown refinement tag -> no matching bucket -> falls back to pick_cover
+        let word = lex.pick_cover_refined(&mut rng, Pos::Det, Some("nonexistent"), &[]);
+        assert!(!word.is_empty(), "Should fall back to unrefined Det word");
+    }
+
+    #[test]
+    fn test_pick_cover_refined_recent_exclusion() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Exclude "the" and "its" from recent -- should return "our"
+        let word = lex.pick_cover_refined(&mut rng, Pos::Det, Some("def"), &["the", "its"]);
+        assert_eq!(word, "our", "With 'the' and 'its' as recent, should pick 'our'");
+    }
+
+    #[test]
+    fn test_pick_cover_refined_exhaustion_fallback() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Cop[sg] only has "is". Mark "is" as recent.
+        // The refined selection first tries with recent filter (empty), then drops the recent
+        // filter and retries the SAME refined bucket -- finding "is" again. So it returns "is"
+        // despite it being recent (graceful degradation within the refined bucket).
+        let word = lex.pick_cover_refined(&mut rng, Pos::Cop, Some("sg"), &["is"]);
+        assert_eq!(word, "is",
+            "When only Cop[sg] word is recent, should still return 'is' (drops recent filter within refined bucket)");
+    }
+
+    #[test]
+    fn test_pick_cover_refined_all_exhausted_final_fallback() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Mark ALL Cop words as recent
+        let word = lex.pick_cover_refined(&mut rng, Pos::Cop, Some("sg"), &["is", "are"]);
+        // Both "is" and "are" are recent. Falls back to unrefined pick_cover.
+        // Unrefined also filters recent for both. Fallback picks shortest non-payload word.
+        // Should still return something (the fallback in pick_cover drops recent filter)
+        assert!(
+            word == "is" || word == "are",
+            "When all Cop words are recent, fallback should still return a Cop word, got: '{}'",
+            word
+        );
+    }
+
+    #[test]
+    fn test_pick_cover_no_words_for_pos() {
+        // Lexicon with no Adv words
+        let payload_set: HashSet<String> = HashSet::new();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::N, &["user"]);
+        let mut rng = StdRng::seed_from_u64(42);
+
+        let word = lex.pick_cover(&mut rng, Pos::Adv, &[]);
+        assert_eq!(word, "", "Should return empty string when no words for POS");
+    }
+
+    #[test]
+    fn test_pick_cover_refined_indef_det() {
+        let lex = test_lexicon_with_refinements();
+        let mut rng = StdRng::seed_from_u64(42);
+
+        // Det[indef] should return "a" or "an"
+        let indef_words: HashSet<&str> = ["a", "an"].iter().copied().collect();
+        for _ in 0..20 {
+            let word = lex.pick_cover_refined(&mut rng, Pos::Det, Some("indef"), &[]);
+            assert!(
+                indef_words.contains(word.as_str()),
+                "Expected indefinite Det (a/an), got: '{}'",
+                word
+            );
+        }
+    }
+}

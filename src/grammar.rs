@@ -759,6 +759,154 @@ mod tests {
         }
     }
 
+    // ========== Refinement system tests ==========
+
+    #[test]
+    fn test_parse_refinement_syntax_det_def() {
+        // Verify "Det[def] N" parses Det with refinement "def", N with None
+        let (symbols, refinements) = Grammar::parse_cfg_production_string("Det[def] N").unwrap();
+        assert_eq!(symbols.len(), 2);
+        assert!(matches!(&symbols[0], Sym::T(Pos::Det)));
+        assert!(matches!(&symbols[1], Sym::T(Pos::N)));
+        assert_eq!(refinements[0], Some("def".to_string()));
+        assert_eq!(refinements[1], None);
+    }
+
+    #[test]
+    fn test_parse_refinement_syntax_multiple() {
+        // Verify "Det[indef] Adj Cop[sg]" parses with refinements on Det and Cop only
+        let (symbols, refinements) = Grammar::parse_cfg_production_string("Det[indef] Adj Cop[sg]").unwrap();
+        assert_eq!(symbols.len(), 3);
+        assert!(matches!(&symbols[0], Sym::T(Pos::Det)));
+        assert!(matches!(&symbols[1], Sym::T(Pos::Adj)));
+        assert!(matches!(&symbols[2], Sym::T(Pos::Cop)));
+        assert_eq!(refinements[0], Some("indef".to_string()));
+        assert_eq!(refinements[1], None);
+        assert_eq!(refinements[2], Some("sg".to_string()));
+    }
+
+    #[test]
+    fn test_parse_no_refinement_productions() {
+        // Verify "N V NP" produces all-None refinements
+        let (symbols, refinements) = Grammar::parse_cfg_production_string("N V NP").unwrap();
+        assert_eq!(symbols.len(), 3);
+        assert!(matches!(&symbols[0], Sym::T(Pos::N)));
+        assert!(matches!(&symbols[1], Sym::T(Pos::V)));
+        assert!(matches!(&symbols[2], Sym::NT(ref s) if s == "NP"));
+        assert!(refinements.iter().all(|r| r.is_none()),
+            "All refinements should be None for unrefined production");
+    }
+
+    #[test]
+    fn test_parse_nonterminal_ignores_refinement() {
+        // Non-terminals should strip any accidental refinement syntax
+        let (symbols, refinements) = Grammar::parse_cfg_production_string("NP[foo] V").unwrap();
+        // NP is a nonterminal -- refinements are forced to None for non-terminals
+        assert!(matches!(&symbols[0], Sym::NT(ref s) if s == "NP"));
+        assert_eq!(refinements[0], None, "Non-terminals must not carry refinement");
+        assert!(matches!(&symbols[1], Sym::T(Pos::V)));
+        assert_eq!(refinements[1], None);
+    }
+
+    #[test]
+    fn test_refinement_propagation_through_enumeration() {
+        // Load English body grammar (has Det[def], Det[indef], Cop[sg], Cop[pl] refinements)
+        let grammar = Grammar::from_language_dialect("english", "body").expect("Failed to load English body grammar");
+
+        // NP k=2 should produce sequences like [Det, N] with refinements [Some("def"), None], [Some("indef"), None], etc.
+        let np_2 = grammar.enumerate_sequences_with_probability("NP", 2);
+        assert!(!np_2.is_empty(), "Expected NP sequences of length 2");
+
+        // Check that at least one sequence has a non-None refinement (from Det[def]/Det[indef] productions)
+        let has_refinement = np_2.iter().any(|seq| {
+            seq.refinements.iter().any(|r| r.is_some())
+        });
+        assert!(has_refinement,
+            "Expected at least one NP(k=2) sequence with a refinement annotation (Det[def] or Det[indef])");
+
+        // Check that Det refinements are preserved correctly
+        for seq in &np_2 {
+            if seq.sequence.len() == 2 && seq.sequence[0] == Pos::Det {
+                // Det at position 0 should carry a refinement from the grammar
+                let ref_tag = &seq.refinements[0];
+                if ref_tag.is_some() {
+                    let tag = ref_tag.as_ref().unwrap();
+                    assert!(
+                        tag == "def" || tag == "indef" || tag == "quant",
+                        "Expected Det refinement to be def, indef, or quant, got: {}",
+                        tag
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_refinement_cop_in_vp() {
+        // VP sequences should carry Cop refinements (sg/pl) from the grammar
+        let grammar = Grammar::from_language_dialect("english", "body").expect("Failed to load grammar");
+        let vp_2 = grammar.enumerate_sequences_with_probability("VP", 2);
+
+        // Look for [Cop, Adj] sequences -- these come from "Cop[sg] Adj" and "Cop[pl] Adj"
+        let cop_adj_seqs: Vec<&SequenceWithProbability> = vp_2.iter()
+            .filter(|s| s.sequence == vec![Pos::Cop, Pos::Adj])
+            .collect();
+
+        assert!(!cop_adj_seqs.is_empty(), "Expected [Cop, Adj] sequences in VP(k=2)");
+
+        // Collect all Cop refinements
+        let cop_refs: Vec<Option<String>> = cop_adj_seqs.iter()
+            .map(|s| s.refinements[0].clone())
+            .collect();
+
+        assert!(cop_refs.contains(&Some("sg".to_string())),
+            "Expected Cop[sg] refinement in VP Cop Adj sequences, got: {:?}", cop_refs);
+        assert!(cop_refs.contains(&Some("pl".to_string())),
+            "Expected Cop[pl] refinement in VP Cop Adj sequences, got: {:?}", cop_refs);
+    }
+
+    #[test]
+    fn test_grammar_uses_pos_true() {
+        // English body grammar uses Dot, Det, Cop, N, V, Adj, Adv, Prep, Modal
+        let grammar = Grammar::from_language_dialect("english", "body").expect("Failed to load grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "English body grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::Det), "English body grammar should use Det");
+        assert!(grammar.grammar_uses_pos(Pos::Cop), "English body grammar should use Cop");
+        assert!(grammar.grammar_uses_pos(Pos::N), "English body grammar should use N");
+        assert!(grammar.grammar_uses_pos(Pos::V), "English body grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::Adj), "English body grammar should use Adj");
+        assert!(grammar.grammar_uses_pos(Pos::Adv), "English body grammar should use Adv");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "English body grammar should use Modal");
+        assert!(grammar.grammar_uses_pos(Pos::Prep), "English body grammar should use Prep");
+    }
+
+    #[test]
+    fn test_grammar_uses_pos_false() {
+        // English body grammar does NOT use Conj (no Conj in body.cfg productions)
+        let grammar = Grammar::from_language_dialect("english", "body").expect("Failed to load grammar");
+        assert!(!grammar.grammar_uses_pos(Pos::Conj), "English body grammar should not use Conj");
+        // English body grammar does NOT use Prefix (only subject dialect uses Prefix)
+        assert!(!grammar.grammar_uses_pos(Pos::Prefix), "English body grammar should not use Prefix");
+    }
+
+    #[test]
+    fn test_grammar_uses_pos_latin_no_det() {
+        // Latin body grammar should NOT use Det (Latin has no articles)
+        let grammar = Grammar::from_language_dialect("latin", "body").expect("Failed to load Latin grammar");
+        assert!(!grammar.grammar_uses_pos(Pos::Det), "Latin body grammar should not use Det");
+        // But it should use N, V, etc.
+        assert!(grammar.grammar_uses_pos(Pos::N), "Latin body grammar should use N");
+        assert!(grammar.grammar_uses_pos(Pos::V), "Latin body grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Latin body grammar should use Dot");
+    }
+
+    #[test]
+    fn test_grammar_uses_pos_subject_has_prefix() {
+        // English subject grammar should use Prefix
+        let grammar = Grammar::from_language_dialect("english", "subject").expect("Failed to load grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "English subject grammar should use Prefix");
+    }
+
     #[test]
     fn test_sequence_cache_roundtrip_tempdir() {
         // Write a temporary grammar.yaml file, build the cache, then ensure a subsequent call reads it.

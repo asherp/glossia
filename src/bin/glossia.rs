@@ -2030,11 +2030,456 @@ mod tests {
         let mut prev_weight = f64::INFINITY;
         for &k in &remaining {
             if let Some((_, weight)) = k_weights.iter().find(|(k_val, _)| *k_val == k) {
-                assert!(*weight <= prev_weight, 
-                    "k={} has weight {} which should be <= previous weight {}", 
+                assert!(*weight <= prev_weight,
+                    "k={} has weight {} which should be <= previous weight {}",
                     k, weight, prev_weight);
                 prev_weight = *weight;
             }
         }
+    }
+
+    // ========== fill_slots refinement tests ==========
+
+    #[test]
+    fn test_fill_slots_det_indef_before_vowel_produces_an() {
+        // Det[indef] before a vowel-initial word should produce "an"
+        let payload = vec![PayloadTok::new("apple", &[Pos::N])];
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::Det, &["the", "a", "an", "each", "some"])
+            .with_words(Pos::N, &["user", "note"]);
+
+        let slots = vec![Pos::Det, Pos::N, Pos::Dot];
+        let refinements = vec![Some("indef".to_string()), None, None];
+        let mut forced: HashMap<usize, usize> = HashMap::new();
+        forced.insert(1, 0); // Force "apple" into N slot
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut payload_i = 0usize;
+        let out = fill_slots(
+            &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
+            &[], None, Some(&forced), false, false,
+        );
+
+        assert_eq!(out[0], "an", "Det[indef] before 'apple' (vowel) should produce 'an'");
+        // Dot is appended to the last word, so "apple" becomes "apple."
+        assert_eq!(out[1], "apple.", "payload word should have Dot appended");
+    }
+
+    #[test]
+    fn test_fill_slots_det_indef_before_consonant_produces_a() {
+        // Det[indef] before a consonant-initial word should produce "a"
+        let payload = vec![PayloadTok::new("basket", &[Pos::N])];
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::Det, &["the", "a", "an", "each", "some"])
+            .with_words(Pos::N, &["user", "note"]);
+
+        let slots = vec![Pos::Det, Pos::N, Pos::Dot];
+        let refinements = vec![Some("indef".to_string()), None, None];
+        let mut forced: HashMap<usize, usize> = HashMap::new();
+        forced.insert(1, 0); // Force "basket" into N slot
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut payload_i = 0usize;
+        let out = fill_slots(
+            &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
+            &[], None, Some(&forced), false, false,
+        );
+
+        assert_eq!(out[0], "a", "Det[indef] before 'basket' (consonant) should produce 'a'");
+        // Dot is appended to the last word, so "basket" becomes "basket."
+        assert_eq!(out[1], "basket.", "payload word should have Dot appended");
+    }
+
+    #[test]
+    fn test_fill_slots_det_def_produces_definite() {
+        // Det[def] should produce a definite determiner (the, its, our, etc.)
+        let payload: Vec<PayloadTok> = vec![];
+        let payload_set: HashSet<String> = HashSet::new();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let mut refined_cover: HashMap<(Pos, String), Vec<String>> = HashMap::new();
+        refined_cover.insert(
+            (Pos::Det, "def".to_string()),
+            vec!["the".to_string(), "its".to_string(), "our".to_string()],
+        );
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::Det, &["the", "a", "an", "its", "our", "some"])
+            .with_words(Pos::N, &["user", "note"])
+            .with_refined_cover(refined_cover);
+
+        let slots = vec![Pos::Det, Pos::N, Pos::Dot];
+        let refinements = vec![Some("def".to_string()), None, None];
+
+        let def_words: HashSet<&str> = ["the", "its", "our"].iter().copied().collect();
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut payload_i = 0usize;
+        let out = fill_slots(
+            &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
+            &[], None, None, false, false,
+        );
+
+        assert!(
+            def_words.contains(out[0].as_str()),
+            "Det[def] should produce definite determiner, got: '{}'", out[0]
+        );
+    }
+
+    #[test]
+    fn test_fill_slots_cop_sg_produces_is() {
+        // Cop[sg] should produce "is"
+        let payload: Vec<PayloadTok> = vec![];
+        let payload_set: HashSet<String> = HashSet::new();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let mut refined_cover: HashMap<(Pos, String), Vec<String>> = HashMap::new();
+        refined_cover.insert(
+            (Pos::Cop, "sg".to_string()),
+            vec!["is".to_string()],
+        );
+        refined_cover.insert(
+            (Pos::Cop, "pl".to_string()),
+            vec!["are".to_string()],
+        );
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::Cop, &["is", "are"])
+            .with_words(Pos::Adj, &["clear", "plain"])
+            .with_words(Pos::N, &["user", "note"])
+            .with_refined_cover(refined_cover);
+
+        let slots = vec![Pos::N, Pos::Cop, Pos::Adj, Pos::Dot];
+        let refinements = vec![None, Some("sg".to_string()), None, None];
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut payload_i = 0usize;
+        let out = fill_slots(
+            &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
+            &[], None, None, false, false,
+        );
+
+        assert_eq!(out[1], "is", "Cop[sg] should produce 'is'");
+    }
+
+    #[test]
+    fn test_fill_slots_cop_pl_produces_are() {
+        // Cop[pl] should produce "are"
+        let payload: Vec<PayloadTok> = vec![];
+        let payload_set: HashSet<String> = HashSet::new();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let mut refined_cover: HashMap<(Pos, String), Vec<String>> = HashMap::new();
+        refined_cover.insert(
+            (Pos::Cop, "sg".to_string()),
+            vec!["is".to_string()],
+        );
+        refined_cover.insert(
+            (Pos::Cop, "pl".to_string()),
+            vec!["are".to_string()],
+        );
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::Cop, &["is", "are"])
+            .with_words(Pos::Adj, &["clear", "plain"])
+            .with_words(Pos::N, &["user", "note"])
+            .with_refined_cover(refined_cover);
+
+        let slots = vec![Pos::N, Pos::Cop, Pos::Adj, Pos::Dot];
+        let refinements = vec![None, Some("pl".to_string()), None, None];
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut payload_i = 0usize;
+        let out = fill_slots(
+            &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
+            &[], None, None, false, false,
+        );
+
+        assert_eq!(out[1], "are", "Cop[pl] should produce 'are'");
+    }
+
+    #[test]
+    fn test_fill_slots_unrefined_fallback() {
+        // Slots without refinement should still produce valid cover words
+        let payload: Vec<PayloadTok> = vec![];
+        let payload_set: HashSet<String> = HashSet::new();
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let lex = Lexicon::new(payload_set, wordlist_set)
+            .with_words(Pos::N, &["user", "node"])
+            .with_words(Pos::V, &["send", "relay"])
+            .with_words(Pos::Adj, &["clear", "plain"]);
+
+        let slots = vec![Pos::Adj, Pos::N, Pos::V, Pos::N, Pos::Dot];
+        let refinements = vec![None, None, None, None, None];
+
+        let mut rng = StdRng::seed_from_u64(42);
+        let mut payload_i = 0usize;
+        let out = fill_slots(
+            &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
+            &[], None, None, false, false,
+        );
+
+        // 4 word tokens + Dot merged into last word
+        assert_eq!(out.len(), 4, "Should produce 4 tokens (Dot is appended)");
+        for word in &out {
+            let cleaned = word.trim_end_matches('.');
+            assert!(!cleaned.is_empty(), "Every slot should produce a non-empty word");
+        }
+    }
+
+    // ========== Cross-language validation tests ==========
+
+    #[test]
+    fn test_english_no_leakage_into_latin() {
+        // Generate Latin text and verify no English function words appear
+        let english_function_words: HashSet<&str> = [
+            "the", "an", "is", "are", "does", "do", "a",
+        ].iter().copied().collect();
+
+        for seed in [42u64, 123, 999, 7, 2024] {
+            let mut rng = StdRng::seed_from_u64(seed);
+            let words = select_random_words(&mut rng, 6, "latin").unwrap();
+
+            let payload: Vec<PayloadTok> = words.iter().map(|word| {
+                let tags = glossia::generator::build_pos_mapping("latin")
+                    .unwrap()
+                    .get(&word.to_lowercase())
+                    .cloned()
+                    .unwrap_or_default();
+                PayloadTok::new(word.clone(), &tags)
+            }).collect();
+
+            if payload.iter().any(|t| t.allowed.is_empty()) {
+                continue; // Skip seeds with untagged words
+            }
+
+            let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+            let wordlist_words = load_payload_words("latin").unwrap();
+            let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+            let (by_pos, refined_cover) = glossia::generator::load_cover_words_by_pos(&wordlist_set, "latin");
+            let lex = Lexicon::new(payload_set, wordlist_set)
+                .with_words(Pos::N, &by_pos.get(&Pos::N).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::V, &by_pos.get(&Pos::V).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::Adj, &by_pos.get(&Pos::Adj).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::Adv, &by_pos.get(&Pos::Adv).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::Prep, &by_pos.get(&Pos::Prep).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::Cop, &by_pos.get(&Pos::Cop).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::Modal, &by_pos.get(&Pos::Modal).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_words(Pos::To, &by_pos.get(&Pos::To).map(|v| v.iter().map(|s| s.as_str()).collect::<Vec<_>>()).unwrap_or_default())
+                .with_refined_cover(refined_cover);
+
+            let (text, _) = generate_text(
+                &mut rng, &lex, &payload, false, GenerationMode::Body, "latin",
+                3, 20, SentenceLengthMode::Compact, " ",
+            );
+
+            for token in text.split_whitespace() {
+                let cleaned = normalize_token_for_bip39(token);
+                assert!(
+                    !english_function_words.contains(cleaned.as_str()),
+                    "Latin output (seed={}) contains English function word '{}' in text: {}",
+                    seed, cleaned, text,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_grammar_introspection_english_has_dot() {
+        let grammar = Grammar::from_language_dialect("english", "body").expect("English body grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "English body grammar should use Dot");
+    }
+
+    #[test]
+    fn test_grammar_introspection_latin_has_dot() {
+        let grammar = Grammar::from_language_dialect("latin", "body").expect("Latin body grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Latin body grammar should use Dot");
+    }
+
+    // ========== Round-trip verification tests ==========
+
+    #[test]
+    fn test_english_round_trip() {
+        // Encode 4+ BIP39 words, extract from output, verify they match in order
+        let mut rng = StdRng::seed_from_u64(42);
+        let words = vec![
+            "abandon".to_string(),
+            "ability".to_string(),
+            "able".to_string(),
+            "about".to_string(),
+            "above".to_string(),
+        ];
+
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = tag_word(word);
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("english").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_test_lexicon(payload_set.clone(), wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        // Extract payload words from the output text (decode step)
+        let extracted: Vec<String> = text
+            .split_whitespace()
+            .map(normalize_token_for_bip39)
+            .filter(|w| !w.is_empty() && payload_set.contains(w))
+            .collect();
+
+        assert_eq!(
+            extracted,
+            words.iter().map(|w| w.to_lowercase()).collect::<Vec<_>>(),
+            "Extracted payload words should match input in order.\nInput: {:?}\nOutput text: {}\nExtracted: {:?}",
+            words, text, extracted,
+        );
+    }
+
+    #[test]
+    fn test_deterministic_output_same_seed() {
+        // Same payload + same seed produces identical output across runs
+        let words = vec!["abandon".to_string(), "ability".to_string(), "able".to_string()];
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = tag_word(word);
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("english").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_test_lexicon(payload_set, wordlist_set);
+
+        let mut rng1 = StdRng::seed_from_u64(42);
+        let (text1, _) = generate_text(
+            &mut rng1, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        let mut rng2 = StdRng::seed_from_u64(42);
+        let (text2, _) = generate_text(
+            &mut rng2, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        assert_eq!(text1, text2, "Same seed should produce identical output");
+    }
+
+    // ========== Edge case tests ==========
+
+    #[test]
+    fn test_single_payload_word_appears_in_output() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let payload = vec![PayloadTok::new("abandon", &[Pos::N, Pos::V])];
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("english").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_test_lexicon(payload_set.clone(), wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        let extracted: Vec<String> = text
+            .split_whitespace()
+            .map(normalize_token_for_bip39)
+            .filter(|w| !w.is_empty() && payload_set.contains(w))
+            .collect();
+
+        assert_eq!(extracted, vec!["abandon"], "Single payload word should appear in output");
+    }
+
+    #[test]
+    fn test_many_payload_words_round_trip() {
+        // Test with 12 random BIP39 words
+        let mut rng = StdRng::seed_from_u64(99);
+        let words = select_random_words(&mut rng, 12, "english").unwrap();
+
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = tag_word(word);
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("english").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_test_lexicon(payload_set.clone(), wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        // Extract payload words from output
+        let extracted: Vec<String> = text
+            .split_whitespace()
+            .map(normalize_token_for_bip39)
+            .filter(|w| !w.is_empty() && payload_set.contains(w))
+            .collect();
+
+        assert_eq!(
+            extracted,
+            words.iter().map(|w| w.to_lowercase()).collect::<Vec<_>>(),
+            "All 12 payload words should appear in order in the output"
+        );
+    }
+
+    #[test]
+    fn test_output_ends_with_period_body_mode() {
+        // Body mode text should end with a period for English
+        let mut rng = StdRng::seed_from_u64(42);
+        let words = vec!["abandon".to_string(), "ability".to_string()];
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = tag_word(word);
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("english").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_test_lexicon(payload_set, wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        assert!(
+            text.ends_with('.'),
+            "Body mode English text should end with period. Got: '{}'",
+            text
+        );
+    }
+
+    #[test]
+    fn test_first_word_is_capitalized() {
+        // First word of output should be capitalized
+        let mut rng = StdRng::seed_from_u64(42);
+        let words = vec!["abandon".to_string(), "ability".to_string()];
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = tag_word(word);
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("english").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_test_lexicon(payload_set, wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "english",
+            3, 20, SentenceLengthMode::Compact, " ",
+        );
+
+        let first_char = text.chars().next().unwrap();
+        assert!(
+            first_char.is_uppercase(),
+            "First character should be uppercase. Got: '{}'",
+            first_char
+        );
     }
 }

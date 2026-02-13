@@ -742,7 +742,7 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
                 return Some(file_path.to_string_lossy().to_string());
             }
         }
-        
+
         // If language contains slashes (e.g., "math/primes"), check if path ends with it
         if language.contains('/') {
             let lang_path = std::path::Path::new(language);
@@ -754,7 +754,7 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
             }
         }
     }
-    
+
     // Recursively search subdirectories
     if let Ok(entries) = std::fs::read_dir(dir) {
         for entry in entries.flatten() {
@@ -766,6 +766,161 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
             }
         }
     }
-    
+
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashSet;
+    use crate::types::Pos;
+
+    #[test]
+    fn test_cover_yaml_loads_refinements() {
+        // Load English cover words and verify refined_cover contains expected entries
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let (by_pos, refined_cover) = load_cover_words_by_pos(&wordlist_set, "english");
+
+        // Verify (Det, "def") bucket exists and contains "the"
+        let def_dets = refined_cover.get(&(Pos::Det, "def".to_string()));
+        assert!(def_dets.is_some(), "Should have refined_cover entry for (Det, def)");
+        let def_dets = def_dets.unwrap();
+        assert!(def_dets.contains(&"the".to_string()), "Det[def] should contain 'the'");
+        assert!(def_dets.contains(&"its".to_string()), "Det[def] should contain 'its'");
+        assert!(def_dets.contains(&"our".to_string()), "Det[def] should contain 'our'");
+
+        // Verify (Det, "indef") bucket exists and contains "a" and "an"
+        let indef_dets = refined_cover.get(&(Pos::Det, "indef".to_string()));
+        assert!(indef_dets.is_some(), "Should have refined_cover entry for (Det, indef)");
+        let indef_dets = indef_dets.unwrap();
+        assert!(indef_dets.contains(&"a".to_string()), "Det[indef] should contain 'a'");
+        assert!(indef_dets.contains(&"an".to_string()), "Det[indef] should contain 'an'");
+
+        // Verify (Cop, "sg") bucket exists and contains "is"
+        let sg_cops = refined_cover.get(&(Pos::Cop, "sg".to_string()));
+        assert!(sg_cops.is_some(), "Should have refined_cover entry for (Cop, sg)");
+        let sg_cops = sg_cops.unwrap();
+        assert!(sg_cops.contains(&"is".to_string()), "Cop[sg] should contain 'is'");
+
+        // Verify (Cop, "pl") bucket exists and contains "are"
+        let pl_cops = refined_cover.get(&(Pos::Cop, "pl".to_string()));
+        assert!(pl_cops.is_some(), "Should have refined_cover entry for (Cop, pl)");
+        let pl_cops = pl_cops.unwrap();
+        assert!(pl_cops.contains(&"are".to_string()), "Cop[pl] should contain 'are'");
+
+        // Verify (Det, "quant") bucket exists with quantifiers
+        let quant_dets = refined_cover.get(&(Pos::Det, "quant".to_string()));
+        assert!(quant_dets.is_some(), "Should have refined_cover entry for (Det, quant)");
+        let quant_dets = quant_dets.unwrap();
+        assert!(quant_dets.contains(&"each".to_string()), "Det[quant] should contain 'each'");
+        assert!(quant_dets.contains(&"every".to_string()), "Det[quant] should contain 'every'");
+        assert!(quant_dets.contains(&"some".to_string()), "Det[quant] should contain 'some'");
+
+        // Sanity check: by_pos should also contain these words
+        let all_dets = by_pos.get(&Pos::Det);
+        assert!(all_dets.is_some(), "by_pos should have Det");
+        let all_dets = all_dets.unwrap();
+        assert!(all_dets.contains(&"the".to_string()), "by_pos[Det] should contain 'the'");
+        assert!(all_dets.contains(&"a".to_string()), "by_pos[Det] should contain 'a'");
+    }
+
+    #[test]
+    fn test_is_and_are_load_as_cop() {
+        // Verify that "is" and "are" load as Cop (not V)
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let (by_pos, _) = load_cover_words_by_pos(&wordlist_set, "english");
+
+        let cop_words = by_pos.get(&Pos::Cop);
+        assert!(cop_words.is_some(), "Should have Cop words");
+        let cop_words = cop_words.unwrap();
+        assert!(cop_words.contains(&"is".to_string()), "'is' should be in Cop");
+        assert!(cop_words.contains(&"are".to_string()), "'are' should be in Cop");
+
+        // "is" and "are" should NOT appear under V
+        if let Some(v_words) = by_pos.get(&Pos::V) {
+            assert!(!v_words.contains(&"is".to_string()), "'is' should NOT be in V");
+            assert!(!v_words.contains(&"are".to_string()), "'are' should NOT be in V");
+        }
+    }
+
+    #[test]
+    fn test_words_without_refinement_not_in_refined_cover() {
+        // Words without refinement tags should appear in by_pos but NOT in refined_cover
+        let wordlist_set: HashSet<String> = HashSet::new();
+        let (by_pos, refined_cover) = load_cover_words_by_pos(&wordlist_set, "english");
+
+        // "bad" is Adj: 1.0 with no refinement tag
+        let adj_words = by_pos.get(&Pos::Adj);
+        assert!(adj_words.is_some(), "Should have Adj words");
+        let adj_words = adj_words.unwrap();
+        assert!(adj_words.contains(&"bad".to_string()), "'bad' should be in by_pos[Adj]");
+
+        // "bad" should not appear in any refined_cover bucket
+        let in_refined = refined_cover.iter().any(|(_, words)| {
+            words.contains(&"bad".to_string())
+        });
+        assert!(!in_refined, "'bad' should NOT appear in refined_cover (no refinement tag)");
+    }
+
+    #[test]
+    fn test_cover_words_exclude_payload_words() {
+        // If a word exists in both payload and cover, it should be excluded from cover
+        let mut wordlist_set: HashSet<String> = HashSet::new();
+        // "aid" is in English cover.yaml as N/V. Let's add it to the wordlist set.
+        wordlist_set.insert("aid".to_string());
+
+        let (by_pos, _) = load_cover_words_by_pos(&wordlist_set, "english");
+
+        // "aid" should be excluded from the cover words
+        for (_, words) in &by_pos {
+            assert!(!words.contains(&"aid".to_string()),
+                "'aid' should be excluded from cover words when it is in the wordlist set");
+        }
+    }
+
+    #[test]
+    fn test_load_payload_words_english() {
+        // Verify we can load English payload words and they contain some known BIP39 words
+        let words = load_payload_words("english").expect("Should load English payload words");
+        assert!(!words.is_empty(), "English payload words should not be empty");
+        // BIP39 word list includes "abandon" as first word
+        assert!(words.contains(&"abandon".to_string()), "Should contain 'abandon'");
+        // Words should be sorted
+        let mut sorted = words.clone();
+        sorted.sort();
+        assert_eq!(words, sorted, "Payload words should be sorted");
+    }
+
+    #[test]
+    fn test_build_pos_mapping_english() {
+        // Verify that building POS mapping for English produces valid entries
+        let mapping = build_pos_mapping("english").expect("Should build English POS mapping");
+        assert!(!mapping.is_empty(), "POS mapping should not be empty");
+
+        // "abandon" should have POS tags
+        let abandon_pos = mapping.get("abandon");
+        assert!(abandon_pos.is_some(), "'abandon' should have POS tags");
+        let abandon_pos = abandon_pos.unwrap();
+        assert!(!abandon_pos.is_empty(), "'abandon' should have at least one POS tag");
+    }
+
+    #[test]
+    fn test_parse_pos_tag_default_all_variants() {
+        // Verify all standard POS tag strings parse correctly
+        assert_eq!(parse_pos_tag_default("Det"), Some(Pos::Det));
+        assert_eq!(parse_pos_tag_default("Adj"), Some(Pos::Adj));
+        assert_eq!(parse_pos_tag_default("N"), Some(Pos::N));
+        assert_eq!(parse_pos_tag_default("V"), Some(Pos::V));
+        assert_eq!(parse_pos_tag_default("Modal"), Some(Pos::Modal));
+        assert_eq!(parse_pos_tag_default("Aux"), Some(Pos::Aux));
+        assert_eq!(parse_pos_tag_default("Cop"), Some(Pos::Cop));
+        assert_eq!(parse_pos_tag_default("To"), Some(Pos::To));
+        assert_eq!(parse_pos_tag_default("Prep"), Some(Pos::Prep));
+        assert_eq!(parse_pos_tag_default("Adv"), Some(Pos::Adv));
+        assert_eq!(parse_pos_tag_default("Conj"), Some(Pos::Conj));
+        assert_eq!(parse_pos_tag_default("Dot"), Some(Pos::Dot));
+        assert_eq!(parse_pos_tag_default("Prefix"), Some(Pos::Prefix));
+        assert_eq!(parse_pos_tag_default("Unknown"), None);
+    }
 }
