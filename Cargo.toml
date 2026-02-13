@@ -7,9 +7,13 @@ edition = "2021"
 name = "glossia"
 path = "src/bin/glossia.rs"
 
+[features]
+default = ["grammar"]
+grammar = ["nlprule"]
+
 [dependencies]
 rand = "0.8"
-nlprule = "0.6"
+nlprule = { version = "0.6", optional = true }
 anyhow = "1.0"
 reqwest = { version = "0.11", features = ["blocking"] }
 clap = { version = "4.4", features = ["derive"] }
