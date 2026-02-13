@@ -43,3 +43,6 @@ ENV/
 *.bak
 *.swp
 *~
+
+# mdbook build output
+docs/book/
