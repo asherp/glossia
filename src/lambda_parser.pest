@@ -1,0 +1,47 @@
+// Pest grammar for parsing lambda calculus expressions
+// Format: λx: Type. body or f(a) or constant
+
+grammar = { SOI ~ expr ~ EOI }
+
+expr = { abstraction | application | atom }
+
+// Lambda abstraction: λx: Type. body or lambda x: Type. body
+abstraction = {
+    lambda_keyword ~ identifier ~ ":" ~ type_expr ~ "." ~ expr
+}
+
+lambda_keyword = { "λ" | "lambda" }
+
+// Function application: f(a) or f a (prefix notation)
+application = {
+    atom ~ "(" ~ expr ~ ")"
+}
+
+// Atomic expressions
+// Check constants first (before identifiers) since constants are also valid identifiers
+atom = {
+    constant | identifier | "(" ~ expr ~ ")"
+}
+
+// Type expressions: e, t, e -> t, (e -> t) -> t
+type_expr = {
+    type_atom ~ ("->" ~ type_expr)?
+}
+
+type_atom = {
+    "(" ~ type_expr ~ ")" |
+    "e" |  // Entity
+    "t"    // Truth
+}
+
+// Identifiers (variable names)
+identifier = @{ ASCII_ALPHANUMERIC+ }
+
+// POS constants
+constant = @{
+    "N" | "V" | "Det" | "Adj" | "Adv" | "Prep" | "Conj" |
+    "Cop" | "Modal" | "Aux" | "To" | "Dot" | "Prefix"
+}
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
+NEWLINE = _{ "\n" | "\r\n" | "\r" }

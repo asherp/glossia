@@ -1,0 +1,234 @@
+# English Grammar Rules Encoded in Lambda Calculus
+# This file defines English grammar using lambda calculus notation
+# Each rule represents a function that takes grammatical categories and produces structures
+
+grammar:
+  name: "English Grammar"
+
+  # Type system for English grammatical categories
+  # Maps POS tags to semantic types (Montague Grammar style)
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+
+    - name: "V"
+      lambda_type: "e -> (e -> t)"
+
+    - name: "Adj"
+      lambda_type: "e -> e"
+
+    - name: "Adv"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Det"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Prep"
+      lambda_type: "e -> (e -> t)"
+
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Dot"
+      lambda_type: "t"
+
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+  # Base rules (body dialect)
+  # Translated from languages/english/body.cfg
+  rules:
+    sentence:
+      lambda: "N"
+      cfg_productions:
+        - production: "NP VP Dot"
+          weight: 0.85
+          lambda: "N"
+        - production: "NP Adv V NP Dot"
+          weight: 0.10
+          lambda: "N"
+        - production: "NP V NP Dot"
+          weight: 0.05
+          lambda: "N"
+
+    noun_phrase:
+      lambda: "N"
+      cfg_productions:
+        - production: "N"
+          weight: 1.0
+          lambda: "N"
+        - production: "Det N"
+          weight: 1.0
+          lambda: "Det"
+        - production: "Det Adj N"
+          weight: 1.0
+          lambda: "Det"
+
+    verb_phrase:
+      lambda: "V"
+      cfg_productions:
+        - production: "VP_BASE"
+          weight: 0.70
+          lambda: "V"
+        - production: "VP_BASE VP_PP_TAIL"
+          weight: 0.30
+          lambda: "V"
+
+    vp_base:
+      lambda: "V"
+      cfg_productions:
+        - production: "Modal V NP"
+          weight: 0.30
+          lambda: "V"
+        - production: "Cop Adj"
+          weight: 0.15
+          lambda: "Cop"
+        - production: "V NP"
+          weight: 0.10
+          lambda: "V"
+        - production: "Modal V"
+          weight: 0.02
+          lambda: "Modal"
+        - production: "V To V"
+          weight: 0.03
+          lambda: "V"
+        - production: "Modal V To V"
+          weight: 0.02
+          lambda: "Modal"
+
+    vp_with_pp:
+      lambda: "V"
+      cfg_productions:
+        - production: "PP"
+          weight: 0.70
+          lambda: "V"
+        - production: "PP VP_PP_TAIL"
+          weight: 0.30
+          lambda: "V"
+
+    prepositional_phrase:
+      lambda: "Prep"
+      cfg_productions:
+        - production: "Prep NP"
+          weight: 1.0
+          lambda: "Prep"
+
+  # Dialect-specific rule overrides
+  dialects:
+    subject:
+      rules:
+        sentence:
+          lambda: "N"
+          cfg_productions:
+            - production: "Prefix SContent"
+              weight: 0.3
+              lambda: "N"
+            - production: "SContent"
+              weight: 0.7
+              lambda: "N"
+
+        sentence_content:
+          lambda: "N"
+          cfg_productions:
+            - production: "NP VP"
+              weight: 0.1
+              lambda: "N"
+            - production: "NP VP PP"
+              weight: 0.2
+              lambda: "N"
+            - production: "NP VP PP PP"
+              weight: 0.3
+              lambda: "N"
+            - production: "Adj N VP PP"
+              weight: 0.15
+              lambda: "N"
+            - production: "Adv N VP PP"
+              weight: 0.1
+              lambda: "N"
+            - production: "V NP PP"
+              weight: 0.05
+              lambda: "N"
+            - production: "NP VP PP PP PP"
+              weight: 0.1
+              lambda: "N"
+
+        noun_phrase:
+          lambda: "N"
+          cfg_productions:
+            - production: "Det Adj N"
+              weight: 1.0
+              lambda: "Det"
+            - production: "Det Adj N Adj"
+              weight: 1.0
+              lambda: "Det"
+            - production: "Det N"
+              weight: 1.0
+              lambda: "Det"
+
+        verb_phrase:
+          lambda: "V"
+          cfg_productions:
+            - production: "Modal V NP"
+              weight: 0.5
+              lambda: "V"
+            - production: "Cop Adj"
+              weight: 0.3
+              lambda: "Cop"
+            - production: "V NP"
+              weight: 0.15
+              lambda: "V"
+            - production: "Modal V NP PP"
+              weight: 0.05
+              lambda: "V"
+
+        prepositional_phrase:
+          lambda: "Prep"
+          cfg_productions:
+            - production: "Prep NP"
+              weight: 1.0
+              lambda: "Prep"
+            - production: "Prep Det N"
+              weight: 1.0
+              lambda: "Prep"
+
+    payload_only:
+      rules:
+        sentence:
+          lambda: "N"
+          cfg_productions:
+            - production: "N Dot"
+              weight: 0.3
+              lambda: "N"
+            - production: "N N Dot"
+              weight: 0.2
+              lambda: "N"
+            - production: "N N N Dot"
+              weight: 0.15
+              lambda: "N"
+            - production: "N N N N Dot"
+              weight: 0.1
+              lambda: "N"
+            - production: "N N N N N Dot"
+              weight: 0.05
+              lambda: "N"
+            - production: "V N Dot"
+              weight: 0.1
+              lambda: "N"
+            - production: "V N N Dot"
+              weight: 0.05
+              lambda: "N"
+            - production: "Adj N Dot"
+              weight: 0.05
+              lambda: "N"

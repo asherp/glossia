@@ -1,6 +1,6 @@
-# BIP39 Encode
+# Glossia
 
-A proof-of-concept Rust program that generates natural-looking sentences using a context-free grammar (CFG), while embedding BIP39 mnemonic words in-order within the generated text.
+A lossless linguistic codec for machine-to-human communication. Glossia generates natural-looking sentences using a context-free grammar (CFG), while embedding BIP39 mnemonic words in-order within the generated text.
 
 ## Overview
 
@@ -14,189 +14,200 @@ This tool uses a small, controlled grammar to generate sentences that embed BIP3
 - **Adaptive sentence length**: Adjusts sentence complexity based on remaining payload tokens
 - **Word frequency analysis**: Tool to generate word lists from frequency data with POS tags
 
+## Installation
+
+### Install from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/asherp/glossia.git
+cd glossia
+
+# Install the binary
+cargo install --path .
+```
+
+This will install the `glossia` binary to `~/.cargo/bin/glossia` (or `$CARGO_HOME/bin/glossia` if set). Make sure this directory is in your `PATH`.
+
+**Note:** The English language files (wordlists and grammars) are embedded in the binary, so no additional files need to be copied. For other languages (French, German), you'll need to provide the language files separately.
+
+### Install from Git
+
+```bash
+cargo install --git https://github.com/asherp/glossia.git
+```
+
+### Verify Installation
+
+```bash
+glossia --help
+```
+
 ## Usage
+
+### Defaults and Use Cases
+
+Glossia defaults to **body grammar with natural length-mode**, which is optimized for email body text and prose. The defaults are designed for different use cases:
+
+- **Body grammar + natural mode (default)**: Best for email body text and prose. Generates longer, more natural sentences by sampling from the grammar's length distribution. This produces readable text that flows naturally.
+
+- **Subject grammar + compact mode**: Best for email subject lines where brevity is critical. Generates short phrases and may include prefixes (Re:, Fwd:, etc.). Uses compact mode to find the shortest possible sentence that fits the payload.
+
+You can override these defaults using `--grammar` and `--length-mode` flags as needed.
 
 ### Main Program
 
+#### Basic Usage
+
+**Default: body grammar + natural length-mode**
+
 ```bash
-# Default: subject grammar + compact length-mode
-cargo run -- --random 12
+$ glossia --random 12 --seed 0
+```
 
-# Body grammar defaults to natural length-mode (sample from grammar length distribution)
-cargo run -- --random 12 --grammar body
+```
+Snake set robot to the mixed ship. Each program is night to each ten shield.
+Bamboo own way to the yellow.
+```
 
-# You can always override explicitly
-cargo run -- --random 12 --grammar body --length-mode compact
+The embedded words are: `snake`, `robot`, `mixed`, `ship`, `program`, `night`, `ten`, `shield`, `bamboo`, `own`, `way`, `yellow`. (Use `--highlight bars` to show delimiters like `|snake|`.)
 
-# Provide words directly instead of random selection
-cargo run -- abandon ability able about above absent
+**Subject grammar (shorter sentences with prefixes)**
 
+```bash
+$ glossia --random 12 --grammar subject --seed 0
+```
+
+```
+A snake is out a robot is mixed the ship is pop the program is night the ten is
+hot a shield is cut a bamboo is own a way is yellow
+```
+
+**Compact body grammar**
+
+```bash
+$ glossia --random 12 --grammar body --length-mode compact --seed 0
+```
+
+```
+Snake see robot. Ban is mixed. Ship program tap. Night is ten.
+Shield get bamboo. Pie own way. Yellow is set.
+```
+
+**Provide words directly instead of random selection**
+
+```bash
+$ glossia abandon ability able about above absent
+```
+
+```
+The abandon may see the ability to each able ears about above. Guy may absent.
+```
+
+**Encode an API key or secret**
+
+```bash
+$ glossia --from-ascii "sk_live_51H3ll0W0r1d" --seed 0
+```
+
+```
+Ban inflict foot to swallow for spray. Green may question. State get cinnamon.
+Cricket see the gloom to army. The rid purpose already board the rid mosquito.
+```
+
+The API key is encoded into natural-looking prose. To decode, extract all BIP39 words from the output and convert them back to ASCII using the wordlist.
+
+**Encode an IP address**
+
+```bash
+$ glossia --from-ascii "127.0.0.1" --grammar subject --length-mode compact --seed 0
+```
+
+```
+A couple is out a museum is pop each slide is set a gate is ago a toast is bad
+the blade is hot the series is big
+```
+
+IP addresses and other network identifiers can be encoded into prose. Using compact mode with subject grammar produces shorter, more concise output suitable for subject lines or when brevity is important.
+
+**Generate multiple variations and select the most compact**
+
+```bash
+$ glossia --random 12 --variations 3 --seed 0
+```
+
+```
+Snake set robot to the mixed ship. Each program is night to each ten shield.
+Bamboo own way to the yellow.
+
+
+Snake get robot to a mixed ship to program per the night ten.
+Some shield see bamboo. Die may own way. The yellow might get pay.
+
+
+Snake may see the robot. Each mixed ship program night.
+Ten shield the bad bamboo. Each own way why yellow each cut.
+
+=== Statistics ===
+Input:
+  Total words: 12
+  POS breakdown:
+    Nouns: 10
+    Verbs: 6
+    Adjectives: 5
+    Adverbs: 1
+Output:
+  Total words: 32
+  Payload words: 12 (37.5%)
+  Cover words: 20 (62.5%)
+  Sentences: 1
+  Avg words per sentence: 32.0
+Compactness:
+  Score: 0.580 (58 BIP39 chars / 100 total chars)
+  Efficiency: 58.0% BIP39 characters
+Variations:
+  Tested: 3
+  Min compactness: 0.523
+  Max compactness: 0.580
+  Avg compactness: 0.548
+  Improvement: 5.8% better than average
+```
+
+#### Additional Options
+
+```bash
 # Use a specific language (default: english)
-cargo run -- --random 12 --language english
-
-# Generate multiple variations and select the most compact
-cargo run -- --random 12 --variations 5
+glossia --random 12 --language english --seed 0
 
 # Use a seed for reproducible output
-cargo run -- --random 12 --seed 12345
+glossia --random 12 --seed 0
 
 # Show grammar rules
-cargo run -- --show-grammar --grammar body
+glossia --show-grammar --grammar body
 
 # Verbose output for debugging
-cargo run -- --random 12 --verbose
+glossia --random 12 --verbose --seed 0
 ```
 
 #### Command-Line Options
 
 - `--random <N>`: Generate sentences from N random BIP39 words
-- `--grammar <grammar>`: Grammar to use: `subject` (default) or `body`
-  - `subject`: Short sentences, may include prefixes (Re:, Fwd:, etc.)
-  - `body`: Longer sentences, no prefixes
-- `--highlight <mode>`: Highlight BIP39 words: `none`, `bars` (default), or `highlight`
+- `--grammar <grammar>`: Grammar to use: `body` (default) or `subject`
+  - `body`: Longer sentences, no prefixes. Best for email body text and prose.
+  - `subject`: Short sentences, may include prefixes (Re:, Fwd:, etc.). Best for email subject lines where brevity is critical.
+- `--highlight <mode>`: Highlight words: `none` (default), `bars` (| |), or color name
 - `--seed <N>`: Seed for deterministic random generation
 - `--variations <N>`: Generate N variations and select the most compact (default: 1)
-- `--language, -l <lang>`: Language for wordlist: `english` (default), `french`, `german`
+- `--language, -l <lang>`: Language for wordlist: `english` (default, BIP39), `french` (BIP39), `german`
 - `--k-min <N>`: Minimum sentence length in POS slots including Dot (default: 3)
 - `--k-max <N>`: Maximum sentence length in POS slots including Dot (default: 20)
 - `--length-mode <mode>`: Sentence length selection: `compact` or `natural`
-  - Default: `subject` → `compact`, `body` → `natural`
-  - `compact`: Try k from k_min to k_max, shortest first
-  - `natural`: Sample k from grammar's length distribution
+  - Default: `body` → `natural`, `subject` → `compact`
+  - `compact`: Try k from k_min to k_max, shortest first. Produces the shortest possible sentences.
+  - `natural`: Sample k from grammar's length distribution. Produces more natural, varied sentence lengths.
 - `--show-grammar`: Display the grammar rules (then continue execution)
 - `--verbose, -v`: Show detailed debugging information
 - `--help, -h`: Show help message
-
-### Word Frequency Tool
-
-Generate word lists from frequency data:
-
-```bash
-# Download and use COCA word frequency data (recommended)
-cargo run --bin get_top_words -- -n 1000 --download-coca -o output.txt
-
-# Re-running the same command will reuse the cached download automatically
-# (use --force-download to refresh)
-cargo run --bin get_top_words -- -n 1000 --download-coca -o output.txt
-
-# Use a local wordfrequency.info format file
-cargo run --bin get_top_words -- -n 1000 --wordfreq lemmas_60k.txt -o output.txt
-
-# Use a CSV frequency file
-cargo run --bin get_top_words -- -n 1000 --csv word-freq.csv -o output.txt
-
-# Force re-download of cached data
-cargo run --bin get_top_words -- -n 1000 --download-coca --force-download -o output.txt
-```
-
-### POS Tagging Tool
-
-Assign parts of speech to words using nlprule:
-
-```bash
-# Tag a word list (one word per line)
-cargo run --bin tag_words -- -i input_words.txt -o output_POS.txt
-
-# Use alternative (faster) tagging method
-cargo run --bin tag_words -- -i input_words.txt -o output_POS.txt --alternative
-```
-
-### POS Weight Generation Tool
-
-Generate POS tag weights from nlprule analysis:
-
-```bash
-# Generate weights for cover words
-cargo run --bin validate_pos_weights -- \
-  --file languages/english/cover.yaml \
-  --output cover_nlprule_weights.yaml
-
-# Generate weights for payload words
-cargo run --bin validate_pos_weights -- \
-  --file languages/english/payload.yaml \
-  --output payload_nlprule_weights.yaml
-
-# Test with limited words (for faster testing)
-cargo run --bin validate_pos_weights -- \
-  --file languages/english/cover.yaml \
-  --max-words 10 \
-  --output test_weights.yaml
-
-# Adjust minimum weight threshold and decimal places
-cargo run --bin validate_pos_weights -- \
-  --file languages/english/cover.yaml \
-  --threshold 0.05 \
-  --round 2 \
-  --output cover_weights.yaml
-```
-
-**Using Docker:**
-
-```bash
-# Generate weights for cover words
-docker compose run --rm glossia cargo run --bin validate_pos_weights -- \
-  --file languages/english/cover.yaml \
-  --output cover_nlprule_weights.yaml
-
-# Generate weights for payload words
-docker compose run --rm glossia cargo run --bin validate_pos_weights -- \
-  --file languages/english/payload.yaml \
-  --output payload_nlprule_weights.yaml
-```
-
-The weight generation tool:
-- Tests each word in multiple sentence contexts using nlprule
-- Calculates observed POS tag frequencies
-- Normalizes weights to sum to 1.0
-- Outputs a YAML file with the same structure as the input
-- Filters out weights below a threshold (default: 0.01)
-- Rounds weights to specified decimal places (default: 3)
-
-**Workflow: Generate shortest words and tag them:**
-
-```bash
-# Step 1: Generate shortest words (3-4 characters) from frequency data
-cargo run --bin get_top_words -- \
-  -n 500 \
-  --download-coca \
-  --min-length 3 \
-  --max-length 4 \
-  --words-only \
-  -o shortest_words.txt
-
-# Step 2: Tag those words with POS using nlprule
-cargo run --bin tag_words -- \
-  -i shortest_words.txt \
-  -o shortest_words_POS.txt
-```
-
-**Using Docker:**
-
-```bash
-# Build the Docker image
-docker build -t glossia ./glossia
-
-# Generate shortest words and tag them (all in one workflow)
-docker compose run --rm glossia sh -c "
-  cargo run --bin get_top_words -- -n 500 --download-coca --min-length 3 --max-length 4 --words-only -o shortest_words.txt &&
-  cargo run --bin tag_words -- -i shortest_words.txt -o shortest_words_POS.txt
-"
-
-# Or run individually
-docker compose run --rm glossia cargo run --bin get_top_words -- \
-  -n 500 --download-coca --min-length 3 --max-length 4 --words-only -o shortest_words.txt
-
-docker compose run --rm glossia cargo run --bin tag_words -- \
-  -i shortest_words.txt -o shortest_words_POS.txt
-```
-
-The `get_top_words` tool:
-- Downloads word frequency data from [wordfrequency.info](https://www.wordfrequency.info/samples.asp) (COCA corpus)
-- Caches the download locally (reuses for 7 days)
-- Filters for words with 6 or fewer characters (no punctuation)
-- Extracts POS tags when available
-- Outputs in `cover_POS.txt` format: `word|POS1,POS2` (or just `word` if no POS tags)
-- Sorts by frequency and returns the top N most common words
 
 ## How It Works
 
@@ -204,6 +215,8 @@ The `get_top_words` tool:
 2. **Grammar expansion**: The CFG generates a stream of POS slots
 3. **Slot filling**: Payload tokens are embedded when they fit a slot's POS, otherwise cover words are used
 4. **Decoding**: Extract BIP39 words by filtering the output against the BIP39 word list
+
+**Important**: Wordlists are **append-only**. You can add new words to wordlists, but you cannot replace or reorder existing words. This preserves backward compatibility with previously encoded messages, since Glossia encodes data by mapping words to their position in the wordlist. See the [How It Works documentation](docs/src/how-it-works.md) for details.
 
 ## Compact vs Natural (sentence length strategy)
 
@@ -242,14 +255,6 @@ The grammar parser uses the Pest parser generator to parse these CFG files. Gram
 
 The English grammar (`languages/english/body.cfg`) is set up so that **VP can optionally end with one-or-more PPs** (e.g., “… in the house on the hill …"). This removes the previous hard maximum sentence length (formerly capped at 13 POS terminals) while keeping `PP` itself as a simple unit (`Prep NP`).
 
-## Example Output
-
-```
-A abandon ability able wallet checks this simple clear note about the above absent steady wallet. A steady bright quiet user sends some steady bright clear server. That clear bright simple wallet holds each bright simple quiet secure wallet to this user.
-```
-
-The embedded BIP39 words in this example are: `abandon`, `ability`, `able`, `about`, `above`, `absent`.
-
 ## Project Structure
 
 - `src/main.rs`: Main implementation with CFG grammar, lexicon, and generation logic
@@ -281,11 +286,7 @@ The embedded BIP39 words in this example are: `abandon`, `ability`, `able`, `abo
 
 ## Data Sources
 
-The `get_top_words` tool uses word frequency data from:
-- **COCA (Corpus of Contemporary American English)**: Available from [wordfrequency.info](https://www.wordfrequency.info/samples.asp)
-- **Google Books Ngram**: Can process downloaded Ngram 1-gram files
-
-The downloaded data is cached locally as `lemmas_60k.txt` in the current directory (or temp directory) and reused for 7 days before automatically refreshing.
+For detailed information about the utility tools (word frequency analysis, POS tagging, POS weight generation), see the [Tools documentation](docs/src/tools.md).
 
 ## Language Support
 
@@ -305,6 +306,6 @@ Currently supported languages:
 - The grammar is intentionally simple and can be extended for more variety
 - Payload words that don't fit available slots will trigger a warning
 - Word frequency data is cached locally to avoid repeated downloads
-- The `get_top_words` tool outputs words in the same format as `cover_POS.txt` for easy integration
+- **Wordlists are append-only**: You can add words but cannot replace or reorder existing ones (see [How It Works](docs/src/how-it-works.md) for why)
+- See the [Tools documentation](docs/src/tools.md) for information about utility tools
 - Grammar files use Pest parser syntax - see `src/grammar_parser.pest` for the grammar definition
-- The `--mode` flag is deprecated in favor of `--grammar`

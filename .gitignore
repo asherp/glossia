@@ -46,3 +46,6 @@ ENV/
 
 # mdbook build output
 docs/book/
+
+# Downloaded data (Google Ngram, etc.)
+data/

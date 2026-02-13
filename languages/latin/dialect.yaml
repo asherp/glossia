@@ -1,0 +1,175 @@
+# Dialect Configuration for Glossia - Latin
+# This file defines multiple dialects (grammar variants) for sentence generation
+# Each dialect specifies grammar rules, generation parameters, and behavior
+# Grammar rules are encoded using lambda calculus (see grammar.yaml)
+
+dialects:
+  # Subject dialect - for email subject lines
+  subject:
+    name: "Subject"
+    description: "Short sentences for email subject lines, may include prefixes"
+    grammar_file: "languages/latin/subject.cfg"
+    
+    # Generation parameters
+    k_min: 3
+    k_max: 20
+    length_mode: "compact"  # compact | natural
+    
+    # Start symbols for this dialect
+    start_symbols:
+      - "S"
+      - "SContent"
+    
+    # Dialect-specific features
+    features:
+      allow_prefix: true
+      prefix_probability: 0.3
+      no_period: false  # Latin subject lines can have periods
+    
+    # POS tag preferences/weights
+    pos_preferences:
+      prefer_short_vp: true
+      max_vp_length: 2
+    
+    # Metadata
+    use_case: "email_subject"
+    typical_length: "short"
+  
+  # Body dialect - for email body text
+  body:
+    name: "Body"
+    description: "Longer, more natural sentences for email body text"
+    grammar_file: "languages/latin/body.cfg"
+    
+    k_min: 3
+    k_max: 20
+    length_mode: "natural"
+    
+    start_symbols:
+      - "S"
+    
+    features:
+      allow_prefix: false
+      no_period: false
+    
+    pos_preferences:
+      prefer_short_vp: false
+      allow_complex_vp: true
+    
+    use_case: "email_body"
+    typical_length: "medium_to_long"
+  
+  # Poetry dialect - for poetic/formal Latin
+  poetry:
+    name: "Poetry"
+    description: "Formal, poetic Latin with more complex structures"
+    grammar_file: "languages/latin/poetry.cfg"
+    
+    k_min: 5
+    k_max: 30
+    length_mode: "natural"
+    
+    start_symbols:
+      - "S"
+      - "Verse"
+    
+    features:
+      allow_prefix: false
+      no_period: false
+      allow_elision: true
+      prefer_sov_order: true
+    
+    pos_preferences:
+      prefer_short_vp: false
+      allow_complex_vp: true
+      allow_poetic_devices: true
+    
+    use_case: "poetry_formal"
+    typical_length: "long"
+  
+  # Epistolary dialect - for letters/correspondence
+  epistolary:
+    name: "Epistolary"
+    description: "Formal letter-writing style"
+    grammar_file: "languages/latin/epistolary.cfg"
+    
+    k_min: 4
+    k_max: 25
+    length_mode: "natural"
+    
+    start_symbols:
+      - "S"
+      - "Salutation"
+      - "Closing"
+    
+    features:
+      allow_prefix: true
+      prefix_probability: 0.1
+      no_period: false
+      allow_formal_greetings: true
+    
+    pos_preferences:
+      prefer_short_vp: false
+      allow_complex_vp: true
+      formal_tone: true
+    
+    use_case: "correspondence"
+    typical_length: "medium"
+
+# Default dialect (used when no dialect is specified)
+default: "body"
+
+# Language-specific settings
+language: "latin"
+
+# Global dialect settings
+global:
+  # Common POS tags across all dialects
+  pos_tags:
+    - "Det"
+    - "Adj"
+    - "N"
+    - "V"
+    - "Modal"
+    - "Aux"
+    - "Cop"
+    - "To"
+    - "Prep"
+    - "Adv"
+    - "Conj"
+    - "Dot"
+    - "Prefix"
+  
+  # Lambda calculus type mappings (from grammar.yaml)
+  lambda_types:
+    N: "e -> t"
+    V: "e -> (e -> t)"
+    Adj: "e -> e"
+    Adv: "(e -> t) -> (e -> t)"
+    Prep: "e -> (e -> t)"
+    Det: "(e -> t) -> (e -> t)"
+    Conj: "t -> (t -> t)"
+    Cop: "(e -> t) -> (e -> t)"
+  
+  # Latin-specific grammatical features
+  latin_features:
+    # Case system
+    cases:
+      - nominative
+      - genitive
+      - dative
+      - accusative
+      - ablative
+      - vocative
+    
+    # Word order flexibility
+    word_orders:
+      - sov  # Subject-Object-Verb (most common in Classical Latin)
+      - svo  # Subject-Verb-Object
+      - vos  # Verb-Object-Subject
+      - ovs  # Object-Verb-Subject
+    
+    # Agreement constraints
+    agreement:
+      - noun_adjective  # Gender, number, case
+      - subject_verb    # Number and person

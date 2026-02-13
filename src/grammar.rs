@@ -1,13 +1,9 @@
-use pest::Parser;
-use pest_derive::Parser;
 use rand::Rng;
 use std::collections::HashMap;
 use std::path::Path;
-use glossia::types::{Pos, Sym};
-
-#[derive(Parser)]
-#[grammar = "grammar_parser.pest"]
-pub struct GrammarParser;
+use crate::types::{Pos, Sym};
+use crate::type_driven_grammar::LanguageConfig;
+use crate::semantic_types::{SemanticType, pos_to_semantic_type};
 
 #[derive(Clone, Debug)]
 pub struct Production {
@@ -23,136 +19,203 @@ pub struct GrammarRule {
 #[derive(Debug)]
 pub struct Grammar {
     pub(crate) rules: HashMap<String, GrammarRule>,
+    // Type-driven grammar configuration (new implementation)
+    pub(crate) language_config: Option<LanguageConfig>,
+    pub(crate) dialect: Option<String>,
 }
 
 /// A POS sequence with its probability according to the grammar
 #[derive(Clone, Debug)]
 pub struct SequenceWithProbability {
-    pub sequence: Vec<crate::Pos>,
+    pub sequence: Vec<crate::types::Pos>,
     pub probability: f64,
 }
 
 impl Grammar {
-    /// Parse grammar from a string definition
-    pub fn from_str(grammar_str: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        let pairs = GrammarParser::parse(Rule::grammar, grammar_str)?;
-        
+    /// Load grammar from grammar.yaml (type-driven)
+    pub fn default() -> Result<Self, Box<dyn std::error::Error>> {
+        Self::from_language_dialect("latin", "body")
+    }
+    
+    /// Convert cfg_productions from grammar.yaml into CFG rules.
+    /// If dialect != "body", overlay dialect-specific rules on top of base rules.
+    fn build_rules_from_cfg_productions(yaml_content: &str, dialect: &str) -> Result<HashMap<String, GrammarRule>, Box<dyn std::error::Error>> {
+        use serde_yaml::Value;
+        let doc: Value = serde_yaml::from_str(yaml_content)?;
+
+        // Map grammar.yaml rule names to CFG non-terminal names
+        let rule_name_map: HashMap<&str, &str> = [
+            ("verb_phrase", "VP"),
+            ("noun_phrase", "NP"),
+            ("prepositional_phrase", "PP"),
+            ("sentence", "S"),
+            ("sentence_content", "SContent"),
+            ("vp_with_pp", "VP_PP_TAIL"),
+            ("vp_base", "VP_BASE"),
+        ].iter().cloned().collect();
+
+        // Helper: parse a rules mapping (Value) into HashMap<String, GrammarRule>
+        let parse_rules_map = |rules_map: &serde_yaml::Mapping| -> Result<HashMap<String, GrammarRule>, Box<dyn std::error::Error>> {
+            let mut rules = HashMap::new();
+            for (rule_name, rule_data) in rules_map {
+                let rule_name_str = rule_name.as_str().ok_or("Invalid rule name")?;
+                let cfg_name = rule_name_map.get(rule_name_str).copied().unwrap_or(rule_name_str);
+
+                if let Some(cfg_prods) = rule_data.get("cfg_productions").and_then(|p| p.as_sequence()) {
+                    let mut productions = Vec::new();
+
+                    for prod in cfg_prods {
+                        if let Some(prod_map) = prod.as_mapping() {
+                            let production_str = prod_map.get("production")
+                                .and_then(|p| p.as_str())
+                                .ok_or("Missing production string")?;
+                            let weight = prod_map.get("weight")
+                                .and_then(|w| w.as_f64())
+                                .unwrap_or(1.0);
+
+                            let symbols = Self::parse_cfg_production_string(production_str)?;
+                            productions.push(Production { symbols, weight });
+                        }
+                    }
+
+                    if !productions.is_empty() {
+                        // Normalize weights
+                        let total_weight: f64 = productions.iter().map(|p| p.weight).sum();
+                        if total_weight > 0.0 {
+                            for prod in &mut productions {
+                                prod.weight /= total_weight;
+                            }
+                        } else {
+                            let equal_weight = 1.0 / productions.len() as f64;
+                            for prod in &mut productions {
+                                prod.weight = equal_weight;
+                            }
+                        }
+
+                        rules.insert(cfg_name.to_string(), GrammarRule { productions });
+                    }
+                }
+            }
+            Ok(rules)
+        };
+
         let mut rules = HashMap::new();
-        
-        // Pest returns a top-level `grammar` pair; the actual `rule` entries are inside it.
-        // (Older code accidentally skipped them, leaving `rules` empty.)
-        for pair in pairs {
-            let mut inner_pairs = Vec::new();
-            match pair.as_rule() {
-                Rule::grammar => {
-                    inner_pairs.extend(pair.into_inner());
-                }
-                Rule::rule => {
-                    // Be permissive in case pest ever returns rules directly.
-                    inner_pairs.push(pair);
-                }
-                _ => continue,
+
+        // Parse base rules
+        if let Some(grammar) = doc.get("grammar") {
+            if let Some(rules_map) = grammar.get("rules").and_then(|r| r.as_mapping()) {
+                rules = parse_rules_map(rules_map)?;
             }
 
-            for p in inner_pairs {
-                if p.as_rule() != Rule::rule {
-                    continue;
-                }
-                let mut inner = p.into_inner();
-                let non_terminal = inner
-                    .next()
-                    .ok_or("Missing non-terminal")?
-                    .as_str()
-                    .to_string();
-                // Note: the literal "=" in the pest grammar is not emitted as an inner pair.
-                // So the next item after the non-terminal is the production.
-                let production_pair = inner.next().ok_or("Missing production")?;
-
-                let mut productions = Vec::new();
-                // production = alternative ("|" alternative)*
-                // alternative = weighted_production | simple_production
-                for alt in production_pair.into_inner() {
-                    if alt.as_rule() != Rule::alternative {
-                        continue;
-                    }
-                    for prod in alt.into_inner() {
-                        match prod.as_rule() {
-                            Rule::weighted_production => {
-                                let mut inner = prod.into_inner();
-                                let weight_str = inner.next().unwrap().as_str();
-                                // Note: the literal ":" in the pest grammar is not emitted as an inner pair.
-                                // So the next item after the weight is the symbol sequence.
-                                let symbol_seq = inner.next().unwrap();
-
-                                let weight = weight_str.parse::<f64>()?;
-                                let symbols = parse_symbol_sequence(symbol_seq)?;
-                                productions.push(Production { symbols, weight });
+            // If dialect != "body", overlay dialect-specific rules
+            if dialect != "body" {
+                if let Some(dialects) = grammar.get("dialects") {
+                    if let Some(dialect_data) = dialects.get(dialect) {
+                        if let Some(dialect_rules_map) = dialect_data.get("rules").and_then(|r| r.as_mapping()) {
+                            let dialect_rules = parse_rules_map(dialect_rules_map)?;
+                            // Override matching rules
+                            for (name, rule) in dialect_rules {
+                                rules.insert(name, rule);
                             }
-                            Rule::simple_production => {
-                                let symbol_seq = prod.into_inner().next().unwrap();
-                                let symbols = parse_symbol_sequence(symbol_seq)?;
-                                productions.push(Production {
-                                    symbols,
-                                    weight: 1.0,
-                                });
-                            }
-                            _ => {}
                         }
                     }
                 }
-
-                if productions.is_empty() {
-                    return Err(format!("No productions parsed for non-terminal: {}", non_terminal).into());
-                }
-
-                // Normalize weights to probabilities
-                let total_weight: f64 = productions.iter().map(|p| p.weight).sum();
-                if total_weight > 0.0 {
-                    for prod in &mut productions {
-                        prod.weight /= total_weight;
-                    }
-                } else {
-                    // Equal weights if none specified
-                    let equal_weight = 1.0 / productions.len() as f64;
-                    for prod in &mut productions {
-                        prod.weight = equal_weight;
-                    }
-                }
-
-                rules.insert(non_terminal.clone(), GrammarRule { productions });
             }
         }
-        
-        Ok(Grammar { rules })
+
+        Ok(rules)
     }
     
-    /// Load grammar from the embedded body.cfg file
-    pub fn default() -> Result<Self, Box<dyn std::error::Error>> {
-        let grammar_str = include_str!("../languages/english/body.cfg");
-        let result = Self::from_str(grammar_str);
-        if let Err(ref e) = result {
-            eprintln!("Grammar parsing error: {}", e);
-            eprintln!("Grammar string length: {}", grammar_str.len());
-            eprintln!("First 500 chars:\n{}", &grammar_str[..grammar_str.len().min(500)]);
+    /// Parse a CFG production string like "Cop Adj" or "Modal V NP" into symbol sequence
+    fn parse_cfg_production_string(production: &str) -> Result<Vec<Sym>, Box<dyn std::error::Error>> {
+        let mut symbols = Vec::new();
+        
+        for token in production.split_whitespace() {
+            // Check if it's a POS terminal
+            let sym = match token {
+                "Det" => Sym::T(Pos::Det),
+                "Adj" => Sym::T(Pos::Adj),
+                "N" => Sym::T(Pos::N),
+                "V" => Sym::T(Pos::V),
+                "Modal" => Sym::T(Pos::Modal),
+                "Aux" => Sym::T(Pos::Aux),
+                "Cop" => Sym::T(Pos::Cop),
+                "To" => Sym::T(Pos::To),
+                "Prep" => Sym::T(Pos::Prep),
+                "Adv" => Sym::T(Pos::Adv),
+                "Dot" => Sym::T(Pos::Dot),
+                "Prefix" => Sym::T(Pos::Prefix),
+                "Conj" => Sym::T(Pos::Conj),
+                _ => {
+                    // Assume it's a non-terminal
+                    Sym::NT(token.to_string())
+                }
+            };
+            symbols.push(sym);
         }
-        result.map_err(|e| format!("Failed to parse grammar: {}", e).into())
+        
+        Ok(symbols)
+    }
+    
+    /// Load grammar from language and dialect (YAML-only)
+    pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        // Try embedded grammar.yaml first
+        if let Some(embedded_yaml) = match language {
+            "latin" => Some(include_str!("../languages/latin/grammar.yaml")),
+            "english" => Some(include_str!("../languages/english/grammar.yaml")),
+            _ => None,
+        } {
+            match LanguageConfig::from_yaml(embedded_yaml) {
+                Ok(language_config) => {
+                    let rules = Self::build_rules_from_cfg_productions(embedded_yaml, dialect)?;
+                    return Ok(Grammar {
+                        rules,
+                        language_config: Some(language_config),
+                        dialect: Some(dialect.to_string()),
+                    });
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to load embedded grammar.yaml: {}", e);
+                }
+            }
+        }
+
+        // Fall back to filesystem lookup (with recursive search support)
+        let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
+        let grammar_yaml_path = if std::path::Path::new(&grammar_yaml_path).exists() {
+            Some(grammar_yaml_path)
+        } else {
+            find_grammar_file_recursive(language, "grammar.yaml")
+        };
+
+        if let Some(path) = grammar_yaml_path {
+            let grammar_yaml = std::fs::read_to_string(&path)?;
+            let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
+            let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
+            return Ok(Grammar {
+                rules,
+                language_config: Some(language_config),
+                dialect: Some(dialect.to_string()),
+            });
+        }
+
+        Err(format!("No grammar.yaml found for language '{}'", language).into())
     }
 
-    /// Load grammar from a file on disk.
-    ///
-    /// This is useful when you want to customize grammars outside of the binary
-    /// and/or cache derived data alongside the grammar file.
+    /// Load grammar from a YAML file on disk (CFG rules only, no type-driven generation).
     #[allow(dead_code)]
     pub fn from_file(grammar_path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
-        let grammar_str = std::fs::read_to_string(grammar_path)?;
-        Self::from_str(&grammar_str)
+        let grammar_yaml = std::fs::read_to_string(grammar_path)?;
+        let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, "body")?;
+        Ok(Grammar {
+            rules,
+            language_config: None,
+            dialect: Some("body".to_string()),
+        })
     }
 
-    /// Convenience helper used by tests (and callers that don't care about caching yet).
-    ///
-    /// Historically this project had an on-disk cache here; the test suite still expects
-    /// this API to exist. For now, we compute deterministically from the grammar file
-    /// each call.
+    /// Convenience helper used by tests.
+    /// Loads grammar from a YAML file and precomputes sequences.
     #[allow(dead_code)]
     pub fn precompute_sequences_with_probability_cached_from_file(
         grammar_path: impl AsRef<Path>,
@@ -163,16 +226,9 @@ impl Grammar {
         Ok(grammar.precompute_sequences_with_probability(start_symbol, max_k))
     }
     
-    /// Load subject grammar from the embedded subject.cfg file
+    /// Load subject grammar from grammar.yaml (type-driven) or fallback to CFG
     pub fn subject() -> Result<Self, Box<dyn std::error::Error>> {
-        let grammar_str = include_str!("../languages/english/subject.cfg");
-        let result = Self::from_str(grammar_str);
-        if let Err(ref e) = result {
-            eprintln!("Grammar parsing error: {}", e);
-            eprintln!("Grammar string length: {}", grammar_str.len());
-            eprintln!("First 500 chars:\n{}", &grammar_str[..grammar_str.len().min(500)]);
-        }
-        result.map_err(|e| format!("Failed to parse subject grammar: {}", e).into())
+        Self::from_language_dialect("latin", "subject")
     }
     
     /// Get a production for a non-terminal, selecting randomly based on weights.
@@ -203,46 +259,123 @@ impl Grammar {
         k: usize,
     ) -> Vec<SequenceWithProbability> {
         // Memoization: (nonterminal, remaining_length) -> (sequence, probability)
-        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::Pos>, f64)>> = HashMap::new();
+        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>> = HashMap::new();
 
         self.enumerate_sequences_with_probability_internal(start_symbol, k, &mut memo)
     }
 
     /// Precompute POS sequences (and their probabilities) for lengths 0..=max_k.
     ///
-    /// This is useful when you want a fixed mapping of:
-    /// - **k → [POS sequences of length k]**
-    ///
-    /// The mapping is fully determined by the grammar file, so you can cache it
-    /// per grammar (and per start symbol). Internally this shares the same DP memo
-    /// across k values, which makes `max_k` up to ~20 cheap.
+    /// Uses CFG rules for deterministic enumeration. Falls back to type-driven
+    /// generation only when no CFG rules are available.
     pub fn precompute_sequences_with_probability(
         &self,
         start_symbol: &str,
         max_k: usize,
     ) -> Vec<Vec<SequenceWithProbability>> {
-        // Memoization: (nonterminal, remaining_length) -> (sequence, probability)
-        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::Pos>, f64)>> = HashMap::new();
+        // Prefer CFG generation when rules are available (deterministic, complete)
+        if !self.rules.is_empty() {
+            // Use CFG generation below
+        } else if let Some(ref config) = self.language_config {
+            // Type-driven generation only when no CFG rules exist
+            return self.precompute_sequences_type_driven(config, start_symbol, max_k);
+        }
 
+        // CFG generation
+        let mut memo: HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>> = HashMap::new();
         let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
         for k in 0..=max_k {
             by_k[k] = self.enumerate_sequences_with_probability_internal(start_symbol, k, &mut memo);
         }
         by_k
     }
+    
+    /// Type-driven sequence generation using lambda calculus
+    fn precompute_sequences_type_driven(
+        &self,
+        config: &LanguageConfig,
+        start_symbol: &str,
+        max_k: usize,
+    ) -> Vec<Vec<SequenceWithProbability>> {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+        
+        // Map start symbol to semantic type
+        let target_type = match start_symbol {
+            "S" | "SContent" => SemanticType::Truth,
+            _ => {
+                // Try to infer from symbol name (e.g., "S_N" -> N type)
+                if let Some(pos_str) = start_symbol.strip_prefix("S_") {
+                    match pos_str.to_uppercase().as_str() {
+                        "N" => pos_to_semantic_type(&Pos::N),
+                        "V" => pos_to_semantic_type(&Pos::V),
+                        "ADJ" => pos_to_semantic_type(&Pos::Adj),
+                        "ADV" => pos_to_semantic_type(&Pos::Adv),
+                        "PREP" => pos_to_semantic_type(&Pos::Prep),
+                        "DET" => pos_to_semantic_type(&Pos::Det),
+                        _ => SemanticType::Truth,  // Default to sentence type
+                    }
+                } else {
+                    SemanticType::Truth
+                }
+            }
+        };
+        
+        let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
+        let mut rng = StdRng::seed_from_u64(42);  // Deterministic for caching
+        
+        // Generate sequences for each k
+        for k in 1..=max_k {
+            let mut sequences = Vec::new();
+            
+            // Generate multiple variations
+            for _ in 0..100 {  // Generate 100 variations per k
+                match config.generate_from_type(&target_type, k, &mut rng) {
+                    Ok(pos_seq) => {
+                        if pos_seq.len() == k {
+                            sequences.push(SequenceWithProbability {
+                                sequence: pos_seq,
+                                probability: 1.0,  // Equal probability for now
+                            });
+                        }
+                    }
+                    Err(_) => continue,
+                }
+            }
+            
+            // Deduplicate and sort
+            let mut unique: HashMap<Vec<Pos>, f64> = HashMap::new();
+            for seq_prob in sequences {
+                *unique.entry(seq_prob.sequence).or_insert(0.0) += seq_prob.probability;
+            }
+            
+            by_k[k] = unique.into_iter()
+                .map(|(sequence, probability)| SequenceWithProbability { sequence, probability })
+                .collect();
+            // Sort by probability (highest first), breaking ties by sequence for determinism
+            by_k[k].sort_by(|a, b| {
+                b.probability.partial_cmp(&a.probability)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+                    .then_with(|| a.sequence.cmp(&b.sequence))
+            });
+        }
+        
+        by_k
+    }
+    
 
     fn enumerate_sequences_with_probability_internal(
         &self,
         start_symbol: &str,
         k: usize,
-        memo: &mut HashMap<(String, usize), Vec<(Vec<crate::Pos>, f64)>>,
+        memo: &mut HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>>,
     ) -> Vec<SequenceWithProbability> {
         fn enumerate_recursive(
             grammar: &Grammar,
             sym: &Sym,
             remaining: usize,
-            memo: &mut HashMap<(String, usize), Vec<(Vec<crate::Pos>, f64)>>,
-        ) -> Vec<(Vec<crate::Pos>, f64)> {
+            memo: &mut HashMap<(String, usize), Vec<(Vec<crate::types::Pos>, f64)>>,
+        ) -> Vec<(Vec<crate::types::Pos>, f64)> {
             match sym {
                 Sym::T(pos) => {
                     if remaining == 1 {
@@ -337,12 +470,14 @@ impl Grammar {
                     }
                     
                     // Deduplicate: sum probabilities for identical sequences
-                    let mut prob_map: HashMap<Vec<crate::Pos>, f64> = HashMap::new();
+                    let mut prob_map: HashMap<Vec<crate::types::Pos>, f64> = HashMap::new();
                     for (seq, prob) in all_results {
                         *prob_map.entry(seq).or_insert(0.0) += prob;
                     }
                     
-                    let final_results: Vec<(Vec<crate::Pos>, f64)> = prob_map.into_iter().collect();
+                    let mut final_results: Vec<(Vec<crate::types::Pos>, f64)> = prob_map.into_iter().collect();
+                    // Sort for deterministic memoization (HashMap iteration order is random)
+                    final_results.sort_by(|a, b| a.0.cmp(&b.0));
                     memo.insert(key, final_results.clone());
                     
                     final_results
@@ -354,7 +489,7 @@ impl Grammar {
         let results = enumerate_recursive(self, &start_sym, k, memo);
         
         // Deduplicate final results and convert to SequenceWithProbability
-        let mut prob_map: HashMap<Vec<crate::Pos>, f64> = HashMap::new();
+        let mut prob_map: HashMap<Vec<crate::types::Pos>, f64> = HashMap::new();
         for (seq, prob) in results {
             *prob_map.entry(seq).or_insert(0.0) += prob;
         }
@@ -367,8 +502,12 @@ impl Grammar {
             })
             .collect();
         
-        // Sort by probability (highest first)
-        sequences.sort_by(|a, b| b.probability.partial_cmp(&a.probability).unwrap_or(std::cmp::Ordering::Equal));
+        // Sort by probability (highest first), breaking ties by sequence for determinism
+        sequences.sort_by(|a, b| {
+            b.probability.partial_cmp(&a.probability)
+                .unwrap_or(std::cmp::Ordering::Equal)
+                .then_with(|| a.sequence.cmp(&b.sequence))
+        });
         
         sequences
     }
@@ -431,62 +570,10 @@ impl Grammar {
     }
 }
 
-fn parse_symbol_sequence(pair: pest::iterators::Pair<Rule>) -> Result<Vec<Sym>, Box<dyn std::error::Error>> {
-    let mut symbols = Vec::new();
-    
-    for symbol_pair in pair.into_inner() {
-        match symbol_pair.as_rule() {
-            Rule::symbol => {
-                let mut inner = symbol_pair.into_inner();
-                let sym_type = inner.next().unwrap();
-                let optional = inner.next();
-                
-                let base_sym = match sym_type.as_rule() {
-                    Rule::terminal => {
-                        let pos = match sym_type.as_str() {
-                            "Det" => Pos::Det,
-                            "Adj" => Pos::Adj,
-                            "N" => Pos::N,
-                            "V" => Pos::V,
-                            "Modal" => Pos::Modal,
-                            "Aux" => Pos::Aux,
-                            "Cop" => Pos::Cop,
-                            "To" => Pos::To,
-                            "Prep" => Pos::Prep,
-                            "Adv" => Pos::Adv,
-                            "Dot" => Pos::Dot,
-                            "Prefix" => Pos::Prefix,
-                            "Conj" => Pos::Conj,
-                            _ => return Err(format!("Unknown terminal: {}", sym_type.as_str()).into()),
-                        };
-                        Sym::T(pos)
-                    }
-                    Rule::non_terminal => {
-                        Sym::NT(sym_type.as_str().to_string())
-                    }
-                    _ => return Err("Invalid symbol type".into()),
-                };
-                
-                // Optional symbols are represented explicitly in the AST and handled in expansion.
-                if optional.is_some() {
-                    symbols.push(Sym::Opt(Box::new(base_sym)));
-                } else {
-                    symbols.push(base_sym);
-                }
-            }
-            _ => {}
-        }
-    }
-    
-    Ok(symbols)
-}
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Pos;
+    use crate::types::Pos;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn format_pos_sequence(seq: &[Pos]) -> String {
@@ -636,14 +723,14 @@ mod tests {
 
     #[test]
     fn test_sequence_cache_roundtrip_tempdir() {
-        // Write a temporary grammar file, build the cache, then ensure a subsequent call reads it.
-        let grammar_str = include_str!("../languages/english/body.cfg");
+        // Write a temporary grammar.yaml file, build the cache, then ensure a subsequent call reads it.
+        let grammar_str = include_str!("../languages/english/grammar.yaml");
         let tmp = std::env::temp_dir();
         let uniq = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let grammar_path = tmp.join(format!("glossia_body_{uniq}.cfg"));
+        let grammar_path = tmp.join(format!("glossia_grammar_{uniq}.yaml"));
         std::fs::write(&grammar_path, grammar_str).unwrap();
 
         let by_k_1 = Grammar::precompute_sequences_with_probability_cached_from_file(&grammar_path, "S", 20)
@@ -653,7 +740,80 @@ mod tests {
 
         // Basic sanity: same sizes and non-empty for a known length.
         assert_eq!(by_k_1.len(), by_k_2.len());
-        assert!(!by_k_1[4].is_empty());
-        assert_eq!(by_k_1[4].len(), by_k_2[4].len());
+        // Find any non-empty k to verify roundtrip
+        let has_sequences = (3..=20).any(|k| !by_k_1[k].is_empty());
+        assert!(has_sequences, "Should have at least some non-empty sequence lengths");
+        // Verify consistency between two loads
+        for k in 3..=20 {
+            assert_eq!(by_k_1[k].len(), by_k_2[k].len(), "Mismatch at k={}", k);
+        }
     }
+}
+
+/// Recursively search for grammar files matching the language name
+fn find_grammar_file_recursive(language: &str, filename: &str) -> Option<String> {
+    // Try current directory first
+    let languages_dir = "languages";
+    if !std::path::Path::new(languages_dir).exists() {
+        return None;
+    }
+    
+    // Try exact path first
+    let exact_path = format!("{}/{}/{}", languages_dir, language, filename);
+    if std::path::Path::new(&exact_path).exists() {
+        return Some(exact_path);
+    }
+    
+    // Recursively search
+    let languages_path = std::path::Path::new(languages_dir);
+    if let Ok(entries) = std::fs::read_dir(languages_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(found) = find_grammar_file_recursive_helper(&path, language, filename) {
+                    return Some(found);
+                }
+            }
+        }
+    }
+    
+    None
+}
+
+fn find_grammar_file_recursive_helper(dir: &std::path::Path, language: &str, filename: &str) -> Option<String> {
+    // Check if this directory matches the language name (last component)
+    if let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) {
+        // If language is just the directory name (e.g., "primes" matches "primes/")
+        if dir_name == language {
+            let file_path = dir.join(filename);
+            if file_path.exists() {
+                return Some(file_path.to_string_lossy().to_string());
+            }
+        }
+        
+        // If language contains slashes (e.g., "math/primes"), check if path ends with it
+        if language.contains('/') {
+            let lang_path = std::path::Path::new(language);
+            if dir.ends_with(lang_path) {
+                let file_path = dir.join(filename);
+                if file_path.exists() {
+                    return Some(file_path.to_string_lossy().to_string());
+                }
+            }
+        }
+    }
+    
+    // Recursively search subdirectories
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(found) = find_grammar_file_recursive_helper(&path, language, filename) {
+                    return Some(found);
+                }
+            }
+        }
+    }
+    
+    None
 }

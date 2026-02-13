@@ -41,7 +41,7 @@ LambdaTerm: Variable | Constant(Pos) | Application(f, a) | Abstraction(var, type
 
 ## Agents
 
-Six specialist agents are available via `/agents`. Each has deep context on its domain and the relevant files. See `.claude/agents/` for definitions.
+Seven specialist agents are available via `/agents`. Each has deep context on its domain and the relevant files. See `.claude/agents/` for definitions.
 
 | Agent | Focus |
 |-------|-------|
@@ -51,3 +51,4 @@ Six specialist agents are available via `/agents`. Each has deep context on its 
 | `rust-engineer` | Generator engine, pest parsers, caching, build system, CLI |
 | `mathematician` | Prime encodings, Merkle arithmetic, constructive number systems |
 | `physicist` | Entropy-conserving exact simulations via prime factorization arithmetic |
+| `image-artist` | Visual encoding - compositional grammar over shapes, colors, positions to embed payloads in images |

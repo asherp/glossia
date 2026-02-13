@@ -1,0 +1,13 @@
+# POS Tag Mappings for Latin
+# Maps language-specific POS tag names (from payload.yaml) to Glossia POS tags
+# 
+# This allows Latin-specific POS tags (like "Pron" for pronouns) to be mapped
+# to Glossia's internal POS tag system. Different languages can have different
+# POS tag names, so this mapping is language-specific.
+#
+# Format: language_pos_tag: glossia_pos_tag
+# 
+# Example: Latin pronouns function syntactically as nouns, so we map Pron → N
+
+mappings:
+  Pron: N  # Latin pronouns function as nouns syntactically
