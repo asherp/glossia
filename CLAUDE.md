@@ -13,7 +13,7 @@ Glossia encodes binary data (BIP39 mnemonics, API keys, arbitrary payloads) into
 ## Key types
 
 ```
-Pos: Det | Adj | N | V | Modal | Aux | Cop | To | Prep | Adv | Conj | Dot | Prefix
+Pos: Det | Adj | N | V | Modal | Aux | Cop | To | Prep | Adv | Conj | Dot | Prefix | Pron
 SemanticType: Entity (e) | Truth (t) | Function(A -> B) | Refined(refinement, base)
 LambdaTerm: Variable | Constant(Pos) | Application(f, a) | Abstraction(var, type, body)
 ```
@@ -31,6 +31,7 @@ LambdaTerm: Variable | Constant(Pos) | Application(f, a) | Abstraction(var, type
 | Conj | `t -> (t -> t)` | proposition connective |
 | Cop | `(e -> t) -> (e -> t)` | subject-predicate linker |
 | Modal/Aux/To | `(e -> t) -> (e -> t)` | predicate modifier |
+| Pron | `e` | entity reference |
 | Dot | `t` | sentence-level truth |
 
 ## Wordlist rules

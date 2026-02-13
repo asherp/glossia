@@ -1104,24 +1104,8 @@ pub fn generate_text_with_original_payload<R: Rng>(
                             false,  // Body mode never requires prefix
                         ) {
                             if verbose {
-                                let grammar_str: Vec<String> = slots.iter().map(|pos| {
-                                    match pos {
-                                        Pos::Det => "Det".to_string(),
-                                        Pos::Adj => "Adj".to_string(),
-                                        Pos::N => "N".to_string(),
-                                        Pos::V => "V".to_string(),
-                                        Pos::Modal => "Modal".to_string(),
-                                        Pos::Aux => "Aux".to_string(),
-                                        Pos::Cop => "Cop".to_string(),
-                                        Pos::To => "To".to_string(),
-                                        Pos::Prep => "Prep".to_string(),
-                                        Pos::Adv => "Adv".to_string(),
-                                        Pos::Conj => "Conj".to_string(),
-                                        Pos::Dot => "Dot".to_string(),
-                                        Pos::Prefix => "Prefix".to_string(),
-                                    }
-                                }).collect();
-                                eprintln!("Selected grammar rule (alt): {} -> {} (k={}, j={} payload words)", 
+                                let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
+                                eprintln!("Selected grammar rule (alt): {} -> {} (k={}, j={} payload words)",
                                          alt_start, grammar_str.join(" "), k, j);
                             }
                             planned = Some((slots, refinements, forced_placements, j));
@@ -1187,23 +1171,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
         
         // Check if payload word was placed - this should always be true with forced placements
         if payload_i <= payload_i_before && forced_placements.is_empty() {
-            let slots_str: Vec<String> = slots.iter().map(|pos| {
-                match pos {
-                    Pos::Det => "Det".to_string(),
-                    Pos::Adj => "Adj".to_string(),
-                    Pos::N => "N".to_string(),
-                    Pos::V => "V".to_string(),
-                    Pos::Modal => "Modal".to_string(),
-                    Pos::Aux => "Aux".to_string(),
-                    Pos::Cop => "Cop".to_string(),
-                    Pos::To => "To".to_string(),
-                    Pos::Prep => "Prep".to_string(),
-                    Pos::Adv => "Adv".to_string(),
-                        Pos::Conj => "Conj".to_string(),
-                    Pos::Dot => "Dot".to_string(),
-                    Pos::Prefix => "Prefix".to_string(),
-                }
-            }).collect();
+            let slots_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
             
             let next_payload_word = if payload_i_before < payload.len() {
                 format!("{} (allowed POS: {:?})", payload[payload_i_before].word, payload[payload_i_before].allowed)
@@ -1237,24 +1205,8 @@ pub fn generate_text_with_original_payload<R: Rng>(
 
         // Print grammar structure in verbose mode
         if verbose {
-            let grammar_str: Vec<String> = slots.iter().map(|pos| {
-                match pos {
-                    Pos::Det => "Det".to_string(),
-                    Pos::Adj => "Adj".to_string(),
-                    Pos::N => "N".to_string(),
-                    Pos::V => "V".to_string(),
-                    Pos::Modal => "Modal".to_string(),
-                    Pos::Aux => "Aux".to_string(),
-                    Pos::Cop => "Cop".to_string(),
-                    Pos::To => "To".to_string(),
-                    Pos::Prep => "Prep".to_string(),
-                    Pos::Adv => "Adv".to_string(),
-                        Pos::Conj => "Conj".to_string(),
-                    Pos::Dot => "Dot".to_string(),
-                    Pos::Prefix => "Prefix".to_string(),
-                }
-            }).collect();
-            eprintln!("Grammar rule: {} -> {} (embeds {} payload words)", 
+            let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
+            eprintln!("Grammar rule: {} -> {} (embeds {} payload words)",
                      start_symbol, grammar_str.join(" "), actual_payload_count);
         }
 
@@ -1270,41 +1222,11 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 if word_idx < sentence_words.len() {
                     let word_with_punct = &sentence_words[word_idx];
                     let word_clean = word_with_punct.trim_end_matches('.').to_lowercase();
-                    let pos_str = match slot {
-                        Pos::Det => "Det",
-                        Pos::Adj => "Adj",
-                        Pos::N => "N",
-                        Pos::V => "V",
-                        Pos::Modal => "Modal",
-                        Pos::Aux => "Aux",
-                        Pos::Cop => "Cop",
-                        Pos::To => "To",
-                        Pos::Prep => "Prep",
-                        Pos::Adv => "Adv",
-                        Pos::Conj => "Conj",
-                        Pos::Dot => "Dot", // Shouldn't happen here
-                        Pos::Prefix => "Prefix",
-                    };
+                    let pos_str = slot.as_str();
                     // Mark payload words with * and show their allowed POS tags
                     if payload_set.contains(&word_clean) && current_payload_idx < payload.len() {
                         let payload_tok = &payload[current_payload_idx];
-                        let allowed_pos: Vec<String> = payload_tok.allowed.iter().map(|p| {
-                            match p {
-                                Pos::Det => "Det",
-                                Pos::Adj => "Adj",
-                                Pos::N => "N",
-                                Pos::V => "V",
-                                Pos::Modal => "Modal",
-                                Pos::Aux => "Aux",
-                                Pos::Cop => "Cop",
-                                Pos::To => "To",
-                                Pos::Prep => "Prep",
-                                Pos::Adv => "Adv",
-                                Pos::Conj => "Conj",
-                                Pos::Dot => "Dot",
-                                Pos::Prefix => "Prefix",
-                            }.to_string()
-                        }).collect();
+                        let allowed_pos: Vec<String> = payload_tok.allowed.iter().map(|p| p.to_string()).collect();
                         word_pos_mapping.push(format!("{}*:{}[{}]", word_clean, pos_str, allowed_pos.join(",")));
                         current_payload_idx += 1;
                     } else {
@@ -1543,24 +1465,8 @@ fn generate_text_merkle_segmented<R: Rng>(
                     });
                     if places_our_payload || j > 0 {
                         if verbose {
-                            let grammar_str: Vec<String> = slots.iter().map(|pos| {
-                                match pos {
-                                    Pos::Det => "Det".to_string(),
-                                    Pos::Adj => "Adj".to_string(),
-                                    Pos::N => "N".to_string(),
-                                    Pos::V => "V".to_string(),
-                                    Pos::Modal => "Modal".to_string(),
-                                    Pos::Aux => "Aux".to_string(),
-                                    Pos::Cop => "Cop".to_string(),
-                                    Pos::To => "To".to_string(),
-                                    Pos::Prep => "Prep".to_string(),
-                                    Pos::Adv => "Adv".to_string(),
-                                    Pos::Conj => "Conj".to_string(),
-                                    Pos::Dot => "Dot".to_string(),
-                                    Pos::Prefix => "Prefix".to_string(),
-                                }
-                            }).collect();
-                            eprintln!("Segment {}: Selected grammar rule (fallback): S -> {} (k={}, j={} payload words)", 
+                            let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
+                            eprintln!("Segment {}: Selected grammar rule (fallback): S -> {} (k={}, j={} payload words)",
                                      sentence_count, grammar_str.join(" "), k, j);
                         }
                         planned = Some((slots, refinements, forced_placements, j));
@@ -1582,23 +1488,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                 match generate_fallback_sentence(payload, payload_i, GenerationMode::Body, &grammar) {
                     Some((fallback_slots, fallback_refs, fallback_placements)) => {
                         if verbose {
-                            let grammar_str: Vec<String> = fallback_slots.iter().map(|pos| {
-                                match pos {
-                                    Pos::Det => "Det".to_string(),
-                                    Pos::Adj => "Adj".to_string(),
-                                    Pos::N => "N".to_string(),
-                                    Pos::V => "V".to_string(),
-                                    Pos::Modal => "Modal".to_string(),
-                                    Pos::Aux => "Aux".to_string(),
-                                    Pos::Cop => "Cop".to_string(),
-                                    Pos::To => "To".to_string(),
-                                    Pos::Prep => "Prep".to_string(),
-                                    Pos::Adv => "Adv".to_string(),
-                                    Pos::Conj => "Conj".to_string(),
-                                    Pos::Dot => "Dot".to_string(),
-                                    Pos::Prefix => "Prefix".to_string(),
-                                }
-                            }).collect();
+                            let grammar_str: Vec<String> = fallback_slots.iter().map(|pos| pos.to_string()).collect();
                             eprintln!("Segment {}: Fallback grammar rule: {} -> {}",
                                      sentence_count, start_symbol, grammar_str.join(" "));
                         }
@@ -1641,24 +1531,8 @@ fn generate_text_merkle_segmented<R: Rng>(
 
         // Print grammar structure in verbose mode (after sentence generation)
         if verbose {
-            let grammar_str: Vec<String> = slots.iter().map(|pos| {
-                match pos {
-                    Pos::Det => "Det".to_string(),
-                    Pos::Adj => "Adj".to_string(),
-                    Pos::N => "N".to_string(),
-                    Pos::V => "V".to_string(),
-                    Pos::Modal => "Modal".to_string(),
-                    Pos::Aux => "Aux".to_string(),
-                    Pos::Cop => "Cop".to_string(),
-                    Pos::To => "To".to_string(),
-                    Pos::Prep => "Prep".to_string(),
-                    Pos::Adv => "Adv".to_string(),
-                    Pos::Conj => "Conj".to_string(),
-                    Pos::Dot => "Dot".to_string(),
-                    Pos::Prefix => "Prefix".to_string(),
-                }
-            }).collect();
-            eprintln!("Segment {}: Grammar rule: {} -> {} (embeds {} payload words)", 
+            let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
+            eprintln!("Segment {}: Grammar rule: {} -> {} (embeds {} payload words)",
                      sentence_count, start_symbol, grammar_str.join(" "), actual_payload_count);
         }
 

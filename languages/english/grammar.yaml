@@ -47,6 +47,9 @@ grammar:
     - name: "Prefix"
       lambda_type: "t -> t"
 
+    - name: "Pron"
+      lambda_type: "e"
+
   # Base rules (body dialect)
   # Translated from languages/english/body.cfg
   rules:

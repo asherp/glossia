@@ -28,7 +28,8 @@ pub fn start_nonterminal_for_pos(pos: Pos) -> &'static str {
     // The planner will find sequences that match naturally
     match pos {
         Pos::N | Pos::V | Pos::Adj | Pos::Adv | Pos::Prep | Pos::Det |
-        Pos::Modal | Pos::Aux | Pos::Cop | Pos::To | Pos::Conj | Pos::Dot | Pos::Prefix => "S",
+        Pos::Modal | Pos::Aux | Pos::Cop | Pos::To | Pos::Conj | Pos::Dot |
+        Pos::Prefix | Pos::Pron => "S",
     }
 }
 

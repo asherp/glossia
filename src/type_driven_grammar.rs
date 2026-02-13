@@ -222,22 +222,17 @@ fn infer_target_type_from_lambda(lambda_expr: &str) -> Result<SemanticType, Stri
 }
 
 fn parse_pos_name(name: &str) -> Result<Pos, String> {
-    match name.to_uppercase().as_str() {
-        "N" => Ok(Pos::N),
-        "V" => Ok(Pos::V),
-        "ADJ" => Ok(Pos::Adj),
-        "ADV" => Ok(Pos::Adv),
-        "DET" => Ok(Pos::Det),
-        "PREP" => Ok(Pos::Prep),
-        "CONJ" => Ok(Pos::Conj),
-        "COP" => Ok(Pos::Cop),
-        "MODAL" => Ok(Pos::Modal),
-        "AUX" => Ok(Pos::Aux),
-        "TO" => Ok(Pos::To),
-        "DOT" => Ok(Pos::Dot),
-        "PREFIX" => Ok(Pos::Prefix),
-        _ => Err(format!("Unknown POS name: {}", name)),
+    // Try exact match first (canonical form)
+    if let Some(pos) = Pos::from_str(name) {
+        return Ok(pos);
     }
+    // Try case-insensitive match against canonical names
+    for pos in Pos::ALL {
+        if pos.as_str().eq_ignore_ascii_case(name) {
+            return Ok(*pos);
+        }
+    }
+    Err(format!("Unknown POS name: {}", name))
 }
 
 // YAML structure for grammar.yaml

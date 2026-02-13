@@ -123,22 +123,7 @@ fn parse_atom(pair: pest::iterators::Pair<'_, Rule>) -> Result<LambdaTerm, Strin
 }
 
 fn parse_pos_constant(s: &str) -> Result<Pos, String> {
-    match s {
-        "N" => Ok(Pos::N),
-        "V" => Ok(Pos::V),
-        "Det" => Ok(Pos::Det),
-        "Adj" => Ok(Pos::Adj),
-        "Adv" => Ok(Pos::Adv),
-        "Prep" => Ok(Pos::Prep),
-        "Conj" => Ok(Pos::Conj),
-        "Cop" => Ok(Pos::Cop),
-        "Modal" => Ok(Pos::Modal),
-        "Aux" => Ok(Pos::Aux),
-        "To" => Ok(Pos::To),
-        "Dot" => Ok(Pos::Dot),
-        "Prefix" => Ok(Pos::Prefix),
-        _ => Err(format!("Unknown POS constant: {}", s)),
-    }
+    Pos::from_str(s).ok_or_else(|| format!("Unknown POS constant: {}", s))
 }
 
 #[cfg(test)]

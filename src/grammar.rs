@@ -146,24 +146,11 @@ impl Grammar {
             };
 
             // Check if it's a POS terminal
-            let sym = match pos_str {
-                "Det" => Sym::T(Pos::Det),
-                "Adj" => Sym::T(Pos::Adj),
-                "N" => Sym::T(Pos::N),
-                "V" => Sym::T(Pos::V),
-                "Modal" => Sym::T(Pos::Modal),
-                "Aux" => Sym::T(Pos::Aux),
-                "Cop" => Sym::T(Pos::Cop),
-                "To" => Sym::T(Pos::To),
-                "Prep" => Sym::T(Pos::Prep),
-                "Adv" => Sym::T(Pos::Adv),
-                "Dot" => Sym::T(Pos::Dot),
-                "Prefix" => Sym::T(Pos::Prefix),
-                "Conj" => Sym::T(Pos::Conj),
-                _ => {
-                    // Assume it's a non-terminal
-                    Sym::NT(pos_str.to_string())
-                }
+            let sym = if let Some(pos) = Pos::from_str(pos_str) {
+                Sym::T(pos)
+            } else {
+                // Assume it's a non-terminal
+                Sym::NT(pos_str.to_string())
             };
 
             // Non-terminals don't carry refinements
@@ -177,15 +164,18 @@ impl Grammar {
     
     /// Load grammar from language and dialect (YAML-only)
     pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        // Try embedded grammar.yaml first
-        if let Some(embedded_yaml) = match language {
-            "latin" => Some(include_str!("../languages/latin/grammar.yaml")),
-            "english" => Some(include_str!("../languages/english/grammar.yaml")),
-            _ => None,
-        } {
-            match LanguageConfig::from_yaml(embedded_yaml) {
+        // Try embedded grammar.yaml first (via build.rs-generated index, then hardcoded fallback)
+        let embedded_yaml = crate::generator::data::get_embedded_yaml(&format!("{}/grammar.yaml", language))
+            .or_else(|| match language {
+                "latin" => Some(include_str!("../languages/latin/grammar.yaml")),
+                "english" => Some(include_str!("../languages/english/grammar.yaml")),
+                _ => None,
+            });
+
+        if let Some(yaml_content) = embedded_yaml {
+            match LanguageConfig::from_yaml(yaml_content) {
                 Ok(language_config) => {
-                    let rules = Self::build_rules_from_cfg_productions(embedded_yaml, dialect)?;
+                    let rules = Self::build_rules_from_cfg_productions(yaml_content, dialect)?;
                     return Ok(Grammar {
                         rules,
                         language_config: Some(language_config),
@@ -198,29 +188,33 @@ impl Grammar {
             }
         }
 
-        // Fall back to filesystem lookup (with recursive search support)
-        let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
-        let grammar_yaml_path = if std::path::Path::new(&grammar_yaml_path).exists() {
-            Some(grammar_yaml_path)
-        } else {
-            find_grammar_file_recursive(language, "grammar.yaml")
-        };
+        // Fall back to filesystem lookup (native only)
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
+            let grammar_yaml_path = if std::path::Path::new(&grammar_yaml_path).exists() {
+                Some(grammar_yaml_path)
+            } else {
+                find_grammar_file_recursive(language, "grammar.yaml")
+            };
 
-        if let Some(path) = grammar_yaml_path {
-            let grammar_yaml = std::fs::read_to_string(&path)?;
-            let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
-            let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
-            return Ok(Grammar {
-                rules,
-                language_config: Some(language_config),
-                dialect: Some(dialect.to_string()),
-            });
+            if let Some(path) = grammar_yaml_path {
+                let grammar_yaml = std::fs::read_to_string(&path)?;
+                let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
+                let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
+                return Ok(Grammar {
+                    rules,
+                    language_config: Some(language_config),
+                    dialect: Some(dialect.to_string()),
+                });
+            }
         }
 
         Err(format!("No grammar.yaml found for language '{}'", language).into())
     }
 
     /// Load grammar from a YAML file on disk (CFG rules only, no type-driven generation).
+    #[cfg(not(target_arch = "wasm32"))]
     #[allow(dead_code)]
     pub fn from_file(grammar_path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar_yaml = std::fs::read_to_string(grammar_path)?;
@@ -234,6 +228,7 @@ impl Grammar {
 
     /// Convenience helper used by tests.
     /// Loads grammar from a YAML file and precomputes sequences.
+    #[cfg(not(target_arch = "wasm32"))]
     #[allow(dead_code)]
     pub fn precompute_sequences_with_probability_cached_from_file(
         grammar_path: impl AsRef<Path>,
@@ -561,23 +556,7 @@ impl Grammar {
             let productions_str: Vec<String> = rule.productions.iter().map(|prod| {
                 let symbols_str: Vec<String> = prod.symbols.iter().enumerate().map(|(idx, sym)| {
                     let base = match sym {
-                        Sym::T(pos) => {
-                            match pos {
-                                Pos::Det => "Det".to_string(),
-                                Pos::Adj => "Adj".to_string(),
-                                Pos::N => "N".to_string(),
-                                Pos::V => "V".to_string(),
-                                Pos::Modal => "Modal".to_string(),
-                                Pos::Aux => "Aux".to_string(),
-                                Pos::Cop => "Cop".to_string(),
-                                Pos::To => "To".to_string(),
-                                Pos::Prep => "Prep".to_string(),
-                                Pos::Adv => "Adv".to_string(),
-                                Pos::Dot => "Dot".to_string(),
-                                Pos::Prefix => "Prefix".to_string(),
-                                Pos::Conj => "Conj".to_string(),
-                            }
-                        }
+                        Sym::T(pos) => pos.as_str().to_string(),
                         Sym::NT(nt) => nt.clone(),
                         Sym::Opt(inner) => match &**inner {
                             Sym::T(pos) => format!("{:?}?", pos),
@@ -615,23 +594,7 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn format_pos_sequence(seq: &[Pos]) -> String {
-        seq.iter().map(|pos| {
-            match pos {
-                Pos::Det => "Det",
-                Pos::Adj => "Adj",
-                Pos::N => "N",
-                Pos::V => "V",
-                Pos::Modal => "Modal",
-                Pos::Aux => "Aux",
-                Pos::Cop => "Cop",
-                Pos::To => "To",
-                Pos::Prep => "Prep",
-                Pos::Adv => "Adv",
-                Pos::Dot => "Dot",
-                Pos::Prefix => "Prefix",
-                Pos::Conj => "Conj",
-            }
-        }).collect::<Vec<_>>().join(" ")
+        seq.iter().map(|pos| pos.as_str()).collect::<Vec<_>>().join(" ")
     }
 
     #[test]
@@ -937,6 +900,7 @@ mod tests {
 }
 
 /// Recursively search for grammar files matching the language name
+#[cfg(not(target_arch = "wasm32"))]
 fn find_grammar_file_recursive(language: &str, filename: &str) -> Option<String> {
     // Try current directory first
     let languages_dir = "languages";
@@ -966,6 +930,7 @@ fn find_grammar_file_recursive(language: &str, filename: &str) -> Option<String>
     None
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn find_grammar_file_recursive_helper(dir: &std::path::Path, language: &str, filename: &str) -> Option<String> {
     // Check if this directory matches the language name (last component)
     if let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) {

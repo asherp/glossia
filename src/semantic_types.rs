@@ -253,6 +253,8 @@ pub fn pos_to_semantic_type(pos: &Pos) -> SemanticType {
             domain: Box::new(SemanticType::Truth),
             codomain: Box::new(SemanticType::Truth),
         },
+        // Pronouns: e (entity reference)
+        Pos::Pron => SemanticType::Entity,
     }
 }
 
@@ -261,45 +263,22 @@ pub fn build_pos_type_mapping(
     type_definitions: &HashMap<String, String>,
 ) -> HashMap<Pos, SemanticType> {
     let mut mapping = HashMap::new();
-    
-    // Default mapping
-    for pos in &[
-        Pos::N, Pos::V, Pos::Adj, Pos::Adv, Pos::Det, Pos::Prep,
-        Pos::Conj, Pos::Cop, Pos::Modal, Pos::Aux, Pos::To,
-        Pos::Dot, Pos::Prefix,
-    ] {
+
+    // Default mapping from all known POS variants
+    for pos in Pos::ALL {
         mapping.insert(*pos, pos_to_semantic_type(pos));
     }
-    
+
     // Override with custom types from grammar.yaml
     for (pos_name, lambda_type_str) in type_definitions {
-        if let Ok(pos) = parse_pos_name(pos_name) {
+        if let Some(pos) = Pos::from_str(pos_name) {
             if let Ok(semantic_type) = SemanticType::from_str(lambda_type_str) {
                 mapping.insert(pos, semantic_type);
             }
         }
     }
-    
-    mapping
-}
 
-fn parse_pos_name(name: &str) -> Result<Pos, String> {
-    match name.to_lowercase().as_str() {
-        "n" | "noun" => Ok(Pos::N),
-        "v" | "verb" => Ok(Pos::V),
-        "adj" | "adjective" => Ok(Pos::Adj),
-        "adv" | "adverb" => Ok(Pos::Adv),
-        "det" | "determiner" => Ok(Pos::Det),
-        "prep" | "preposition" => Ok(Pos::Prep),
-        "conj" | "conjunction" => Ok(Pos::Conj),
-        "cop" | "copula" => Ok(Pos::Cop),
-        "modal" => Ok(Pos::Modal),
-        "aux" | "auxiliary" => Ok(Pos::Aux),
-        "to" => Ok(Pos::To),
-        "dot" | "period" => Ok(Pos::Dot),
-        "prefix" => Ok(Pos::Prefix),
-        _ => Err(format!("Unknown POS tag: {}", name)),
-    }
+    mapping
 }
 
 #[cfg(test)]

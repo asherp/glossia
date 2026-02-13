@@ -95,21 +95,7 @@ fn apply_highlighting(
                 if let Some(payload_tok) = payload.iter().find(|t| t.word.to_lowercase() == word_clean) {
                     // Use the first allowed POS tag for madlib
                     if let Some(&first_pos) = payload_tok.allowed.iter().next() {
-                        let pos_str = match first_pos {
-                            Pos::Det => "Det",
-                            Pos::Adj => "Adj",
-                            Pos::N => "N",
-                            Pos::V => "V",
-                            Pos::Modal => "Modal",
-                            Pos::Aux => "Aux",
-                            Pos::Cop => "Cop",
-                            Pos::To => "To",
-                            Pos::Prep => "Prep",
-                            Pos::Adv => "Adv",
-                            Pos::Conj => "Conj",
-                            Pos::Dot => "Dot",
-                            Pos::Prefix => "Prefix",
-                        };
+                        let pos_str = first_pos.as_str();
                         // Preserve punctuation
                         let punct: String = word.chars().filter(|c| !c.is_alphabetic()).collect();
                         format!("[{}]{}", pos_str, punct)
@@ -1406,21 +1392,7 @@ fn main() {
                 }
             });
             for (pos, count) in pos_vec {
-                let pos_name = match pos {
-                    Pos::Det => "Determiners",
-                    Pos::Adj => "Adjectives",
-                    Pos::N => "Nouns",
-                    Pos::V => "Verbs",
-                    Pos::Modal => "Modals",
-                    Pos::Aux => "Auxiliaries",
-                    Pos::Cop => "Copulas",
-                    Pos::To => "To",
-                    Pos::Prep => "Prepositions",
-                    Pos::Adv => "Adverbs",
-                    Pos::Conj => "Conjunctions",
-                    Pos::Dot => "Punctuation",
-                    Pos::Prefix => "Prefixes",
-                };
+                let pos_name = pos.description();
                 eprintln!("    {}: {}", pos_name, count);
             }
         }
