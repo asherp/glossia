@@ -21,6 +21,9 @@ fn main() {
 
         // Validate cover/payload disjointness at compile time
         validate_cover_payload_disjoint(languages_dir);
+
+        // Validate payload wordlists are power-of-two sized
+        validate_payload_power_of_two(languages_dir);
     }
 }
 
@@ -99,6 +102,82 @@ fn validate_cover_payload_disjoint(languages_dir: &Path) {
             }
         }
     }
+}
+
+/// Validate that every payload wordlist has a power-of-two number of words.
+/// Panics (failing the build) if any payload wordlist has a non-power-of-two size.
+fn validate_payload_power_of_two(languages_dir: &Path) {
+    validate_power_of_two_recursive(languages_dir, languages_dir);
+}
+
+/// Check if a language directory uses character-level encoding (payload_separator: "").
+/// These are format-conversion alphabets (base58, base64, etc.) that don't use bit-packing.
+fn is_character_level_encoding(dir: &Path) -> bool {
+    let grammar_path = dir.join("grammar.yaml");
+    let content = match fs::read_to_string(&grammar_path) {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    let data: HashMap<String, serde_yaml::Value> = match serde_yaml::from_str(&content) {
+        Ok(d) => d,
+        Err(_) => return false,
+    };
+    if let Some(grammar) = data.get("grammar") {
+        if let Some(sep) = grammar.get("payload_separator") {
+            return sep.as_str() == Some("");
+        }
+    }
+    false
+}
+
+fn validate_power_of_two_recursive(base_dir: &Path, current_dir: &Path) {
+    // Skip character-level encodings (base58, base64, etc.) — they use format
+    // conversion, not bit-packing, so the power-of-two constraint doesn't apply.
+    if is_character_level_encoding(current_dir) {
+        return;
+    }
+
+    let entries = match fs::read_dir(current_dir) {
+        Ok(entries) => entries,
+        Err(_) => return,
+    };
+
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_dir() {
+            validate_power_of_two_recursive(base_dir, &path);
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if !name.starts_with("payload") || !name.ends_with(".yaml") {
+            continue;
+        }
+
+        let words = extract_yaml_keys(&path);
+        let n = words.len();
+        if n == 0 {
+            continue;
+        }
+        if n & (n - 1) != 0 {
+            let lang = current_dir.strip_prefix(base_dir)
+                .unwrap_or(current_dir)
+                .to_string_lossy();
+            let prev_pow2: usize = 1 << (usize::BITS - 1 - n.leading_zeros());
+            let next_pow2: usize = prev_pow2 << 1;
+            panic!(
+                "Build error: {lang} payload wordlist size is not a power of two!\n\
+                 File: {}\n\
+                 Word count: {n}\n\
+                 Nearest powers of two: {prev_pow2} (2^{}) or {next_pow2} (2^{})\n\
+                 Payload wordlists must be powers of two for bit-packing to work.\n\
+                 Either pad to {next_pow2} words or trim to {prev_pow2} words.",
+                path.display(),
+                prev_pow2.trailing_zeros(),
+                next_pow2.trailing_zeros(),
+            );
+        }
+    }
+
 }
 
 /// Extract top-level keys from a YAML file (word -> {POS: weight} format).

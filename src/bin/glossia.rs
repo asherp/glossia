@@ -863,16 +863,42 @@ fn main() {
             eprintln!("Decoding {} words", input_words.len());
         }
 
-        match glossia::codec::decode(&input_words, &tree) {
-            Ok(bytes) => {
+        match glossia::codec::decode_with_mode(&input_words, &tree) {
+            Ok((mode, bytes)) => {
                 use std::io::Write;
-                std::io::stdout().write_all(&bytes).unwrap_or_else(|e| {
-                    eprintln!("Error writing output: {}", e);
-                    std::process::exit(1);
-                });
-                // Add trailing newline if output looks like text
-                if bytes.iter().all(|&b| b.is_ascii()) {
-                    println!();
+                // For text modes (hex, base64, ascii), reconstruct the original string.
+                // For raw bytes mode, write bytes directly.
+                match mode {
+                    glossia::DataMode::Hex => {
+                        let hex = glossia::hex_encode(&bytes);
+                        print!("{}", hex);
+                        println!();
+                    }
+                    glossia::DataMode::Base64 => {
+                        let b64 = glossia::base64_encode(&bytes);
+                        print!("{}", b64);
+                        println!();
+                    }
+                    glossia::DataMode::Ascii7 => {
+                        std::io::stdout().write_all(&bytes).unwrap_or_else(|e| {
+                            eprintln!("Error writing output: {}", e);
+                            std::process::exit(1);
+                        });
+                        println!();
+                    }
+                    glossia::DataMode::Bytes8 => {
+                        std::io::stdout().write_all(&bytes).unwrap_or_else(|e| {
+                            eprintln!("Error writing output: {}", e);
+                            std::process::exit(1);
+                        });
+                        // Add trailing newline if output looks like text
+                        if bytes.iter().all(|&b| b.is_ascii()) {
+                            println!();
+                        }
+                    }
+                }
+                if verbose {
+                    eprintln!("Decoded mode: {}", mode);
                 }
             }
             Err(e) => {

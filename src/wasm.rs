@@ -50,8 +50,8 @@ fn encode_inner(
     let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
-    // 2. Encode input string to payload words via codec
-    let encoded_words = codec::encode(input.as_bytes(), &payload_tree)
+    // 2. Encode input string to payload words via codec (auto-detects hex/base64/ascii)
+    let encoded_words = codec::encode_str(input, &payload_tree)
         .map_err(|e| format!("Encoding error: {}", e))?;
 
     // 3. Build POS mapping for payload words
@@ -190,15 +190,12 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
         .to_string());
     }
 
-    // 3. Decode payload words back to bytes
-    let decoded_bytes = codec::decode(
+    // 3. Decode payload words back to original string (mode-aware: handles hex/base64/ascii)
+    let decoded_text = codec::decode_str(
         &extracted,
         &payload_tree,
     )
     .map_err(|e| format!("Decoding error: {}", e))?;
-
-    let decoded_text = String::from_utf8(decoded_bytes)
-        .map_err(|_| "Decoded bytes are not valid UTF-8".to_string())?;
 
     let response = serde_json::json!({
         "payload_words": extracted,

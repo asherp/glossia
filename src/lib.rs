@@ -35,8 +35,12 @@ pub use generator::{
 // Re-export merkle functions
 pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};
 
-// Re-export codec functions
-pub use codec::{encode, decode, DecodeError};
+// Re-export codec functions and types
+pub use codec::{
+    encode, decode, encode_with_mode, decode_with_mode, encode_str, decode_str,
+    detect_mode, DataMode, DecodeError,
+    hex_encode, hex_decode, base64_encode, base64_decode,
+};
 
 #[cfg(feature = "native")]
 use nlprule::{Tokenizer, Rules};
