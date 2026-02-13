@@ -267,16 +267,73 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
     code.push_str("    }\n");
     code.push_str("}\n\n");
     
-    // Generate language index map
+    // Generate language index map (only languages with a payload file)
     code.push_str("/// Get the list of available languages\n");
     code.push_str("pub fn get_available_languages() -> &'static [&'static str] {\n");
     code.push_str("    &[\n");
-    for lang in languages.keys() {
-        code.push_str(&format!("        \"{}\",\n", lang));
+    for (lang, files) in &languages {
+        if files.payload.is_some() {
+            code.push_str(&format!("        \"{}\",\n", lang));
+        }
     }
     code.push_str("    ]\n");
     code.push_str("}\n\n");
-    
+
+    // Generate per-language wordlist profiles from actual filenames
+    code.push_str("/// Get available wordlist profiles for a language.\n");
+    code.push_str("/// Derived at compile time from payload_*.yaml filenames.\n");
+    code.push_str("/// \"default\" means payload.yaml exists; named profiles come from payload_{name}.yaml.\n");
+    code.push_str("pub fn get_wordlist_profiles(language: &str) -> &'static [&'static str] {\n");
+    code.push_str("    match language {\n");
+
+    for (lang, files) in &languages {
+        // Collect profile names from payload filenames
+        let mut profiles: Vec<String> = Vec::new();
+
+        // Gather all payload filenames (first payload + others)
+        let mut payload_filenames: Vec<String> = Vec::new();
+        if let Some(ref p) = files.payload {
+            if let Some(fname) = p.file_name().and_then(|n| n.to_str()) {
+                payload_filenames.push(fname.to_string());
+            }
+        }
+        for (name, _) in &files.other {
+            if name.starts_with("payload") && name.ends_with(".yaml") {
+                payload_filenames.push(name.clone());
+            }
+        }
+
+        for fname in &payload_filenames {
+            if fname == "payload.yaml" {
+                profiles.push("default".to_string());
+            } else if let Some(rest) = fname.strip_prefix("payload_") {
+                if let Some(name) = rest.strip_suffix(".yaml") {
+                    profiles.push(name.to_string());
+                }
+            }
+        }
+
+        // Sort: "default" first, then alphabetical
+        profiles.sort_by(|a, b| {
+            if a == "default" { std::cmp::Ordering::Less }
+            else if b == "default" { std::cmp::Ordering::Greater }
+            else { a.cmp(b) }
+        });
+
+        if !profiles.is_empty() {
+            code.push_str(&format!("        \"{}\" => &[", lang));
+            for (i, p) in profiles.iter().enumerate() {
+                if i > 0 { code.push_str(", "); }
+                code.push_str(&format!("\"{}\"", p));
+            }
+            code.push_str("],\n");
+        }
+    }
+
+    code.push_str("        _ => &[],\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
     // Generate language file paths map
     code.push_str("/// Get file paths for a language\n");
     code.push_str("#[derive(Debug, Clone)]\n");
@@ -380,34 +437,116 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
 
 fn scan_languages_dir(
     base_dir: &Path,
+    _current_dir: &Path,
+    languages: &mut HashMap<String, LanguageFiles>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Use `git ls-files` to only pick up version-controlled files.
+    // This prevents untracked scratch directories from being embedded.
+    let tracked_files = std::process::Command::new("git")
+        .args(["ls-files", "--full-name", "languages/"])
+        .output();
+
+    let file_list: Vec<PathBuf> = match tracked_files {
+        Ok(output) if output.status.success() => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            stdout.lines()
+                .filter(|line| line.ends_with(".yaml"))
+                .map(|line| PathBuf::from(line))
+                .collect()
+        }
+        _ => {
+            // Fallback: scan filesystem if git is not available (e.g. published crate)
+            return scan_languages_dir_fs(base_dir, base_dir, languages);
+        }
+    };
+
+    for rel_from_repo in file_list {
+        // rel_from_repo is like "languages/latin/payload.yaml"
+        let path = rel_from_repo.clone();
+        let rel_path = match rel_from_repo.strip_prefix("languages") {
+            Ok(r) => r.to_path_buf(),
+            Err(_) => continue,
+        };
+        let components: Vec<&str> = rel_path
+            .iter()
+            .map(|c| c.to_str().unwrap())
+            .collect();
+
+        if components.len() >= 2 {
+            let lang = components[0..components.len() - 1].join("/");
+            let filename = components.last().unwrap();
+            // Use absolute path for include_str!
+            let abs_path = base_dir.join(&rel_path);
+
+            let files = languages.entry(lang.clone()).or_insert_with(|| LanguageFiles {
+                payload: None,
+                cover: None,
+                grammar: None,
+                pos_mapping: None,
+                dialect: None,
+                other: Vec::new(),
+            });
+
+            classify_language_file(files, filename, &abs_path);
+        }
+    }
+
+    Ok(())
+}
+
+/// Classify a YAML file into the appropriate LanguageFiles field.
+fn classify_language_file(files: &mut LanguageFiles, filename: &str, path: &Path) {
+    if filename.starts_with("payload") && filename.ends_with(".yaml") {
+        if files.payload.is_none() {
+            files.payload = Some(path.to_path_buf());
+        } else {
+            files.other.push((filename.to_string(), path.to_path_buf()));
+        }
+    } else if filename.starts_with("cover") && filename.ends_with(".yaml") {
+        if files.cover.is_none() {
+            files.cover = Some(path.to_path_buf());
+        } else {
+            files.other.push((filename.to_string(), path.to_path_buf()));
+        }
+    } else {
+        match filename {
+            "grammar.yaml" => files.grammar = Some(path.to_path_buf()),
+            "pos_mapping.yaml" => files.pos_mapping = Some(path.to_path_buf()),
+            "dialect.yaml" => files.dialect = Some(path.to_path_buf()),
+            _ => {
+                files.other.push((filename.to_string(), path.to_path_buf()));
+            }
+        }
+    }
+}
+
+/// Filesystem fallback when git is not available (e.g. building from a published crate).
+fn scan_languages_dir_fs(
+    base_dir: &Path,
     current_dir: &Path,
     languages: &mut HashMap<String, LanguageFiles>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut entries: Vec<_> = fs::read_dir(current_dir)?
         .filter_map(|e| e.ok())
         .collect();
-    // Sort directory entries for deterministic scanning order
     entries.sort_by_key(|e| e.path());
-    
+
     for entry in entries {
         let path = entry.path();
-        
         if path.is_dir() {
-            // Recursively scan subdirectories
-            scan_languages_dir(base_dir, &path, languages)?;
+            scan_languages_dir_fs(base_dir, &path, languages)?;
         } else if path.extension().and_then(|s| s.to_str()) == Some("yaml") {
-            // Found a YAML file
             let rel_path = path.strip_prefix(base_dir)?.to_path_buf();
             let components: Vec<&str> = rel_path
                 .iter()
                 .map(|c| c.to_str().unwrap())
                 .collect();
-            
+
             if components.len() >= 2 {
                 let lang = components[0..components.len() - 1].join("/");
                 let filename = components.last().unwrap();
-                
-                let files = languages.entry(lang.clone()).or_insert_with(|| LanguageFiles {
+
+                let files = languages.entry(lang).or_insert_with(|| LanguageFiles {
                     payload: None,
                     cover: None,
                     grammar: None,
@@ -415,34 +554,11 @@ fn scan_languages_dir(
                     dialect: None,
                     other: Vec::new(),
                 });
-                
-                if filename.starts_with("payload") && filename.ends_with(".yaml") {
-                    // Mark that this language has payload (for has_embedded_files)
-                    if files.payload.is_none() {
-                        files.payload = Some(path.clone());
-                    } else {
-                        // Additional payload variants go in other
-                        files.other.push((filename.to_string(), path.clone()));
-                    }
-                } else if filename.starts_with("cover") && filename.ends_with(".yaml") {
-                    if files.cover.is_none() {
-                        files.cover = Some(path.clone());
-                    } else {
-                        files.other.push((filename.to_string(), path.clone()));
-                    }
-                } else {
-                    match *filename {
-                        "grammar.yaml" => files.grammar = Some(path.clone()),
-                        "pos_mapping.yaml" => files.pos_mapping = Some(path.clone()),
-                        "dialect.yaml" => files.dialect = Some(path.clone()),
-                        _ => {
-                            files.other.push((filename.to_string(), path.clone()));
-                        }
-                    }
-                }
+
+                classify_language_file(files, filename, &path);
             }
         }
     }
-    
+
     Ok(())
 }

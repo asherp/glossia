@@ -16,17 +16,12 @@ use crate::merkle::WordlistTree;
 
 /// Resolve payload and cover filenames for a given wordlist profile.
 /// Returns (payload_filename, cover_filename).
-/// For non-standard wordlists, falls back to "cover.yaml" when the
-/// wordlist-specific cover file doesn't exist as an embedded resource.
+/// - `"default"` → `payload.yaml` / `cover.yaml` (every language's base wordlist)
+/// - `"bip39"`   → `payload_bip39.yaml` / `cover.yaml` (English-specific BIP39 list)
+/// - other       → `payload_{name}.yaml` / `cover_{name}.yaml` (falls back to `cover.yaml`)
 pub fn wordlist_filenames(language: &str, wordlist: &str) -> (String, String) {
     match wordlist {
-        "bip39" => {
-            if language == "english" {
-                ("payload_bip39.yaml".into(), "cover.yaml".into())
-            } else {
-                ("payload.yaml".into(), "cover.yaml".into())
-            }
-        }
+        "default" => ("payload.yaml".into(), "cover.yaml".into()),
         other => {
             let payload = format!("payload_{}.yaml", other);
             let cover = format!("cover_{}.yaml", other);
@@ -67,30 +62,25 @@ pub fn get_available_languages() -> &'static [&'static str] {
     language_index::get_available_languages()
 }
 
-/// Get available wordlist profiles for a language by scanning embedded files.
+/// Get available wordlist profiles for a language.
+/// Derived at compile time from payload filenames in the languages/ directory.
 pub fn get_available_wordlists(language: &str) -> Vec<String> {
-    let mut wordlists = Vec::new();
+    language_index::get_wordlist_profiles(language)
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
 
-    // Check for default bip39 wordlist
-    let (payload_filename, _) = wordlist_filenames(language, "bip39");
-    if get_embedded_yaml(&format!("{}/{}", language, payload_filename)).is_some() {
-        wordlists.push("bip39".to_string());
-    }
-
-    // Check for common alternative wordlist profiles
-    for profile in &["ngram", "lemmas"] {
-        let (payload_filename, _) = wordlist_filenames(language, profile);
-        if get_embedded_yaml(&format!("{}/{}", language, payload_filename)).is_some() {
-            wordlists.push(profile.to_string());
-        }
-    }
-
-    wordlists
+/// Get the first (primary) wordlist profile for a language.
+/// Returns "default" if payload.yaml exists, otherwise the first named profile.
+pub fn default_wordlist(language: &str) -> &'static str {
+    let profiles = language_index::get_wordlist_profiles(language);
+    profiles.first().copied().unwrap_or("default")
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PayloadCacheData {
-    /// Sorted list of all payload words (BIP39 words) for the language.
+    /// Sorted list of all payload words for the language.
     words: Vec<String>,
     /// Mapping from payload word -> allowed POS tags derived from payload.yaml (+ optional pos_mapping.yaml).
     pos_mapping: HashMap<String, Vec<Pos>>,
@@ -302,11 +292,11 @@ fn load_pos_mappings(language: &str) -> HashMap<String, Pos> {
     result
 }
 
-/// Build comprehensive POS mapping for all BIP39 words.
+/// Build comprehensive POS mapping for all payload words.
 /// Returns a HashMap mapping each word to its allowed POS tags.
 /// Uses YAML format (word -> POS weights) from payload.yaml.
 pub fn build_pos_mapping(language: &str) -> Result<HashMap<String, Vec<Pos>>, String> {
-    build_pos_mapping_for_wordlist(language, "bip39")
+    build_pos_mapping_for_wordlist(language, default_wordlist(language))
 }
 
 /// Build POS mapping for a specific wordlist profile.
@@ -380,11 +370,11 @@ pub fn tag_word(word: &str) -> Vec<Pos> {
     mapping.get(&word_lower).cloned().unwrap_or_default()
 }
 
-/// Load all payload words from the wordlist file.
+/// Load all payload words from the default wordlist file.
 /// Uses YAML format (extracts keys) from payload.yaml.
 /// For languages with embedded files, uses embedded file. For other languages, tries to load from filesystem.
 pub fn load_payload_words(language: &str) -> Result<Vec<String>, String> {
-    load_payload_words_for_wordlist(language, "bip39")
+    load_payload_words_for_wordlist(language, default_wordlist(language))
 }
 
 /// Load payload words for a specific wordlist profile.
@@ -394,7 +384,7 @@ pub fn load_payload_words_for_wordlist(language: &str, wordlist: &str) -> Result
 
 /// Load payload words from embedded payload.yaml
 pub fn load_payload_words_from_embedded(language: &str) -> Result<Vec<String>, String> {
-    let (payload_filename, _) = wordlist_filenames(language, "bip39");
+    let (payload_filename, _) = wordlist_filenames(language, default_wordlist(language));
     let payload_yaml = get_embedded_yaml(&format!("{}/{}", language, payload_filename))
         .ok_or_else(|| format!("No embedded file for language: {}", language))?;
     load_payload_words_from_yaml_content(payload_yaml)
@@ -429,7 +419,7 @@ pub fn load_payload_tree(language: &str) -> Result<WordlistTree, String> {
 /// Returns a HashMap mapping POS to Vec of words
 /// For English, uses embedded file. For other languages, tries to load from filesystem.
 pub fn load_cover_words_by_pos(wordlist_set: &HashSet<String>, language: &str) -> (HashMap<Pos, Vec<String>>, HashMap<(Pos, String), Vec<String>>) {
-    load_cover_words_by_pos_for_wordlist(wordlist_set, language, "bip39")
+    load_cover_words_by_pos_for_wordlist(wordlist_set, language, default_wordlist(language))
 }
 
 /// Load cover words for a specific wordlist profile.
@@ -533,7 +523,7 @@ pub fn load_cover_words_by_pos_for_wordlist(wordlist_set: &HashSet<String>, lang
 /// Returns all cover words preserving the order from cover.yaml (never re-sorted; this IS the canonical ordering).
 /// Key invariant: The file order of cover.yaml is the canonical ordering. Code must never sort this list.
 pub fn load_cover_words_in_file_order(language: &str) -> Vec<String> {
-    load_cover_words_in_file_order_for_wordlist(language, "bip39")
+    load_cover_words_in_file_order_for_wordlist(language, default_wordlist(language))
 }
 
 /// Load cover words in file order for a specific wordlist profile.
@@ -593,7 +583,7 @@ pub fn load_cover_tree(language: &str) -> WordlistTree {
 /// Returns a HashMap mapping cover word -> Vec of POS tags.
 /// This allows Merkle words to be treated as PayloadToks with proper POS.
 pub fn load_cover_word_pos_tags(language: &str) -> HashMap<String, Vec<Pos>> {
-    load_cover_word_pos_tags_for_wordlist(language, "bip39")
+    load_cover_word_pos_tags_for_wordlist(language, "default")
 }
 
 /// Load cover word POS tags for a specific wordlist profile.

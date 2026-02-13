@@ -24,6 +24,19 @@ pub struct Grammar {
     // Type-driven grammar configuration (new implementation)
     pub(crate) language_config: Option<LanguageConfig>,
     pub(crate) dialect: Option<String>,
+    /// Separator between consecutive payload words in the output.
+    /// Default: " " (space). CS languages use "" for character concatenation.
+    /// This is the **payload grammar**: how the payload is formatted within the
+    /// sentence structure. Decoding must use the same separator to tokenize.
+    pub(crate) payload_separator: String,
+    /// Whether the Dot POS appends a period to the previous word (true, default)
+    /// or is treated as a normal cover-word slot (false).
+    /// Set to false for languages like CS where Dot produces structural tokens
+    /// (e.g., "-----" for ASCII armor) rather than sentence-ending punctuation.
+    pub(crate) dot_is_punctuation: bool,
+    /// If set, payload words are line-wrapped at this character width.
+    /// Used for ASCII armor where the body is wrapped at 76 chars per line.
+    pub(crate) payload_line_width: Option<usize>,
 }
 
 /// A POS sequence with its probability according to the grammar
@@ -49,6 +62,21 @@ impl SequenceWithProbability {
 }
 
 impl Grammar {
+    /// Separator between consecutive payload words in the output.
+    pub fn payload_separator(&self) -> &str {
+        &self.payload_separator
+    }
+
+    /// Whether Dot POS appends a period (true) or acts as a normal cover-word slot (false).
+    pub fn dot_is_punctuation(&self) -> bool {
+        self.dot_is_punctuation
+    }
+
+    /// Character width for payload line wrapping (None = no wrapping).
+    pub fn payload_line_width(&self) -> Option<usize> {
+        self.payload_line_width
+    }
+
     /// Load grammar from grammar.yaml (type-driven)
     pub fn default() -> Result<Self, Box<dyn std::error::Error>> {
         Self::from_language_dialect("latin", "body")
@@ -177,6 +205,27 @@ impl Grammar {
         Ok((symbols, refinements))
     }
     
+    /// Extract payload_separator and dot_is_punctuation from grammar YAML content.
+    fn parse_payload_format(yaml_content: &str) -> (String, bool, Option<usize>) {
+        let doc: Result<serde_yaml::Value, _> = serde_yaml::from_str(yaml_content);
+        if let Ok(doc) = doc {
+            if let Some(grammar) = doc.get("grammar") {
+                let payload_sep = grammar.get("payload_separator")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(" ")
+                    .to_string();
+                let dot_is_punct = grammar.get("dot_is_punctuation")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                let payload_line_width = grammar.get("payload_line_width")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
+                return (payload_sep, dot_is_punct, payload_line_width);
+            }
+        }
+        (" ".to_string(), true, None)
+    }
+
     /// Load grammar from language and dialect (YAML-only)
     pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
         // Try embedded grammar.yaml first (via build.rs-generated index, then hardcoded fallback)
@@ -191,10 +240,15 @@ impl Grammar {
             match LanguageConfig::from_yaml(yaml_content) {
                 Ok(language_config) => {
                     let rules = Self::build_rules_from_cfg_productions(yaml_content, dialect)?;
+                    let (payload_separator, dot_is_punctuation, payload_line_width) =
+                        Self::parse_payload_format(yaml_content);
                     return Ok(Grammar {
                         rules,
                         language_config: Some(language_config),
                         dialect: Some(dialect.to_string()),
+                        payload_separator,
+                        dot_is_punctuation,
+                        payload_line_width,
                     });
                 }
                 Err(e) => {
@@ -217,10 +271,15 @@ impl Grammar {
                 let grammar_yaml = std::fs::read_to_string(&path)?;
                 let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
                 let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
+                let (payload_separator, dot_is_punctuation, payload_line_width) =
+                    Self::parse_payload_format(&grammar_yaml);
                 return Ok(Grammar {
                     rules,
                     language_config: Some(language_config),
                     dialect: Some(dialect.to_string()),
+                    payload_separator,
+                    dot_is_punctuation,
+                    payload_line_width,
                 });
             }
         }
@@ -234,10 +293,15 @@ impl Grammar {
     pub fn from_file(grammar_path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar_yaml = std::fs::read_to_string(grammar_path)?;
         let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, "body")?;
+        let (payload_separator, dot_is_punctuation, payload_line_width) =
+            Self::parse_payload_format(&grammar_yaml);
         Ok(Grammar {
             rules,
             language_config: None,
             dialect: Some("body".to_string()),
+            payload_separator,
+            dot_is_punctuation,
+            payload_line_width,
         })
     }
 
@@ -318,21 +382,21 @@ impl Grammar {
         by_k
     }
     
-    /// Type-driven sequence generation using lambda calculus
+    /// Type-driven sequence generation via CCG proof search.
+    ///
+    /// Replaces the old random-sampling approach with exhaustive
+    /// combinator-driven derivation. Each POS sequence is a proof
+    /// that the terminals compose into the target type.
     fn precompute_sequences_type_driven(
         &self,
         config: &LanguageConfig,
         start_symbol: &str,
         max_k: usize,
     ) -> Vec<Vec<SequenceWithProbability>> {
-        use rand::SeedableRng;
-        use rand::rngs::StdRng;
-        
         // Map start symbol to semantic type
         let target_type = match start_symbol {
             "S" | "SContent" => SemanticType::Truth,
             _ => {
-                // Try to infer from symbol name (e.g., "S_N" -> N type)
                 if let Some(pos_str) = start_symbol.strip_prefix("S_") {
                     match pos_str.to_uppercase().as_str() {
                         "N" => pos_to_semantic_type(&Pos::N),
@@ -341,55 +405,32 @@ impl Grammar {
                         "ADV" => pos_to_semantic_type(&Pos::Adv),
                         "PREP" => pos_to_semantic_type(&Pos::Prep),
                         "DET" => pos_to_semantic_type(&Pos::Det),
-                        _ => SemanticType::Truth,  // Default to sentence type
+                        _ => SemanticType::Truth,
                     }
                 } else {
                     SemanticType::Truth
                 }
             }
         };
-        
-        let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
-        let mut rng = StdRng::seed_from_u64(42);  // Deterministic for caching
-        
-        // Generate sequences for each k
-        for k in 1..=max_k {
-            let mut sequences = Vec::new();
-            
-            // Generate multiple variations
-            for _ in 0..100 {  // Generate 100 variations per k
-                match config.generate_from_type(&target_type, k, &mut rng) {
-                    Ok(pos_seq) => {
-                        if pos_seq.len() == k {
-                            let refs = vec![None; pos_seq.len()];
-                            sequences.push(SequenceWithProbability::new(
-                                pos_seq,
-                                refs,
-                                1.0,  // Equal probability for now
-                            ));
-                        }
-                    }
-                    Err(_) => continue,
-                }
-            }
-            
-            // Deduplicate and sort
-            let mut unique: HashMap<(Vec<Pos>, Vec<Option<String>>), f64> = HashMap::new();
-            for seq_prob in sequences {
-                *unique.entry((seq_prob.sequence, seq_prob.refinements)).or_insert(0.0) += seq_prob.probability;
-            }
 
-            by_k[k] = unique.into_iter()
-                .map(|((sequence, refinements), probability)| SequenceWithProbability::new(sequence, refinements, probability))
+        // CCG proof search: derive all type-valid POS sequences
+        let derivations_by_k = config.derive_all(&target_type, max_k);
+
+        // Convert Derivation → SequenceWithProbability
+        let mut by_k: Vec<Vec<SequenceWithProbability>> = vec![Vec::new(); max_k + 1];
+        for k in 0..=max_k {
+            by_k[k] = derivations_by_k[k]
+                .iter()
+                .map(|d| {
+                    SequenceWithProbability::new(
+                        d.sequence.clone(),
+                        d.refinements.clone(),
+                        d.probability,
+                    )
+                })
                 .collect();
-            // Sort by probability (highest first), breaking ties by sequence for determinism
-            by_k[k].sort_by(|a, b| {
-                b.probability.partial_cmp(&a.probability)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-                    .then_with(|| a.sequence.cmp(&b.sequence))
-            });
         }
-        
+
         by_k
     }
     
@@ -879,6 +920,60 @@ mod tests {
         // English subject grammar should use Prefix
         let grammar = Grammar::from_language_dialect("english", "subject").expect("Failed to load grammar");
         assert!(grammar.grammar_uses_pos(Pos::Prefix), "English subject grammar should use Prefix");
+    }
+
+    #[test]
+    fn test_english_prose_dialect_loads() {
+        let grammar = Grammar::from_language_dialect("english", "prose").expect("Failed to load English prose grammar");
+        // Prose dialect should use Conj (conjoined clauses), Pron, and standard POS tags
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Prose grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::V), "Prose grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::Det), "Prose grammar should use Det");
+        assert!(grammar.grammar_uses_pos(Pos::Conj), "Prose grammar should use Conj");
+        assert!(grammar.grammar_uses_pos(Pos::Pron), "Prose grammar should use Pron");
+        // Prose should produce sequences
+        let seqs = grammar.precompute_sequences_with_probability("S", 10);
+        let total: usize = seqs.iter().map(|v| v.len()).sum();
+        assert!(total > 0, "Prose grammar should produce at least some sequences");
+    }
+
+    #[test]
+    fn test_latin_spells_dialect_loads() {
+        let grammar = Grammar::from_language_dialect("latin", "spells").expect("Failed to load Latin spells grammar");
+        // Spells use V, N, Adj, Dot — short formulaic patterns
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Spells grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::V), "Spells grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::N), "Spells grammar should use N");
+        assert!(grammar.grammar_uses_pos(Pos::Adj), "Spells grammar should use Adj");
+        // Spells should NOT use Det (Latin has no articles)
+        assert!(!grammar.grammar_uses_pos(Pos::Det), "Spells grammar should not use Det");
+        // Spells produce short sequences — check k=2 (V Dot), k=3 (V N Dot)
+        let seqs_k2 = grammar.enumerate_sequences_with_probability("S", 2);
+        assert!(!seqs_k2.is_empty(), "Spells should produce k=2 sequences (V Dot, N Dot)");
+        let seqs_k3 = grammar.enumerate_sequences_with_probability("S", 3);
+        assert!(!seqs_k3.is_empty(), "Spells should produce k=3 sequences (V N Dot, Adj N Dot, etc.)");
+    }
+
+    #[test]
+    fn test_cs_grammar_payload_format() {
+        // CS grammar should have payload_separator="" and dot_is_punctuation=false
+        let grammar = Grammar::from_language_dialect("cs", "body").expect("Failed to load CS grammar");
+        assert_eq!(grammar.payload_separator(), "", "CS grammar should concatenate payload words");
+        assert!(!grammar.dot_is_punctuation(), "CS grammar Dot should produce cover words, not periods");
+        assert_eq!(grammar.payload_line_width(), Some(76), "CS grammar should wrap payload at 76 chars");
+        // CS should use N (payload characters) and structural POS tags
+        assert!(grammar.grammar_uses_pos(Pos::N), "CS grammar should use N");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "CS grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::Aux), "CS grammar should use Aux");
+    }
+
+    #[test]
+    fn test_english_grammar_default_payload_format() {
+        // English grammar should have default payload format (space separator, dot as period)
+        let grammar = Grammar::from_language_dialect("english", "body").expect("Failed to load grammar");
+        assert_eq!(grammar.payload_separator(), " ", "English grammar should space-separate payload words");
+        assert!(grammar.dot_is_punctuation(), "English grammar Dot should append periods");
+        assert_eq!(grammar.payload_line_width(), None, "English grammar should not wrap payload lines");
     }
 
     #[test]

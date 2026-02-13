@@ -334,7 +334,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut demerkle_mode = false;
     let mut decode_mode = false;
     let mut merkle_highlight_mode: Option<HighlightMode> = None;
-    let mut wordlist = "bip39".to_string();
+    let mut wordlist = "default".to_string();
     let mut i = 1;
     
     while i < args.len() {
@@ -734,7 +734,14 @@ fn main() {
             std::process::exit(1);
         }
     };
-    
+
+    // Resolve "default" wordlist to the language's primary profile
+    let wordlist = if wordlist == "default" {
+        glossia::generator::default_wordlist(&language).to_string()
+    } else {
+        wordlist
+    };
+
     // Handle --demerkle mode: parse merkleized sequence and output payload words
     if demerkle_mode {
         use glossia::merkle::parse_merkleized;
@@ -784,11 +791,40 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        let tree = glossia::WordlistTree::new(all_words);
+        let tree = glossia::WordlistTree::new(all_words.clone());
+
+        // Load grammar to check payload separator
+        let grammar = Grammar::from_language_dialect(&language, "body");
+        let payload_separator = grammar.as_ref()
+            .map(|g| g.payload_separator().to_string())
+            .unwrap_or_else(|_| " ".to_string());
 
         // If words provided, use them; otherwise read from stdin
         let input_words: Vec<String> = if !words.is_empty() {
-            words
+            if payload_separator.is_empty() {
+                // For concatenated payloads, extract chars only from tokens where
+                // ALL characters are in the payload set (i.e. pure payload blocks).
+                // Tokens with mixed characters (like "BEGIN") are cover words — skip them.
+                let payload_set: std::collections::HashSet<String> = all_words.iter()
+                    .map(|w| w.to_lowercase())
+                    .collect();
+                words.iter()
+                    .flat_map(|w| {
+                        let trimmed = w.trim_matches(|c: char| !c.is_alphanumeric());
+                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                        if all_in_payload {
+                            trimmed.chars()
+                                .map(|c| c.to_lowercase().to_string())
+                                .collect::<Vec<_>>()
+                        } else {
+                            vec![]  // Skip cover words
+                        }
+                    })
+                    .collect()
+            } else {
+                words
+            }
         } else {
             use std::io::{self, Read};
             let mut buffer = String::new();
@@ -798,7 +834,29 @@ fn main() {
                     std::process::exit(1);
                 })
                 .unwrap();
-            buffer.split_whitespace().map(|s| s.to_string()).collect()
+            if payload_separator.is_empty() {
+                // For concatenated payloads, extract chars only from tokens where
+                // ALL characters are in the payload set (pure payload blocks).
+                let payload_set: std::collections::HashSet<String> = all_words.iter()
+                    .map(|w| w.to_lowercase())
+                    .collect();
+                buffer.split_whitespace()
+                    .flat_map(|token| {
+                        let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                        if all_in_payload {
+                            trimmed.chars()
+                                .map(|c| c.to_lowercase().to_string())
+                                .collect::<Vec<_>>()
+                        } else {
+                            vec![]  // Skip cover words
+                        }
+                    })
+                    .collect()
+            } else {
+                buffer.split_whitespace().map(|s| s.to_string()).collect()
+            }
         };
 
         if verbose {
@@ -956,7 +1014,7 @@ fn main() {
         .unwrap_or_else(|e| {
             eprintln!("Warning: Failed to load POS mapping for language '{}': {}", language, e);
             eprintln!("Falling back to English POS mapping");
-            glossia::generator::build_pos_mapping_for_wordlist("english", "bip39").unwrap_or_else(|_| HashMap::new())
+            glossia::generator::build_pos_mapping("english").unwrap_or_else(|_| HashMap::new())
         });
     
     // Handle merkle mode: expand payload with Merkle proof
@@ -1153,6 +1211,19 @@ fn main() {
         }
     }
 
+    // Load grammar for payload format (needed for validation of concatenated payloads)
+    let encode_grammar = {
+        let dialect = match generation_mode {
+            GenerationMode::Subject => "subject",
+            GenerationMode::Body => "body",
+            GenerationMode::PayloadOnly => "body",
+        };
+        Grammar::from_language_dialect(&language, dialect).ok()
+    };
+    let encode_payload_separator = encode_grammar.as_ref()
+        .map(|g| g.payload_separator().to_string())
+        .unwrap_or_else(|| " ".to_string());
+
     // Generate multiple variations and select the most compact one
     let mut best_text: Option<String> = None;
     let mut best_compactness = 0.0;
@@ -1199,7 +1270,24 @@ fn main() {
         // Skip validation in madlib mode since words are replaced with [POS] placeholders
         // Skip validation in payload-only mode since it's a direct pass-through
         if highlight_mode != HighlightMode::Madlib && generation_mode != GenerationMode::PayloadOnly {
-            let extracted_wordlist_words: Vec<String> = {
+            let extracted_wordlist_words: Vec<String> = if encode_payload_separator.is_empty() {
+                // For concatenated payloads (CS grammar), extract chars only from tokens
+                // where ALL characters are in the payload set (pure payload blocks).
+                text.split_whitespace()
+                    .flat_map(|token| {
+                        let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                        if all_in_payload {
+                            trimmed.chars()
+                                .map(|c| c.to_lowercase().to_string())
+                                .collect::<Vec<_>>()
+                        } else {
+                            vec![]  // Skip cover words
+                        }
+                    })
+                    .collect()
+            } else {
                 text
                     .split_whitespace()
                     .map(normalize_token_for_bip39)
@@ -1276,6 +1364,19 @@ fn main() {
                         non_bip39_chars += normalized.chars().count();
                     }
                 }
+            } else if encode_payload_separator.is_empty() {
+                // For concatenated payloads (CS grammar), count characters individually
+                for word in &words {
+                    let trimmed = word.trim_matches(|c: char| !c.is_alphanumeric());
+                    for ch in trimmed.chars() {
+                        let ch_str = ch.to_lowercase().to_string();
+                        if payload_set.contains(&ch_str) {
+                            bip39_chars += 1;
+                        } else {
+                            non_bip39_chars += 1;
+                        }
+                    }
+                }
             } else {
                 for word in &words {
                     let normalized = normalize_token_for_bip39(word);
@@ -1304,7 +1405,7 @@ fn main() {
             }
 
             // Keep track of the best (most compact) variation
-            if compactness > best_compactness {
+            if compactness >= best_compactness || best_text.is_none() {
                 best_compactness = compactness;
                 best_text = Some(text);
                 best_output_count = output_word_count;
@@ -1603,6 +1704,7 @@ mod tests {
             Some(&forced),
             false,
             false,
+            true,
         );
 
         assert_eq!(out[1], "an", "Expected 'an' before forced 'ivory'");
@@ -1624,7 +1726,7 @@ mod tests {
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
         let refs = vec![None; slots.len()];
-        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false);
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true);
 
         assert_eq!(out[0], "can");
         assert_eq!(out[1].trim_end_matches('.'), "walk", "Expected bare verb after modal");
@@ -1647,7 +1749,7 @@ mod tests {
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
         let refs = vec![None; slots.len()];
-        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false);
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true);
 
         assert_eq!(out[2], "send", "Expected transitive verb before NP object");
     }
@@ -2031,7 +2133,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, Some(&forced), false, false,
+            &[], None, Some(&forced), false, false, true,
         );
 
         assert_eq!(out[0], "an", "Det[indef] before 'apple' (vowel) should produce 'an'");
@@ -2058,7 +2160,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, Some(&forced), false, false,
+            &[], None, Some(&forced), false, false, true,
         );
 
         assert_eq!(out[0], "a", "Det[indef] before 'basket' (consonant) should produce 'a'");
@@ -2090,7 +2192,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         assert!(
@@ -2127,7 +2229,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         assert_eq!(out[1], "is", "Cop[sg] should produce 'is'");
@@ -2161,7 +2263,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         assert_eq!(out[1], "are", "Cop[pl] should produce 'are'");
@@ -2185,7 +2287,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         // 4 word tokens + Dot merged into last word

@@ -1,7 +1,7 @@
 use rand::{seq::SliceRandom, Rng};
 use std::collections::{HashMap, HashSet};
 use crate::types::Pos;
-use crate::grammar::SequenceWithProbability;
+use crate::grammar::{Grammar, SequenceWithProbability};
 use super::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
 use super::cache::SequenceCache;
 use super::utils::{
@@ -9,6 +9,118 @@ use super::utils::{
     normalize_token_for_bip39, starts_with_vowel_sound, is_bare_verb_form,
     is_likely_transitive_verb,
 };
+
+/// Join words respecting the grammar's payload separator.
+///
+/// For human languages (payload_separator = " "), this is just `words.join(" ")`.
+/// For CS languages (payload_separator = ""), consecutive payload words are
+/// concatenated without spaces. Cover words still get spaces.
+///
+/// If `payload_line_width` is set, payload runs are additionally line-wrapped.
+fn join_words_with_payload_grammar(
+    words: &[String],
+    payload_set: &HashSet<String>,
+    grammar: &Grammar,
+) -> String {
+    let sep = grammar.payload_separator();
+    let line_width = grammar.payload_line_width();
+
+    // Fast path: default separator — just join with space
+    if sep == " " {
+        return words.join(" ");
+    }
+
+    // Payload-aware join: consecutive payload words use payload_separator,
+    // all other transitions use " ".
+    let mut result = String::new();
+    let mut payload_run = String::new(); // accumulates consecutive payload chars
+
+    for (i, word) in words.iter().enumerate() {
+        let word_clean = normalize_token_for_bip39(word);
+        let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+
+        if is_payload {
+            // Accumulate into payload run
+            payload_run.push_str(sep);
+            payload_run.push_str(word);
+        } else {
+            // Flush any accumulated payload run
+            if !payload_run.is_empty() {
+                // Remove leading separator (if any)
+                let payload_text = if sep.is_empty() {
+                    payload_run.clone()
+                } else {
+                    payload_run.trim_start_matches(sep).to_string()
+                };
+                // Apply line wrapping if configured
+                if let Some(width) = line_width {
+                    let wrapped = wrap_payload(&payload_text, width);
+                    if !result.is_empty() {
+                        result.push('\n');
+                    }
+                    result.push_str(&wrapped);
+                } else {
+                    if !result.is_empty() {
+                        result.push(' ');
+                    }
+                    result.push_str(&payload_text);
+                }
+                payload_run.clear();
+            }
+            // Add the cover word
+            if !result.is_empty() {
+                // If previous content ended with newline-wrapped payload, use newline
+                if line_width.is_some() && i > 0 {
+                    let prev_clean = normalize_token_for_bip39(&words[i - 1]);
+                    let prev_was_payload = !prev_clean.is_empty() && payload_set.contains(&prev_clean);
+                    if prev_was_payload && payload_run.is_empty() {
+                        // already flushed above
+                    }
+                }
+                result.push(' ');
+            }
+            result.push_str(word);
+        }
+    }
+
+    // Flush trailing payload run
+    if !payload_run.is_empty() {
+        let payload_text = if sep.is_empty() {
+            payload_run
+        } else {
+            payload_run.trim_start_matches(sep).to_string()
+        };
+        if let Some(width) = line_width {
+            let wrapped = wrap_payload(&payload_text, width);
+            if !result.is_empty() {
+                result.push('\n');
+            }
+            result.push_str(&wrapped);
+        } else {
+            if !result.is_empty() {
+                result.push(' ');
+            }
+            result.push_str(&payload_text);
+        }
+    }
+
+    result
+}
+
+/// Wrap a payload string at the given character width.
+fn wrap_payload(payload: &str, width: usize) -> String {
+    if width == 0 || payload.len() <= width {
+        return payload.to_string();
+    }
+    let mut result = String::new();
+    for (i, ch) in payload.chars().enumerate() {
+        if i > 0 && i % width == 0 {
+            result.push('\n');
+        }
+        result.push(ch);
+    }
+    result
+}
 
 /// Find the maximum subsequence embedding of payload words into slots.
 /// Returns Some(placement_map) where placement_map[slot_index] = payload_index if that slot should contain a payload word.
@@ -351,6 +463,7 @@ pub fn fill_slots<R: Rng>(
     forced_placements: Option<&HashMap<usize, usize>>,
     payload_only_mode: bool,
     prime_constraint_enabled: bool,
+    dot_is_punctuation: bool,
 ) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
     const REPETITION_WINDOW: usize = 3;
@@ -358,7 +471,7 @@ pub fn fill_slots<R: Rng>(
     let mut used_payload_indices: HashSet<usize> = HashSet::new();
 
     for (i, &slot) in slots.iter().enumerate() {
-        if slot == Pos::Dot {
+        if slot == Pos::Dot && dot_is_punctuation {
             if let Some(last) = out.last_mut() {
                 last.push('.');
             } else {
@@ -864,6 +977,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 Some(&forced_placements),
                 payload_only_mode,
                 prime_constraint_enabled,
+                grammar.dot_is_punctuation(),
             );
 
             // Update current_payload_i to reflect what was actually used
@@ -1169,6 +1283,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             Some(&forced_placements),
             payload_only_mode,
             prime_constraint_enabled,
+            grammar.dot_is_punctuation(),
         );
 
         // Update payload_i to reflect what was actually used
@@ -1297,7 +1412,8 @@ pub fn generate_text_with_original_payload<R: Rng>(
 
     // Post-fix: ensure output ends with a period (only for body mode, not subject mode)
     // Skip periods for primes language (only integers in vocabulary)
-    if mode == GenerationMode::Body && grammar.grammar_uses_pos(Pos::Dot) {
+    // Skip periods for CS grammar where Dot is a structural token, not punctuation
+    if mode == GenerationMode::Body && grammar.grammar_uses_pos(Pos::Dot) && grammar.dot_is_punctuation() {
         if let Some(last) = words.last_mut() {
             if !last.ends_with('.') {
                 last.push('.');
@@ -1306,7 +1422,8 @@ pub fn generate_text_with_original_payload<R: Rng>(
     }
 
     // Return unhighlighted text (caller can apply highlighting if needed)
-    (words.join(" "), payload_set)
+    let text = join_words_with_payload_grammar(&words, &payload_set, &grammar);
+    (text, payload_set)
 }
 
 /// Generate text using merkle segmentation: segment sequence into chunks ending with 1-2 payload words
@@ -1519,8 +1636,9 @@ fn generate_text_merkle_segmented<R: Rng>(
             Some(&forced_placements),
             false,
             prime_constraint_enabled,
+            grammar.dot_is_punctuation(),
         );
-        
+
         // Update payload_i to reflect what was actually used
         let max_forced_idx = forced_placements.values().max().copied().unwrap_or(payload_i_before);
         payload_i = temp_payload_i.max(max_forced_idx + 1);
@@ -1568,14 +1686,55 @@ fn generate_text_merkle_segmented<R: Rng>(
     }
     
     // Post-fix: ensure output ends with a period
-    if grammar.grammar_uses_pos(Pos::Dot) {
+    // Skip for CS grammar where Dot is structural, not punctuation
+    if grammar.grammar_uses_pos(Pos::Dot) && grammar.dot_is_punctuation() {
         if let Some(last) = words.last_mut() {
             if !last.ends_with('.') {
                 last.push('.');
             }
         }
     }
-    
-    let text = words.join(" ");
+
+    let text = join_words_with_payload_grammar(&words, &payload_set, &grammar);
     (text, payload_set)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_join_words_default_separator() {
+        // Default separator " " — standard word joining
+        let grammar = Grammar::from_language_dialect("english", "body")
+            .expect("Failed to load English grammar");
+        let words: Vec<String> = vec!["the", "cat", "sat."].iter().map(|s| s.to_string()).collect();
+        let payload_set: HashSet<String> = ["cat"].iter().map(|s| s.to_string()).collect();
+        let result = join_words_with_payload_grammar(&words, &payload_set, &grammar);
+        assert_eq!(result, "the cat sat.");
+    }
+
+    #[test]
+    fn test_join_words_concat_separator() {
+        // CS grammar: payload_separator="" — payload words concatenated
+        let grammar = Grammar::from_language_dialect("cs", "body")
+            .expect("Failed to load CS grammar");
+        // Simulate: HEADER cover words, then payload chars, then FOOTER cover words
+        let words: Vec<String> = vec!["-----.", "BEGIN", "NIP-04", "a", "B", "3", "x", "-----.", "END", "NIP-04"]
+            .iter().map(|s| s.to_string()).collect();
+        // payload words: the base58 chars (lowercased for set matching)
+        let payload_set: HashSet<String> = ["a", "b", "3", "x"].iter().map(|s| s.to_string()).collect();
+        let result = join_words_with_payload_grammar(&words, &payload_set, &grammar);
+        // Payload chars should be concatenated, cover words spaced
+        assert!(result.contains("aB3x"), "Payload chars should be concatenated: got '{}'", result);
+        assert!(result.contains("BEGIN"), "Cover words should be present");
+    }
+
+    #[test]
+    fn test_wrap_payload() {
+        assert_eq!(wrap_payload("abcdef", 3), "abc\ndef");
+        assert_eq!(wrap_payload("ab", 3), "ab");
+        assert_eq!(wrap_payload("abcdefghi", 3), "abc\ndef\nghi");
+        assert_eq!(wrap_payload("", 3), "");
+    }
 }

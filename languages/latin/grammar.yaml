@@ -1,6 +1,22 @@
-# Latin Grammar Rules Encoded in Lambda Calculus
-# This file defines Latin grammar using lambda calculus notation
-# Each rule represents a function that takes grammatical categories and produces structures
+# Latin Grammar Rules — Montague Grammar with CCG Combinators
+#
+# Each rule specifies a lambda term for semantic composition.
+# The lambda notation is canonical; combinator equivalents appear in comments.
+#
+# Type inventory (Montague Grammar):
+#   e     = entity
+#   t     = truth value (sentence/proposition)
+#   A → B = function from A to B
+#
+# Latin-specific notes:
+#   - No determiners/articles (no Det type)
+#   - Flexible word order (case endings handle agreement)
+#   - NP = bare N or Adj N (no quantifier phrases)
+#
+# CCG combinators used:
+#   B f g x   = f(g(x))      — forward composition
+#   C f x y   = f(y)(x)      — permutation (word order)
+#   T x f     = f(x)         — type raising
 
 grammar:
   name: "Latin Grammar"
@@ -46,187 +62,291 @@ grammar:
       lambda_type: "t -> t"
 
   # Base rules (body dialect)
-  # Translated from languages/latin/body.cfg
+  #
+  # Each rule has:
+  #   lambda: the semantic composition term (how constituents combine)
+  #   cfg_productions: the linearization (surface word order)
+  #
+  # The lambda field drives type-checking; cfg_productions drive generation.
   rules:
     sentence:
-      lambda: "N"
+      # S = NP VP Dot
+      # T NP (B VP Dot) — type-raise NP, compose VP with Dot
+      lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
       cfg_productions:
         - production: "NP VP Dot"
           weight: 0.85
-          lambda: "N"
+          # T NP VP · Dot
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
         - production: "NP Adv V NP Dot"
           weight: 0.10
-          lambda: "N"
+          # NP (Adv V) NP Dot — adverb modifies verb
+          lambda: "λnp:(e->t). λadv:((e->t)->(e->t)). λv:(e->(e->t)). adv(v(np))"
         - production: "NP V NP Dot"
           weight: 0.05
-          lambda: "N"
+          # NP V NP Dot — simple transitive
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
 
     noun_phrase:
-      lambda: "N"
+      # NP : e → t (predicate over entities)
+      # Latin NP = bare noun (no determiners)
+      # I N — identity on N
+      lambda: "λn:(e->t). n"
       cfg_productions:
         - production: "N"
           weight: 1.0
-          lambda: "N"
+          # I N — bare noun
+          lambda: "λn:(e->t). n"
         - production: "Adj N"
           weight: 1.0
-          lambda: "Adj"
+          # B Adj N — adjective modifies noun
+          lambda: "λn:(e->t). λadj:(e->e). adj(n)"
 
     verb_phrase:
-      lambda: "V"
+      # VP : (e → t) → t (takes subject predicate, produces truth)
+      # In practice VP ≈ e → t (predicate over entities)
+      lambda: "λv:(e->(e->t)). v"
       cfg_productions:
         - production: "VP_BASE"
           weight: 0.70
-          lambda: "V"
+          lambda: "λv:(e->(e->t)). v"
         - production: "VP_BASE VP_PP_TAIL"
           weight: 0.30
-          lambda: "V"
+          lambda: "λv:(e->(e->t)). v"
 
     vp_base:
-      lambda: "V"
+      # VP_BASE: core verb phrase before PP attachment
+      lambda: "λv:(e->(e->t)). v"
       cfg_productions:
         - production: "Modal V NP"
           weight: 0.30
-          lambda: "V"
+          # Modal(C V NP) — Modal modifies (V applied to NP with C for word order)
+          lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
         - production: "Cop Adj"
           weight: 0.15
-          lambda: "Cop"
+          # Cop(Adj) — copula links subject to adjective predicate
+          lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
         - production: "V NP"
           weight: 0.10
-          lambda: "V"
+          # V NP — verb with object (Latin allows both SVO and SOV)
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
         - production: "V PP"
           weight: 0.20
-          lambda: "V"
+          # V PP — verb with prepositional complement
+          lambda: "λpp:(e->(e->t)). λv:(e->(e->t)). v"
         - production: "V NP PP"
           weight: 0.15
-          lambda: "V"
+          # V NP PP — verb with object and PP adjunct
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
         - production: "Modal V"
           weight: 0.05
-          lambda: "Modal"
+          # Modal(V) — intransitive with modal
+          lambda: "λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v)"
         - production: "V To V"
           weight: 0.03
-          lambda: "V"
+          # V1 To V2 — infinitival complement: V1(To(V2))
+          lambda: "λv2:(e->(e->t)). λto:((e->t)->(e->t)). λv1:(e->(e->t)). v1(to(v2))"
         - production: "Modal V To V"
           weight: 0.02
-          lambda: "Modal"
+          # Modal(V1(To(V2))) — modal with infinitival complement
+          lambda: "λv2:(e->(e->t)). λto:((e->t)->(e->t)). λv1:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v1(to(v2)))"
 
     vp_with_pp:
-      lambda: "V"
+      # VP_PP_TAIL: PP attachment to verb phrase
+      lambda: "λprep:(e->(e->t)). prep"
       cfg_productions:
         - production: "PP"
           weight: 0.70
-          lambda: "V"
+          lambda: "λprep:(e->(e->t)). prep"
         - production: "PP VP_PP_TAIL"
           weight: 0.30
-          lambda: "V"
+          lambda: "λprep:(e->(e->t)). prep"
 
     prepositional_phrase:
-      lambda: "Prep"
+      # PP = Prep NP — Prep selects entity from NP's predicate domain
+      # Full composition requires quantifier lifting (Prep : e → (e → t), NP : e → t)
+      # Rule-level lambda gives the result type; production lambdas express composition intent
+      lambda: "λprep:(e->(e->t)). prep"
       cfg_productions:
         - production: "Prep NP"
           weight: 1.0
-          lambda: "Prep"
+          # Prep(NP) — forward application (with quantifier bridge)
+          lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
 
   # Dialect-specific rule overrides
   dialects:
     subject:
       rules:
         sentence:
-          lambda: "N"
+          # S = Prefix? SContent
+          # Prefix is t→t, SContent is t
+          lambda: "λs:t. s"
           cfg_productions:
             - production: "Prefix SContent"
               weight: 0.3
-              lambda: "N"
+              # Prefix(SContent) — Prefix modifies sentence
+              lambda: "λs:t. λpfx:(t->t). pfx(s)"
             - production: "SContent"
               weight: 0.7
-              lambda: "N"
+              # I SContent — identity
+              lambda: "λs:t. s"
 
         sentence_content:
-          lambda: "N"
+          # SContent : t
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
           cfg_productions:
             - production: "NP VP Dot"
               weight: 0.1
-              lambda: "N"
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
             - production: "NP VP PP Dot"
               weight: 0.2
-              lambda: "N"
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
             - production: "NP VP PP PP Dot"
               weight: 0.3
-              lambda: "N"
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
             - production: "Adj N VP PP Dot"
               weight: 0.15
-              lambda: "N"
+              lambda: "λn:(e->t). λvp:((e->t)->t). vp(n)"
             - production: "Adv N VP PP Dot"
               weight: 0.1
-              lambda: "N"
+              lambda: "λn:(e->t). λvp:((e->t)->t). vp(n)"
             - production: "V NP PP Dot"
               weight: 0.05
-              lambda: "N"
+              lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
             - production: "NP VP PP PP PP Dot"
               weight: 0.1
-              lambda: "N"
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
 
         noun_phrase:
-          lambda: "N"
+          # Latin NP: no determiners, just N or Adj N
+          lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "N"
               weight: 1.0
-              lambda: "N"
+              # I N — bare noun
+              lambda: "λn:(e->t). n"
             - production: "Adj N"
               weight: 1.0
-              lambda: "Adj"
+              # B Adj N — adjective modifies noun
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
             - production: "Adj N Adj"
               weight: 1.0
-              lambda: "Adj"
+              # B Adj (B N Adj) — double adjective modification
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
 
         verb_phrase:
-          lambda: "V"
+          lambda: "λv:(e->(e->t)). v"
           cfg_productions:
             - production: "Modal V NP"
               weight: 0.5
-              lambda: "V"
+              # Modal(C V NP) — modal with transitive verb
+              lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
             - production: "Cop Adj"
               weight: 0.3
-              lambda: "Cop"
+              # Cop(Adj) — copula links subject to adjective
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
             - production: "V NP"
               weight: 0.15
-              lambda: "V"
+              # V NP — transitive verb with object
+              lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
             - production: "Modal V NP PP"
               weight: 0.05
-              lambda: "V"
+              # Modal(V NP PP) — modal with transitive verb and PP
+              lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
 
         prepositional_phrase:
-          lambda: "Prep"
+          # PP = Prep NP
+          lambda: "λprep:(e->(e->t)). prep"
           cfg_productions:
             - production: "Prep NP"
               weight: 1.0
-              lambda: "Prep"
+              # Prep(NP) — forward application (with quantifier bridge)
+              lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
+
+    spells:
+      # Spells dialect — short imperative incantations in the style of
+      # Harry Potter spells. Formulaic structures: 1-3 words followed by
+      # punctuation. Verbs are imperative, nouns are accusative objects,
+      # adjectives are modifiers.
+      #
+      # Canonical spell patterns:
+      #   "Lumos."          — V Dot (single verb)
+      #   "Nox."            — N Dot (single noun)
+      #   "Expecto Patronum." — V N Dot (verb + object)
+      #   "Petrificus Totalus." — Adj N Dot (adj + noun)
+      #   "Avada Kedavra."  — N N Dot (compound noun)
+      #   "Wingardium Leviosa." — N Adj Dot (noun + adj modifier)
+      #   "Expelliarmus!"   — V Dot (imperative)
+      rules:
+        sentence:
+          # Spells are short — just a formula and terminator
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "V Dot"
+              weight: 0.25
+              # Single imperative verb: "Crucio.", "Protego.", "Reparo."
+              lambda: "λv:(e->(e->t)). v"
+            - production: "N Dot"
+              weight: 0.10
+              # Single noun invocation: "Lumos.", "Nox."
+              lambda: "λn:(e->t). n"
+            - production: "V N Dot"
+              weight: 0.25
+              # Verb + accusative object: "Expecto Patronum.", "Accio Firebolt."
+              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
+            - production: "Adj N Dot"
+              weight: 0.10
+              # Adjective + noun: "Petrificus Totalus.", "Immobulus Corpus."
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "N N Dot"
+              weight: 0.10
+              # Compound noun: "Avada Kedavra.", "Serpensortia Vipera."
+              lambda: "λn:(e->t). n"
+            - production: "N Adj Dot"
+              weight: 0.05
+              # Noun + postposed adj: "Wingardium Leviosa."
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "V Adj N Dot"
+              weight: 0.05
+              # Verb + adj + object: "Finite Incantatem."
+              lambda: "λn:(e->t). λadj:(e->e). λv:(e->(e->t)). v(adj(n))"
+            - production: "V N N Dot"
+              weight: 0.05
+              # Verb + compound object: "Homenum Revelio."
+              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
+            - production: "Adv V Dot"
+              weight: 0.05
+              # Adverb + verb: modifier on imperative
+              lambda: "λv:(e->(e->t)). λadv:((e->t)->(e->t)). adv(v)"
 
     payload_only:
       rules:
         sentence:
-          lambda: "N"
+          lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "N Dot"
               weight: 0.3
-              lambda: "N"
+              lambda: "λn:(e->t). n"
             - production: "N N Dot"
               weight: 0.2
-              lambda: "N"
+              lambda: "λn:(e->t). n"
             - production: "N N N Dot"
               weight: 0.15
-              lambda: "N"
+              lambda: "λn:(e->t). n"
             - production: "N N N N Dot"
               weight: 0.1
-              lambda: "N"
+              lambda: "λn:(e->t). n"
             - production: "N N N N N Dot"
               weight: 0.05
-              lambda: "N"
+              lambda: "λn:(e->t). n"
             - production: "V N Dot"
               weight: 0.1
-              lambda: "N"
+              # V N — verb applied to noun
+              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
             - production: "V N N Dot"
               weight: 0.05
-              lambda: "N"
+              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
             - production: "Adj N Dot"
               weight: 0.05
-              lambda: "N"
+              # B Adj N — adjective modifies noun
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
