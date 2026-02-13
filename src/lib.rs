@@ -13,7 +13,7 @@ pub mod wasm;
 
 // Re-export key types
 pub use types::Pos;
-pub use grammar::{Grammar, SequenceWithProbability};
+pub use grammar::{Grammar, SequenceWithProbability, DialectConfig};
 
 // Re-export generator types and functions
 pub use generator::{
@@ -22,15 +22,18 @@ pub use generator::{
     max_subsequence_embedding, plan_sentence, fill_slots,
     SequenceCache, print_sentence_kinds_once,
     normalize_token_for_bip39, wrap_payload_with_bars, wrap_payload_with_color,
-    word_wrap, capitalize, payload_fits, get_grammar, starts_with_vowel_sound,
+    word_wrap, capitalize, payload_fits, get_grammar, get_dialect_config, mode_to_dialect,
+    starts_with_vowel_sound,
     load_payload_words, load_payload_words_for_wordlist,
     load_cover_words_by_pos, load_cover_words_by_pos_for_wordlist,
     build_pos_mapping, build_pos_mapping_for_wordlist,
     tag_word, select_random_words, wordlist_filenames, default_wordlist,
     load_payload_tree, load_cover_tree, load_cover_word_pos_tags,
     get_embedded_yaml, has_embedded_files, get_available_languages,
-    get_available_wordlists, get_wordlist_path,
+    get_available_wordlists,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use generator::get_wordlist_path;
 
 // Re-export merkle functions
 pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};

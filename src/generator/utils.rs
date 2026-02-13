@@ -1,7 +1,7 @@
 use regex::Regex;
 use crate::types::Pos;
 use crate::generator::types::{PayloadTok, GenerationMode};
-use crate::grammar::Grammar;
+use crate::grammar::{Grammar, DialectConfig};
 
 /// Check if a payload token can fit in a given POS slot
 pub fn payload_fits(tok: &PayloadTok, slot: Pos) -> bool {
@@ -19,6 +19,26 @@ pub fn get_grammar(mode: GenerationMode, language: &str) -> Grammar {
     };
     Grammar::from_language_dialect(language, dialect)
         .expect(&format!("Failed to load {} grammar for language {}", dialect, language))
+}
+
+/// Map GenerationMode to dialect name string.
+pub fn mode_to_dialect(mode: GenerationMode) -> &'static str {
+    match mode {
+        GenerationMode::Subject => "subject",
+        GenerationMode::Body => "body",
+        GenerationMode::PayloadOnly => "payload_only",
+    }
+}
+
+/// Get the full dialect configuration (grammar + wordlist refs) for the given mode and language.
+///
+/// This is the preferred entry point when you need both the grammar and the
+/// dialect-specified wordlists. Use `with_payload_wordlist()` on the result
+/// to apply a CLI `--wordlist` override.
+pub fn get_dialect_config(mode: GenerationMode, language: &str) -> DialectConfig {
+    let dialect = mode_to_dialect(mode);
+    DialectConfig::from_language_dialect(language, dialect)
+        .expect(&format!("Failed to load {} dialect config for language {}", dialect, language))
 }
 
 /// Get the start nonterminal for a given POS

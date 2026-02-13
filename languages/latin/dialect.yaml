@@ -2,6 +2,11 @@
 # This file defines multiple dialects (grammar variants) for sentence generation
 # Each dialect specifies grammar rules, generation parameters, and behavior
 # Grammar rules are encoded using lambda calculus (see grammar.yaml)
+#
+# Wordlist binding:
+#   payload_wordlist: selects the payload file ("default" -> payload.yaml, "hp" -> payload_hp.yaml)
+#   cover_wordlist:   selects the cover file ("default" -> cover.yaml, or a named variant)
+#   These must match the grammar.yaml dialect entries for the Rust code to resolve correctly.
 
 dialects:
   # Subject dialect - for email subject lines
@@ -9,7 +14,9 @@ dialects:
     name: "Subject"
     description: "Short sentences for email subject lines, may include prefixes"
     grammar_file: "languages/latin/subject.cfg"
-    
+    payload_wordlist: "default"
+    cover_wordlist: "default"
+
     # Generation parameters
     k_min: 3
     k_max: 20
@@ -40,7 +47,9 @@ dialects:
     name: "Body"
     description: "Longer, more natural sentences for email body text"
     grammar_file: "languages/latin/body.cfg"
-    
+    payload_wordlist: "default"
+    cover_wordlist: "default"
+
     k_min: 3
     k_max: 20
     length_mode: "natural"
@@ -64,7 +73,9 @@ dialects:
     name: "Poetry"
     description: "Formal, poetic Latin with more complex structures"
     grammar_file: "languages/latin/poetry.cfg"
-    
+    payload_wordlist: "default"
+    cover_wordlist: "default"
+
     k_min: 5
     k_max: 30
     length_mode: "natural"
@@ -92,7 +103,9 @@ dialects:
     name: "Epistolary"
     description: "Formal letter-writing style"
     grammar_file: "languages/latin/epistolary.cfg"
-    
+    payload_wordlist: "default"
+    cover_wordlist: "default"
+
     k_min: 4
     k_max: 25
     length_mode: "natural"

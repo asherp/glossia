@@ -96,8 +96,14 @@ grammar:
   #
   # Each dialect pins the Prefix refinement in the header/footer
   # so the generator deterministically selects the correct protocol tag.
+  #
+  # Each dialect may also specify:
+  #   payload_wordlist: which payload file to use ("default" -> payload.yaml, "base58" -> payload_base58.yaml)
+  #   cover_wordlist:   which cover file to use ("default" -> cover.yaml)
   dialects:
     nip04:
+      payload_wordlist: "base58"
+      cover_wordlist: "default"
       rules:
         HEADER:
           lambda: "λn:(e->t). n"
@@ -114,6 +120,8 @@ grammar:
               lambda: "λn:(e->t). n"
 
     nip44:
+      payload_wordlist: "base58"
+      cover_wordlist: "default"
       rules:
         HEADER:
           lambda: "λn:(e->t). n"
@@ -130,6 +138,8 @@ grammar:
               lambda: "λn:(e->t). n"
 
     pgp:
+      payload_wordlist: "base58"
+      cover_wordlist: "default"
       rules:
         HEADER:
           lambda: "λn:(e->t). n"

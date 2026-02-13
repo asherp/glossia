@@ -735,11 +735,38 @@ fn main() {
         }
     };
 
-    // Resolve "default" wordlist to the language's primary profile
-    let wordlist = if wordlist == "default" {
-        glossia::generator::default_wordlist(&language).to_string()
-    } else {
+    // Build DialectConfig to get dialect-specified wordlists.
+    // The dialect knows its preferred payload/cover wordlists (from grammar.yaml).
+    let dialect_config = {
+        let dialect = glossia::generator::mode_to_dialect(generation_mode);
+        glossia::DialectConfig::from_language_dialect(&language, dialect)
+            .unwrap_or_else(|e| {
+                eprintln!("Error loading dialect config for '{}' / '{}': {}", language, dialect, e);
+                std::process::exit(1);
+            })
+    };
+
+    // Resolve wordlist: CLI --wordlist overrides dialect default.
+    // "default" means "use whatever the dialect specifies".
+    let wordlist_was_explicit = wordlist != "default";
+    let wordlist = if wordlist_was_explicit {
         wordlist
+    } else {
+        // Use the dialect's declared payload wordlist
+        let dialect_wl = dialect_config.payload_wordlist().to_string();
+        if dialect_wl == "default" {
+            // "default" in the dialect means payload.yaml — resolve to language's primary profile
+            glossia::generator::default_wordlist(&language).to_string()
+        } else {
+            dialect_wl
+        }
+    };
+
+    // Apply the final wordlist choice to the dialect config (for cover resolution)
+    let dialect_config = if wordlist_was_explicit {
+        dialect_config.with_payload_wordlist(&wordlist)
+    } else {
+        dialect_config
     };
 
     // Handle --demerkle mode: parse merkleized sequence and output payload words
@@ -970,7 +997,10 @@ fn main() {
         };
         eprintln!("Mode: {}", mode_str);
         eprintln!("Language: {}", language);
-        eprintln!("Wordlist: {}", wordlist);
+        eprintln!("Dialect: {} (payload_wordlist={}, cover_wordlist={})",
+            dialect_config.dialect(), dialect_config.payload_wordlist(), dialect_config.cover_wordlist());
+        eprintln!("Wordlist: {}{}", wordlist,
+            if wordlist_was_explicit { " (--wordlist override)" } else { "" });
     }
 
     // Validate language early (languages with embedded files don't need filesystem check)
@@ -1119,9 +1149,11 @@ fn main() {
     let payload_set_clone = payload_set.clone(); // Keep a copy for later statistics
     
     // Load cover words with explicit POS tags from cover.yaml
+    // Uses the dialect config's cover_wordlist, which may differ from the payload wordlist.
     // No fallback defaults — cover.yaml must provide all needed POS categories.
     // Disjointness with payload is validated at build time.
-    let (cover_by_pos, refined_cover) = glossia::generator::load_cover_words_by_pos_for_wordlist(&wordlist_set, &language, &wordlist);
+    let cover_wl = dialect_config.cover_wordlist();
+    let (cover_by_pos, refined_cover) = glossia::generator::load_cover_words_by_pos_for_wordlist(&wordlist_set, &language, cover_wl);
 
     let get_cover = |pos: &Pos| -> Vec<&str> {
         cover_by_pos.get(pos)

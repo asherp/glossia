@@ -174,8 +174,17 @@ grammar:
           lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
 
   # Dialect-specific rule overrides
+  #
+  # Each dialect may specify:
+  #   payload_wordlist: which payload file to use ("default" -> payload.yaml, "hp" -> payload_hp.yaml)
+  #   cover_wordlist:   which cover file to use ("default" -> cover.yaml, or a named variant)
+  #   rules:            CFG production overrides (replace base rules for this dialect)
+  #
+  # If payload_wordlist / cover_wordlist are omitted, both default to "default".
   dialects:
     subject:
+      payload_wordlist: "default"
+      cover_wordlist: "default"
       rules:
         sentence:
           # S = Prefix? SContent
@@ -274,6 +283,8 @@ grammar:
       #   "Nox."            — N Dot (single noun)
       #   "Expecto Patronum." — V N Dot (verb + object)
       #   "Petrificus Totalus." — Adj N Dot (adj + noun)
+      payload_wordlist: "hp"
+      cover_wordlist: "default"
       #   "Avada Kedavra."  — N N Dot (compound noun)
       #   "Wingardium Leviosa." — N Adj Dot (noun + adj modifier)
       #   "Expelliarmus!"   — V Dot (imperative)
@@ -320,6 +331,8 @@ grammar:
               lambda: "λv:(e->(e->t)). λadv:((e->t)->(e->t)). adv(v)"
 
     payload_only:
+      payload_wordlist: "default"
+      cover_wordlist: "default"
       rules:
         sentence:
           lambda: "λn:(e->t). n"

@@ -18,7 +18,7 @@ pub struct GrammarRule {
     pub productions: Vec<Production>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Grammar {
     pub(crate) rules: HashMap<String, GrammarRule>,
     // Type-driven grammar configuration (new implementation)
@@ -58,6 +58,208 @@ impl SequenceWithProbability {
             .copied()
             .collect();
         SequenceWithProbability { sequence, refinements, probability, word_slot_pos }
+    }
+}
+
+/// Bundles a grammar with its dialect-specified wordlist references.
+///
+/// Each dialect in grammar.yaml may declare `payload_wordlist` and `cover_wordlist`
+/// to bind a specific payload/cover pair. If omitted, both default to `"default"`.
+///
+/// The CLI `--wordlist` flag overrides `payload_wordlist` (and its implied cover).
+///
+/// # Examples
+///
+/// ```no_run
+/// use glossia::grammar::DialectConfig;
+///
+/// // Load the Latin spells dialect — automatically resolves payload_hp.yaml + cover.yaml
+/// let config = DialectConfig::from_language_dialect("latin", "spells").unwrap();
+/// assert_eq!(config.payload_wordlist(), "hp");
+/// assert_eq!(config.cover_wordlist(), "default");
+/// ```
+#[derive(Clone, Debug)]
+pub struct DialectConfig {
+    /// The grammar (CFG rules + type system) for this dialect.
+    pub grammar: Grammar,
+    /// Language name (e.g., "latin", "english", "cs").
+    language: String,
+    /// Dialect name (e.g., "body", "subject", "spells").
+    dialect: String,
+    /// Payload wordlist profile (e.g., "default", "hp", "bip39", "base58").
+    /// Resolved via `wordlist_filenames()` to `payload_{name}.yaml` (or `payload.yaml` for "default").
+    payload_wl: String,
+    /// Cover wordlist profile.
+    /// Resolved via `wordlist_filenames()` to `cover_{name}.yaml` (or `cover.yaml` for "default").
+    cover_wl: String,
+}
+
+impl DialectConfig {
+    /// Load a dialect configuration from grammar.yaml.
+    ///
+    /// Reads the `dialects.<dialect>.payload_wordlist` and `dialects.<dialect>.cover_wordlist`
+    /// fields. Falls back to `"default"` when fields are absent (backward compatible).
+    pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let grammar = Grammar::from_language_dialect(language, dialect)?;
+        let (payload_wl, cover_wl) = Self::parse_wordlist_refs(language, dialect);
+        Ok(DialectConfig {
+            grammar,
+            language: language.to_string(),
+            dialect: dialect.to_string(),
+            payload_wl,
+            cover_wl,
+        })
+    }
+
+    /// Language name.
+    pub fn language(&self) -> &str {
+        &self.language
+    }
+
+    /// Dialect name.
+    pub fn dialect(&self) -> &str {
+        &self.dialect
+    }
+
+    /// Payload wordlist profile name (e.g., "default", "hp", "bip39").
+    pub fn payload_wordlist(&self) -> &str {
+        &self.payload_wl
+    }
+
+    /// Cover wordlist profile name (e.g., "default").
+    pub fn cover_wordlist(&self) -> &str {
+        &self.cover_wl
+    }
+
+    /// Override the payload wordlist (e.g., from CLI `--wordlist` flag).
+    /// This also updates the cover wordlist to the corresponding named variant
+    /// if one exists, otherwise leaves cover unchanged.
+    pub fn with_payload_wordlist(mut self, wordlist: &str) -> Self {
+        self.payload_wl = wordlist.to_string();
+        // Check if a matching cover wordlist exists for this payload profile;
+        // if so, switch to it. Otherwise keep the dialect's cover.
+        let cover_key = format!("{}/cover_{}.yaml", self.language, wordlist);
+        if crate::generator::data::get_embedded_yaml(&cover_key).is_some() {
+            self.cover_wl = wordlist.to_string();
+        }
+        self
+    }
+
+    /// Override the cover wordlist explicitly.
+    pub fn with_cover_wordlist(mut self, wordlist: &str) -> Self {
+        self.cover_wl = wordlist.to_string();
+        self
+    }
+
+    /// Resolve payload and cover filenames for this dialect.
+    /// Returns `(payload_filename, cover_filename)` — e.g., `("payload_hp.yaml", "cover.yaml")`.
+    pub fn wordlist_filenames(&self) -> (String, String) {
+        crate::generator::data::wordlist_filenames(&self.language, &self.payload_wl)
+    }
+
+    /// List all dialect names defined in a language's grammar.yaml.
+    ///
+    /// Returns the base dialect "body" plus all names under the `dialects:` key.
+    pub fn available_dialects(language: &str) -> Vec<String> {
+        let mut dialects = vec!["body".to_string()];
+
+        // Try embedded first, then hardcoded fallbacks, then filesystem
+        let yaml_content: Option<String> = crate::generator::data::get_embedded_yaml(
+            &format!("{}/grammar.yaml", language),
+        ).map(|s| s.to_string()).or_else(|| match language {
+            "latin" => Some(include_str!("../languages/latin/grammar.yaml").to_string()),
+            "english" => Some(include_str!("../languages/english/grammar.yaml").to_string()),
+            _ => None,
+        });
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let yaml_content = yaml_content.or_else(|| {
+            let path = format!("languages/{}/grammar.yaml", language);
+            std::fs::read_to_string(&path).ok()
+        });
+
+        if let Some(content) = yaml_content {
+            if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                if let Some(grammar) = doc.get("grammar") {
+                    if let Some(dialect_map) = grammar.get("dialects").and_then(|d| d.as_mapping()) {
+                        for (key, _) in dialect_map {
+                            if let Some(name) = key.as_str() {
+                                if name != "body" {
+                                    dialects.push(name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        dialects
+    }
+
+    /// Parse `payload_wordlist` and `cover_wordlist` from the grammar.yaml dialect section.
+    /// Returns ("default", "default") when the dialect or its wordlist fields are absent.
+    fn parse_wordlist_refs(language: &str, dialect: &str) -> (String, String) {
+        // "body" dialect uses base rules (no dialect override section), so defaults apply
+        if dialect == "body" {
+            return ("default".to_string(), "default".to_string());
+        }
+
+        // Try embedded grammar.yaml first, then hardcoded fallbacks
+        let yaml_content = crate::generator::data::get_embedded_yaml(
+            &format!("{}/grammar.yaml", language),
+        ).or_else(|| match language {
+            "latin" => Some(include_str!("../languages/latin/grammar.yaml")),
+            "english" => Some(include_str!("../languages/english/grammar.yaml")),
+            _ => None,
+        });
+
+        if let Some(content) = yaml_content {
+            if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(content) {
+                if let Some(grammar) = doc.get("grammar") {
+                    if let Some(dialects) = grammar.get("dialects") {
+                        if let Some(dialect_data) = dialects.get(dialect) {
+                            let payload = dialect_data.get("payload_wordlist")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("default")
+                                .to_string();
+                            let cover = dialect_data.get("cover_wordlist")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("default")
+                                .to_string();
+                            return (payload, cover);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: try reading from filesystem (native only)
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
+            if let Ok(content) = std::fs::read_to_string(&grammar_yaml_path) {
+                if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                    if let Some(grammar) = doc.get("grammar") {
+                        if let Some(dialects) = grammar.get("dialects") {
+                            if let Some(dialect_data) = dialects.get(dialect) {
+                                let payload = dialect_data.get("payload_wordlist")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("default")
+                                    .to_string();
+                                let cover = dialect_data.get("cover_wordlist")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("default")
+                                    .to_string();
+                                return (payload, cover);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        ("default".to_string(), "default".to_string())
     }
 }
 
@@ -1002,6 +1204,128 @@ mod tests {
         for k in 3..=20 {
             assert_eq!(by_k_1[k].len(), by_k_2[k].len(), "Mismatch at k={}", k);
         }
+    }
+
+    // ── DialectConfig tests ────────────────────────────────────────
+
+    #[test]
+    fn test_dialect_config_latin_body_defaults() {
+        let config = DialectConfig::from_language_dialect("latin", "body")
+            .expect("Failed to load Latin body dialect config");
+        assert_eq!(config.language(), "latin");
+        assert_eq!(config.dialect(), "body");
+        assert_eq!(config.payload_wordlist(), "default");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_latin_spells_hp_wordlist() {
+        let config = DialectConfig::from_language_dialect("latin", "spells")
+            .expect("Failed to load Latin spells dialect config");
+        assert_eq!(config.language(), "latin");
+        assert_eq!(config.dialect(), "spells");
+        assert_eq!(config.payload_wordlist(), "hp",
+            "Latin spells dialect should use payload_hp.yaml");
+        assert_eq!(config.cover_wordlist(), "default",
+            "Latin spells dialect should use default cover.yaml");
+    }
+
+    #[test]
+    fn test_dialect_config_english_subject_defaults() {
+        let config = DialectConfig::from_language_dialect("english", "subject")
+            .expect("Failed to load English subject dialect config");
+        assert_eq!(config.payload_wordlist(), "default");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_english_prose_defaults() {
+        let config = DialectConfig::from_language_dialect("english", "prose")
+            .expect("Failed to load English prose dialect config");
+        assert_eq!(config.payload_wordlist(), "default");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_cs_nip04_base58() {
+        let config = DialectConfig::from_language_dialect("cs", "nip04")
+            .expect("Failed to load CS nip04 dialect config");
+        assert_eq!(config.payload_wordlist(), "base58",
+            "CS nip04 should use payload_base58.yaml");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_with_payload_override() {
+        let config = DialectConfig::from_language_dialect("latin", "body")
+            .expect("Failed to load Latin body dialect config");
+        assert_eq!(config.payload_wordlist(), "default");
+
+        // Override with a named wordlist
+        let overridden = config.with_payload_wordlist("hp");
+        assert_eq!(overridden.payload_wordlist(), "hp",
+            "with_payload_wordlist should update payload_wl");
+        // Cover stays default since there's no cover_hp.yaml for latin
+        assert_eq!(overridden.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_with_cover_override() {
+        let config = DialectConfig::from_language_dialect("latin", "body")
+            .expect("Failed to load Latin body dialect config");
+        let overridden = config.with_cover_wordlist("custom");
+        assert_eq!(overridden.cover_wordlist(), "custom");
+        // Payload stays unchanged
+        assert_eq!(overridden.payload_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_wordlist_filenames() {
+        let config = DialectConfig::from_language_dialect("latin", "spells")
+            .expect("Failed to load Latin spells dialect config");
+        let (payload_file, cover_file) = config.wordlist_filenames();
+        assert_eq!(payload_file, "payload_hp.yaml",
+            "Spells dialect should resolve to payload_hp.yaml");
+        assert_eq!(cover_file, "cover.yaml",
+            "Spells dialect cover should resolve to cover.yaml (fallback)");
+    }
+
+    #[test]
+    fn test_dialect_config_grammar_is_valid() {
+        // The grammar inside DialectConfig should be a valid Grammar
+        let config = DialectConfig::from_language_dialect("latin", "spells")
+            .expect("Failed to load Latin spells dialect config");
+        // Spells grammar should produce short sequences
+        let seqs = config.grammar.enumerate_sequences_with_probability("S", 2);
+        assert!(!seqs.is_empty(), "Spells grammar should produce k=2 sequences");
+    }
+
+    #[test]
+    fn test_dialect_config_available_dialects_latin() {
+        let dialects = DialectConfig::available_dialects("latin");
+        assert!(dialects.contains(&"body".to_string()), "Should include body");
+        assert!(dialects.contains(&"subject".to_string()), "Should include subject");
+        assert!(dialects.contains(&"spells".to_string()), "Should include spells");
+        assert!(dialects.contains(&"payload_only".to_string()), "Should include payload_only");
+    }
+
+    #[test]
+    fn test_dialect_config_available_dialects_english() {
+        let dialects = DialectConfig::available_dialects("english");
+        assert!(dialects.contains(&"body".to_string()), "Should include body");
+        assert!(dialects.contains(&"subject".to_string()), "Should include subject");
+        assert!(dialects.contains(&"prose".to_string()), "Should include prose");
+        assert!(dialects.contains(&"payload_only".to_string()), "Should include payload_only");
+    }
+
+    #[test]
+    fn test_dialect_config_unknown_dialect_defaults() {
+        // An unknown dialect should still parse (defaulting wordlists to "default")
+        // Grammar::from_language_dialect for unknown dialect uses base rules
+        let config = DialectConfig::from_language_dialect("latin", "nonexistent")
+            .expect("Unknown dialect should still load (uses base grammar)");
+        assert_eq!(config.payload_wordlist(), "default");
+        assert_eq!(config.cover_wordlist(), "default");
     }
 }
 
