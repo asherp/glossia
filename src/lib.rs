@@ -1,4 +1,22 @@
 pub mod types;
+pub mod semantic_types;
+pub mod lambda_terms;
+pub mod lambda_parser;
+pub mod type_driven_grammar;
+pub mod grammar;
+pub mod generator;
+pub mod merkle;
+pub mod codec;
+
+// Re-export key generator types and functions
+pub use generator::types::{GenerationMode, SentenceLengthMode, PayloadTok, Lexicon};
+pub use generator::core::generate_text;
+
+// Re-export merkle functions
+pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};
+
+// Re-export codec functions
+pub use codec::{encode, decode, DecodeError};
 
 use nlprule::{Tokenizer, Rules};
 use anyhow::{Result, Context};
