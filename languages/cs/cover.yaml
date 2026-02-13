@@ -1,0 +1,45 @@
+# ASCII Armor Cover Words for Base58 Payloads
+#
+# These are the structural framing tokens for armored messages.
+# All use function-word POS tags (Dot, Aux, Cop, To, Prefix, Modal)
+# so they are excluded from payload embedding.
+#
+# Refinement tags allow the grammar to deterministically place
+# the correct token (e.g. Aux[begin] always selects "BEGIN").
+#
+# Output format:
+#   ----- BEGIN NIP-04 ENCRYPTED MESSAGE -----
+#   <base58 payload>
+#   ----- END NIP-04 ENCRYPTED MESSAGE -----
+
+"-----":
+  Dot: 1.0
+
+BEGIN:
+  Aux: 1.0
+  refinement: begin
+
+END:
+  Aux: 1.0
+  refinement: end
+
+ENCRYPTED:
+  Cop: 1.0
+
+MESSAGE:
+  To: 1.0
+
+NIP-04:
+  Prefix: 1.0
+  refinement: nip04
+
+NIP-44:
+  Prefix: 1.0
+  refinement: nip44
+
+NOSTR:
+  Modal: 1.0
+
+PGP:
+  Prefix: 1.0
+  refinement: pgp

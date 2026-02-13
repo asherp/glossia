@@ -1,0 +1,146 @@
+# CS Grammar — ASCII-Armored Base58 Messages
+#
+# Structural grammar for encoding base58 payloads inside ASCII armor.
+# The grammar wraps a variable-length run of base58 characters (N slots)
+# with deterministic header/footer framing (cover-word slots).
+#
+# Output structure:
+#   HEADER  = ----- BEGIN <PROTOCOL> ENCRYPTED MESSAGE -----
+#   BODY    = <base58 characters>
+#   FOOTER  = ----- END <PROTOCOL> ENCRYPTED MESSAGE -----
+#
+# Dialects select the protocol identifier:
+#   nip04  → NIP-04
+#   nip44  → NIP-44
+#   pgp    → PGP
+#
+# Type inventory:
+#   e = entity (base58 character)
+#   t = truth value (complete message / structural unit)
+
+grammar:
+  name: "CS Grammar"
+
+  # Payload grammar: how payload words are formatted in the output.
+  # "" = concatenate without spaces (base58 characters form a single string).
+  # The decoder must split character-by-character to extract payload.
+  payload_separator: ""
+
+  # Dot POS produces structural tokens ("-----"), not sentence-ending periods.
+  dot_is_punctuation: false
+
+  # Wrap payload body at 76 characters per line (standard ASCII armor width).
+  payload_line_width: 76
+
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+
+    - name: "Dot"
+      lambda_type: "t"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+  # Base rules (body dialect)
+  #
+  # sentence → HEADER BODY FOOTER
+  # HEADER   → Dot Aux[begin] Prefix Cop To Dot
+  # BODY     → N | N BODY  (recursive: variable-length payload)
+  # FOOTER   → Dot Aux[end] Prefix Cop To Dot
+  rules:
+    sentence:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "HEADER BODY FOOTER"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+    HEADER:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "Dot Aux[begin] Prefix Cop To Dot"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+    BODY:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "N"
+          weight: 0.1
+          lambda: "λn:(e->t). n"
+        - production: "N BODY"
+          weight: 0.9
+          lambda: "λn:(e->t). n"
+
+    FOOTER:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "Dot Aux[end] Prefix Cop To Dot"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+  # Dialect overrides
+  #
+  # Each dialect pins the Prefix refinement in the header/footer
+  # so the generator deterministically selects the correct protocol tag.
+  dialects:
+    nip04:
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nip04] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[end] Prefix[nip04] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    nip44:
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nip44] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[end] Prefix[nip44] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    pgp:
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[pgp] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[end] Prefix[pgp] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"

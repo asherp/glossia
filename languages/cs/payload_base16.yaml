@@ -1,0 +1,39 @@
+# Base16 (Hexadecimal) Payload Wordlist for Glossia (cs language)
+#
+# The hex alphabet as literal single-character "words".
+# Uppercase hex: 0-9, A-F
+#
+# 16 symbols → 4 bits per symbol
+#
+"0":
+  N: 1.0
+"1":
+  N: 1.0
+"2":
+  N: 1.0
+"3":
+  N: 1.0
+"4":
+  N: 1.0
+"5":
+  N: 1.0
+"6":
+  N: 1.0
+"7":
+  N: 1.0
+"8":
+  N: 1.0
+"9":
+  N: 1.0
+"A":
+  N: 1.0
+"B":
+  N: 1.0
+"C":
+  N: 1.0
+"D":
+  N: 1.0
+"E":
+  N: 1.0
+"F":
+  N: 1.0

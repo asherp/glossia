@@ -791,11 +791,37 @@ fn main() {
                 std::process::exit(1);
             }
         };
-        let tree = glossia::WordlistTree::new(all_words);
+        let tree = glossia::WordlistTree::new(all_words.clone());
+
+        // Load grammar to check payload separator
+        let grammar = Grammar::from_language_dialect(&language, "body");
+        let payload_separator = grammar.as_ref()
+            .map(|g| g.payload_separator().to_string())
+            .unwrap_or_else(|_| " ".to_string());
 
         // If words provided, use them; otherwise read from stdin
         let input_words: Vec<String> = if !words.is_empty() {
-            words
+            if payload_separator.is_empty() {
+                // For concatenated payloads, split each arg into individual chars
+                let payload_set: std::collections::HashSet<String> = all_words.iter()
+                    .map(|w| w.to_lowercase())
+                    .collect();
+                words.iter()
+                    .flat_map(|w| {
+                        let chars: Vec<String> = w.chars()
+                            .map(|c| c.to_string())
+                            .filter(|c| payload_set.contains(&c.to_lowercase()))
+                            .collect();
+                        if chars.is_empty() {
+                            vec![w.to_lowercase()]
+                        } else {
+                            chars
+                        }
+                    })
+                    .collect()
+            } else {
+                words
+            }
         } else {
             use std::io::{self, Read};
             let mut buffer = String::new();
@@ -805,7 +831,27 @@ fn main() {
                     std::process::exit(1);
                 })
                 .unwrap();
-            buffer.split_whitespace().map(|s| s.to_string()).collect()
+            if payload_separator.is_empty() {
+                // For concatenated payloads, split character-by-character
+                let payload_set: std::collections::HashSet<String> = all_words.iter()
+                    .map(|w| w.to_lowercase())
+                    .collect();
+                buffer.split_whitespace()
+                    .flat_map(|token| {
+                        let chars: Vec<String> = token.chars()
+                            .map(|c| c.to_string())
+                            .filter(|c| payload_set.contains(&c.to_lowercase()))
+                            .collect();
+                        if chars.is_empty() {
+                            vec![token.to_lowercase()]
+                        } else {
+                            chars
+                        }
+                    })
+                    .collect()
+            } else {
+                buffer.split_whitespace().map(|s| s.to_string()).collect()
+            }
         };
 
         if verbose {
@@ -1610,6 +1656,7 @@ mod tests {
             Some(&forced),
             false,
             false,
+            true,
         );
 
         assert_eq!(out[1], "an", "Expected 'an' before forced 'ivory'");
@@ -1631,7 +1678,7 @@ mod tests {
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
         let refs = vec![None; slots.len()];
-        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false);
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true);
 
         assert_eq!(out[0], "can");
         assert_eq!(out[1].trim_end_matches('.'), "walk", "Expected bare verb after modal");
@@ -1654,7 +1701,7 @@ mod tests {
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
         let refs = vec![None; slots.len()];
-        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false);
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true);
 
         assert_eq!(out[2], "send", "Expected transitive verb before NP object");
     }
@@ -2038,7 +2085,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, Some(&forced), false, false,
+            &[], None, Some(&forced), false, false, true,
         );
 
         assert_eq!(out[0], "an", "Det[indef] before 'apple' (vowel) should produce 'an'");
@@ -2065,7 +2112,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, Some(&forced), false, false,
+            &[], None, Some(&forced), false, false, true,
         );
 
         assert_eq!(out[0], "a", "Det[indef] before 'basket' (consonant) should produce 'a'");
@@ -2097,7 +2144,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         assert!(
@@ -2134,7 +2181,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         assert_eq!(out[1], "is", "Cop[sg] should produce 'is'");
@@ -2168,7 +2215,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         assert_eq!(out[1], "are", "Cop[pl] should produce 'are'");
@@ -2192,7 +2239,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false,
+            &[], None, None, false, false, true,
         );
 
         // 4 word tokens + Dot merged into last word
