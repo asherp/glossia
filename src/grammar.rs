@@ -1,5 +1,6 @@
 use rand::Rng;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use crate::types::{Pos, Sym};
 use crate::type_driven_grammar::LanguageConfig;
@@ -31,6 +32,20 @@ pub struct SequenceWithProbability {
     pub sequence: Vec<crate::types::Pos>,
     pub refinements: Vec<Option<String>>,  // parallel to sequence
     pub probability: f64,
+    /// Precomputed set of POS tags in word slots (excluding Dot, Prefix, Aux, Cop, To).
+    /// Used by plan_sentence to skip sequences that can't embed any remaining payload words.
+    pub word_slot_pos: HashSet<Pos>,
+}
+
+impl SequenceWithProbability {
+    /// Create a new SequenceWithProbability, automatically computing word_slot_pos.
+    pub fn new(sequence: Vec<Pos>, refinements: Vec<Option<String>>, probability: f64) -> Self {
+        let word_slot_pos = sequence.iter()
+            .filter(|&&pos| !matches!(pos, Pos::Dot | Pos::Prefix | Pos::Aux | Pos::Cop | Pos::To))
+            .copied()
+            .collect();
+        SequenceWithProbability { sequence, refinements, probability, word_slot_pos }
+    }
 }
 
 impl Grammar {
@@ -347,11 +362,11 @@ impl Grammar {
                     Ok(pos_seq) => {
                         if pos_seq.len() == k {
                             let refs = vec![None; pos_seq.len()];
-                            sequences.push(SequenceWithProbability {
-                                sequence: pos_seq,
-                                refinements: refs,
-                                probability: 1.0,  // Equal probability for now
-                            });
+                            sequences.push(SequenceWithProbability::new(
+                                pos_seq,
+                                refs,
+                                1.0,  // Equal probability for now
+                            ));
                         }
                     }
                     Err(_) => continue,
@@ -365,7 +380,7 @@ impl Grammar {
             }
 
             by_k[k] = unique.into_iter()
-                .map(|((sequence, refinements), probability)| SequenceWithProbability { sequence, refinements, probability })
+                .map(|((sequence, refinements), probability)| SequenceWithProbability::new(sequence, refinements, probability))
                 .collect();
             // Sort by probability (highest first), breaking ties by sequence for determinism
             by_k[k].sort_by(|a, b| {
@@ -512,11 +527,7 @@ impl Grammar {
 
         let mut sequences: Vec<SequenceWithProbability> = prob_map
             .into_iter()
-            .map(|((sequence, refinements), probability)| SequenceWithProbability {
-                sequence,
-                refinements,
-                probability,
-            })
+            .map(|((sequence, refinements), probability)| SequenceWithProbability::new(sequence, refinements, probability))
             .collect();
 
         // Sort by probability (highest first), breaking ties by sequence for determinism

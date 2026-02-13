@@ -95,16 +95,29 @@ pub fn plan_sentence<R: Rng>(
         return None;
     }
 
-    // Filter sequences if require_prefix is true
-    // Keep track of original indices when filtering
-    let filtered_with_indices: Vec<(usize, &SequenceWithProbability)> = if require_prefix {
-        sequences.iter()
-            .enumerate()
-            .filter(|(_, seq_prob)| !seq_prob.sequence.is_empty() && seq_prob.sequence[0] == Pos::Prefix)
-            .collect()
-    } else {
-        sequences.iter().enumerate().collect()
-    };
+    // Compute the set of POS tags needed by the remaining payload words.
+    // We only need to look at payload[payload_start..] since those are the words
+    // we're trying to embed.
+    let payload_pos_needed: HashSet<Pos> = payload[payload_start..]
+        .iter()
+        .flat_map(|tok| tok.allowed.iter().copied())
+        .collect();
+
+    // Filter sequences:
+    // 1. If require_prefix, only keep sequences starting with Pos::Prefix
+    // 2. Skip sequences whose word slots have no POS overlap with payload needs
+    //    (these can never embed any payload word, so embedding checks are wasted)
+    let filtered_with_indices: Vec<(usize, &SequenceWithProbability)> = sequences.iter()
+        .enumerate()
+        .filter(|(_, seq_prob)| {
+            // Prefix filter
+            if require_prefix && (seq_prob.sequence.is_empty() || seq_prob.sequence[0] != Pos::Prefix) {
+                return false;
+            }
+            // POS compatibility filter: skip if no word slot POS matches any payload POS
+            !seq_prob.word_slot_pos.is_disjoint(&payload_pos_needed)
+        })
+        .collect();
 
     if filtered_with_indices.is_empty() {
         return None;
@@ -115,15 +128,11 @@ pub fn plan_sentence<R: Rng>(
     // For each j, try sequences in probability order
 
     // First, figure out m by looking at the first sequence
-    // Exclude Dot (punctuation) and function words that must be cover words (Prefix, Aux, Cop, To)
-    let first_seq = &filtered_with_indices[0].1.sequence;
-    let m = first_seq.iter().filter(|&&pos| {
-        pos != Pos::Dot
-        && pos != Pos::Prefix
-        && pos != Pos::Aux
-        && pos != Pos::Cop
-        && pos != Pos::To
-    }).count();
+    let m = filtered_with_indices[0].1.word_slot_pos.len().max(
+        filtered_with_indices[0].1.sequence.iter().filter(|&&pos| {
+            !matches!(pos, Pos::Dot | Pos::Prefix | Pos::Aux | Pos::Cop | Pos::To)
+        }).count()
+    );
 
     let max_j = remaining_payload.min(m);
 
@@ -721,8 +730,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 };
                 
                 let nt = start_nonterminal_for_pos(pos);
-                let g = get_grammar(mode, language);
-                let symbol = if g.rules.contains_key(nt) || g.language_config.is_some() {
+                let symbol = if grammar.rules.contains_key(nt) || grammar.language_config.is_some() {
                     nt
                 } else {
                     // Fallback: for subsequent sentences in subject mode, use POS-specific start
@@ -732,7 +740,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                         // This ensures we don't get Prefix in subsequent sentences
                         let alternatives = ["S_N", "S_V", "S_Adj", "S_Adv", "S_Prep", "S_Det"];
                         alternatives.iter()
-                            .find(|&&alt| g.rules.contains_key(alt))
+                            .find(|&&alt| grammar.rules.contains_key(alt))
                             .copied()
                             .unwrap_or("S")  // Fallback to S (body grammar only uses S)
                     } else {
@@ -744,11 +752,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 // No more payload words - use "S" for body mode, but for subject mode
                 // subsequent sentences, prefer non-Prefix start symbols
                 let symbol = if sentence_count > 1 && mode == GenerationMode::Subject {
-                    let g = get_grammar(mode, language);
                     // Try POS-specific start symbols (subject grammar may have S_* variants)
                     let alternatives = ["S_N", "S_V", "S_Adj", "S_Adv", "S_Prep", "S_Det"];
                     alternatives.iter()
-                        .find(|&&alt| g.rules.contains_key(alt))
+                        .find(|&&alt| grammar.rules.contains_key(alt))
                         .copied()
                         .unwrap_or("S")  // Fallback to S (body grammar only uses S)
                 } else {
@@ -994,8 +1001,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             };
             
             let nt = start_nonterminal_for_pos(pos);
-            let g = get_grammar(mode, language);
-            if g.rules.contains_key(nt) || g.language_config.is_some() {
+            if grammar.rules.contains_key(nt) || grammar.language_config.is_some() {
                 nt
             } else {
                 "S"
@@ -1077,8 +1083,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             for &alt_pos in &next_word.allowed {
                 if alt_pos == Pos::N || alt_pos == Pos::V || alt_pos == Pos::Adj || alt_pos == Pos::Adv || alt_pos == Pos::Prep {
                     let alt_nt = start_nonterminal_for_pos(alt_pos);
-                    let g = get_grammar(mode, language);
-                    let alt_start = if g.rules.contains_key(alt_nt) || g.language_config.is_some() {
+                    let alt_start = if grammar.rules.contains_key(alt_nt) || grammar.language_config.is_some() {
                         alt_nt
                     } else {
                         "S"
@@ -1378,8 +1383,7 @@ fn generate_text_merkle_segmented<R: Rng>(
         };
         
         let nt = start_nonterminal_for_pos(pos);
-        let g = get_grammar(GenerationMode::Body, language);
-        let start_symbol = if g.rules.contains_key(nt) || g.language_config.is_some() {
+        let start_symbol = if grammar.rules.contains_key(nt) || grammar.language_config.is_some() {
             nt
         } else {
             "S"
