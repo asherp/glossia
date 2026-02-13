@@ -29,8 +29,10 @@ pub use generator::{
     tag_word, select_random_words, wordlist_filenames, default_wordlist,
     load_payload_tree, load_cover_tree, load_cover_word_pos_tags,
     get_embedded_yaml, has_embedded_files, get_available_languages,
-    get_available_wordlists, get_wordlist_path,
+    get_available_wordlists,
 };
+#[cfg(not(target_arch = "wasm32"))]
+pub use generator::get_wordlist_path;
 
 // Re-export merkle functions
 pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};
