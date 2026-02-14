@@ -50,5 +50,10 @@ ENV/
 # mdbook build output
 docs/book/
 
+# WASM build artifacts
+web/glossia.js
+web/glossia_bg.wasm
+pkg/
+
 # Downloaded data (Google Ngram, etc.)
 data/

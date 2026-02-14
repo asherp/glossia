@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Glossia Diagnostic</title>
+<style>
+body { font-family: monospace; padding: 2rem; }
+.log { margin: 0.5rem 0; }
+.success { color: green; }
+.error { color: red; }
+.info { color: blue; }
+</style>
+</head>
+<body>
+<h1>Glossia WASM Diagnostic</h1>
+<div id="log"></div>
+
+<script type="module">
+const log = document.getElementById('log');
+
+function addLog(msg, type = 'info') {
+  const div = document.createElement('div');
+  div.className = `log ${type}`;
+  div.textContent = msg;
+  log.appendChild(div);
+  console.log(msg);
+}
+
+addLog('1. Starting diagnostic...', 'info');
+
+try {
+  addLog('2. Attempting to import glossia.js...', 'info');
+
+  import('./glossia.js?v=' + Date.now())
+    .then(module => {
+      addLog('3. ✅ glossia.js imported successfully', 'success');
+      addLog('4. Available exports: ' + Object.keys(module).join(', '), 'info');
+
+      if (typeof module.default === 'function') {
+        addLog('5. init function found, calling it...', 'info');
+        return module.default();
+      } else {
+        throw new Error('No default export (init function) found');
+      }
+    })
+    .then(() => {
+      addLog('6. ✅ WASM initialized successfully!', 'success');
+      addLog('7. Test complete - WASM is working!', 'success');
+    })
+    .catch(err => {
+      addLog('❌ ERROR: ' + err.message, 'error');
+      addLog('Stack: ' + err.stack, 'error');
+    });
+
+} catch (err) {
+  addLog('❌ CRITICAL ERROR: ' + err.message, 'error');
+  addLog('Stack: ' + err.stack, 'error');
+}
+</script>
+</body>
+</html>

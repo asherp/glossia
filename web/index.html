@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glossia - Turn Binary Data Into Natural Language</title>
+<meta name="description" content="Glossia encodes cryptographic keys, mnemonics, and binary data into grammatically correct natural language. Perfect for memorization, steganography, and human-friendly data representation.">
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-alt: #1e2130;
+  --border: #2a2d3a;
+  --text: #e4e4e7;
+  --text-dim: #8b8d97;
+  --accent: #7c6cf0;
+  --accent-hover: #9488f5;
+  --mark-bg: rgba(124, 108, 240, 0.2);
+  --mark-border: rgba(124, 108, 240, 0.5);
+  --error: #ef4444;
+  --success: #22c55e;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+}
+[data-theme="light"] {
+  --bg: #f0f2f5;
+  --surface: #ffffff;
+  --surface-alt: #f8f9fb;
+  --border: #dadce0;
+  --text: #1f2937;
+  --text-dim: #6b7280;
+  --mark-bg: rgba(124, 108, 240, 0.12);
+  --mark-border: rgba(124, 108, 240, 0.4);
+  --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+.container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem; position: relative; }
+
+/* Header */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+.top-bar h1 {
+  font-family: var(--font-mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+.theme-toggle {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0;
+  transition: border-color 0.15s;
+  line-height: 1;
+  box-shadow: var(--shadow);
+  flex-shrink: 0;
+}
+.theme-toggle:hover { border-color: var(--accent); }
+
+/* Controls section (above output area) */
+.controls-section {
+  padding: 0.85rem 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: row;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+.control-group label {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+}
+.control-group label input[type="checkbox"] {
+  cursor: pointer;
+}
+select, input[type="number"], input[type="text"] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+  outline: none;
+  transition: border-color 0.15s;
+}
+select:focus, input:focus { border-color: var(--accent); }
+input[type="number"] { width: 80px; }
+
+/* Panels container */
+.panels {
+  display: flex;
+  gap: 4rem;
+  align-items: stretch;
+  position: relative;
+  margin-bottom: 1rem;
+}
+.panel {
+  flex: 1;
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-height: 260px;
+  overflow: hidden;
+}
+.panel-left {
+  border-radius: 8px;
+}
+.panel-right {
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--surface);
+}
+/* Right panel styles */
+.panel-right {
+  display: flex;
+  flex-direction: column;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.panel-header .dialect-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: var(--font-mono);
+}
+.panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+textarea {
+  width: 100%;
+  flex: 1;
+  min-height: 160px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 0.75rem 0.85rem;
+  font-size: 0.9rem;
+  font-family: var(--font-mono);
+  resize: none;
+  outline: none;
+  line-height: 1.7;
+}
+textarea::placeholder { color: var(--text-dim); }
+.panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.85rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Output area */
+.output-area {
+  flex: 1;
+  padding: 0.75rem 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.8;
+  word-wrap: break-word;
+  font-family: var(--font-mono);
+  overflow-y: auto;
+  color: var(--text);
+}
+.output-area.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+.output-area mark {
+  background: var(--mark-bg);
+  border: 1px solid var(--mark-border);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Swap button */
+.swap-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  transition: all 0.2s;
+  padding: 0;
+}
+.swap-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 4px 12px rgba(124, 108, 240, 0.3);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+.swap-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
+/* Buttons */
+button {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+button:hover { border-color: var(--accent); color: var(--accent); }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  padding: 0.55rem 1.5rem;
+  font-size: 0.85rem;
+  border-radius: 20px;
+}
+button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { font-size: 0.75rem; padding: 0.3rem 0.6rem; }
+.btn-toggle {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.75rem;
+  transition: all 0.15s;
+}
+.btn-toggle:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+.btn-toggle.off {
+  background: var(--surface);
+  color: var(--text-dim);
+  border-color: var(--border);
+}
+.btn-toggle.off:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* Action row (centered below panels) */
+.action-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Stats bar in output panel footer */
+.stats-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  flex-wrap: wrap;
+}
+.stats-bar .stat-value { color: var(--accent); font-weight: 600; }
+
+.error-msg { color: var(--error); font-size: 0.8rem; padding: 0.5rem 0.85rem; }
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.hidden { display: none !important; }
+
+/* How it works */
+section.how-it-works {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+section.how-it-works h2 {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: var(--accent);
+}
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.pipeline .step {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.7rem;
+}
+.pipeline .arrow { color: var(--accent); font-weight: bold; }
+footer {
+  margin-top: 2rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+/* Hero section */
+.hero {
+  text-align: center;
+  padding: 3rem 0 4rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.hero h2 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero .subtitle {
+  font-size: 1.15rem;
+  color: var(--text-dim);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+.hero .example {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem auto;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  box-shadow: var(--shadow);
+}
+.hero .example .before,
+.hero .example .after {
+  margin: 0.75rem 0;
+}
+.hero .example .label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin-bottom: 0.35rem;
+}
+.hero .example .content {
+  color: var(--text);
+  line-height: 1.6;
+}
+.hero .example .arrow {
+  color: var(--accent);
+  font-size: 1.5rem;
+  margin: 0.5rem 0;
+}
+.hero .cta {
+  margin-top: 2rem;
+}
+.hero .cta a {
+  display: inline-block;
+  padding: 0.75rem 2rem;
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 24px;
+  font-weight: 600;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(124, 108, 240, 0.3);
+}
+.hero .cta a:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(124, 108, 240, 0.4);
+}
+
+/* Section headings */
+.section-header {
+  text-align: center;
+  margin: 4rem 0 2rem;
+}
+.section-header h3 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+.section-header p {
+  font-size: 1rem;
+  color: var(--text-dim);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Feature cards */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0 3rem;
+}
+.feature-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.75rem 1.5rem;
+  box-shadow: var(--shadow);
+  transition: all 0.2s;
+}
+.feature-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+.feature-card .icon {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+.feature-card h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text);
+}
+.feature-card p {
+  font-size: 0.9rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+/* Use cases */
+.use-cases {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.25rem;
+  margin: 2rem 0 3rem;
+}
+.use-case {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.use-case:hover {
+  border-color: var(--accent);
+}
+.use-case .emoji {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+.use-case h5 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+}
+.use-case p {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* Demo section */
+.demo-section {
+  margin: 3rem 0;
+  scroll-margin-top: 2rem;
+}
+
+/* Technical details */
+.tech-details {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+.tech-details h4 {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+.tech-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.tech-details li {
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+.tech-details li::before {
+  content: "▸ ";
+  color: var(--accent);
+  margin-right: 0.5rem;
+}
+
+/* CTA section */
+.cta-section {
+  text-align: center;
+  padding: 3rem 0 2rem;
+  margin-top: 3rem;
+  border-top: 1px solid var(--border);
+}
+.cta-section h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+.cta-section .buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+.cta-section .btn-primary,
+.cta-section .btn-secondary {
+  padding: 0.75rem 1.75rem;
+  border-radius: 20px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+.cta-section .btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border: 2px solid var(--accent);
+}
+.cta-section .btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  transform: translateY(-2px);
+}
+.cta-section .btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+}
+.cta-section .btn-secondary:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-2px);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-in {
+  animation: fadeInUp 0.6s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+  .feature-card:hover,
+  .hero .cta a:hover,
+  .cta-section .btn-primary:hover,
+  .cta-section .btn-secondary:hover {
+    transform: none;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .container { padding: 1rem; }
+  .hero {
+    padding: 2rem 0 3rem;
+  }
+  .hero h2 {
+    font-size: 1.8rem;
+  }
+  .hero .subtitle {
+    font-size: 1rem;
+  }
+  .hero .example {
+    padding: 1rem;
+    font-size: 0.85rem;
+  }
+  .section-header h3 {
+    font-size: 1.4rem;
+  }
+  .features {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .use-cases {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .panels {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .panel-left {
+    border-radius: 8px;
+  }
+  .panel-right {
+    border-radius: 8px;
+  }
+  .swap-btn {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    margin: -36px auto;
+    z-index: 10;
+  }
+  .panels { position: static; }
+  .controls-section {
+    padding: 0.5rem;
+    gap: 0.5rem;
+  }
+  .control-group {
+    font-size: 0.75rem;
+  }
+  .control-group label {
+    font-size: 0.6rem;
+  }
+  select, input {
+    font-size: 0.8rem;
+    padding: 0.35rem 0.5rem;
+  }
+  .top-bar h1 { font-size: 1.3rem; }
+  .cta-section .buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  .cta-section .btn-primary,
+  .cta-section .btn-secondary {
+    width: 100%;
+    max-width: 300px;
+  }
+  #random-btns {
+    width: 100%;
+  }
+  #random-btns button {
+    flex: 1 1 auto;
+    min-width: 70px;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.4rem;
+  }
+}
+</style>
+</head>
+<body>
+<script>
+// Apply saved theme before paint to prevent flash
+(function() {
+  const saved = localStorage.getItem('glossia-theme');
+  const theme = saved || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+</script>
+<div class="container">
+  <!-- Top bar: title + theme toggle -->
+  <div class="top-bar">
+    <h1>GLOSSIA</h1>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9790;</button>
+  </div>
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <span>Loading WASM module...</span>
+  </div>
+
+  <div id="app" class="hidden">
+    <!-- Hero Section -->
+    <section class="hero animate-in">
+      <h2>Make Cryptographic Data Human-Friendly</h2>
+      <p class="subtitle">
+        Convert PGP signatures, API keys, and binary data into natural language prose.
+        Backward-compatible with existing tools—just add a human-friendly UX layer that flows through email, documents, and voice.
+      </p>
+      <div class="example">
+        <div class="before">
+          <div class="label">Machine-Generated Data (BIP39 Words)</div>
+          <div class="content">zone void dose outdoor type pottery thumb era</div>
+        </div>
+        <div class="arrow">↓</div>
+        <div class="after">
+          <div class="label">Human-Friendly Text</div>
+          <div class="content">The <mark>zone</mark> must <mark>void</mark> his <mark>dose</mark> of <mark>outdoor</mark> <mark>type</mark> with a <mark>pottery</mark> <mark>thumb</mark> from that <mark>era</mark>.</div>
+        </div>
+      </div>
+      <div class="cta">
+        <a href="#demo">Try the Interactive Demo</a>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <div class="section-header">
+      <h3>Why Glossia?</h3>
+      <p>Solve the UX problems that kept PGP from going mainstream</p>
+    </div>
+    <div class="features">
+      <div class="feature-card">
+        <div class="icon">✍️</div>
+        <h4>Transcribable</h4>
+        <p>Natural prose is easier to read aloud, type, or copy by hand than hex strings. Transcribe API keys over the phone or between devices without errors.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔄</div>
+        <h4>Workflow-Friendly</h4>
+        <p>Looks like normal text—flows through email, documents, and chat without breaking formatting or triggering spam filters. No more ugly base64 armor.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔒</div>
+        <h4>Runs Locally</h4>
+        <p>Everything happens in your browser via WebAssembly—your keys never touch our servers. Open DevTools and disconnect your internet. It still works.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🔌</div>
+        <h4>Backward-Compatible</h4>
+        <p>Convert ASCII-armored PGP signatures to human-friendly text and back. Works with your existing crypto infrastructure—you don't have to abandon your tools.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">✅</div>
+        <h4>Verifiable</h4>
+        <p>Perfect round-trip encoding and decoding. Easier to spot-check than hex. Decode by simply filtering against the payload wordlist—it's mathematically guaranteed.</p>
+      </div>
+    </div>
+
+    <!-- PGP Compatibility -->
+    <div class="section-header" style="margin-top: 3rem;">
+      <h3>Works With Your Existing PGP Infrastructure</h3>
+      <p>Don't abandon your tools—just make them easier to use</p>
+    </div>
+    <div style="max-width: 800px; margin: 1.5rem auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; box-shadow: var(--shadow);">
+      <div style="display: grid; gap: 1rem; font-family: var(--font-mono); font-size: 0.85rem;">
+        <div>
+          <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.5rem;">
+            Traditional PGP Armor (breaks email formatting)
+          </div>
+          <div style="background: var(--surface-alt); padding: 0.75rem; border-radius: 4px; border-left: 3px solid var(--error); overflow-x: auto;">
+            <code style="color: var(--text-dim); font-size: 0.8rem; white-space: pre;">-----BEGIN PGP SIGNATURE-----
+iQIzBAABCAAdFiEE...xK9Q==
+-----END PGP SIGNATURE-----</code>
+          </div>
+        </div>
+        <div style="text-align: center; color: var(--accent); font-size: 1.2rem; font-weight: bold;">
+          ↕️ Glossia Converts
+        </div>
+        <div>
+          <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-bottom: 0.5rem;">
+            Human-Friendly Format (forwards cleanly, reads naturally)
+          </div>
+          <div style="background: var(--surface-alt); padding: 0.75rem; border-radius: 4px; border-left: 3px solid var(--success); line-height: 1.7;">
+            <span style="color: var(--text);">The ancient signature reveals the hidden message through careful validation and trust.</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim);">
+        <strong style="color: var(--text);">Perfect round-trip:</strong> Convert PGP armor → Glossia → back to PGP armor.
+        Your existing tools still verify signatures—you've just added a human-friendly transport layer.
+      </div>
+    </div>
+
+    <!-- The Problem -->
+    <div class="section-header" style="margin-top: 4rem;">
+      <h3>The Problem: Why PGP Never Went Mainstream</h3>
+      <p>Cryptographic tools are powerful but have terrible UX</p>
+    </div>
+    <div class="tech-details" style="max-width: 700px; margin: 1rem auto 2rem;">
+      <div style="font-size: 0.9rem; line-height: 1.7; color: var(--text);">
+        <p style="margin-bottom: 1rem;">
+          PGP has been around for decades, yet most people still send passwords in plain text emails. Why?
+          <strong>The UX is hostile to normal workflows.</strong>
+        </p>
+        <p style="margin-bottom: 1rem;">
+          Base64-armored signatures break email formatting. Hex strings are impossible to read aloud or transcribe.
+          Forwarding an encrypted message turns it into an unreadable mess. <strong>The cryptography works—the UX doesn't.</strong>
+        </p>
+        <p style="margin-bottom: 0;">
+          <strong>Glossia is the UX layer PGP always needed:</strong> Convert ASCII-armored blocks to natural prose,
+          work with them in normal tools, then convert back. Your existing PGP tools still verify signatures—you've just
+          made the transport human-friendly. Forward encrypted messages, read signatures over the phone, paste keys
+          in docs—and it all still decodes perfectly.
+        </p>
+      </div>
+    </div>
+
+    <!-- Use Cases -->
+    <div class="section-header">
+      <h3>Real-World Applications</h3>
+    </div>
+    <div class="use-cases">
+      <div class="use-case">
+        <span class="emoji">📧</span>
+        <h5>Email Workflows</h5>
+        <p>Forward encrypted messages and signatures without breaking formatting or triggering filters</p>
+      </div>
+      <div class="use-case">
+        <span class="emoji">📞</span>
+        <h5>Voice Communication</h5>
+        <p>Read API keys or public keys over the phone without spelling out hex characters</p>
+      </div>
+      <div class="use-case">
+        <span class="emoji">⌨️</span>
+        <h5>Manual Transcription</h5>
+        <p>Type cryptographic data from one device to another with fewer errors</p>
+      </div>
+      <div class="use-case">
+        <span class="emoji">📄</span>
+        <h5>Documentation</h5>
+        <p>Include keys and signatures in docs without ugly base64 blocks</p>
+      </div>
+    </div>
+
+    <!-- Demo Section -->
+    <section class="demo-section" id="demo">
+      <div class="section-header">
+        <h3>Interactive Demo</h3>
+        <p>Experience the transformation live—encode and decode instantly in your browser</p>
+      </div>
+
+    <!-- Side-by-side panels -->
+    <div class="panels">
+      <!-- Left panel: Input -->
+      <div class="panel panel-left">
+        <div class="panel-header">
+          <span class="dialect-label" id="input-dialect-label">Input: english/bip39</span>
+        </div>
+        <div class="panel-body">
+          <textarea id="input-area" placeholder="Type text to encode...">Hello, Glossia!</textarea>
+        </div>
+        <div class="panel-footer">
+          <div id="random-btns" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            <button class="btn-sm" onclick="randomWords(12)" title="Generate 12 random BIP39 words">BIP39 (12)</button>
+            <button class="btn-sm" onclick="randomWords(24)" title="Generate 24 random BIP39 words">BIP39 (24)</button>
+            <button class="btn-sm" onclick="randomHex()" title="Generate random hex string">Hex</button>
+            <button class="btn-sm" onclick="randomBase64()" title="Generate random base64 string">Base64</button>
+            <button class="btn-sm" onclick="randomBitcoinKey()" title="Generate random Bitcoin pubkey (bc1...)">Bitcoin Key</button>
+            <button class="btn-sm" onclick="randomNostrKey()" title="Generate random Nostr pubkey (npub...)">Nostr Key</button>
+          </div>
+          <div id="input-error" class="error-msg hidden" style="padding:0;"></div>
+          <div id="input-bits-info" style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);"></div>
+        </div>
+      </div>
+
+      <!-- Swap button -->
+      <button class="swap-btn" id="swap-btn" title="Switch between Encode and Decode" aria-label="Swap mode">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+      </button>
+
+      <!-- Right panel: Output only -->
+      <div class="panel panel-right">
+        <div class="panel-header">
+          <span class="dialect-label" id="output-dialect-label">Encoding with: english/bip39</span>
+          <button class="btn-sm" id="copy-btn" onclick="copyOutput()" style="display:none;">Copy</button>
+        </div>
+        <div class="panel-body">
+          <div class="output-area empty" id="output-area">
+            Output will appear here
+          </div>
+        </div>
+        <div class="panel-footer" id="stats-footer" style="display:none;">
+          <div class="stats-bar" id="stats-bar">
+            <span>Payload: <span class="stat-value" id="stat-payload">0</span></span>
+            <span>Cover: <span class="stat-value" id="stat-cover">0</span></span>
+            <span>Total: <span class="stat-value" id="stat-total">0</span></span>
+            <span>Ratio: <span class="stat-value" id="stat-ratio">0%</span></span>
+            <span id="output-bits-info" style="margin-left: auto;"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls section (above output) -->
+    <div class="controls-section">
+      <div class="control-group" style="flex: 2; min-width: 250px;">
+        <label for="dialect">Dialect</label>
+        <select id="dialect" style="width: 100%;"></select>
+      </div>
+      <div class="control-group">
+        <label for="seed">Seed</label>
+        <input type="number" id="seed" value="42" min="0">
+      </div>
+      <div class="control-group">
+        <button class="btn-toggle" id="cover-toggle" title="Toggle cover words on/off">
+          ☑ Cover
+        </button>
+      </div>
+    </div>
+
+    <!-- Action button (hidden, kept for programmatic use) -->
+    <div class="action-row" style="display:none;">
+      <button class="primary" id="action-btn" onclick="doAction()">Encode</button>
+    </div>
+
+    </section>
+
+    <!-- How It Works -->
+    <section class="how-it-works">
+      <div class="section-header">
+        <h3>How It Works</h3>
+        <p>The encoding pipeline transforms your data through multiple linguistic layers</p>
+      </div>
+      <div class="pipeline">
+        <span class="step">Input bytes</span>
+        <span class="arrow">&rarr;</span>
+        <span class="step">Codec (bit-pack)</span>
+        <span class="arrow">&rarr;</span>
+        <span class="step">Payload words</span>
+        <span class="arrow">&rarr;</span>
+        <span class="step">CFG + POS slots</span>
+        <span class="arrow">&rarr;</span>
+        <span class="step">Max subsequence</span>
+        <span class="arrow">&rarr;</span>
+        <span class="step">Cover words fill gaps</span>
+        <span class="arrow">&rarr;</span>
+        <span class="step">Natural prose</span>
+      </div>
+      <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);text-align:center;max-width:700px;margin-left:auto;margin-right:auto;">
+        <strong>Decoding is simple:</strong> filter the output against the payload wordlist to recover the encoded words,
+        then reverse the bit-packing to get the original bytes. It's guaranteed to work perfectly every time.
+      </p>
+    </section>
+
+    <!-- Technical Details -->
+    <div class="section-header">
+      <h3>Technical Foundation</h3>
+      <p>Built on formal grammar theory and lambda calculus</p>
+    </div>
+    <div class="tech-details">
+      <h4>Under the Hood</h4>
+      <ul>
+        <li><strong>WASM-powered:</strong> Full Rust engine compiled to WebAssembly—runs entirely in your browser at near-native speed</li>
+        <li><strong>Client-side only:</strong> No server, no API calls, no tracking. Your data never leaves your device.</li>
+        <li><strong>Context-Free Grammars (CFG):</strong> Generate grammatically valid sentence structures</li>
+        <li><strong>Montague Grammar:</strong> Lambda calculus ensures type-safe semantic composition</li>
+        <li><strong>POS-based encoding:</strong> Payload words fill noun, verb, adjective slots naturally</li>
+        <li><strong>Maximum subsequence matching:</strong> Optimal placement of payload words in generated structures</li>
+        <li><strong>Merkle-tree wordlists:</strong> Cryptographic proofs for wordlist integrity</li>
+        <li><strong>Multi-language support:</strong> English, Czech, Latin, and custom dialects</li>
+        <li><strong>Verifiable and reproducible:</strong> Inspect the code on <a href="https://github.com/asherp/glossia" style="color: var(--accent);">GitHub</a>, build it yourself</li>
+      </ul>
+    </div>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+      <h3>Make Your Crypto Workflows Human-Friendly</h3>
+      <p style="color:var(--text-dim);margin-bottom:0.5rem;">
+        Open source • Client-side only • Your data never leaves your device
+      </p>
+      <div class="buttons">
+        <a href="#demo" class="btn-primary">Try the Demo</a>
+        <a href="https://github.com/asherp/glossia" target="_blank" class="btn-secondary">View on GitHub</a>
+      </div>
+      <p style="color:var(--text-dim);font-size:0.8rem;margin-top:1rem;">
+        ⚡ Powered by WebAssembly — Full Rust engine runs in your browser
+      </p>
+    </section>
+  </div>
+
+  <footer>
+    <p style="margin-bottom:0.5rem;">
+      <a href="https://github.com/asherp/glossia" target="_blank">GitHub</a>
+      <span style="margin:0 0.5rem;color:var(--border);">•</span>
+      <a href="https://github.com/asherp/glossia/blob/master/README.md" target="_blank">Documentation</a>
+      <span style="margin:0 0.5rem;color:var(--border);">•</span>
+      <a href="https://github.com/asherp/glossia/issues" target="_blank">Report Issue</a>
+    </p>
+    <p style="font-size:0.75rem;color:var(--text-dim);margin-bottom:0.25rem;">
+      Built with context-free grammars and Montague semantics
+    </p>
+    <p style="font-size:0.7rem;color:var(--text-dim);">
+      🔒 Client-side WebAssembly • Your keys never leave your device
+    </p>
+  </footer>
+</div>
+
+<script type="module">
+import init, {
+  get_all_dialects,
+  encode as wasmEncode,
+  encode_characters as wasmEncodeCharacters,
+  decode as wasmDecode,
+  random_words as wasmRandomWords,
+  encode_random_words as wasmEncodeRandomWords,
+  detect_dialect_from_text,
+  get_wordlist_size,
+  get_bits_per_word,
+} from './glossia.js';
+
+let ready = false;
+let mode = 'encode'; // 'encode' or 'decode'
+let dialectsData = []; // Store all dialects metadata
+let currentDialect = null; // Currently selected dialect object
+
+async function startup() {
+  try {
+    await init();
+    ready = true;
+
+    // Get all dialects with metadata
+    dialectsData = JSON.parse(get_all_dialects());
+
+    // Populate unified dialect selector
+    const dialectSelect = document.getElementById('dialect');
+    dialectSelect.innerHTML = '';
+
+    dialectsData.forEach(langGroup => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = langGroup.language_display;
+
+      langGroup.dialects.forEach(dialect => {
+        const opt = document.createElement('option');
+        opt.value = dialect.full_id;
+        opt.textContent = dialect.display_name;
+        opt.dataset.metadata = JSON.stringify(dialect);
+
+        // Select english-bip39-body as default
+        if (dialect.full_id === 'english-bip39-body') {
+          opt.selected = true;
+          currentDialect = dialect;
+        }
+
+        optgroup.appendChild(opt);
+      });
+
+      dialectSelect.appendChild(optgroup);
+    });
+
+    document.getElementById('loading').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    autoRunNow();
+
+    // Detect input dialect for initial text
+    setTimeout(() => updateInputDialectLabel(), 100);
+  } catch (e) {
+    console.error('Failed to load WASM:', e);
+    document.getElementById('loading').innerHTML =
+      `<span style="color:var(--error)">Failed to load WASM: ${e.message}</span>`;
+  }
+}
+
+// Update current dialect when selection changes
+function updateCurrentDialect() {
+  const dialectSelect = document.getElementById('dialect');
+  const selectedOption = dialectSelect.options[dialectSelect.selectedIndex];
+  if (selectedOption && selectedOption.dataset.metadata) {
+    currentDialect = JSON.parse(selectedOption.dataset.metadata);
+  }
+}
+
+// Parse dialect ID into components (for backward compatibility)
+function parseDialectId(fullId) {
+  // Format: "language-wordlist-dialect"
+  const parts = fullId.split('-');
+  if (parts.length >= 3) {
+    return {
+      language: parts[0],
+      wordlist: parts[1],
+      dialect: parts.slice(2).join('-')
+    };
+  }
+  // Fallback
+  return {
+    language: 'english',
+    wordlist: 'bip39',
+    dialect: 'body'
+  };
+}
+
+// Get friendly display name for current dialect
+function getDialectDisplayName() {
+  if (currentDialect) {
+    return currentDialect.display_name;
+  }
+  return 'Unknown dialect';
+}
+
+// Store the last detected data mode from encoding
+let lastDataMode = null;
+let lastInputLength = 0;
+
+// Store last encoding result for cover word toggle
+let lastEncodedText = '';
+let lastPayloadWords = [];
+let lastStats = {};
+let showCoverWords = true; // Track cover words state
+
+// Update output display based on cover word toggle
+function updateOutputDisplay() {
+  if (!lastEncodedText) return;
+
+  const outEl = document.getElementById('output-area');
+
+  if (showCoverWords) {
+    // Show full text with cover words
+    const payloadSet = new Set(lastPayloadWords.map(w => w.toLowerCase()));
+    const words = lastEncodedText.split(/\s+/);
+    const html = words.map(w => {
+      const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      if (payloadSet.has(clean)) {
+        return `<mark>${escapeHtml(w)}</mark>`;
+      }
+      return escapeHtml(w);
+    }).join(' ');
+    outEl.innerHTML = html;
+    outEl.dataset.plainText = lastEncodedText;
+  } else {
+    // Show only payload words
+    const payloadOnly = lastPayloadWords.join(' ');
+    const html = lastPayloadWords.map(w => `<mark>${escapeHtml(w)}</mark>`).join(' ');
+    outEl.innerHTML = html;
+    outEl.dataset.plainText = payloadOnly;
+  }
+
+  // Update stats
+  document.getElementById('stat-payload').textContent = lastStats.payload_count || 0;
+  document.getElementById('stat-cover').textContent = showCoverWords ? (lastStats.cover_count || 0) : 0;
+  document.getElementById('stat-total').textContent = showCoverWords ? (lastStats.total_words || 0) : (lastStats.payload_count || 0);
+  const ratio = showCoverWords
+    ? (lastStats.ratio || 0)
+    : 1.0; // 100% when showing only payload
+  document.getElementById('stat-ratio').textContent = (ratio * 100).toFixed(1) + '%';
+}
+
+// Calculate bits for input data
+function calculateInputBits(text, dataMode) {
+  if (!text) return 0;
+
+  // For encode mode: calculate based on codec mode
+  if (mode === 'encode') {
+    if (dataMode === 'hex') {
+      // Hex: 2 chars = 1 byte = 8 bits
+      return Math.floor(text.length / 2) * 8;
+    } else if (dataMode === 'base64') {
+      // Base64: 4 chars = 3 bytes = 24 bits
+      return Math.floor(text.length / 4) * 3 * 8;
+    } else if (dataMode === 'ascii7') {
+      // ASCII-7: 1 char = 7 bits
+      return text.length * 7;
+    } else if (dataMode === 'bytes8') {
+      // UTF-8: count actual bytes
+      return new TextEncoder().encode(text).length * 8;
+    } else if (dataMode === 'words') {
+      // Direct word indices - need wordlist size to calculate bits
+      const wl = document.getElementById('wordlist').value;
+      // This is handled separately since we need wordlist size
+      return null;
+    }
+    // Default: assume UTF-8
+    return new TextEncoder().encode(text).length * 8;
+  }
+
+  // For decode mode: not applicable (we show payload word bits instead)
+  return 0;
+}
+
+// Calculate bits from payload words using current dialect
+function calculatePayloadWordBits(wordCount) {
+  if (!wordCount || !currentDialect) return 0;
+  const bitsPerWord = currentDialect.bits_per_word || 11;
+  return Math.floor(wordCount * bitsPerWord);
+}
+
+// Update bit count displays
+function updateBitCounts() {
+  const inputBitsEl = document.getElementById('input-bits-info');
+  const outputBitsEl = document.getElementById('output-bits-info');
+
+  if (!inputBitsEl || !outputBitsEl) return;
+
+  const input = document.getElementById('input-area').value.trim();
+
+  if (mode === 'encode') {
+    // Input: show bits in the input data
+    const inputBits = calculateInputBits(input, lastDataMode);
+    if (inputBits !== null && inputBits > 0) {
+      inputBitsEl.textContent = `${inputBits} bits`;
+    } else {
+      inputBitsEl.textContent = '';
+    }
+
+    // Output: show bits in payload words
+    if (lastPayloadWords && lastPayloadWords.length > 0) {
+      const outputBits = calculatePayloadWordBits(lastPayloadWords.length);
+      outputBitsEl.textContent = `${outputBits} bits`;
+    } else {
+      outputBitsEl.textContent = '';
+    }
+  } else {
+    // Decode mode
+    // Input: show bits in payload words extracted
+    inputBitsEl.textContent = ''; // We'll update this in doDecode when we know the payload count
+
+    // Output: show bits in decoded output
+    outputBitsEl.textContent = ''; // We'll update this in doDecode
+  }
+}
+
+// Update dialect labels in panel headers
+function updateDialectLabels() {
+  if (!currentDialect) return;
+
+  const inputLabel = document.getElementById('input-dialect-label');
+  const outputLabel = document.getElementById('output-dialect-label');
+  const friendlyName = getDialectDisplayName();
+
+  // Output label always shows selected dialect
+  if (mode === 'encode') {
+    outputLabel.textContent = `Encoding with: ${friendlyName}`;
+  } else {
+    outputLabel.textContent = `Decoding with: ${friendlyName}`;
+  }
+
+  // Input label shows detected input dialect
+  updateInputDialectLabel();
+}
+
+// Update input dialect label based on codec mode
+function updateInputDialectLabel() {
+  const inputLabel = document.getElementById('input-dialect-label');
+  const input = document.getElementById('input-area').value.trim();
+
+  if (!input) {
+    inputLabel.textContent = 'Input: (empty)';
+    lastDataMode = null;
+    return;
+  }
+
+  if (mode === 'encode') {
+    // In encode mode, show the codec mode from the last encode
+    if (lastDataMode) {
+      const modeDisplay = {
+        'hex': 'hex',
+        'base64': 'base64',
+        'ascii7': '7-bit ASCII',
+        'bytes8': '8-bit bytes (UTF-8)',
+        'words': 'word indices (direct)'
+      }[lastDataMode] || lastDataMode;
+      inputLabel.textContent = `Input: ${modeDisplay}`;
+    } else {
+      // No encoding yet - try to predict the mode
+      const bytes = input;
+      if (bytes.length >= 2 && bytes.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(bytes)) {
+        inputLabel.textContent = 'Input: hex (detected)';
+      } else if (bytes.length >= 4 && bytes.length % 4 === 0 && /^[A-Za-z0-9+/]+=*$/.test(bytes) && /[+/=]/.test(bytes)) {
+        inputLabel.textContent = 'Input: base64 (detected)';
+      } else if (/^[\x00-\x7F]+$/.test(bytes)) {
+        inputLabel.textContent = 'Input: 7-bit ASCII (detected)';
+      } else {
+        inputLabel.textContent = 'Input: UTF-8 text';
+      }
+    }
+  } else {
+    // In decode mode, show detected dialect (will be updated by applyDetectedDialect)
+    // Don't overwrite if we already have a detection result
+    if (inputLabel.textContent.includes('(detecting...)') || !inputLabel.textContent.includes('Input:')) {
+      const lang = document.getElementById('language').value;
+      const wl = document.getElementById('wordlist').value;
+      const friendlyName = getDialectDisplayName(lang, wl);
+      inputLabel.textContent = `Input: ${friendlyName}`;
+    }
+  }
+}
+
+// Dialect selector change handler
+document.getElementById('dialect')?.addEventListener('change', () => {
+  skipAutoDetect = true; // User is manually selecting, don't override
+  updateCurrentDialect();
+  updateDialectLabels();
+  autoRunNow();
+});
+
+// Debounced auto-run
+let autoRunTimer = null;
+let skipAutoDetect = false; // Flag to skip auto-detection when user manually changes controls
+
+function autoRun(delay = 300, detectDialect = false) {
+  clearTimeout(autoRunTimer);
+  autoRunTimer = setTimeout(() => {
+    if (!ready) return;
+    if (mode === 'encode') {
+      doEncode();
+    } else {
+      // In decode mode, try auto-detecting dialect only if triggered by input change
+      if (detectDialect && !skipAutoDetect) {
+        autoDetectDialect();
+      }
+      doDecode();
+    }
+    skipAutoDetect = false; // Reset flag
+  }, delay);
+}
+
+function autoRunNow() { autoRun(0, false); }
+
+// Auto-run on textarea input (with dialect detection in decode mode)
+document.getElementById('input-area')?.addEventListener('input', () => {
+  autoRun(300, true);
+  // Input label will be updated by doEncode() which captures the data_mode
+});
+
+// Auto-run on control changes (skip auto-detection since user is manually selecting)
+document.getElementById('seed')?.addEventListener('input', () => autoRun());
+document.getElementById('cover-toggle')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  showCoverWords = !showCoverWords;
+  const btn = document.getElementById('cover-toggle');
+  if (showCoverWords) {
+    btn.classList.remove('off');
+    btn.textContent = '☑ Cover';
+  } else {
+    btn.classList.add('off');
+    btn.textContent = '☐ Cover';
+  }
+  updateOutputDisplay();
+});
+
+// Swap mode
+function setMode(newMode) {
+  mode = newMode;
+  const actionBtn = document.getElementById('action-btn');
+  const inputArea = document.getElementById('input-area');
+  const randomBtns = document.getElementById('random-btns');
+
+  // Clear detection cache when switching modes
+  dialectDetectionCache.clear();
+
+  // Update dialect labels
+  updateDialectLabels();
+
+  if (mode === 'encode') {
+    actionBtn.textContent = 'Encode';
+    inputArea.placeholder = 'Type text to encode...';
+    randomBtns.style.display = '';
+  } else {
+    actionBtn.textContent = 'Decode';
+    inputArea.placeholder = 'Paste encoded text here...';
+    randomBtns.style.display = 'none';
+  }
+
+  // Clear output
+  const outEl = document.getElementById('output-area');
+  outEl.innerHTML = 'Output will appear here';
+  outEl.classList.add('empty');
+  outEl.dataset.plainText = '';
+  document.getElementById('copy-btn').style.display = 'none';
+  document.getElementById('stats-footer').style.display = 'none';
+  document.getElementById('input-error').classList.add('hidden');
+
+  // Clear bit counts
+  document.getElementById('input-bits-info').textContent = '';
+  document.getElementById('output-bits-info').textContent = '';
+}
+
+document.getElementById('swap-btn').addEventListener('click', () => {
+  // Swap content: output becomes input, input becomes output
+  const inputArea = document.getElementById('input-area');
+  const outputArea = document.getElementById('output-area');
+
+  // Get current values
+  const currentInput = inputArea.value;
+  const currentOutput = outputArea.dataset.plainText || outputArea.textContent.trim();
+
+  // Swap the mode
+  const newMode = mode === 'encode' ? 'decode' : 'encode';
+
+  // Put output into input
+  inputArea.value = currentOutput;
+
+  // Switch mode and process
+  setMode(newMode);
+  autoRunNow();
+});
+
+// Cache for dialect detection to avoid redundant work
+let dialectDetectionCache = new Map();
+
+// Auto-detect dialect using compile-time word indices (fast!)
+function autoDetectDialect() {
+  if (mode !== 'decode') return;
+
+  const input = document.getElementById('input-area').value.trim();
+  if (!input || input.length < 10) return;
+
+  // Check cache first (use first 100 chars as cache key to handle edits)
+  const cacheKey = input.substring(0, 100);
+  if (dialectDetectionCache.has(cacheKey)) {
+    const cached = dialectDetectionCache.get(cacheKey);
+    applyDetectedDialect(cached.lang, cached.wl, cached.score);
+    return;
+  }
+
+  // Use efficient compile-time index detection (O(log n) binary search)
+  const matches = JSON.parse(detect_dialect_from_text(input));
+
+  let bestLang = null;
+  let bestWl = null;
+  let bestScore = 0;
+
+  if (matches && matches.length > 0) {
+    const best = matches[0]; // Already sorted by score
+    bestLang = best.language;
+    bestWl = best.wordlist;
+    bestScore = best.hits;
+  }
+
+  // Cache the result (limit cache size to prevent memory issues)
+  if (dialectDetectionCache.size > 20) {
+    const firstKey = dialectDetectionCache.keys().next().value;
+    dialectDetectionCache.delete(firstKey);
+  }
+  dialectDetectionCache.set(cacheKey, { lang: bestLang, wl: bestWl, score: bestScore });
+
+  if (bestLang && bestWl) {
+    applyDetectedDialect(bestLang, bestWl, bestScore);
+  }
+}
+
+function applyDetectedDialect(lang, wl, score) {
+  // Find the dialect in our data structure
+  // For now, we need to find a dialect that matches this language/wordlist combination
+  // The detect_dialect_from_text returns language and wordlist, but we need to pick a dialect
+
+  // Try to find a matching dialect (prefer 'body' or first available)
+  let matchedDialect = null;
+  for (const langGroup of dialectsData) {
+    if (langGroup.language === lang) {
+      for (const dialect of langGroup.dialects) {
+        const parts = parseDialectId(dialect.full_id);
+        if (parts.wordlist === wl) {
+          // Prefer 'body' dialect if available
+          if (parts.dialect === 'body') {
+            matchedDialect = dialect;
+            break;
+          }
+          // Otherwise take the first match
+          if (!matchedDialect) {
+            matchedDialect = dialect;
+          }
+        }
+      }
+      if (matchedDialect) break;
+    }
+  }
+
+  // Only update if we found a match and it's different from current
+  if (matchedDialect && score > 0 && matchedDialect.full_id !== currentDialect?.full_id) {
+    document.getElementById('dialect').value = matchedDialect.full_id;
+    updateCurrentDialect();
+    updateDialectLabels();
+  }
+
+  // Update input label to show detected dialect
+  if (mode === 'decode' && matchedDialect && score > 0) {
+    const inputLabel = document.getElementById('input-dialect-label');
+    inputLabel.textContent = `Input: ${matchedDialect.display_name} (${score} words)`;
+  }
+}
+
+// Main action
+window.doAction = function() {
+  if (mode === 'encode') doEncode();
+  else doDecode();
+};
+
+window.doEncode = function() {
+  if (!ready || !currentDialect) return;
+
+  const input = document.getElementById('input-area').value;
+  const seed = parseInt(document.getElementById('seed').value) || 0;
+
+  const errEl = document.getElementById('input-error');
+  errEl.classList.add('hidden');
+
+  try {
+    // Parse dialect ID to get components
+    const parts = parseDialectId(currentDialect.full_id);
+
+    // Choose encoding function based on whether it's character-level
+    let result;
+    if (currentDialect.is_character_level) {
+      // Character-level encoding (CS dialects: base16, base58, base64)
+      result = JSON.parse(wasmEncodeCharacters(
+        input,
+        parts.language,
+        parts.wordlist,
+        parts.dialect,
+        BigInt(seed)
+      ));
+    } else {
+      // Word-level encoding (English, Latin, etc.)
+      result = JSON.parse(wasmEncode(
+        input,
+        parts.language,
+        parts.wordlist,
+        parts.dialect,
+        BigInt(seed)
+      ));
+    }
+
+    if (result.error) {
+      errEl.textContent = result.error;
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    // Capture data mode for input label
+    lastDataMode = result.data_mode || null;
+    lastInputLength = input.length;
+    updateInputDialectLabel();
+
+    // Store result for cover word toggle
+    lastEncodedText = result.encoded_text;
+    lastPayloadWords = result.payload_words || [];
+    lastStats = result.stats || {};
+
+    // Update output display
+    const outEl = document.getElementById('output-area');
+    outEl.classList.remove('empty');
+    document.getElementById('copy-btn').style.display = '';
+    document.getElementById('stats-footer').style.display = '';
+
+    updateOutputDisplay();
+    updateBitCounts();
+  } catch (e) {
+    errEl.textContent = e.message || String(e);
+    errEl.classList.remove('hidden');
+  }
+};
+
+window.doDecode = function() {
+  if (!ready || !currentDialect) return;
+
+  const input = document.getElementById('input-area').value;
+  const parts = parseDialectId(currentDialect.full_id);
+
+  const errEl = document.getElementById('input-error');
+  errEl.classList.add('hidden');
+
+  try {
+    const result = JSON.parse(wasmDecode(input, parts.language, parts.wordlist));
+
+    const outEl = document.getElementById('output-area');
+
+    // If decode failed but we extracted payload words, show them
+    if (result.error && result.payload_words && result.payload_words.length > 0) {
+      outEl.innerHTML = `<div style="color: var(--text-dim); margin-bottom: 0.5rem; font-size: 0.85rem;">⚠️ ${result.error}</div>` +
+        `<div><strong>Extracted payload words:</strong></div>` +
+        `<div style="margin-top: 0.5rem;">${result.payload_words.join(' ')}</div>`;
+      outEl.classList.remove('empty');
+      outEl.dataset.plainText = result.payload_words.join(' ');
+      document.getElementById('copy-btn').style.display = '';
+
+      // Show extracted count in stats
+      const payloadCount = result.payload_words.length;
+      document.getElementById('stat-payload').textContent = payloadCount;
+      document.getElementById('stat-cover').textContent = '-';
+      document.getElementById('stat-total').textContent = '-';
+      document.getElementById('stat-ratio').textContent = '-';
+      document.getElementById('stats-footer').style.display = '';
+
+      // Update bit counts for partial decode
+      const inputBitsEl = document.getElementById('input-bits-info');
+      const inputBits = calculatePayloadWordBits(payloadCount);
+      if (inputBits > 0) {
+        inputBitsEl.textContent = `${inputBits} bits`;
+      }
+      document.getElementById('output-bits-info').textContent = ''; // No valid output
+      return;
+    }
+
+    // If decode completely failed with no payload words
+    if (result.error && (!result.payload_words || result.payload_words.length === 0)) {
+      outEl.innerHTML = `<div style="color: var(--error);">❌ Decode failed</div>` +
+        `<div style="color: var(--text-dim); margin-top: 0.5rem;">${result.error}</div>`;
+      outEl.classList.remove('empty');
+      outEl.dataset.plainText = '';
+      document.getElementById('copy-btn').style.display = 'none';
+      document.getElementById('stats-footer').style.display = 'none';
+      // Clear bit counts
+      document.getElementById('input-bits-info').textContent = '';
+      document.getElementById('output-bits-info').textContent = '';
+      return;
+    }
+
+    // Successful decode
+    outEl.textContent = result.decoded_text || '(empty)';
+    outEl.classList.remove('empty');
+    outEl.dataset.plainText = result.decoded_text || '';
+
+    document.getElementById('copy-btn').style.display = '';
+
+    // Show extracted count in stats
+    const payloadCount = (result.payload_words || []).length;
+    document.getElementById('stat-payload').textContent = payloadCount;
+    document.getElementById('stat-cover').textContent = '-';
+    document.getElementById('stat-total').textContent = '-';
+    document.getElementById('stat-ratio').textContent = '-';
+    document.getElementById('stats-footer').style.display = '';
+
+    // Update bit counts for decode mode
+    const inputBitsEl = document.getElementById('input-bits-info');
+    const outputBitsEl = document.getElementById('output-bits-info');
+
+    // Input: bits in the payload words extracted
+    const inputBits = calculatePayloadWordBits(payloadCount);
+    if (inputBits > 0) {
+      inputBitsEl.textContent = `${inputBits} bits`;
+    }
+
+    // Output: bits in the decoded text
+    const decodedText = result.decoded_text || '';
+    if (decodedText) {
+      // Try to detect the codec mode from decoded text
+      let outputBits = 0;
+      if (/^[0-9a-fA-F]+$/.test(decodedText) && decodedText.length % 2 === 0 && decodedText.length >= 2) {
+        outputBits = Math.floor(decodedText.length / 2) * 8;
+      } else if (/^[\x00-\x7F]+$/.test(decodedText)) {
+        outputBits = decodedText.length * 7; // ASCII-7
+      } else {
+        outputBits = new TextEncoder().encode(decodedText).length * 8;
+      }
+      if (outputBits > 0) {
+        outputBitsEl.textContent = `${outputBits} bits`;
+      }
+    }
+  } catch (e) {
+    // JavaScript error - show in output
+    const outEl = document.getElementById('output-area');
+    outEl.innerHTML = `<div style="color: var(--error);">❌ Error</div>` +
+      `<div style="color: var(--text-dim); margin-top: 0.5rem;">${e.message || String(e)}</div>`;
+    outEl.classList.remove('empty');
+    document.getElementById('copy-btn').style.display = 'none';
+    document.getElementById('stats-footer').style.display = 'none';
+    // Clear bit counts
+    document.getElementById('input-bits-info').textContent = '';
+    document.getElementById('output-bits-info').textContent = '';
+  }
+};
+
+window.randomWords = function(count) {
+  if (!ready || !currentDialect) return;
+
+  const parts = parseDialectId(currentDialect.full_id);
+  const seed = Date.now();
+
+  const errEl = document.getElementById('input-error');
+  errEl.classList.add('hidden');
+
+  try {
+    // Directly encode random words without codec overhead
+    const result = JSON.parse(wasmEncodeRandomWords(count, parts.language, parts.wordlist, parts.dialect, BigInt(seed)));
+
+    if (result.error) {
+      errEl.textContent = result.error;
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    // Update input to show the random words
+    const inputWords = (result.payload_words || []).join(' ');
+    document.getElementById('input-area').value = inputWords;
+
+    // Capture data mode and update labels
+    lastDataMode = result.data_mode || 'words';
+    lastInputLength = inputWords.length;
+    updateInputDialectLabel();
+
+    // Store result for cover word toggle
+    lastEncodedText = result.encoded_text;
+    lastPayloadWords = result.payload_words || [];
+    lastStats = result.stats || {};
+
+    // Update output display
+    const outEl = document.getElementById('output-area');
+    outEl.classList.remove('empty');
+    document.getElementById('copy-btn').style.display = '';
+    document.getElementById('stats-footer').style.display = '';
+
+    updateOutputDisplay();
+    updateBitCounts();
+
+  } catch (e) {
+    errEl.textContent = e.message || String(e);
+    errEl.classList.remove('hidden');
+  }
+};
+
+// Generate random hex string (32 bytes = 64 hex chars)
+window.randomHex = function() {
+  const bytes = 32;
+  const hex = Array.from(crypto.getRandomValues(new Uint8Array(bytes)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+  document.getElementById('input-area').value = hex.toUpperCase();
+  autoRunNow();
+};
+
+// Generate random base64 string (~32 bytes worth)
+window.randomBase64 = function() {
+  const bytes = 32;
+  const randomBytes = crypto.getRandomValues(new Uint8Array(bytes));
+  const base64 = btoa(String.fromCharCode(...randomBytes));
+  document.getElementById('input-area').value = base64;
+  autoRunNow();
+};
+
+// Generate random Bitcoin pubkey (bc1... format - Bech32)
+window.randomBitcoinKey = function() {
+  // Bech32 alphabet (lowercase only)
+  const bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+  // Generate 39 random characters (42 total with "bc1" prefix)
+  const length = 39;
+  const randomValues = crypto.getRandomValues(new Uint8Array(length));
+  const chars = Array.from(randomValues)
+    .map(v => bech32Alphabet[v % bech32Alphabet.length])
+    .join('');
+
+  const bitcoinKey = 'bc1' + chars;
+  document.getElementById('input-area').value = bitcoinKey;
+  autoRunNow();
+};
+
+// Generate random Nostr pubkey (npub... format - NIP-19 Bech32)
+window.randomNostrKey = function() {
+  // Bech32 alphabet (lowercase only)
+  const bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+  // Generate 59 random characters (63 total with "npub" prefix)
+  const length = 59;
+  const randomValues = crypto.getRandomValues(new Uint8Array(length));
+  const chars = Array.from(randomValues)
+    .map(v => bech32Alphabet[v % bech32Alphabet.length])
+    .join('');
+
+  const nostrKey = 'npub' + chars;
+  document.getElementById('input-area').value = nostrKey;
+  autoRunNow();
+};
+
+window.copyOutput = function() {
+  const el = document.getElementById('output-area');
+  const text = el.dataset.plainText || el.textContent;
+  navigator.clipboard.writeText(text).catch(() => {});
+};
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+// Theme toggle
+const toggleBtn = document.getElementById('theme-toggle');
+function updateToggleIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  toggleBtn.innerHTML = isDark ? '&#9790;' : '&#9728;';
+}
+toggleBtn.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('glossia-theme', next);
+  updateToggleIcon();
+});
+updateToggleIcon();
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    }
+  });
+});
+
+startup();
+</script>
+</body>
+</html>
