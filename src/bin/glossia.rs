@@ -257,10 +257,42 @@ fn compute_k_candidates<R: Rng>(
 /// For simplicity and to maximize efficiency, we pack bytes across words:
 /// - 11 bits per word means we can pack 1 byte + 3 bits from next byte
 /// - This gives us ~1.375 bytes per word on average
-fn encode_ascii_to_words(ascii_text: &str, language: &str, wordlist: &str) -> Result<Vec<String>, String> {
+fn encode_ascii_to_words(ascii_text: &str, language: &str, wordlist: &str) -> Result<(Vec<String>, glossia::DataMode), String> {
     let all_words = glossia::generator::load_payload_words_for_wordlist(language, wordlist)?;
     let tree = glossia::WordlistTree::new(all_words);
-    glossia::codec::encode_str(ascii_text, &tree).map_err(|e| e.to_string())
+    glossia::codec::encode_str_with_mode(ascii_text, &tree).map_err(|e| e.to_string())
+}
+
+/// Calculate input bits based on data mode and input text
+fn calculate_input_bits(input_text: &str, mode: glossia::DataMode) -> usize {
+    use glossia::DataMode;
+    match mode {
+        DataMode::Hex => {
+            // Hex: 2 chars = 1 byte = 8 bits
+            (input_text.len() / 2) * 8
+        }
+        DataMode::Base64 => {
+            // Base64: 4 chars = 3 bytes = 24 bits
+            (input_text.len() / 4) * 3 * 8
+        }
+        DataMode::Ascii7 => {
+            // ASCII-7: 1 char = 7 bits
+            input_text.len() * 7
+        }
+        DataMode::Bytes8 => {
+            // UTF-8: count actual bytes
+            input_text.as_bytes().len() * 8
+        }
+    }
+}
+
+/// Calculate output bits based on wordlist size and word count
+fn calculate_output_bits(word_count: usize, wordlist_size: usize) -> Option<usize> {
+    if wordlist_size == 0 || !wordlist_size.is_power_of_two() {
+        return None;
+    }
+    let bits_per_word = wordlist_size.trailing_zeros() as usize;
+    Some(word_count * bits_per_word)
 }
 
 
@@ -919,8 +951,15 @@ fn main() {
             raw_tokens
         };
 
+        // Calculate input bits from payload word count
+        let wordlist_size = all_words.len();
         if verbose {
             eprintln!("Decoding {} words", input_words.len());
+            if let Some(input_bits) = calculate_output_bits(input_words.len(), wordlist_size) {
+                let bits_per_word = wordlist_size.trailing_zeros();
+                eprintln!("Input bits: {} ({} words × {} bits/word)",
+                         input_bits, input_words.len(), bits_per_word);
+            }
         }
 
         match glossia::codec::decode_with_mode(&input_words, &tree) {
@@ -959,6 +998,8 @@ fn main() {
                 }
                 if verbose {
                     eprintln!("Decoded mode: {}", mode);
+                    eprintln!("Output bytes: {}", bytes.len());
+                    eprintln!("Output bits: {} bytes × 8 = {} bits", bytes.len(), bytes.len() * 8);
                 }
             }
             Err(e) => {
@@ -1055,12 +1096,18 @@ fn main() {
         };
     }
 
+    // Track data mode and input text for bit calculations
+    let mut data_mode: Option<glossia::DataMode> = None;
+    let mut input_text: Option<String> = None;
+
     // If ASCII input provided, encode it to words
     if let Some(ascii_text) = ascii_input {
+        input_text = Some(ascii_text.clone());
         words = match encode_ascii_to_words(&ascii_text, &language, &wordlist) {
-            Ok(encoded_words) => {
+            Ok((encoded_words, mode)) => {
+                data_mode = Some(mode);
                 if verbose {
-                    eprintln!("Encoded {} bytes to {} words", ascii_text.len(), encoded_words.len());
+                    eprintln!("Encoded {} bytes to {} words (mode: {})", ascii_text.len(), encoded_words.len(), mode);
                 }
                 encoded_words
             }
@@ -1512,6 +1559,13 @@ fn main() {
         eprintln!("\n=== Statistics ===");
         eprintln!("Input:");
         eprintln!("  Total words: {}", input_word_count);
+
+        // Report input bits if we have the information
+        if let (Some(txt), Some(mode)) = (&input_text, data_mode) {
+            let input_bits = calculate_input_bits(txt, mode);
+            eprintln!("  Input bits: {} (mode: {})", input_bits, mode);
+        }
+
         if !input_pos_counts.is_empty() {
             eprintln!("  POS breakdown:");
             let mut pos_vec: Vec<_> = input_pos_counts.iter().collect();
@@ -1531,13 +1585,22 @@ fn main() {
                 eprintln!("    {}: {}", pos_name, count);
             }
         }
-        
+
         eprintln!("Output:");
         eprintln!("  Total words: {}", best_output_count);
-        eprintln!("  Payload words: {} ({:.1}%)", payload_word_count, 
+        eprintln!("  Payload words: {} ({:.1}%)", payload_word_count,
                   (payload_word_count as f64 / best_output_count as f64) * 100.0);
         eprintln!("  Cover words: {} ({:.1}%)", cover_word_count,
                   (cover_word_count as f64 / best_output_count as f64) * 100.0);
+
+        // Report output bits based on payload word count and wordlist size
+        let wordlist_size = wordlist_words.len();
+        if let Some(output_bits) = calculate_output_bits(payload_word_count, wordlist_size) {
+            let bits_per_word = wordlist_size.trailing_zeros();
+            eprintln!("  Output bits: {} ({} words × {} bits/word)",
+                     output_bits, payload_word_count, bits_per_word);
+        }
+
         eprintln!("  Sentences: {}", sentence_count);
         eprintln!("  Avg words per sentence: {:.1}", avg_words_per_sentence);
         

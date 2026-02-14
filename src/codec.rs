@@ -526,6 +526,14 @@ pub fn decode(words: &[String], wordlist: &WordlistTree) -> Result<Vec<u8>, Deco
 ///
 /// **ASCII detection**: all bytes < 128.
 pub fn encode_str(s: &str, wordlist: &WordlistTree) -> Result<Vec<String>, DecodeError> {
+    encode_str_with_mode(s, wordlist).map(|(words, _mode)| words)
+}
+
+/// Like `encode_str`, but also returns the DataMode that was used.
+pub fn encode_str_with_mode(
+    s: &str,
+    wordlist: &WordlistTree,
+) -> Result<(Vec<String>, DataMode), DecodeError> {
     if wordlist.is_empty() {
         return Err(DecodeError::EmptyWordlist);
     }
@@ -535,7 +543,8 @@ pub fn encode_str(s: &str, wordlist: &WordlistTree) -> Result<Vec<String>, Decod
 
     // Try detected mode; fall back to wider modes if header doesn't fit
     if detected_mode.fits_in_wordlist(b) {
-        return encode_with_mode(&detected_data, wordlist, detected_mode);
+        let words = encode_with_mode(&detected_data, wordlist, detected_mode)?;
+        return Ok((words, detected_mode));
     }
 
     // Fallback: try Ascii7 → Bytes8
@@ -544,10 +553,12 @@ pub fn encode_str(s: &str, wordlist: &WordlistTree) -> Result<Vec<String>, Decod
         && bytes.iter().all(|&byte| byte < 128)
         && DataMode::Ascii7.fits_in_wordlist(b)
     {
-        return encode_with_mode(bytes, wordlist, DataMode::Ascii7);
+        let words = encode_with_mode(bytes, wordlist, DataMode::Ascii7)?;
+        return Ok((words, DataMode::Ascii7));
     }
 
-    encode_with_mode(bytes, wordlist, DataMode::Bytes8)
+    let words = encode_with_mode(bytes, wordlist, DataMode::Bytes8)?;
+    Ok((words, DataMode::Bytes8))
 }
 
 /// Decode payload words back into the original string.

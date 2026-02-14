@@ -7,9 +7,10 @@ use crate::generator::data::{
     get_available_languages, get_available_wordlists,
     load_payload_words_for_wordlist, build_pos_mapping_for_wordlist,
     load_cover_words_by_pos_for_wordlist,
+    detect_dialect,
 };
 use crate::generator::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
-use crate::generator::core::generate_text;
+use crate::generator::core::generate_text_with_original_payload;
 use crate::merkle::WordlistTree;
 use crate::codec;
 
@@ -51,7 +52,7 @@ fn encode_inner(
     let payload_tree = WordlistTree::new(payload_words.clone());
 
     // 2. Encode input string to payload words via codec (auto-detects hex/base64/ascii)
-    let encoded_words = codec::encode_str(input, &payload_tree)
+    let (encoded_words, data_mode) = codec::encode_str_with_mode(input, &payload_tree)
         .map_err(|e| format!("Encoding error: {}", e))?;
 
     // 3. Build POS mapping for payload words
@@ -80,9 +81,23 @@ fn encode_inner(
     }
     lex = lex.with_refined_cover(refined_cover);
 
-    // 6. Load grammar
-    let _grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    // 6. Load grammar and compute dynamic k_min/k_max
+    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
+
+    // Derive k_min/k_max from the grammar's structure and payload size.
+    // Concatenated-payload grammars (payload_separator="") encode all payload
+    // in a single sentence — force k_min = k_max = overhead + payload_count.
+    let min_k = grammar.min_sentence_length().unwrap_or(5);
+    let concat_payload = grammar.payload_separator().is_empty();
+    let (k_min, k_max) = if concat_payload {
+        // CS-style grammar: force single sentence sized for all payload
+        let k = min_k + payload_toks.len().saturating_sub(1);
+        (k, k)
+    } else {
+        // Standard grammar (e.g., English): multi-sentence, short sentences
+        (5, 12)
+    };
 
     // 7. Generate text with seeded RNG
     let mut rng = StdRng::seed_from_u64(seed);
@@ -90,15 +105,17 @@ fn encode_inner(
         "subject" => GenerationMode::Subject,
         _ => GenerationMode::Body,
     };
-    let (text, used_payload) = generate_text(
+    let (text, used_payload) = generate_text_with_original_payload(
         &mut rng,
         &lex,
         &payload_toks,
+        None,
         false, // verbose
         mode,
         language,
-        5,  // k_min
-        12, // k_max
+        Some(grammar_dialect),
+        k_min,
+        k_max,
         SentenceLengthMode::Natural,
         " ", // delimiter
     );
@@ -112,6 +129,7 @@ fn encode_inner(
         "encoded_text": text,
         "payload_words": encoded_words,
         "used_payload": used_payload.into_iter().collect::<Vec<String>>(),
+        "data_mode": data_mode.to_string(),
         "stats": {
             "payload_count": payload_count,
             "cover_count": cover_count,
@@ -236,4 +254,211 @@ fn random_words_inner(
     }
 
     Ok(serde_json::to_string(&selected).unwrap_or_else(|_| "[]".to_string()))
+}
+
+/// Generate random words and encode them directly as word indices.
+///
+/// This bypasses the codec layer (no hex/base64/ascii detection) and directly
+/// uses the random words as payload. Much more efficient for BIP39-style use cases.
+///
+/// Returns JSON: `{ "encoded_text": "...", "payload_words": [...], "stats": { ... }, "data_mode": "words" }`
+#[wasm_bindgen]
+pub fn encode_random_words(
+    count: usize,
+    language: &str,
+    wordlist: &str,
+    grammar_dialect: &str,
+    seed: u64,
+) -> String {
+    let result = encode_random_words_inner(count, language, wordlist, grammar_dialect, seed);
+    match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+/// Auto-detect which dialect (language + wordlist) best matches the given text.
+///
+/// Uses compile-time precomputed word indices for fast O(log n) binary search.
+/// Returns all matches sorted by score (best first).
+///
+/// Returns JSON array: `[{ "language": "english", "wordlist": "bip39", "dialects": ["body", "subject"],
+///                         "hits": 10, "total": 12, "hit_rate": 0.83, "wordlist_size": 2048 }, ...]`
+#[wasm_bindgen]
+pub fn detect_dialect_from_text(text: &str) -> String {
+    // Split text into words and detect
+    let words: Vec<String> = text
+        .split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    let matches = detect_dialect(&words);
+
+    // Convert to JSON
+    let json_matches: Vec<serde_json::Value> = matches
+        .iter()
+        .map(|m| {
+            serde_json::json!({
+                "language": m.language,
+                "wordlist": m.wordlist,
+                "dialects": m.dialects,
+                "hits": m.hits,
+                "total": m.total,
+                "hit_rate": m.hit_rate,
+                "wordlist_size": m.wordlist_size
+            })
+        })
+        .collect();
+
+    serde_json::to_string(&json_matches).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Get the exact wordlist size for a language/wordlist combination.
+///
+/// Returns JSON: `{ "size": 2048 }` or `{ "error": "..." }`
+#[wasm_bindgen]
+pub fn get_wordlist_size(language: &str, wordlist: &str) -> String {
+    use crate::generator::data;
+
+    let size = data::get_wordlist_size(language, wordlist);
+
+    if size == 0 {
+        return serde_json::json!({
+            "error": format!("Unknown wordlist: {}/{}", language, wordlist)
+        }).to_string();
+    }
+
+    serde_json::json!({ "size": size }).to_string()
+}
+
+/// Get the bits per word for a language/wordlist combination.
+///
+/// Returns JSON: `{ "bits_per_word": 11 }` or `{ "error": "..." }`
+#[wasm_bindgen]
+pub fn get_bits_per_word(language: &str, wordlist: &str) -> String {
+    use crate::generator::data;
+
+    let size = data::get_wordlist_size(language, wordlist);
+
+    if size == 0 {
+        return serde_json::json!({
+            "error": format!("Unknown wordlist: {}/{}", language, wordlist)
+        }).to_string();
+    }
+
+    if !size.is_power_of_two() {
+        return serde_json::json!({
+            "error": format!("Wordlist size {} is not a power of two", size)
+        }).to_string();
+    }
+
+    let bits = size.trailing_zeros() as usize;
+    serde_json::json!({ "bits_per_word": bits }).to_string()
+}
+
+fn encode_random_words_inner(
+    count: usize,
+    language: &str,
+    wordlist: &str,
+    grammar_dialect: &str,
+    seed: u64,
+) -> Result<String, String> {
+    // 1. Load payload wordlist
+    let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
+    if payload_words.is_empty() {
+        return Err("Wordlist is empty".to_string());
+    }
+
+    // 2. Generate random words
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut selected_words = Vec::with_capacity(count);
+    for _ in 0..count {
+        use rand::seq::SliceRandom;
+        selected_words.push(payload_words.choose(&mut rng).unwrap().clone());
+    }
+
+    // 3. Build POS mapping for payload words
+    let pos_mapping = build_pos_mapping_for_wordlist(language, wordlist)?;
+
+    // 4. Build PayloadTok vec with POS tags (directly from random words)
+    let payload_toks: Vec<PayloadTok> = selected_words
+        .iter()
+        .map(|word| {
+            let allowed = pos_mapping
+                .get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &allowed)
+        })
+        .collect();
+
+    // 5. Build Lexicon from cover words
+    let wordlist_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
+    let (cover_by_pos, refined_cover) =
+        load_cover_words_by_pos_for_wordlist(&wordlist_set, language, wordlist);
+
+    let mut lex = Lexicon::new(wordlist_set.clone(), wordlist_set);
+    for (pos, words) in cover_by_pos {
+        lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    }
+    lex = lex.with_refined_cover(refined_cover);
+
+    // 6. Load grammar and compute dynamic k_min/k_max
+    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+        .map_err(|e| format!("Grammar error: {}", e))?;
+
+    let min_k = grammar.min_sentence_length().unwrap_or(5);
+    let concat_payload = grammar.payload_separator().is_empty();
+    let (k_min, k_max) = if concat_payload {
+        let k = min_k + payload_toks.len().saturating_sub(1);
+        (k, k)
+    } else {
+        (5, 12)
+    };
+
+    // 7. Generate text with the same RNG (re-seeded for text generation)
+    let mut text_rng = StdRng::seed_from_u64(seed.wrapping_add(1)); // Offset seed for text gen
+    let mode = match grammar_dialect {
+        "subject" => GenerationMode::Subject,
+        _ => GenerationMode::Body,
+    };
+    let (text, used_payload) = generate_text_with_original_payload(
+        &mut text_rng,
+        &lex,
+        &payload_toks,
+        None,
+        false, // verbose
+        mode,
+        language,
+        Some(grammar_dialect),
+        k_min,
+        k_max,
+        SentenceLengthMode::Natural,
+        " ", // delimiter
+    );
+
+    // 8. Build response JSON
+    let payload_count = selected_words.len();
+    let total_words = text.split_whitespace().count();
+    let cover_count = total_words.saturating_sub(used_payload.len());
+
+    let response = serde_json::json!({
+        "encoded_text": text,
+        "payload_words": selected_words,
+        "used_payload": used_payload.into_iter().collect::<Vec<String>>(),
+        "data_mode": "words", // Special mode for direct word encoding
+        "stats": {
+            "payload_count": payload_count,
+            "cover_count": cover_count,
+            "total_words": total_words,
+            "ratio": if total_words > 0 {
+                (payload_count as f64) / (total_words as f64)
+            } else {
+                0.0
+            }
+        }
+    });
+
+    Ok(response.to_string())
 }

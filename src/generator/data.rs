@@ -78,6 +78,12 @@ pub fn default_wordlist(language: &str) -> &'static str {
     profiles.first().copied().unwrap_or("default")
 }
 
+/// Get the exact precomputed word count for a payload wordlist.
+/// Returns 0 if the language/wordlist combination is not found.
+pub fn get_wordlist_size(language: &str, wordlist: &str) -> usize {
+    language_index::get_payload_word_count(language, wordlist)
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PayloadCacheData {
     /// Sorted list of all payload words for the language.
