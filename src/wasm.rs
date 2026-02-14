@@ -314,6 +314,154 @@ pub fn detect_dialect_from_text(text: &str) -> String {
     serde_json::to_string(&json_matches).unwrap_or_else(|_| "[]".to_string())
 }
 
+/// Get all available dialects across all languages with full metadata.
+///
+/// Returns a hierarchical structure for building a dialect selector UI.
+///
+/// Returns JSON:
+/// ```json
+/// [
+///   {
+///     "language": "english",
+///     "language_display": "English",
+///     "dialects": [
+///       {
+///         "dialect": "body",
+///         "display_name": "BIP39 (Natural Body)",
+///         "full_id": "english-bip39-body",
+///         "payload_wordlist": "bip39",
+///         "cover_wordlist": "default",
+///         "wordlist_size": 2048,
+///         "bits_per_word": 11.0,
+///         "is_character_level": false,
+///         "description": "Natural multi-sentence prose"
+///       },
+///       ...
+///     ]
+///   },
+///   ...
+/// ]
+/// ```
+#[wasm_bindgen]
+pub fn get_all_dialects() -> String {
+    use crate::grammar::DialectConfig;
+
+    let languages = get_available_languages();
+    let mut result = Vec::new();
+
+    for &lang in languages {
+        let dialects = DialectConfig::available_dialects(lang);
+        let mut dialect_list = Vec::new();
+
+        for dialect_name in dialects {
+            // Try to load the dialect config to get wordlist info
+            match DialectConfig::from_language_dialect(lang, &dialect_name) {
+                Ok(config) => {
+                    let payload_wl = config.payload_wordlist();
+                    let cover_wl = config.cover_wordlist();
+                    let wordlist_size = crate::generator::data::get_wordlist_size(lang, payload_wl);
+
+                    let is_pow2 = wordlist_size.is_power_of_two();
+                    let bits_per_word = if is_pow2 {
+                        wordlist_size.trailing_zeros() as f64
+                    } else {
+                        (wordlist_size as f64).log2()
+                    };
+
+                    // Check if this is character-level encoding
+                    let is_character_level = config.grammar.payload_separator().is_empty();
+
+                    // Generate friendly display name
+                    let display_name = generate_dialect_display_name(
+                        lang,
+                        &dialect_name,
+                        payload_wl,
+                        is_character_level
+                    );
+
+                    // Generate full ID for unique identification
+                    let full_id = format!("{}-{}-{}", lang, payload_wl, dialect_name);
+
+                    dialect_list.push(serde_json::json!({
+                        "dialect": dialect_name,
+                        "display_name": display_name,
+                        "full_id": full_id,
+                        "payload_wordlist": payload_wl,
+                        "cover_wordlist": cover_wl,
+                        "wordlist_size": wordlist_size,
+                        "bits_per_word": bits_per_word,
+                        "is_power_of_two": is_pow2,
+                        "is_character_level": is_character_level,
+                    }));
+                }
+                Err(_) => {
+                    // Skip dialects that fail to load
+                    continue;
+                }
+            }
+        }
+
+        if !dialect_list.is_empty() {
+            let language_display = match lang {
+                "english" => "English",
+                "latin" => "Latin",
+                "cs" => "Cryptographic Signatures",
+                "hp" => "Harry Potter",
+                "math" => "Mathematics",
+                _ => lang,
+            };
+
+            result.push(serde_json::json!({
+                "language": lang,
+                "language_display": language_display,
+                "dialects": dialect_list,
+            }));
+        }
+    }
+
+    serde_json::to_string(&result).unwrap_or_else(|_| "[]".to_string())
+}
+
+/// Generate a friendly display name for a dialect
+fn generate_dialect_display_name(
+    language: &str,
+    dialect: &str,
+    payload_wordlist: &str,
+    is_character_level: bool,
+) -> String {
+    match (language, dialect, payload_wordlist) {
+        // English BIP39 dialects
+        ("english", "body", "bip39") => "BIP39 (Natural Body)".to_string(),
+        ("english", "subject", "bip39") => "BIP39 (Subject Lines)".to_string(),
+        ("english", "prose", "bip39") => "BIP39 (Literary Prose)".to_string(),
+        ("english", "payload_only", "bip39") => "BIP39 (Words Only)".to_string(),
+
+        // Latin dialects
+        ("latin", "body", _) => "Latin (Natural Body)".to_string(),
+        ("latin", "subject", _) => "Latin (Subject Lines)".to_string(),
+        ("latin", "spells", "hp") => "Harry Potter Spells".to_string(),
+        ("latin", "payload_only", _) => "Latin (Words Only)".to_string(),
+
+        // CS (Cryptographic Signature) dialects
+        ("cs", "nip04", "base58") => "NIP-04 Encrypted Message".to_string(),
+        ("cs", "nip44", "base58") => "NIP-44 Encrypted Message".to_string(),
+        ("cs", "pgp", "base58") => "PGP Encrypted Message".to_string(),
+        ("cs", "ascii7", "ascii7") => "Plain ASCII Message".to_string(),
+        ("cs", "sig", "base58") => "Plain Signature".to_string(),
+        ("cs", "sig_pgp", "base58") => "PGP Signature".to_string(),
+        ("cs", "sig_nostr", "base16") => "Nostr Signature".to_string(),
+        ("cs", "raw", _) => "Raw (No Armor)".to_string(),
+
+        // Generic fallback
+        _ if is_character_level => {
+            format!("{} ({})", dialect, payload_wordlist.to_uppercase())
+        }
+        _ => {
+            format!("{} ({})", dialect, payload_wordlist)
+        }
+    }
+}
+
 /// Get the exact wordlist size for a language/wordlist combination.
 ///
 /// Returns JSON: `{ "size": 2048 }` or `{ "error": "..." }`
@@ -334,7 +482,10 @@ pub fn get_wordlist_size(language: &str, wordlist: &str) -> String {
 
 /// Get the bits per word for a language/wordlist combination.
 ///
-/// Returns JSON: `{ "bits_per_word": 11 }` or `{ "error": "..." }`
+/// For power-of-two wordlists (BIP39, etc.): returns exact integer bits
+/// For non-power-of-two wordlists (base58, base64): returns fractional bits
+///
+/// Returns JSON: `{ "bits_per_word": 11.0, "is_power_of_two": true }` or `{ "error": "..." }`
 #[wasm_bindgen]
 pub fn get_bits_per_word(language: &str, wordlist: &str) -> String {
     use crate::generator::data;
@@ -347,14 +498,156 @@ pub fn get_bits_per_word(language: &str, wordlist: &str) -> String {
         }).to_string();
     }
 
-    if !size.is_power_of_two() {
-        return serde_json::json!({
-            "error": format!("Wordlist size {} is not a power of two", size)
-        }).to_string();
+    let is_pow2 = size.is_power_of_two();
+    let bits = if is_pow2 {
+        // Exact bits for power-of-two sizes
+        size.trailing_zeros() as f64
+    } else {
+        // Fractional bits for non-power-of-two sizes (e.g., base58 = 58 chars)
+        (size as f64).log2()
+    };
+
+    serde_json::json!({
+        "bits_per_word": bits,
+        "is_power_of_two": is_pow2,
+        "note": if !is_pow2 {
+            Some("Character-level encoding - use characters directly as payload words")
+        } else {
+            None
+        }
+    }).to_string()
+}
+
+/// Encode pre-formatted data (hex, base58, base64) using character-level encoding.
+///
+/// This bypasses the codec layer and uses each character directly as a payload word.
+/// Designed for CS (cryptographic signature) dialects that use payload_separator: "".
+///
+/// Returns JSON: `{ "encoded_text": "...", "payload_words": [...], "stats": { ... } }`
+#[wasm_bindgen]
+pub fn encode_characters(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    grammar_dialect: &str,
+    seed: u64,
+) -> String {
+    let result = encode_characters_inner(input, language, wordlist, grammar_dialect, seed);
+    match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn encode_characters_inner(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    grammar_dialect: &str,
+    seed: u64,
+) -> Result<String, String> {
+    // 1. Load payload wordlist
+    let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
+    let payload_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
+
+    // 2. Split input into characters and validate each is in the wordlist
+    let character_words: Vec<String> = input
+        .chars()
+        .map(|c| c.to_string())
+        .collect();
+
+    // Validate that all characters are in the wordlist
+    for ch in &character_words {
+        if !payload_set.contains(&ch.to_lowercase()) {
+            return Err(format!(
+                "Character '{}' not found in {}/{} wordlist",
+                ch, language, wordlist
+            ));
+        }
     }
 
-    let bits = size.trailing_zeros() as usize;
-    serde_json::json!({ "bits_per_word": bits }).to_string()
+    // 3. Build POS mapping
+    let pos_mapping = build_pos_mapping_for_wordlist(language, wordlist)?;
+
+    // 4. Build PayloadTok vec with POS tags
+    let payload_toks: Vec<PayloadTok> = character_words
+        .iter()
+        .map(|word| {
+            let allowed = pos_mapping
+                .get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &allowed)
+        })
+        .collect();
+
+    // 5. Build Lexicon from cover words
+    let (cover_by_pos, refined_cover) =
+        load_cover_words_by_pos_for_wordlist(&payload_set, language, wordlist);
+
+    let mut lex = Lexicon::new(payload_set.clone(), payload_set);
+    for (pos, words) in cover_by_pos {
+        lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    }
+    lex = lex.with_refined_cover(refined_cover);
+
+    // 6. Load grammar and compute dynamic k_min/k_max
+    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+        .map_err(|e| format!("Grammar error: {}", e))?;
+
+    let min_k = grammar.min_sentence_length().unwrap_or(5);
+    let concat_payload = grammar.payload_separator().is_empty();
+    let (k_min, k_max) = if concat_payload {
+        let k = min_k + payload_toks.len().saturating_sub(1);
+        (k, k)
+    } else {
+        (5, 12)
+    };
+
+    // 7. Generate text
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mode = match grammar_dialect {
+        "subject" => GenerationMode::Subject,
+        _ => GenerationMode::Body,
+    };
+    let (text, used_payload) = generate_text_with_original_payload(
+        &mut rng,
+        &lex,
+        &payload_toks,
+        None,
+        false, // verbose
+        mode,
+        language,
+        Some(grammar_dialect),
+        k_min,
+        k_max,
+        SentenceLengthMode::Natural,
+        " ", // delimiter
+    );
+
+    // 8. Build response JSON
+    let payload_count = character_words.len();
+    let total_words = text.split_whitespace().count();
+    let cover_count = total_words.saturating_sub(used_payload.len());
+
+    let response = serde_json::json!({
+        "encoded_text": text,
+        "payload_words": character_words,
+        "used_payload": used_payload.into_iter().collect::<Vec<String>>(),
+        "data_mode": "characters", // Special mode for character-level encoding
+        "stats": {
+            "payload_count": payload_count,
+            "cover_count": cover_count,
+            "total_words": total_words,
+            "ratio": if total_words > 0 {
+                (payload_count as f64) / (total_words as f64)
+            } else {
+                0.0
+            }
+        }
+    });
+
+    Ok(response.to_string())
 }
 
 fn encode_random_words_inner(
