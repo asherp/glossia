@@ -40,6 +40,10 @@
 grammar:
   name: "Dialect Calculus Meta-Grammar"
 
+  # Cap sequence enumeration: recursive VP_PP_TAIL causes combinatorial
+  # explosion beyond k=12. Pipeline specs are short (4-12 tokens typical).
+  max_k: 12
+
   types:
     # Encoder: given data, produce valid encoded output
     - name: "N"

@@ -208,20 +208,37 @@ pub fn wrap_payload_with_color(word_with_punct: &str, color_code: u8) -> String 
     format!("\x1b[{}m{core}\x1b[0m{suffix}", color_code)
 }
 
-/// Word wrap text to specified width, preserving sentence boundaries
+/// Word wrap text to specified width, preserving sentence boundaries and embedded newlines.
+/// Embedded newlines (e.g., from CS grammar's ASCII armor structure) are preserved as-is.
+/// Only lines that exceed `width` are wrapped.
 pub fn word_wrap(text: &str, width: usize) -> String {
+    // Process each existing line independently to preserve embedded newlines
+    // (e.g., ASCII armor header/body/footer separation)
+    text.split('\n')
+        .map(|line| wrap_single_line(line, width))
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
+/// Wrap a single line (no embedded newlines) to the specified width.
+fn wrap_single_line(line: &str, width: usize) -> String {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.len() <= width {
+        return trimmed.to_string();
+    }
+
     let mut result = Vec::new();
     let mut current_line = String::new();
-    
+
     // Split by sentences first to preserve sentence boundaries
-    let sentences: Vec<&str> = text.split_inclusive('.').collect();
-    
+    let sentences: Vec<&str> = trimmed.split_inclusive('.').collect();
+
     for sentence in sentences {
         let trimmed_sentence = sentence.trim();
         if trimmed_sentence.is_empty() {
             continue;
         }
-        
+
         // If adding this sentence would exceed width, start a new line
         if !current_line.is_empty() {
             let test_line = format!("{} {}", current_line, trimmed_sentence);
@@ -234,12 +251,12 @@ pub fn word_wrap(text: &str, width: usize) -> String {
         } else {
             current_line = trimmed_sentence.to_string();
         }
-        
+
         // If current line exceeds width, wrap it word by word
         if current_line.len() > width {
             let words: Vec<String> = current_line.split_whitespace().map(|s| s.to_string()).collect();
             current_line.clear();
-            
+
             for word in words {
                 if current_line.is_empty() {
                     current_line = word;
@@ -255,11 +272,11 @@ pub fn word_wrap(text: &str, width: usize) -> String {
             }
         }
     }
-    
+
     // Add any remaining line
     if !current_line.is_empty() {
         result.push(current_line);
     }
-    
+
     result.join("\n")
 }

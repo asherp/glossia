@@ -32,12 +32,15 @@ fn join_words_with_payload_grammar(
 
     // Payload-aware join: consecutive payload words use payload_separator,
     // all other transitions use " ".
+    // Newline cover words (e.g., Conj "\n" in ASCII armor) are output as-is
+    // without preceding spaces.
     let mut result = String::new();
     let mut payload_run = String::new(); // accumulates consecutive payload chars
 
-    for (i, word) in words.iter().enumerate() {
+    for (_i, word) in words.iter().enumerate() {
         let word_clean = normalize_token_for_bip39(word);
         let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+        let is_newline = word.contains('\n');
 
         if is_payload {
             // Accumulate into payload run
@@ -55,7 +58,8 @@ fn join_words_with_payload_grammar(
                 // Apply line wrapping if configured
                 if let Some(width) = line_width {
                     let wrapped = wrap_payload(&payload_text, width);
-                    if !result.is_empty() {
+                    // Only add a newline before payload if result doesn't already end with one
+                    if !result.is_empty() && !result.ends_with('\n') {
                         result.push('\n');
                     }
                     result.push_str(&wrapped);
@@ -68,18 +72,16 @@ fn join_words_with_payload_grammar(
                 payload_run.clear();
             }
             // Add the cover word
-            if !result.is_empty() {
-                // If previous content ended with newline-wrapped payload, use newline
-                if line_width.is_some() && i > 0 {
-                    let prev_clean = normalize_token_for_bip39(&words[i - 1]);
-                    let prev_was_payload = !prev_clean.is_empty() && payload_set.contains(&prev_clean);
-                    if prev_was_payload && payload_run.is_empty() {
-                        // already flushed above
-                    }
+            if is_newline {
+                // Newline cover words (e.g., Conj "\n" for ASCII armor line breaks)
+                // are output directly — no preceding space.
+                result.push_str(word);
+            } else {
+                if !result.is_empty() && !result.ends_with('\n') {
+                    result.push(' ');
                 }
-                result.push(' ');
+                result.push_str(word);
             }
-            result.push_str(word);
         }
     }
 
@@ -92,7 +94,7 @@ fn join_words_with_payload_grammar(
         };
         if let Some(width) = line_width {
             let wrapped = wrap_payload(&payload_text, width);
-            if !result.is_empty() {
+            if !result.is_empty() && !result.ends_with('\n') {
                 result.push('\n');
             }
             result.push_str(&wrapped);
@@ -733,7 +735,7 @@ pub fn generate_text<R: Rng>(
     length_mode: SentenceLengthMode,
     delimiter: &str,
 ) -> (String, HashSet<String>) {
-    generate_text_with_original_payload(rng, lex, payload, None, verbose, mode, language, k_min, k_max, length_mode, delimiter)
+    generate_text_with_original_payload(rng, lex, payload, None, verbose, mode, language, None, k_min, k_max, length_mode, delimiter)
 }
 
 /// Generate text with optional original payload set for validation (used in merkle mode)
@@ -745,6 +747,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
     verbose: bool,
     mode: GenerationMode,
     language: &str,
+    grammar_dialect: Option<&str>,
     k_min: usize,
     k_max: usize,
     length_mode: SentenceLengthMode,
@@ -772,7 +775,14 @@ pub fn generate_text_with_original_payload<R: Rng>(
     let mut payload_i: usize = 0;
 
     // Check if prime ordering constraint is enabled in grammar
-    let grammar = get_grammar(mode, language);
+    // Use explicit dialect if provided, otherwise derive from mode
+    let dialect_str = grammar_dialect.unwrap_or(match mode {
+        GenerationMode::Subject => "subject",
+        GenerationMode::Body => "body",
+        GenerationMode::PayloadOnly => "payload_only",
+    });
+    let grammar = Grammar::from_language_dialect(language, dialect_str)
+        .expect(&format!("Failed to load {} grammar for language {}", dialect_str, language));
     let prime_constraint_enabled = grammar.language_config.as_ref()
         .and_then(|config| config.constraints.as_ref())
         .and_then(|constraints| constraints.prime_ordering.as_ref())
@@ -780,7 +790,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
         .unwrap_or(false);
 
     // Load precomputed sequences
-    let cache = match SequenceCache::load(mode, language, k_max, verbose) {
+    let cache = match SequenceCache::load_with_dialect(mode, language, dialect_str, k_max, verbose) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Error loading sequence cache: {}", e);

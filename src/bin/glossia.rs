@@ -300,13 +300,13 @@ fn calculate_output_bits(word_count: usize, wordlist_size: usize) -> Option<usiz
 fn print_usage(program_name: &str) {
     eprintln!("Usage: {} [OPTIONS] [<word1> <word2> ... <wordN>]", program_name);
     eprintln!();
-    eprintln!("Generate natural sentences embedding BIP39 words in-order.");
+    eprintln!("Generate natural sentences embedding payload words in-order.");
     eprintln!();
     eprintln!("Arguments:");
     eprintln!("  <word1> <word2> ...    Words to embed (positional, optional if --random or --from-ascii used)");
     eprintln!();
     eprintln!("Options:");
-    eprintln!("  --random <N>            Generate sentences from N random BIP39 words");
+    eprintln!("  --random <N>            Generate sentences from N random payload words");
     eprintln!("  --from-ascii <text>     Encode ASCII plaintext to wordlist words");
     eprintln!("                          Use '-' to read from stdin");
     eprintln!("  --dialect <dialect>       Dialect: 'body' (default), 'subject', or 'payload_only'");
@@ -327,10 +327,10 @@ fn print_usage(program_name: &str) {
     eprintln!("  --decode                Decode payload words back to bytes (inverse of --from-ascii)");
     eprintln!("                          Provide words as positional args or pipe via stdin");
     eprintln!("                          Auto-detects language/wordlist if --language not specified");
-    eprintln!("  --madlib                Replace BIP39 words with [POS] placeholders");
+    eprintln!("  --madlib                Replace payload words with [POS] placeholders");
     eprintln!("  --seed <N>              Seed for deterministic random generation");
     eprintln!("  --variations <N>         Generate N variations and select the most compact (default: 1)");
-    eprintln!("  --language, -l <lang>    Language for wordlist: 'english' (default, BIP39), 'french' (BIP39), 'german'");
+    eprintln!("  --language, -l <lang>    Language for wordlist: 'english' (default), 'french', 'german', 'meta', etc.");
     eprintln!("  --k-min <N>              Minimum sentence length in POS slots including Dot (default: 3)");
     eprintln!("  --k-max <N>              Maximum sentence length in POS slots including Dot (default: 20)");
     eprintln!("  --length-mode <mode>      Sentence length selection: 'compact' or 'natural'");
@@ -1140,7 +1140,7 @@ fn main() {
             }
             words = selected;
             if verbose {
-                eprintln!("Selected {} random BIP39 words: {}", count, words.join(" "));
+                eprintln!("Selected {} random payload words: {}", count, words.join(" "));
             }
         }
     }
@@ -1297,6 +1297,14 @@ fn main() {
             let k = min_k + expanded_payload.len().saturating_sub(1);
             k_min = k;
             k_max = k;
+        }
+        // Respect grammar's max_k declaration (caps enumeration for recursive grammars)
+        if !k_max_explicit {
+            if let Some(grammar_max_k) = grammar.max_k() {
+                if k_max > grammar_max_k {
+                    k_max = grammar_max_k;
+                }
+            }
         }
         if verbose {
             eprintln!("Grammar min sentence length: {}", min_k);
@@ -1636,7 +1644,7 @@ mod tests {
     use glossia::generator::{
         tag_word, select_random_words, max_subsequence_embedding,
         plan_sentence, fill_slots, load_payload_words,
-        generate_text,
+        generate_text, load_cover_words_by_pos, build_pos_mapping_for_wordlist,
     };
     use glossia::generator::utils::{payload_fits, starts_with_vowel_sound};
 
@@ -2622,6 +2630,212 @@ mod tests {
         assert!(
             text.ends_with('.'),
             "Body mode English text should end with period. Got: '{}'",
+            text
+        );
+    }
+
+    // ========== Meta-language integration tests ==========
+
+    /// Build a Lexicon for meta language from its actual cover.yaml data.
+    fn setup_meta_lexicon(payload_set: HashSet<String>, wordlist_set: HashSet<String>) -> Lexicon {
+        let (by_pos, refined_cover) = load_cover_words_by_pos(&wordlist_set, "meta");
+        let mut lex = Lexicon::new(payload_set, wordlist_set)
+            .with_refined_cover(refined_cover);
+        for (pos, words) in &by_pos {
+            let word_refs: Vec<&str> = words.iter().map(|s: &String| s.as_str()).collect();
+            lex = lex.with_words(*pos, &word_refs);
+        }
+        lex
+    }
+
+    #[test]
+    fn test_meta_grammar_loads_with_max_k() {
+        let grammar = Grammar::from_language_dialect("meta", "body")
+            .expect("Should load meta body grammar");
+        assert_eq!(grammar.max_k(), Some(12), "Meta grammar should declare max_k=12");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Meta grammar should use Dot");
+    }
+
+    #[test]
+    fn test_meta_payload_words_load() {
+        let words = load_payload_words("meta").unwrap();
+        assert_eq!(words.len(), 16, "Meta should have exactly 16 payload words (2^4)");
+        // Spot-check some dialect identifiers
+        assert!(words.contains(&"latin".to_string()), "Should contain 'latin'");
+        assert!(words.contains(&"english".to_string()), "Should contain 'english'");
+        assert!(words.contains(&"hex".to_string()), "Should contain 'hex'");
+        assert!(words.contains(&"nostr".to_string()), "Should contain 'nostr'");
+    }
+
+    #[test]
+    fn test_meta_pos_mapping() {
+        let mapping = build_pos_mapping_for_wordlist("meta", "default")
+            .expect("Should load meta POS mapping");
+        // All 16 payload words should have POS tags
+        let words = load_payload_words("meta").unwrap();
+        for word in &words {
+            let word_lower = word.to_lowercase();
+            assert!(
+                mapping.contains_key(&word_lower),
+                "Payload word '{}' should have POS mapping", word
+            );
+            assert!(
+                !mapping[&word_lower].is_empty(),
+                "Payload word '{}' should have at least one POS tag", word
+            );
+        }
+    }
+
+    #[test]
+    fn test_meta_round_trip_4_words() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let words = vec![
+            "base64".to_string(),
+            "latin".to_string(),
+            "nostr".to_string(),
+            "english".to_string(),
+        ];
+
+        // Use meta POS mapping (not English tag_word)
+        let pos_mapping = build_pos_mapping_for_wordlist("meta", "default")
+            .expect("Meta POS mapping");
+
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = pos_mapping.get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("meta").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_meta_lexicon(payload_set.clone(), wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "meta",
+            3, 12, SentenceLengthMode::Compact, " ",
+        );
+
+        eprintln!("Meta 4-word output: {}", text);
+
+        // Round-trip: extract payload words from output
+        let extracted: Vec<String> = text
+            .split_whitespace()
+            .map(normalize_token_for_bip39)
+            .filter(|w| !w.is_empty() && payload_set.contains(w))
+            .collect();
+
+        assert_eq!(
+            extracted,
+            words.iter().map(|w| w.to_lowercase()).collect::<Vec<_>>(),
+            "Extracted payload words should match input in order.\nInput: {:?}\nOutput text: {}\nExtracted: {:?}",
+            words, text, extracted,
+        );
+    }
+
+    #[test]
+    fn test_meta_round_trip_8_words() {
+        let mut rng = StdRng::seed_from_u64(100);
+        let words = select_random_words(&mut rng, 8, "meta").unwrap();
+
+        let pos_mapping = build_pos_mapping_for_wordlist("meta", "default")
+            .expect("Meta POS mapping");
+
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = pos_mapping.get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("meta").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_meta_lexicon(payload_set.clone(), wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "meta",
+            3, 12, SentenceLengthMode::Compact, " ",
+        );
+
+        eprintln!("Meta 8-word output: {}", text);
+
+        let extracted: Vec<String> = text
+            .split_whitespace()
+            .map(normalize_token_for_bip39)
+            .filter(|w| !w.is_empty() && payload_set.contains(w))
+            .collect();
+
+        assert_eq!(
+            extracted,
+            words.iter().map(|w| w.to_lowercase()).collect::<Vec<_>>(),
+            "All 8 meta payload words should appear in order.\nInput: {:?}\nOutput: {}\nExtracted: {:?}",
+            words, text, extracted,
+        );
+    }
+
+    #[test]
+    fn test_meta_deterministic_output() {
+        let words = vec!["hex".to_string(), "latin".to_string(), "bits".to_string()];
+        let pos_mapping = build_pos_mapping_for_wordlist("meta", "default")
+            .expect("Meta POS mapping");
+
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = pos_mapping.get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("meta").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_meta_lexicon(payload_set, wordlist_set);
+
+        let mut rng1 = StdRng::seed_from_u64(42);
+        let (text1, _) = generate_text(
+            &mut rng1, &lex, &payload, false, GenerationMode::Body, "meta",
+            3, 12, SentenceLengthMode::Compact, " ",
+        );
+
+        let mut rng2 = StdRng::seed_from_u64(42);
+        let (text2, _) = generate_text(
+            &mut rng2, &lex, &payload, false, GenerationMode::Body, "meta",
+            3, 12, SentenceLengthMode::Compact, " ",
+        );
+
+        assert_eq!(text1, text2, "Same seed should produce identical meta output");
+    }
+
+    #[test]
+    fn test_meta_output_ends_with_period() {
+        let mut rng = StdRng::seed_from_u64(42);
+        let words = vec!["pgp".to_string(), "nostr".to_string()];
+        let pos_mapping = build_pos_mapping_for_wordlist("meta", "default")
+            .expect("Meta POS mapping");
+
+        let payload: Vec<PayloadTok> = words.iter().map(|word| {
+            let tags = pos_mapping.get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &tags)
+        }).collect();
+
+        let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+        let wordlist_words = load_payload_words("meta").unwrap();
+        let wordlist_set: HashSet<String> = wordlist_words.iter().map(|w| w.to_lowercase()).collect();
+
+        let lex = setup_meta_lexicon(payload_set, wordlist_set);
+        let (text, _) = generate_text(
+            &mut rng, &lex, &payload, false, GenerationMode::Body, "meta",
+            3, 12, SentenceLengthMode::Compact, " ",
+        );
+
+        assert!(
+            text.ends_with('.'),
+            "Meta body mode should end with period. Got: '{}'",
             text
         );
     }

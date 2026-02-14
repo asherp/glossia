@@ -37,6 +37,11 @@ pub struct Grammar {
     /// If set, payload words are line-wrapped at this character width.
     /// Used for ASCII armor where the body is wrapped at 76 chars per line.
     pub(crate) payload_line_width: Option<usize>,
+    /// Maximum sequence length for enumeration. Grammars with recursive rules
+    /// (e.g., VP_PP_TAIL → PP VP_PP_TAIL) can set this to cap the combinatorial
+    /// explosion during `precompute_sequences_with_probability`. If absent,
+    /// the caller's default k_max applies.
+    pub(crate) max_k: Option<usize>,
 }
 
 /// A POS sequence with its probability according to the grammar
@@ -279,6 +284,12 @@ impl Grammar {
         self.payload_line_width
     }
 
+    /// Maximum sequence enumeration length declared by this grammar.
+    /// Returns None if unconstrained (caller decides).
+    pub fn max_k(&self) -> Option<usize> {
+        self.max_k
+    }
+
     /// Load grammar from grammar.yaml (type-driven)
     pub fn default() -> Result<Self, Box<dyn std::error::Error>> {
         Self::from_language_dialect("latin", "body")
@@ -407,9 +418,10 @@ impl Grammar {
         Ok((symbols, refinements))
     }
     
-    /// Extract payload_separator, dot_is_punctuation, and payload_line_width from grammar YAML.
+    /// Extract payload_separator, dot_is_punctuation, payload_line_width, and max_k from grammar YAML.
     /// Dialect-level overrides take precedence over grammar-level defaults.
-    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>) {
+    /// Returns (payload_separator, dot_is_punctuation, payload_line_width, max_k).
+    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>, Option<usize>) {
         let doc: Result<serde_yaml::Value, _> = serde_yaml::from_str(yaml_content);
         if let Ok(doc) = doc {
             if let Some(grammar) = doc.get("grammar") {
@@ -422,6 +434,9 @@ impl Grammar {
                     .and_then(|v| v.as_bool())
                     .unwrap_or(true);
                 let mut payload_line_width = grammar.get("payload_line_width")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as usize);
+                let max_k = grammar.get("max_k")
                     .and_then(|v| v.as_u64())
                     .map(|v| v as usize);
 
@@ -439,10 +454,10 @@ impl Grammar {
                     }
                 }
 
-                return (payload_sep, dot_is_punct, payload_line_width);
+                return (payload_sep, dot_is_punct, payload_line_width, max_k);
             }
         }
-        (" ".to_string(), true, None)
+        (" ".to_string(), true, None, None)
     }
 
     /// Load grammar from language and dialect (YAML-only)
@@ -459,7 +474,7 @@ impl Grammar {
             match LanguageConfig::from_yaml(yaml_content) {
                 Ok(language_config) => {
                     let rules = Self::build_rules_from_cfg_productions(yaml_content, dialect)?;
-                    let (payload_separator, dot_is_punctuation, payload_line_width) =
+                    let (payload_separator, dot_is_punctuation, payload_line_width, max_k) =
                         Self::parse_payload_format(yaml_content, dialect);
                     return Ok(Grammar {
                         rules,
@@ -468,6 +483,7 @@ impl Grammar {
                         payload_separator,
                         dot_is_punctuation,
                         payload_line_width,
+                        max_k,
                     });
                 }
                 Err(e) => {
@@ -490,7 +506,7 @@ impl Grammar {
                 let grammar_yaml = std::fs::read_to_string(&path)?;
                 let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
                 let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
-                let (payload_separator, dot_is_punctuation, payload_line_width) =
+                let (payload_separator, dot_is_punctuation, payload_line_width, max_k) =
                     Self::parse_payload_format(&grammar_yaml, dialect);
                 return Ok(Grammar {
                     rules,
@@ -499,6 +515,7 @@ impl Grammar {
                     payload_separator,
                     dot_is_punctuation,
                     payload_line_width,
+                    max_k,
                 });
             }
         }
@@ -512,7 +529,7 @@ impl Grammar {
     pub fn from_file(grammar_path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar_yaml = std::fs::read_to_string(grammar_path)?;
         let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, "body")?;
-        let (payload_separator, dot_is_punctuation, payload_line_width) =
+        let (payload_separator, dot_is_punctuation, payload_line_width, max_k) =
             Self::parse_payload_format(&grammar_yaml, "body");
         Ok(Grammar {
             rules,
@@ -521,6 +538,7 @@ impl Grammar {
             payload_separator,
             dot_is_punctuation,
             payload_line_width,
+            max_k,
         })
     }
 
@@ -1189,6 +1207,73 @@ mod tests {
         assert!(!seqs_k2.is_empty(), "Spells should produce k=2 sequences (V Dot, N Dot)");
         let seqs_k3 = grammar.enumerate_sequences_with_probability("S", 3);
         assert!(!seqs_k3.is_empty(), "Spells should produce k=3 sequences (V N Dot, Adj N Dot, etc.)");
+    }
+
+    // ========== Meta-grammar tests ==========
+
+    #[test]
+    fn test_meta_grammar_loads() {
+        let grammar = Grammar::from_language_dialect("meta", "body")
+            .expect("Failed to load meta body grammar");
+        assert_eq!(grammar.max_k(), Some(12), "Meta grammar should declare max_k=12");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Meta grammar should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::N), "Meta grammar should use N");
+        assert!(grammar.grammar_uses_pos(Pos::V), "Meta grammar should use V");
+        assert!(grammar.grammar_uses_pos(Pos::Adj), "Meta grammar should use Adj");
+        assert!(grammar.grammar_uses_pos(Pos::Det), "Meta grammar should use Det");
+        assert!(grammar.grammar_uses_pos(Pos::Prep), "Meta grammar should use Prep");
+        assert!(grammar.grammar_uses_pos(Pos::Cop), "Meta grammar should use Cop");
+        assert!(grammar.grammar_uses_pos(Pos::Conj), "Meta grammar should use Conj");
+        assert!(grammar.grammar_uses_pos(Pos::Pron), "Meta grammar should use Pron");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "Meta grammar should use Modal");
+    }
+
+    #[test]
+    fn test_meta_grammar_enumerates_sequences() {
+        let grammar = Grammar::from_language_dialect("meta", "body")
+            .expect("Failed to load meta body grammar");
+
+        // Use grammar's own max_k for enumeration
+        let max_k = grammar.max_k().unwrap_or(12);
+        let precomputed = grammar.precompute_sequences_with_probability("S", max_k);
+
+        let mut total_sequences: usize = 0;
+        let mut total_prob: f64 = 0.0;
+
+        for k in 3..=max_k {
+            let seqs = &precomputed[k];
+            total_sequences += seqs.len();
+            total_prob += seqs.iter().map(|s| s.probability).sum::<f64>();
+            if !seqs.is_empty() {
+                println!("Meta k={}: {} sequences (prob={:.6})", k, seqs.len(),
+                    seqs.iter().map(|s| s.probability).sum::<f64>());
+            }
+        }
+
+        println!("Meta grammar total: {} sequences, prob sum={:.6}", total_sequences, total_prob);
+        assert!(total_sequences > 0, "Meta grammar should produce at least some sequences");
+        // With max_k=12, probability sum should be substantial (close to 1.0)
+        assert!(total_prob > 0.5, "Meta grammar should cover >50% probability mass within k=12");
+    }
+
+    #[test]
+    fn test_meta_grammar_minimum_sentence() {
+        // Meta grammar minimum sentence: NP VP Dot where NP=N and VP=... something short
+        let grammar = Grammar::from_language_dialect("meta", "body")
+            .expect("Failed to load meta body grammar");
+
+        // k=4 should produce valid sentences (e.g., N V N Dot, N Cop Adj Dot)
+        let seqs_k4 = grammar.enumerate_sequences_with_probability("S", 4);
+        assert!(!seqs_k4.is_empty(),
+            "Meta grammar should produce sentences at k=4");
+
+        for seq in seqs_k4.iter().take(5) {
+            let seq_str = format_pos_sequence(&seq.sequence);
+            println!("Meta k=4: {} (prob={:.4})", seq_str, seq.probability);
+            // Every sequence should end with Dot
+            assert_eq!(*seq.sequence.last().unwrap(), Pos::Dot,
+                "Meta sentence should end with Dot: {}", seq_str);
+        }
     }
 
     #[test]

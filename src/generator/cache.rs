@@ -11,21 +11,20 @@ pub struct SequenceCache {
 }
 
 impl SequenceCache {
-    /// Load sequences for all start symbols we might use, up to k_max
+    /// Load sequences for all start symbols we might use, up to k_max.
+    /// If `dialect_override` is provided, it overrides the mode-derived dialect.
     pub fn load(mode: GenerationMode, language: &str, k_max: usize, verbose: bool) -> Result<Self, Box<dyn std::error::Error>> {
-        // Grammar files are embedded, so use the embedded grammar functions
-        let grammar_label = match mode {
-            GenerationMode::Subject => "subject",
-            GenerationMode::Body => "body",
-            GenerationMode::PayloadOnly => "payload_only",
-        };
-        
         let dialect = match mode {
             GenerationMode::Subject => "subject",
             GenerationMode::Body => "body",
             GenerationMode::PayloadOnly => "payload_only",
         };
-        
+        Self::load_with_dialect(mode, language, dialect, k_max, verbose)
+    }
+
+    /// Load sequences using an explicit dialect name.
+    pub fn load_with_dialect(mode: GenerationMode, language: &str, dialect: &str, k_max: usize, verbose: bool) -> Result<Self, Box<dyn std::error::Error>> {
+        let grammar_label = dialect;
         let grammar = Grammar::from_language_dialect(language, dialect)?;
         
         let mut by_start_symbol = HashMap::new();
