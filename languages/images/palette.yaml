@@ -1,0 +1,38 @@
+# Palette control points for parametric curve encoding
+# Each control point is specified in CIELAB (L*, a*, b*)
+# The curve is built by cubic spline interpolation through these points
+# then arc-length reparameterized for uniform perceptual spacing.
+#
+# "viridis_approx" approximates the viridis colormap's path through CIELAB.
+# viridis goes from dark purple-blue to bright yellow-green.
+
+palettes:
+  viridis_approx:
+    description: "Approximation of viridis colormap path in CIELAB (gamut-safe)"
+    control_points_lab:
+      # [L*, a*, b*]  — approximate CIELAB values along viridis
+      # Endpoints pulled inward to maintain tube radius >= 15 CIELAB units
+      - [25.0,   8.0, -25.0]   # dark purple-blue
+      - [33.0,  -5.0, -30.0]   # deep blue
+      - [42.0, -25.0, -15.0]   # teal
+      - [55.0, -35.0,  10.0]   # green
+      - [68.0, -30.0,  40.0]   # yellow-green
+      - [82.0, -15.0,  60.0]   # warm yellow
+
+  warm:
+    description: "Warm palette: red through orange to yellow"
+    control_points_lab:
+      - [30.0,  45.0,  30.0]   # dark red
+      - [45.0,  55.0,  45.0]   # red
+      - [60.0,  40.0,  60.0]   # orange
+      - [78.0,  10.0,  75.0]   # gold
+      - [92.0, -10.0,  85.0]   # bright yellow
+
+  cool:
+    description: "Cool palette: deep blue through cyan to pale green"
+    control_points_lab:
+      - [18.0,  10.0, -45.0]   # deep blue
+      - [35.0, -10.0, -40.0]   # blue
+      - [50.0, -30.0, -20.0]   # teal
+      - [65.0, -40.0,   0.0]   # cyan-green
+      - [80.0, -35.0,  30.0]   # pale green

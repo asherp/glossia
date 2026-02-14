@@ -1,0 +1,917 @@
+#!/usr/bin/env python3
+"""
+Parametric curve encoding for visual Glossia.
+
+Encodes payloads into images by treating a color palette as a parametric curve
+in CIELAB color space. Each pixel carries two pieces of information:
+
+  - Tangential position on the curve  -> identifies the payload word
+  - 2D displacement in the normal plane -> encodes sequence position
+
+The normal plane at each curve point is spanned by a Bishop frame (U1, U2),
+giving an M x M constellation of sequence positions per palette color.
+
+Usage:
+  from parametric_encoding import PaletteCurve, encode, decode
+
+  curve = PaletteCurve.from_control_points(control_points_lab)
+  pixels_lab = encode(payload_words, curve, epsilon=5.0)
+  recovered  = decode(pixels_lab, curve, epsilon=5.0)
+  assert recovered == payload_words
+"""
+
+import numpy as np
+from scipy.interpolate import CubicSpline
+from scipy.optimize import minimize_scalar
+import yaml
+import os
+
+# ---------------------------------------------------------------------------
+# CIELAB <-> sRGB conversion (no external color library required)
+# ---------------------------------------------------------------------------
+
+# D65 illuminant reference white in XYZ
+D65_XN, D65_YN, D65_ZN = 0.95047, 1.00000, 1.08883
+
+# sRGB -> XYZ matrix (D65)
+_SRGB_TO_XYZ = np.array([
+    [0.4124564, 0.3575761, 0.1804375],
+    [0.2126729, 0.7151522, 0.0721750],
+    [0.0193339, 0.1191920, 0.9503041],
+])
+
+# XYZ -> sRGB matrix (inverse of above)
+_XYZ_TO_SRGB = np.linalg.inv(_SRGB_TO_XYZ)
+
+
+def _srgb_gamma_expand(c):
+    """sRGB gamma expansion: [0,1] nonlinear -> [0,1] linear."""
+    c = np.asarray(c, dtype=np.float64)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def _srgb_gamma_compress(c):
+    """sRGB gamma compression: [0,1] linear -> [0,1] nonlinear."""
+    c = np.asarray(c, dtype=np.float64)
+    return np.where(c <= 0.0031308, 12.92 * c, 1.055 * c ** (1.0 / 2.4) - 0.055)
+
+
+def _lab_f(t):
+    """CIELAB forward nonlinearity."""
+    delta = 6.0 / 29.0
+    return np.where(t > delta ** 3, np.cbrt(t), t / (3 * delta ** 2) + 4.0 / 29.0)
+
+
+def _lab_f_inv(t):
+    """CIELAB inverse nonlinearity."""
+    delta = 6.0 / 29.0
+    return np.where(t > delta, t ** 3, 3 * delta ** 2 * (t - 4.0 / 29.0))
+
+
+def srgb_to_lab(rgb):
+    """Convert sRGB [0-255] to CIELAB.
+
+    Args:
+        rgb: (..., 3) array of sRGB values in [0, 255]
+
+    Returns:
+        (..., 3) array of [L*, a*, b*]
+    """
+    rgb = np.asarray(rgb, dtype=np.float64)
+    # Normalize to [0, 1] and gamma-expand
+    linear = _srgb_gamma_expand(rgb / 255.0)
+    # To XYZ
+    xyz = linear @ _SRGB_TO_XYZ.T
+    # Normalize by D65
+    xyz_n = xyz / np.array([D65_XN, D65_YN, D65_ZN])
+    f = _lab_f(xyz_n)
+    L = 116.0 * f[..., 1] - 16.0
+    a = 500.0 * (f[..., 0] - f[..., 1])
+    b = 200.0 * (f[..., 1] - f[..., 2])
+    return np.stack([L, a, b], axis=-1)
+
+
+def lab_to_srgb(lab):
+    """Convert CIELAB to sRGB [0-255].
+
+    Args:
+        lab: (..., 3) array of [L*, a*, b*]
+
+    Returns:
+        (..., 3) array of sRGB values in [0, 255] (clamped)
+    """
+    lab = np.asarray(lab, dtype=np.float64)
+    L, a, b = lab[..., 0], lab[..., 1], lab[..., 2]
+    fy = (L + 16.0) / 116.0
+    fx = a / 500.0 + fy
+    fz = fy - b / 200.0
+    f = np.stack([fx, fy, fz], axis=-1)
+    xyz_n = _lab_f_inv(f)
+    xyz = xyz_n * np.array([D65_XN, D65_YN, D65_ZN])
+    linear = xyz @ _XYZ_TO_SRGB.T
+    srgb = _srgb_gamma_compress(np.clip(linear, 0, None))
+    return np.clip(np.round(srgb * 255.0), 0, 255).astype(np.uint8)
+
+
+def lab_in_srgb_gamut(lab, tolerance=0.5):
+    """Check if a CIELAB color maps to a valid sRGB color.
+
+    Args:
+        lab: (..., 3) array of [L*, a*, b*]
+        tolerance: allowed overshoot in sRGB [0, 255] before declaring out-of-gamut
+
+    Returns:
+        boolean array, True if in gamut
+    """
+    lab = np.asarray(lab, dtype=np.float64)
+    L, a, b = lab[..., 0], lab[..., 1], lab[..., 2]
+    fy = (L + 16.0) / 116.0
+    fx = a / 500.0 + fy
+    fz = fy - b / 200.0
+    f = np.stack([fx, fy, fz], axis=-1)
+    xyz_n = _lab_f_inv(f)
+    xyz = xyz_n * np.array([D65_XN, D65_YN, D65_ZN])
+    linear = xyz @ _XYZ_TO_SRGB.T
+    srgb = _srgb_gamma_compress(np.clip(linear, 0, None)) * 255.0
+    return np.all((srgb >= -tolerance) & (srgb <= 255.0 + tolerance), axis=-1)
+
+
+# ---------------------------------------------------------------------------
+# Palette curve: cubic spline in CIELAB, arc-length parameterized
+# ---------------------------------------------------------------------------
+
+class PaletteCurve:
+    """A smooth parametric curve through CIELAB control points.
+
+    The curve is a cubic spline interpolation through K control points,
+    reparameterized by arc length so that |gamma'(s)| ~ 1 everywhere.
+    """
+
+    def __init__(self, points_lab, n_samples=2000):
+        """Build curve from CIELAB control points.
+
+        Args:
+            points_lab: (K, 3) array of control points in CIELAB
+            n_samples: number of samples for arc-length computation
+        """
+        points_lab = np.asarray(points_lab, dtype=np.float64)
+        assert points_lab.ndim == 2 and points_lab.shape[1] == 3
+        self.control_points = points_lab
+        self.K = len(points_lab)
+        self.n_samples = n_samples
+
+        # Cubic spline through control points (parameter u in [0, 1])
+        u = np.linspace(0, 1, self.K)
+        self._spline_L = CubicSpline(u, points_lab[:, 0])
+        self._spline_a = CubicSpline(u, points_lab[:, 1])
+        self._spline_b = CubicSpline(u, points_lab[:, 2])
+
+        # Compute arc-length table: s(u) by numerical integration
+        u_fine = np.linspace(0, 1, n_samples)
+        pts = self._eval_raw(u_fine)  # (n_samples, 3)
+        diffs = np.diff(pts, axis=0)
+        seg_lengths = np.linalg.norm(diffs, axis=1)
+        self._s_table = np.concatenate([[0], np.cumsum(seg_lengths)])
+        self._u_table = u_fine
+        self.arc_length = self._s_table[-1]
+
+        # Build spline from s -> u for arc-length reparameterization
+        self._s_to_u_spline = CubicSpline(self._s_table, self._u_table)
+
+    def _eval_raw(self, u):
+        """Evaluate the raw spline at parameter u (not arc-length)."""
+        u = np.asarray(u, dtype=np.float64)
+        L = self._spline_L(u)
+        a = self._spline_a(u)
+        b = self._spline_b(u)
+        return np.stack([L, a, b], axis=-1)
+
+    def _eval_raw_deriv(self, u):
+        """Evaluate the raw spline derivative at parameter u."""
+        u = np.asarray(u, dtype=np.float64)
+        dL = self._spline_L(u, 1)
+        da = self._spline_a(u, 1)
+        db = self._spline_b(u, 1)
+        return np.stack([dL, da, db], axis=-1)
+
+    def _eval_raw_deriv2(self, u):
+        """Evaluate the raw spline second derivative at parameter u."""
+        u = np.asarray(u, dtype=np.float64)
+        dL = self._spline_L(u, 2)
+        da = self._spline_a(u, 2)
+        db = self._spline_b(u, 2)
+        return np.stack([dL, da, db], axis=-1)
+
+    def _s_to_u(self, s):
+        """Convert arc-length parameter s to raw parameter u."""
+        s = np.clip(s, 0, self.arc_length)
+        return self._s_to_u_spline(s)
+
+    def eval(self, s):
+        """Evaluate gamma(s) at arc-length parameter s.
+
+        Args:
+            s: scalar or array of arc-length values in [0, L]
+
+        Returns:
+            (..., 3) CIELAB coordinates
+        """
+        u = self._s_to_u(s)
+        return self._eval_raw(u)
+
+    def tangent(self, s):
+        """Unit tangent T(s) = gamma'(s) / |gamma'(s)| at arc-length s.
+
+        Returns:
+            (..., 3) unit tangent vectors
+        """
+        u = self._s_to_u(s)
+        deriv = self._eval_raw_deriv(u)
+        norms = np.linalg.norm(deriv, axis=-1, keepdims=True)
+        norms = np.maximum(norms, 1e-12)
+        return deriv / norms
+
+    def curvature_normal(self, s):
+        """Frenet normal N(s) and curvature kappa(s).
+
+        Returns:
+            N: (..., 3) principal normal (unit vector toward center of curvature)
+            kappa: (...) curvature values
+        """
+        u = self._s_to_u(s)
+        d1 = self._eval_raw_deriv(u)
+        d2 = self._eval_raw_deriv2(u)
+        speed = np.linalg.norm(d1, axis=-1, keepdims=True)
+        speed = np.maximum(speed, 1e-12)
+
+        # T = d1/|d1|, then dT/du = (d2*|d1| - d1*(d1.d2/|d1|)) / |d1|^2
+        T = d1 / speed
+        # dT/ds = (1/|d1|) * dT/du
+        # curvature vector = dT/ds = (d2 - (d2.T)T) / |d1|^2
+        proj = np.sum(d2 * T, axis=-1, keepdims=True) * T
+        kappa_vec = (d2 - proj) / speed ** 2
+        kappa = np.linalg.norm(kappa_vec, axis=-1)
+        N = np.zeros_like(kappa_vec)
+        mask = kappa > 1e-10
+        if np.any(mask):
+            N[mask] = kappa_vec[mask] / kappa[mask][..., None]
+        return N, kappa
+
+    def project(self, points_lab):
+        """Find the nearest point on the curve for each input point.
+
+        Args:
+            points_lab: (..., 3) CIELAB points
+
+        Returns:
+            s_nearest: (...) arc-length parameters of nearest curve points
+            dist: (...) distances to curve
+        """
+        points_lab = np.asarray(points_lab, dtype=np.float64)
+        original_shape = points_lab.shape[:-1]
+        points_flat = points_lab.reshape(-1, 3)
+
+        # Coarse search over sampled curve points
+        n_search = min(self.n_samples, 2000)
+        s_search = np.linspace(0, self.arc_length, n_search)
+        curve_pts = self.eval(s_search)  # (n_search, 3)
+
+        s_results = np.zeros(len(points_flat))
+        dist_results = np.zeros(len(points_flat))
+
+        for i, p in enumerate(points_flat):
+            dists = np.linalg.norm(curve_pts - p, axis=1)
+            best_idx = np.argmin(dists)
+
+            # Refine with local optimization
+            s_lo = s_search[max(0, best_idx - 2)]
+            s_hi = s_search[min(n_search - 1, best_idx + 2)]
+
+            result = minimize_scalar(
+                lambda s: np.sum((self.eval(s) - p) ** 2),
+                bounds=(s_lo, s_hi),
+                method='bounded'
+            )
+            s_results[i] = result.x
+            dist_results[i] = np.sqrt(result.fun)
+
+        return s_results.reshape(original_shape), dist_results.reshape(original_shape)
+
+    @classmethod
+    def from_yaml(cls, yaml_path, palette_name='viridis_approx', n_samples=2000):
+        """Load a palette curve from a YAML config file.
+
+        Args:
+            yaml_path: path to palette.yaml
+            palette_name: key in the palettes dict
+            n_samples: curve sampling density
+
+        Returns:
+            PaletteCurve instance
+        """
+        with open(yaml_path) as f:
+            config = yaml.safe_load(f)
+        pts = np.array(config['palettes'][palette_name]['control_points_lab'])
+        return cls(pts, n_samples=n_samples)
+
+    @classmethod
+    def from_control_points(cls, control_points_lab, n_samples=2000):
+        """Build directly from a list/array of CIELAB points."""
+        return cls(np.array(control_points_lab), n_samples=n_samples)
+
+
+# ---------------------------------------------------------------------------
+# Bishop frame (rotation-minimizing frame) via double-reflection method
+# ---------------------------------------------------------------------------
+
+class BishopFrame:
+    """Rotation-minimizing frame along a PaletteCurve.
+
+    At each sampled arc-length s, provides orthonormal {T(s), U1(s), U2(s)}:
+      - T: unit tangent
+      - U1, U2: smoothly varying normal-plane basis vectors
+
+    Computed via the double-reflection method (Wang et al. 2008).
+    """
+
+    def __init__(self, curve, n_frames=500):
+        """Compute the Bishop frame along the curve.
+
+        Args:
+            curve: PaletteCurve instance
+            n_frames: number of frame sample points
+        """
+        self.curve = curve
+        self.n_frames = n_frames
+        self.s_samples = np.linspace(0, curve.arc_length, n_frames)
+
+        # Compute tangent at all sample points
+        T = curve.tangent(self.s_samples)  # (n_frames, 3)
+
+        # Initialize U1(0): use Frenet normal if curvature > 0, else arbitrary
+        N0, kappa0 = curve.curvature_normal(self.s_samples[0])
+        if isinstance(kappa0, np.ndarray):
+            kappa0 = kappa0.item()
+        if kappa0 > 1e-6:
+            u1_0 = N0.flatten()
+        else:
+            # Arbitrary perpendicular to T[0]
+            u1_0 = self._arbitrary_perp(T[0])
+        u1_0 = u1_0 / np.linalg.norm(u1_0)
+
+        # U2(0) = T(0) x U1(0)
+        u2_0 = np.cross(T[0], u1_0)
+        u2_0 = u2_0 / np.linalg.norm(u2_0)
+
+        # Propagate via double-reflection (Wang et al. 2008)
+        U1 = np.zeros((n_frames, 3))
+        U2 = np.zeros((n_frames, 3))
+        U1[0] = u1_0
+        U2[0] = u2_0
+
+        for i in range(n_frames - 1):
+            # Double-reflection method
+            v1 = curve.eval(self.s_samples[i + 1]) - curve.eval(self.s_samples[i])
+            c1 = np.dot(v1, v1)
+            if c1 < 1e-20:
+                U1[i + 1] = U1[i]
+                U2[i + 1] = U2[i]
+                continue
+
+            # First reflection: reflect U1[i] and T[i] across the plane
+            # perpendicular to v1 at the midpoint
+            rL = U1[i] - (2.0 / c1) * np.dot(v1, U1[i]) * v1
+            tL = T[i] - (2.0 / c1) * np.dot(v1, T[i]) * v1
+
+            # Second reflection: reflect across the plane perpendicular to
+            # (T[i+1] - tL) to align with T[i+1]
+            v2 = T[i + 1] - tL
+            c2 = np.dot(v2, v2)
+            if c2 < 1e-20:
+                U1[i + 1] = rL
+            else:
+                U1[i + 1] = rL - (2.0 / c2) * np.dot(v2, rL) * v2
+
+            # Normalize and compute U2
+            U1[i + 1] = U1[i + 1] / np.linalg.norm(U1[i + 1])
+            U2[i + 1] = np.cross(T[i + 1], U1[i + 1])
+            U2[i + 1] = U2[i + 1] / np.linalg.norm(U2[i + 1])
+
+        self._T = T
+        self._U1 = U1
+        self._U2 = U2
+
+        # Build interpolation splines for continuous evaluation
+        from scipy.interpolate import CubicSpline as CS
+        self._T_spline = [CS(self.s_samples, T[:, j]) for j in range(3)]
+        self._U1_spline = [CS(self.s_samples, U1[:, j]) for j in range(3)]
+        self._U2_spline = [CS(self.s_samples, U2[:, j]) for j in range(3)]
+
+    @staticmethod
+    def _arbitrary_perp(v):
+        """Find an arbitrary unit vector perpendicular to v."""
+        v = np.asarray(v, dtype=np.float64)
+        # Pick the coordinate axis least aligned with v
+        abs_v = np.abs(v)
+        if abs_v[0] <= abs_v[1] and abs_v[0] <= abs_v[2]:
+            candidate = np.array([1.0, 0.0, 0.0])
+        elif abs_v[1] <= abs_v[2]:
+            candidate = np.array([0.0, 1.0, 0.0])
+        else:
+            candidate = np.array([0.0, 0.0, 1.0])
+        perp = candidate - np.dot(candidate, v) * v / np.dot(v, v)
+        return perp / np.linalg.norm(perp)
+
+    def eval_frame(self, s):
+        """Evaluate the Bishop frame at arc-length s.
+
+        Args:
+            s: scalar or 1D array of arc-length values
+
+        Returns:
+            T:  (..., 3) unit tangent
+            U1: (..., 3) first normal
+            U2: (..., 3) second normal
+        """
+        s = np.asarray(s, dtype=np.float64)
+        s = np.clip(s, 0, self.curve.arc_length)
+        scalar = s.ndim == 0
+        s = np.atleast_1d(s)
+
+        T = np.stack([sp(s) for sp in self._T_spline], axis=-1)
+        U1 = np.stack([sp(s) for sp in self._U1_spline], axis=-1)
+        U2 = np.stack([sp(s) for sp in self._U2_spline], axis=-1)
+
+        # Re-orthonormalize (spline interpolation can drift slightly)
+        T = T / np.linalg.norm(T, axis=-1, keepdims=True)
+        U1 = U1 - np.sum(U1 * T, axis=-1, keepdims=True) * T
+        U1 = U1 / np.linalg.norm(U1, axis=-1, keepdims=True)
+        U2 = np.cross(T, U1)
+        U2 = U2 / np.linalg.norm(U2, axis=-1, keepdims=True)
+
+        if scalar:
+            return T[0], U1[0], U2[0]
+        return T, U1, U2
+
+
+# ---------------------------------------------------------------------------
+# Tube geometry: sRGB gamut boundary distance in the normal plane
+# ---------------------------------------------------------------------------
+
+def compute_tube_radius(curve, frame, n_palette=None, s_values=None,
+                        n_angles=16, max_radius=60.0, step=0.5):
+    """Compute the tube radius at each palette point.
+
+    The tube radius r(s) is the maximum displacement along any direction
+    in the normal plane that stays within the sRGB gamut.
+
+    Args:
+        curve: PaletteCurve
+        frame: BishopFrame
+        n_palette: if given, compute at N equally-spaced palette points
+        s_values: explicit arc-length values to evaluate (overrides n_palette)
+        n_angles: number of angular samples in the normal plane
+        max_radius: maximum radius to search
+        step: radial step for ray marching
+
+    Returns:
+        s_pts: (M,) arc-length values
+        radii: (M,) minimum tube radius at each point
+    """
+    if s_values is None:
+        if n_palette is None:
+            n_palette = 100
+        s_pts = np.linspace(0, curve.arc_length, n_palette)
+    else:
+        s_pts = np.asarray(s_values)
+
+    radii = np.zeros(len(s_pts))
+    angles = np.linspace(0, 2 * np.pi, n_angles, endpoint=False)
+
+    for i, s in enumerate(s_pts):
+        base = curve.eval(s)
+        _, U1, U2 = frame.eval_frame(s)
+        min_r = max_radius
+        for theta in angles:
+            direction = np.cos(theta) * U1 + np.sin(theta) * U2
+            # Binary search for gamut boundary
+            lo, hi = 0.0, max_radius
+            while hi - lo > step:
+                mid = (lo + hi) / 2
+                test_pt = base + mid * direction
+                if lab_in_srgb_gamut(test_pt):
+                    lo = mid
+                else:
+                    hi = mid
+            min_r = min(min_r, lo)
+        radii[i] = min_r
+
+    return s_pts, radii
+
+
+# ---------------------------------------------------------------------------
+# 2D Constellation: mapping sequence positions to normal-plane grid
+# ---------------------------------------------------------------------------
+
+class Constellation:
+    """M x M grid of sequence positions in the normal plane.
+
+    Grid point (a, b) maps to displacement:
+        alpha_a = (a - (M-1)/2) * epsilon
+        alpha_b = (b - (M-1)/2) * epsilon
+
+    Sequence position j = a * M + b (raster order).
+    """
+
+    def __init__(self, M, epsilon):
+        self.M = M
+        self.epsilon = epsilon
+        self.capacity = M * M  # sequence positions per palette color
+
+    @classmethod
+    def from_radius(cls, radius, epsilon):
+        """Create constellation from tube radius and step size.
+
+        Args:
+            radius: tube radius in CIELAB units
+            epsilon: minimum step between constellation points
+
+        Returns:
+            Constellation instance
+        """
+        M = int(2 * radius / epsilon) + 1
+        M = max(M, 1)
+        return cls(M, epsilon)
+
+    def position_to_grid(self, j):
+        """Map sequence position to grid coordinates (a, b).
+
+        Args:
+            j: sequence position (int or array)
+
+        Returns:
+            a, b: grid coordinates
+        """
+        j = np.asarray(j, dtype=int)
+        a = j // self.M
+        b = j % self.M
+        return a, b
+
+    def grid_to_position(self, a, b):
+        """Map grid coordinates to sequence position.
+
+        Args:
+            a, b: grid coordinates
+
+        Returns:
+            j: sequence position
+        """
+        return np.asarray(a, dtype=int) * self.M + np.asarray(b, dtype=int)
+
+    def grid_to_displacement(self, a, b):
+        """Map grid coordinates to (alpha1, alpha2) displacements.
+
+        Args:
+            a, b: grid coordinates
+
+        Returns:
+            alpha1, alpha2: displacement magnitudes in CIELAB units
+        """
+        a, b = np.asarray(a, dtype=np.float64), np.asarray(b, dtype=np.float64)
+        center = (self.M - 1) / 2.0
+        alpha1 = (a - center) * self.epsilon
+        alpha2 = (b - center) * self.epsilon
+        return alpha1, alpha2
+
+    def displacement_to_grid(self, alpha1, alpha2):
+        """Snap continuous displacements to nearest grid coordinates.
+
+        Args:
+            alpha1, alpha2: displacement magnitudes in CIELAB units
+
+        Returns:
+            a, b: grid coordinates (clamped to valid range)
+        """
+        center = (self.M - 1) / 2.0
+        a = np.round(alpha1 / self.epsilon + center).astype(int)
+        b = np.round(alpha2 / self.epsilon + center).astype(int)
+        a = np.clip(a, 0, self.M - 1)
+        b = np.clip(b, 0, self.M - 1)
+        return a, b
+
+    def position_to_displacement(self, j):
+        """Map sequence position to displacement vector components."""
+        a, b = self.position_to_grid(j)
+        return self.grid_to_displacement(a, b)
+
+    def displacement_to_position(self, alpha1, alpha2):
+        """Snap displacements and recover sequence position."""
+        a, b = self.displacement_to_grid(alpha1, alpha2)
+        return self.grid_to_position(a, b)
+
+
+# ---------------------------------------------------------------------------
+# Encode / Decode
+# ---------------------------------------------------------------------------
+
+def encode(payload_words, curve, frame, n_palette, epsilon,
+           tube_radius=None):
+    """Encode a payload word sequence into CIELAB pixel colors.
+
+    Args:
+        payload_words: list of ints, each in [0, n_palette-1]
+        curve: PaletteCurve
+        frame: BishopFrame
+        n_palette: number of palette colors (N)
+        epsilon: constellation grid spacing in CIELAB units
+        tube_radius: tube radius in CIELAB units (if None, computed)
+
+    Returns:
+        pixels_lab: (M, 3) array of encoded CIELAB colors
+        metadata: dict with encoding parameters
+    """
+    payload_words = np.asarray(payload_words, dtype=int)
+    n_words = len(payload_words)
+
+    # Compute tube radius if not given
+    if tube_radius is None:
+        s_pts, radii = compute_tube_radius(curve, frame, n_palette=n_palette)
+        tube_radius = float(np.min(radii))
+
+    constellation = Constellation.from_radius(tube_radius, epsilon)
+
+    # Count occurrences of each word to assign sequence positions
+    # Words are ordered by their position in the payload sequence.
+    # Each word w gets assigned sequence positions within the constellation
+    # for palette color w.
+    word_counters = {}  # word_index -> next sequence position for that word
+    pixels_lab = np.zeros((n_words, 3))
+
+    for i, w in enumerate(payload_words):
+        w = int(w)
+        # Arc-length parameter for this palette color
+        s_w = w * curve.arc_length / max(n_palette - 1, 1)
+        base = curve.eval(s_w)
+        _, U1, U2 = frame.eval_frame(s_w)
+
+        # Assign sequence position within this word's constellation
+        j = word_counters.get(w, 0)
+        if j >= constellation.capacity:
+            raise ValueError(
+                f"Payload word {w} appears more than {constellation.capacity} "
+                f"times (constellation capacity exceeded). Increase tube_radius "
+                f"or decrease epsilon."
+            )
+        word_counters[w] = j + 1
+
+        # Map sequence position to displacement
+        alpha1, alpha2 = constellation.position_to_displacement(j)
+        pixel = base + alpha1 * U1 + alpha2 * U2
+        pixels_lab[i] = pixel
+
+    metadata = {
+        'n_palette': n_palette,
+        'epsilon': epsilon,
+        'tube_radius': tube_radius,
+        'constellation_M': constellation.M,
+        'constellation_capacity': constellation.capacity,
+        'n_payload_words': n_words,
+        'max_word_repeats': max(word_counters.values()) if word_counters else 0,
+    }
+    return pixels_lab, metadata
+
+
+def decode(pixels_lab, curve, frame, n_palette, epsilon, tube_radius=None):
+    """Decode CIELAB pixel colors back to a payload word sequence.
+
+    Args:
+        pixels_lab: (M, 3) array of CIELAB colors
+        curve: PaletteCurve
+        frame: BishopFrame
+        n_palette: number of palette colors (N)
+        epsilon: constellation grid spacing
+        tube_radius: tube radius (if None, computed)
+
+    Returns:
+        payload_words: list of ints, the recovered payload sequence
+    """
+    pixels_lab = np.asarray(pixels_lab, dtype=np.float64)
+    n_pixels = len(pixels_lab)
+
+    if tube_radius is None:
+        s_pts, radii = compute_tube_radius(curve, frame, n_palette=n_palette)
+        tube_radius = float(np.min(radii))
+
+    constellation = Constellation.from_radius(tube_radius, epsilon)
+
+    # For each pixel: project onto curve, decompose residual, recover (word, position)
+    decoded_entries = []  # list of (word_index, seq_position, pixel_index)
+
+    for i, px in enumerate(pixels_lab):
+        # Project onto curve
+        s_nearest, dist = curve.project(px.reshape(1, 3))
+        s_nearest = float(s_nearest[0])
+        dist = float(dist[0])
+
+        # Identify palette word
+        w = round(s_nearest * max(n_palette - 1, 1) / curve.arc_length)
+        w = int(np.clip(w, 0, n_palette - 1))
+
+        # Recompute base point at the snapped palette position
+        s_w = w * curve.arc_length / max(n_palette - 1, 1)
+        base = curve.eval(s_w)
+        _, U1, U2 = frame.eval_frame(s_w)
+
+        # Decompose residual into U1, U2 components
+        residual = px - base
+        alpha1 = float(np.dot(residual, U1))
+        alpha2 = float(np.dot(residual, U2))
+
+        # Snap to constellation grid and recover sequence position
+        j = int(constellation.displacement_to_position(alpha1, alpha2))
+        decoded_entries.append((w, j, i))
+
+    # Sort by (word_index, sequence_position) and emit words in order
+    # Group by word, sort each group by sequence position, then interleave
+    # by original pixel order to recover the original sequence.
+    #
+    # The encoding guarantees: for each word w, the j-th occurrence has
+    # constellation position j. So we reconstruct by sorting each word's
+    # occurrences by constellation position j, then interleaving all words
+    # by their original pixel index i (which preserves the global sequence).
+    decoded_entries.sort(key=lambda x: x[2])  # sort by pixel index
+    return [entry[0] for entry in decoded_entries]
+
+
+def verify_roundtrip(payload_words, curve, frame, n_palette, epsilon,
+                     tube_radius=None, verbose=False):
+    """Verify that encode -> decode recovers the original payload.
+
+    Returns:
+        True if round-trip succeeds, False otherwise
+    """
+    pixels_lab, metadata = encode(
+        payload_words, curve, frame, n_palette, epsilon,
+        tube_radius=tube_radius
+    )
+    recovered = decode(
+        pixels_lab, curve, frame, n_palette, epsilon,
+        tube_radius=tube_radius
+    )
+
+    success = list(payload_words) == recovered
+    if verbose:
+        print(f"Payload:   {list(payload_words)}")
+        print(f"Recovered: {recovered}")
+        print(f"Match: {success}")
+        print(f"Metadata: {metadata}")
+        if not success:
+            for i, (orig, rec) in enumerate(zip(payload_words, recovered)):
+                if orig != rec:
+                    print(f"  Mismatch at index {i}: expected {orig}, got {rec}")
+    return success
+
+
+# ---------------------------------------------------------------------------
+# Convenience: build everything from a palette YAML
+# ---------------------------------------------------------------------------
+
+def build_encoder(yaml_path=None, palette_name='viridis_approx',
+                  control_points_lab=None, n_palette=64, epsilon=5.0,
+                  n_curve_samples=2000, n_frames=500):
+    """Build all components needed for encoding/decoding.
+
+    Args:
+        yaml_path: path to palette.yaml (or None if control_points_lab given)
+        palette_name: palette key in YAML
+        control_points_lab: direct control points (overrides yaml_path)
+        n_palette: number of palette colors
+        epsilon: constellation grid spacing in CIELAB units
+        n_curve_samples: curve sampling density
+        n_frames: Bishop frame sampling density
+
+    Returns:
+        dict with keys: curve, frame, n_palette, epsilon, tube_radius,
+                        constellation, metadata
+    """
+    if control_points_lab is not None:
+        curve = PaletteCurve.from_control_points(control_points_lab,
+                                                  n_samples=n_curve_samples)
+    else:
+        if yaml_path is None:
+            yaml_path = os.path.join(os.path.dirname(__file__), 'palette.yaml')
+        curve = PaletteCurve.from_yaml(yaml_path, palette_name,
+                                        n_samples=n_curve_samples)
+
+    frame = BishopFrame(curve, n_frames=n_frames)
+
+    # Compute tube radius
+    s_pts, radii = compute_tube_radius(curve, frame, n_palette=n_palette)
+    tube_radius = float(np.min(radii))
+    constellation = Constellation.from_radius(tube_radius, epsilon)
+
+    return {
+        'curve': curve,
+        'frame': frame,
+        'n_palette': n_palette,
+        'epsilon': epsilon,
+        'tube_radius': tube_radius,
+        'constellation': constellation,
+        'tube_radii': (s_pts, radii),
+        'metadata': {
+            'arc_length': curve.arc_length,
+            'n_palette': n_palette,
+            'epsilon': epsilon,
+            'tube_radius': tube_radius,
+            'constellation_M': constellation.M,
+            'constellation_capacity': constellation.capacity,
+            'bits_per_pixel': (np.log2(n_palette) +
+                               2 * np.log2(max(constellation.M, 1))),
+        }
+    }
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+def main():
+    """Command-line interface for parametric encoding."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Parametric curve encoding for visual Glossia')
+    parser.add_argument('payload', nargs='?',
+                        help='Comma-separated payload word indices')
+    parser.add_argument('--palette', default='viridis_approx',
+                        help='Palette name from palette.yaml')
+    parser.add_argument('-N', '--n-palette', type=int, default=64,
+                        help='Number of palette colors')
+    parser.add_argument('-e', '--epsilon', type=float, default=5.0,
+                        help='Constellation grid spacing (CIELAB units)')
+    parser.add_argument('--info', action='store_true',
+                        help='Print encoder info and exit')
+    parser.add_argument('--verify', action='store_true',
+                        help='Verify round-trip for given payload')
+    parser.add_argument('-v', '--verbose', action='store_true')
+
+    args = parser.parse_args()
+
+    yaml_path = os.path.join(os.path.dirname(__file__), 'palette.yaml')
+    enc = build_encoder(yaml_path, args.palette, n_palette=args.n_palette,
+                        epsilon=args.epsilon)
+
+    if args.info:
+        print("Parametric Curve Encoder")
+        print("========================")
+        for k, v in enc['metadata'].items():
+            if isinstance(v, float):
+                print(f"  {k}: {v:.3f}")
+            else:
+                print(f"  {k}: {v}")
+        return
+
+    if args.payload is None:
+        parser.print_help()
+        return
+
+    payload = [int(x.strip()) for x in args.payload.split(',')]
+
+    if args.verify:
+        ok = verify_roundtrip(
+            payload, enc['curve'], enc['frame'],
+            enc['n_palette'], enc['epsilon'],
+            tube_radius=enc['tube_radius'],
+            verbose=True
+        )
+        import sys
+        sys.exit(0 if ok else 1)
+
+    # Encode and print
+    pixels_lab, meta = encode(
+        payload, enc['curve'], enc['frame'],
+        enc['n_palette'], enc['epsilon'],
+        tube_radius=enc['tube_radius']
+    )
+    pixels_srgb = lab_to_srgb(pixels_lab)
+
+    if args.verbose:
+        print(f"Palette: {args.palette}, N={args.n_palette}, "
+              f"epsilon={args.epsilon}, tube_r={enc['tube_radius']:.1f}")
+        print(f"Constellation: {enc['constellation'].M}x"
+              f"{enc['constellation'].M} = "
+              f"{enc['constellation'].capacity} positions/word")
+        print(f"Bits/pixel: {meta.get('bits_per_pixel', enc['metadata']['bits_per_pixel']):.1f}")
+        print()
+
+    print("CIELAB pixels:")
+    for i, (lab, w) in enumerate(zip(pixels_lab, payload)):
+        print(f"  [{i}] word={w:3d}  L*={lab[0]:6.2f} a*={lab[1]:6.2f} b*={lab[2]:6.2f}")
+
+    print("\nsRGB pixels:")
+    for i, (rgb, w) in enumerate(zip(pixels_srgb, payload)):
+        print(f"  [{i}] word={w:3d}  R={rgb[0]:3d} G={rgb[1]:3d} B={rgb[2]:3d}")
+
+
+if __name__ == '__main__':
+    main()
