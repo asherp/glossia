@@ -799,12 +799,12 @@ footer a:hover { text-decoration: underline; }
       <div class="example">
         <div class="before">
           <div class="label">Machine-Generated Data (BIP39 Words)</div>
-          <div class="content">zone void dose outdoor type pottery thumb era</div>
+          <div class="content" id="hero-before">zone void dose outdoor type pottery thumb era</div>
         </div>
         <div class="arrow">↓</div>
         <div class="after">
           <div class="label">Human-Friendly Text</div>
-          <div class="content">The <mark>zone</mark> must <mark>void</mark> his <mark>dose</mark> of <mark>outdoor</mark> <mark>type</mark> with a <mark>pottery</mark> <mark>thumb</mark> from that <mark>era</mark>.</div>
+          <div class="content" id="hero-after">The <mark>zone</mark> must <mark>void</mark> his <mark>dose</mark> of <mark>outdoor</mark> <mark>type</mark> with a <mark>pottery</mark> <mark>thumb</mark> from that <mark>era</mark>.</div>
         </div>
       </div>
       <div class="cta">
@@ -857,7 +857,7 @@ footer a:hover { text-decoration: underline; }
             Traditional PGP Armor (breaks email formatting)
           </div>
           <div style="background: var(--surface-alt); padding: 0.75rem; border-radius: 4px; border-left: 3px solid var(--error); overflow-x: auto;">
-            <code style="color: var(--text-dim); font-size: 0.8rem; white-space: pre;">-----BEGIN PGP SIGNATURE-----
+            <code id="pgp-armor" style="color: var(--text-dim); font-size: 0.8rem; white-space: pre;">-----BEGIN PGP SIGNATURE-----
 iQIzBAABCAAdFiEE...xK9Q==
 -----END PGP SIGNATURE-----</code>
           </div>
@@ -870,7 +870,7 @@ iQIzBAABCAAdFiEE...xK9Q==
             Human-Friendly Format (forwards cleanly, reads naturally)
           </div>
           <div style="background: var(--surface-alt); padding: 0.75rem; border-radius: 4px; border-left: 3px solid var(--success); line-height: 1.7;">
-            <span style="color: var(--text);">The ancient signature reveals the hidden message through careful validation and trust.</span>
+            <span id="pgp-prose" style="color: var(--text);">The ancient signature reveals the hidden message through careful validation and trust.</span>
           </div>
         </div>
       </div>
@@ -992,9 +992,20 @@ iQIzBAABCAAdFiEE...xK9Q==
 
     <!-- Controls section (above output) -->
     <div class="controls-section">
-      <div class="control-group" style="flex: 2; min-width: 250px;">
-        <label for="dialect">Dialect</label>
-        <select id="dialect" style="width: 100%;"></select>
+      <div class="control-group" style="flex: 3; min-width: 280px;">
+        <label for="meta-input">Meta Instruction</label>
+        <input type="text" id="meta-input" value="encode into english" style="width: 100%;">
+      </div>
+      <div class="control-group">
+        <label>Presets</label>
+        <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
+          <button class="btn-sm preset-btn" data-meta="encode into english">English</button>
+          <button class="btn-sm preset-btn" data-meta="encode into english subject">Subject</button>
+          <button class="btn-sm preset-btn" data-meta="encode into latin">Latin</button>
+          <button class="btn-sm preset-btn" data-meta="encode into latin spells">Spells</button>
+          <button class="btn-sm preset-btn" data-meta="encode into pgp">PGP</button>
+          <button class="btn-sm preset-btn" data-meta="encode into nostr">Nostr</button>
+        </div>
       </div>
       <div class="control-group">
         <label for="seed">Seed</label>
@@ -1007,9 +1018,9 @@ iQIzBAABCAAdFiEE...xK9Q==
       </div>
     </div>
 
-    <!-- Action button (hidden, kept for programmatic use) -->
+    <!-- Action button (hidden, auto-run handles all operations) -->
     <div class="action-row" style="display:none;">
-      <button class="primary" id="action-btn" onclick="doAction()">Encode</button>
+      <button class="primary" id="action-btn">Transcode</button>
     </div>
 
     </section>
@@ -1096,62 +1107,79 @@ iQIzBAABCAAdFiEE...xK9Q==
 
 <script type="module">
 import init, {
-  get_all_dialects,
-  encode as wasmEncode,
-  encode_characters as wasmEncodeCharacters,
-  decode as wasmDecode,
+  transcode as wasmTranscode,
   random_words as wasmRandomWords,
-  encode_random_words as wasmEncodeRandomWords,
-  detect_dialect_from_text,
-  get_wordlist_size,
-  get_bits_per_word,
 } from './glossia.js';
 
 let ready = false;
-let mode = 'encode'; // 'encode' or 'decode'
-let dialectsData = []; // Store all dialects metadata
-let currentDialect = null; // Currently selected dialect object
+let metaInstruction = 'encode into english';
+
+// Store last result for cover word toggle
+let lastEncodedText = '';
+let lastPayloadWords = [];
+let lastStats = {};
+let lastDataMode = null;
+let showCoverWords = true;
+
+function generateExamples() {
+  // Hero section: generate BIP39 words and encode them
+  try {
+    const heroWords = JSON.parse(wasmRandomWords(8, 'english', 'bip39', BigInt(42)));
+    if (!heroWords.error) {
+      const heroInput = heroWords.join(' ');
+      document.getElementById('hero-before').textContent = heroInput;
+
+      const heroResult = JSON.parse(wasmTranscode(heroInput, 'encode into english', BigInt(42)));
+      if (!heroResult.error && heroResult.output) {
+        const payloadSet = new Set((heroResult.payload_words || []).map(w => w.toLowerCase()));
+        const words = heroResult.output.split(/\s+/);
+        const html = words.map(w => {
+          const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (payloadSet.has(clean)) return `<mark>${escapeHtml(w)}</mark>`;
+          return escapeHtml(w);
+        }).join(' ');
+        document.getElementById('hero-after').innerHTML = html;
+      }
+    }
+  } catch (e) {
+    console.warn('Hero example generation failed, using static fallback:', e);
+  }
+
+  // PGP section: generate a deterministic hex string and encode it
+  try {
+    // Deterministic 16-byte hex from seed
+    const pgpHex = '4F7A3B1C9E2D5A8F60C4E7B3D1A2F598';
+
+    const pgpResult = JSON.parse(wasmTranscode(pgpHex, 'encode into pgp', BigInt(42)));
+    if (!pgpResult.error && pgpResult.output) {
+      document.getElementById('pgp-armor').textContent = pgpResult.output;
+    }
+
+    const proseResult = JSON.parse(wasmTranscode(pgpHex, 'encode into english', BigInt(42)));
+    if (!proseResult.error && proseResult.output) {
+      const payloadSet = new Set((proseResult.payload_words || []).map(w => w.toLowerCase()));
+      const words = proseResult.output.split(/\s+/);
+      const html = words.map(w => {
+        const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (payloadSet.has(clean)) return `<mark>${escapeHtml(w)}</mark>`;
+        return escapeHtml(w);
+      }).join(' ');
+      document.getElementById('pgp-prose').innerHTML = html;
+    }
+  } catch (e) {
+    console.warn('PGP example generation failed, using static fallback:', e);
+  }
+}
 
 async function startup() {
   try {
     await init();
     ready = true;
 
-    // Get all dialects with metadata
-    dialectsData = JSON.parse(get_all_dialects());
-
-    // Populate unified dialect selector
-    const dialectSelect = document.getElementById('dialect');
-    dialectSelect.innerHTML = '';
-
-    dialectsData.forEach(langGroup => {
-      const optgroup = document.createElement('optgroup');
-      optgroup.label = langGroup.language_display;
-
-      langGroup.dialects.forEach(dialect => {
-        const opt = document.createElement('option');
-        opt.value = dialect.full_id;
-        opt.textContent = dialect.display_name;
-        opt.dataset.metadata = JSON.stringify(dialect);
-
-        // Select english-bip39-body as default
-        if (dialect.full_id === 'english-bip39-body') {
-          opt.selected = true;
-          currentDialect = dialect;
-        }
-
-        optgroup.appendChild(opt);
-      });
-
-      dialectSelect.appendChild(optgroup);
-    });
-
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
+    generateExamples();
     autoRunNow();
-
-    // Detect input dialect for initial text
-    setTimeout(() => updateInputDialectLabel(), 100);
   } catch (e) {
     console.error('Failed to load WASM:', e);
     document.getElementById('loading').innerHTML =
@@ -1159,268 +1187,185 @@ async function startup() {
   }
 }
 
-// Update current dialect when selection changes
-function updateCurrentDialect() {
-  const dialectSelect = document.getElementById('dialect');
-  const selectedOption = dialectSelect.options[dialectSelect.selectedIndex];
-  if (selectedOption && selectedOption.dataset.metadata) {
-    currentDialect = JSON.parse(selectedOption.dataset.metadata);
+// ─── Core transcode function ─────────────────────────────────────────
+
+function doTranscode() {
+  if (!ready) return;
+
+  const input = document.getElementById('input-area').value;
+  const instruction = document.getElementById('meta-input').value.trim();
+  const seed = parseInt(document.getElementById('seed').value) || 0;
+
+  if (!instruction) return;
+
+  const errEl = document.getElementById('input-error');
+  errEl.classList.add('hidden');
+
+  try {
+    const result = JSON.parse(wasmTranscode(input, instruction, BigInt(seed)));
+
+    if (result.error) {
+      errEl.textContent = result.error;
+      errEl.classList.remove('hidden');
+      // Clear output
+      const outEl = document.getElementById('output-area');
+      outEl.innerHTML = 'Output will appear here';
+      outEl.classList.add('empty');
+      outEl.dataset.plainText = '';
+      document.getElementById('copy-btn').style.display = 'none';
+      document.getElementById('stats-footer').style.display = 'none';
+      return;
+    }
+
+    // Update panel labels from pipeline source/target
+    const inputLabel = document.getElementById('input-dialect-label');
+    const outputLabel = document.getElementById('output-dialect-label');
+    inputLabel.textContent = `Input: ${result.source || 'auto'}`;
+    outputLabel.textContent = `Output: ${result.target || 'auto'}`;
+
+    // Store result for cover word toggle
+    lastEncodedText = result.output || '';
+    lastPayloadWords = result.payload_words || [];
+    lastStats = result.stats || {};
+    lastDataMode = result.data_mode || null;
+
+    // Update output display
+    const outEl = document.getElementById('output-area');
+    outEl.classList.remove('empty');
+    document.getElementById('copy-btn').style.display = '';
+
+    if (lastStats.payload_count !== undefined) {
+      document.getElementById('stats-footer').style.display = '';
+    }
+
+    updateOutputDisplay();
+    updateBitCounts();
+  } catch (e) {
+    errEl.textContent = e.message || String(e);
+    errEl.classList.remove('hidden');
   }
 }
 
-// Parse dialect ID into components (for backward compatibility)
-function parseDialectId(fullId) {
-  // Format: "language-wordlist-dialect"
-  const parts = fullId.split('-');
-  if (parts.length >= 3) {
-    return {
-      language: parts[0],
-      wordlist: parts[1],
-      dialect: parts.slice(2).join('-')
-    };
-  }
-  // Fallback
-  return {
-    language: 'english',
-    wordlist: 'bip39',
-    dialect: 'body'
-  };
-}
+// ─── Output display (cover word toggle) ──────────────────────────────
 
-// Get friendly display name for current dialect
-function getDialectDisplayName() {
-  if (currentDialect) {
-    return currentDialect.display_name;
-  }
-  return 'Unknown dialect';
-}
-
-// Store the last detected data mode from encoding
-let lastDataMode = null;
-let lastInputLength = 0;
-
-// Store last encoding result for cover word toggle
-let lastEncodedText = '';
-let lastPayloadWords = [];
-let lastStats = {};
-let showCoverWords = true; // Track cover words state
-
-// Update output display based on cover word toggle
 function updateOutputDisplay() {
   if (!lastEncodedText) return;
 
   const outEl = document.getElementById('output-area');
 
-  if (showCoverWords) {
-    // Show full text with cover words
-    const payloadSet = new Set(lastPayloadWords.map(w => w.toLowerCase()));
-    const words = lastEncodedText.split(/\s+/);
-    const html = words.map(w => {
-      const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      if (payloadSet.has(clean)) {
-        return `<mark>${escapeHtml(w)}</mark>`;
-      }
-      return escapeHtml(w);
-    }).join(' ');
-    outEl.innerHTML = html;
-    outEl.dataset.plainText = lastEncodedText;
-  } else {
-    // Show only payload words
-    const payloadOnly = lastPayloadWords.join(' ');
-    const html = lastPayloadWords.map(w => `<mark>${escapeHtml(w)}</mark>`).join(' ');
-    outEl.innerHTML = html;
-    outEl.dataset.plainText = payloadOnly;
-  }
-
-  // Update stats
-  document.getElementById('stat-payload').textContent = lastStats.payload_count || 0;
-  document.getElementById('stat-cover').textContent = showCoverWords ? (lastStats.cover_count || 0) : 0;
-  document.getElementById('stat-total').textContent = showCoverWords ? (lastStats.total_words || 0) : (lastStats.payload_count || 0);
-  const ratio = showCoverWords
-    ? (lastStats.ratio || 0)
-    : 1.0; // 100% when showing only payload
-  document.getElementById('stat-ratio').textContent = (ratio * 100).toFixed(1) + '%';
-}
-
-// Calculate bits for input data
-function calculateInputBits(text, dataMode) {
-  if (!text) return 0;
-
-  // For encode mode: calculate based on codec mode
-  if (mode === 'encode') {
-    if (dataMode === 'hex') {
-      // Hex: 2 chars = 1 byte = 8 bits
-      return Math.floor(text.length / 2) * 8;
-    } else if (dataMode === 'base64') {
-      // Base64: 4 chars = 3 bytes = 24 bits
-      return Math.floor(text.length / 4) * 3 * 8;
-    } else if (dataMode === 'ascii7') {
-      // ASCII-7: 1 char = 7 bits
-      return text.length * 7;
-    } else if (dataMode === 'bytes8') {
-      // UTF-8: count actual bytes
-      return new TextEncoder().encode(text).length * 8;
-    } else if (dataMode === 'words') {
-      // Direct word indices - need wordlist size to calculate bits
-      const wl = document.getElementById('wordlist').value;
-      // This is handled separately since we need wordlist size
-      return null;
+  if (lastPayloadWords.length > 0 && lastStats.payload_count !== undefined) {
+    // Encode/transcode result — highlight payload words
+    if (showCoverWords) {
+      const payloadSet = new Set(lastPayloadWords.map(w => w.toLowerCase()));
+      const words = lastEncodedText.split(/\s+/);
+      const html = words.map(w => {
+        const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        if (payloadSet.has(clean)) {
+          return `<mark>${escapeHtml(w)}</mark>`;
+        }
+        return escapeHtml(w);
+      }).join(' ');
+      outEl.innerHTML = html;
+      outEl.dataset.plainText = lastEncodedText;
+    } else {
+      const payloadOnly = lastPayloadWords.join(' ');
+      const html = lastPayloadWords.map(w => `<mark>${escapeHtml(w)}</mark>`).join(' ');
+      outEl.innerHTML = html;
+      outEl.dataset.plainText = payloadOnly;
     }
-    // Default: assume UTF-8
-    return new TextEncoder().encode(text).length * 8;
+
+    // Update stats
+    document.getElementById('stat-payload').textContent = lastStats.payload_count || 0;
+    document.getElementById('stat-cover').textContent = showCoverWords ? (lastStats.cover_count || 0) : 0;
+    document.getElementById('stat-total').textContent = showCoverWords ? (lastStats.total_words || 0) : (lastStats.payload_count || 0);
+    const ratio = showCoverWords
+      ? (lastStats.ratio || 0)
+      : 1.0;
+    document.getElementById('stat-ratio').textContent = (ratio * 100).toFixed(1) + '%';
+    document.getElementById('stats-footer').style.display = '';
+  } else {
+    // Decode result — plain text, show payload words extracted
+    outEl.textContent = lastEncodedText || '(empty)';
+    outEl.dataset.plainText = lastEncodedText;
+
+    if (lastPayloadWords.length > 0) {
+      document.getElementById('stat-payload').textContent = lastPayloadWords.length;
+      document.getElementById('stat-cover').textContent = '-';
+      document.getElementById('stat-total').textContent = '-';
+      document.getElementById('stat-ratio').textContent = '-';
+      document.getElementById('stats-footer').style.display = '';
+    } else {
+      document.getElementById('stats-footer').style.display = 'none';
+    }
   }
-
-  // For decode mode: not applicable (we show payload word bits instead)
-  return 0;
 }
 
-// Calculate bits from payload words using current dialect
-function calculatePayloadWordBits(wordCount) {
-  if (!wordCount || !currentDialect) return 0;
-  const bitsPerWord = currentDialect.bits_per_word || 11;
-  return Math.floor(wordCount * bitsPerWord);
-}
+// ─── Bit count display ───────────────────────────────────────────────
 
-// Update bit count displays
 function updateBitCounts() {
   const inputBitsEl = document.getElementById('input-bits-info');
   const outputBitsEl = document.getElementById('output-bits-info');
-
   if (!inputBitsEl || !outputBitsEl) return;
 
   const input = document.getElementById('input-area').value.trim();
 
-  if (mode === 'encode') {
-    // Input: show bits in the input data
-    const inputBits = calculateInputBits(input, lastDataMode);
-    if (inputBits !== null && inputBits > 0) {
-      inputBitsEl.textContent = `${inputBits} bits`;
-    } else {
-      inputBitsEl.textContent = '';
+  // Input bits based on data mode
+  if (lastDataMode && input) {
+    let inputBits = 0;
+    if (lastDataMode === 'hex') {
+      inputBits = Math.floor(input.length / 2) * 8;
+    } else if (lastDataMode === 'base64') {
+      inputBits = Math.floor(input.length / 4) * 3 * 8;
+    } else if (lastDataMode === 'ascii7') {
+      inputBits = input.length * 7;
+    } else if (lastDataMode === 'bytes8') {
+      inputBits = new TextEncoder().encode(input).length * 8;
     }
-
-    // Output: show bits in payload words
-    if (lastPayloadWords && lastPayloadWords.length > 0) {
-      const outputBits = calculatePayloadWordBits(lastPayloadWords.length);
-      outputBitsEl.textContent = `${outputBits} bits`;
-    } else {
-      outputBitsEl.textContent = '';
-    }
+    inputBitsEl.textContent = inputBits > 0 ? `${inputBits} bits` : '';
   } else {
-    // Decode mode
-    // Input: show bits in payload words extracted
-    inputBitsEl.textContent = ''; // We'll update this in doDecode when we know the payload count
+    inputBitsEl.textContent = '';
+  }
 
-    // Output: show bits in decoded output
-    outputBitsEl.textContent = ''; // We'll update this in doDecode
+  // Output bits from payload word count (estimate ~11 bits per BIP39 word)
+  if (lastPayloadWords.length > 0 && lastStats.payload_count !== undefined) {
+    const bitsPerWord = 11; // Approximate for BIP39
+    const outputBits = lastPayloadWords.length * bitsPerWord;
+    outputBitsEl.textContent = `~${outputBits} bits`;
+  } else {
+    outputBitsEl.textContent = '';
   }
 }
 
-// Update dialect labels in panel headers
-function updateDialectLabels() {
-  if (!currentDialect) return;
+// ─── Debounced auto-run ──────────────────────────────────────────────
 
-  const inputLabel = document.getElementById('input-dialect-label');
-  const outputLabel = document.getElementById('output-dialect-label');
-  const friendlyName = getDialectDisplayName();
-
-  // Output label always shows selected dialect
-  if (mode === 'encode') {
-    outputLabel.textContent = `Encoding with: ${friendlyName}`;
-  } else {
-    outputLabel.textContent = `Decoding with: ${friendlyName}`;
-  }
-
-  // Input label shows detected input dialect
-  updateInputDialectLabel();
-}
-
-// Update input dialect label based on codec mode
-function updateInputDialectLabel() {
-  const inputLabel = document.getElementById('input-dialect-label');
-  const input = document.getElementById('input-area').value.trim();
-
-  if (!input) {
-    inputLabel.textContent = 'Input: (empty)';
-    lastDataMode = null;
-    return;
-  }
-
-  if (mode === 'encode') {
-    // In encode mode, show the codec mode from the last encode
-    if (lastDataMode) {
-      const modeDisplay = {
-        'hex': 'hex',
-        'base64': 'base64',
-        'ascii7': '7-bit ASCII',
-        'bytes8': '8-bit bytes (UTF-8)',
-        'words': 'word indices (direct)'
-      }[lastDataMode] || lastDataMode;
-      inputLabel.textContent = `Input: ${modeDisplay}`;
-    } else {
-      // No encoding yet - try to predict the mode
-      const bytes = input;
-      if (bytes.length >= 2 && bytes.length % 2 === 0 && /^[0-9a-fA-F]+$/.test(bytes)) {
-        inputLabel.textContent = 'Input: hex (detected)';
-      } else if (bytes.length >= 4 && bytes.length % 4 === 0 && /^[A-Za-z0-9+/]+=*$/.test(bytes) && /[+/=]/.test(bytes)) {
-        inputLabel.textContent = 'Input: base64 (detected)';
-      } else if (/^[\x00-\x7F]+$/.test(bytes)) {
-        inputLabel.textContent = 'Input: 7-bit ASCII (detected)';
-      } else {
-        inputLabel.textContent = 'Input: UTF-8 text';
-      }
-    }
-  } else {
-    // In decode mode, show detected dialect (will be updated by applyDetectedDialect)
-    // Don't overwrite if we already have a detection result
-    if (inputLabel.textContent.includes('(detecting...)') || !inputLabel.textContent.includes('Input:')) {
-      const lang = document.getElementById('language').value;
-      const wl = document.getElementById('wordlist').value;
-      const friendlyName = getDialectDisplayName(lang, wl);
-      inputLabel.textContent = `Input: ${friendlyName}`;
-    }
-  }
-}
-
-// Dialect selector change handler
-document.getElementById('dialect')?.addEventListener('change', () => {
-  skipAutoDetect = true; // User is manually selecting, don't override
-  updateCurrentDialect();
-  updateDialectLabels();
-  autoRunNow();
-});
-
-// Debounced auto-run
 let autoRunTimer = null;
-let skipAutoDetect = false; // Flag to skip auto-detection when user manually changes controls
 
-function autoRun(delay = 300, detectDialect = false) {
+function autoRun(delay = 300) {
   clearTimeout(autoRunTimer);
   autoRunTimer = setTimeout(() => {
     if (!ready) return;
-    if (mode === 'encode') {
-      doEncode();
-    } else {
-      // In decode mode, try auto-detecting dialect only if triggered by input change
-      if (detectDialect && !skipAutoDetect) {
-        autoDetectDialect();
-      }
-      doDecode();
-    }
-    skipAutoDetect = false; // Reset flag
+    doTranscode();
   }, delay);
 }
 
-function autoRunNow() { autoRun(0, false); }
+function autoRunNow() { autoRun(0); }
 
-// Auto-run on textarea input (with dialect detection in decode mode)
-document.getElementById('input-area')?.addEventListener('input', () => {
-  autoRun(300, true);
-  // Input label will be updated by doEncode() which captures the data_mode
+// ─── Event listeners ─────────────────────────────────────────────────
+
+document.getElementById('input-area')?.addEventListener('input', () => autoRun(300));
+document.getElementById('seed')?.addEventListener('input', () => autoRun());
+document.getElementById('meta-input')?.addEventListener('input', () => autoRun(300));
+
+// Preset buttons
+document.querySelectorAll('.preset-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const meta = btn.dataset.meta;
+    document.getElementById('meta-input').value = meta;
+    autoRunNow();
+  });
 });
 
-// Auto-run on control changes (skip auto-detection since user is manually selecting)
-document.getElementById('seed')?.addEventListener('input', () => autoRun());
+// Cover word toggle
 document.getElementById('cover-toggle')?.addEventListener('click', (e) => {
   e.preventDefault();
   showCoverWords = !showCoverWords;
@@ -1435,378 +1380,111 @@ document.getElementById('cover-toggle')?.addEventListener('click', (e) => {
   updateOutputDisplay();
 });
 
-// Swap mode
-function setMode(newMode) {
-  mode = newMode;
-  const actionBtn = document.getElementById('action-btn');
-  const inputArea = document.getElementById('input-area');
-  const randomBtns = document.getElementById('random-btns');
-
-  // Clear detection cache when switching modes
-  dialectDetectionCache.clear();
-
-  // Update dialect labels
-  updateDialectLabels();
-
-  if (mode === 'encode') {
-    actionBtn.textContent = 'Encode';
-    inputArea.placeholder = 'Type text to encode...';
-    randomBtns.style.display = '';
-  } else {
-    actionBtn.textContent = 'Decode';
-    inputArea.placeholder = 'Paste encoded text here...';
-    randomBtns.style.display = 'none';
-  }
-
-  // Clear output
-  const outEl = document.getElementById('output-area');
-  outEl.innerHTML = 'Output will appear here';
-  outEl.classList.add('empty');
-  outEl.dataset.plainText = '';
-  document.getElementById('copy-btn').style.display = 'none';
-  document.getElementById('stats-footer').style.display = 'none';
-  document.getElementById('input-error').classList.add('hidden');
-
-  // Clear bit counts
-  document.getElementById('input-bits-info').textContent = '';
-  document.getElementById('output-bits-info').textContent = '';
-}
-
+// Swap button — reverse the meta instruction and swap input/output
 document.getElementById('swap-btn').addEventListener('click', () => {
-  // Swap content: output becomes input, input becomes output
   const inputArea = document.getElementById('input-area');
   const outputArea = document.getElementById('output-area');
+  const metaInput = document.getElementById('meta-input');
 
   // Get current values
-  const currentInput = inputArea.value;
   const currentOutput = outputArea.dataset.plainText || outputArea.textContent.trim();
 
-  // Swap the mode
-  const newMode = mode === 'encode' ? 'decode' : 'encode';
+  // Reverse the meta instruction
+  const instruction = metaInput.value.trim();
+  const reversed = reverseMetaInstruction(instruction);
+  metaInput.value = reversed;
 
   // Put output into input
   inputArea.value = currentOutput;
 
-  // Switch mode and process
-  setMode(newMode);
+  // Clear output and re-run
+  outputArea.innerHTML = 'Output will appear here';
+  outputArea.classList.add('empty');
+  outputArea.dataset.plainText = '';
+  document.getElementById('copy-btn').style.display = 'none';
+  document.getElementById('stats-footer').style.display = 'none';
+  document.getElementById('input-error').classList.add('hidden');
+  document.getElementById('input-bits-info').textContent = '';
+  document.getElementById('output-bits-info').textContent = '';
+
+  // Reset stored state
+  lastEncodedText = '';
+  lastPayloadWords = [];
+  lastStats = {};
+  lastDataMode = null;
+
   autoRunNow();
 });
 
-// Cache for dialect detection to avoid redundant work
-let dialectDetectionCache = new Map();
+// Reverse a meta instruction: "encode into X" <-> "decode from X"
+function reverseMetaInstruction(instruction) {
+  const lower = instruction.toLowerCase().trim();
 
-// Auto-detect dialect using compile-time word indices (fast!)
-function autoDetectDialect() {
-  if (mode !== 'decode') return;
-
-  const input = document.getElementById('input-area').value.trim();
-  if (!input || input.length < 10) return;
-
-  // Check cache first (use first 100 chars as cache key to handle edits)
-  const cacheKey = input.substring(0, 100);
-  if (dialectDetectionCache.has(cacheKey)) {
-    const cached = dialectDetectionCache.get(cacheKey);
-    applyDetectedDialect(cached.lang, cached.wl, cached.score);
-    return;
+  // "encode into X ..." → "decode from X ..."
+  if (lower.startsWith('encode into ')) {
+    return 'decode from ' + instruction.substring('encode into '.length);
   }
-
-  // Use efficient compile-time index detection (O(log n) binary search)
-  const matches = JSON.parse(detect_dialect_from_text(input));
-
-  let bestLang = null;
-  let bestWl = null;
-  let bestScore = 0;
-
-  if (matches && matches.length > 0) {
-    const best = matches[0]; // Already sorted by score
-    bestLang = best.language;
-    bestWl = best.wordlist;
-    bestScore = best.hits;
+  // "decode from X ..." → "encode into X ..."
+  if (lower.startsWith('decode from ')) {
+    return 'encode into ' + instruction.substring('decode from '.length);
   }
-
-  // Cache the result (limit cache size to prevent memory issues)
-  if (dialectDetectionCache.size > 20) {
-    const firstKey = dialectDetectionCache.keys().next().value;
-    dialectDetectionCache.delete(firstKey);
+  // "translate from X into Y" → "translate from Y into X"
+  const translateMatch = lower.match(/^translate\s+from\s+(.+?)\s+into\s+(.+)$/);
+  if (translateMatch) {
+    return `translate from ${translateMatch[2]} into ${translateMatch[1]}`;
   }
-  dialectDetectionCache.set(cacheKey, { lang: bestLang, wl: bestWl, score: bestScore });
-
-  if (bestLang && bestWl) {
-    applyDetectedDialect(bestLang, bestWl, bestScore);
-  }
+  // Fallback: just swap "from" and "into"
+  return instruction
+    .replace(/\binto\b/gi, '__INTO__')
+    .replace(/\bfrom\b/gi, 'into')
+    .replace(/__INTO__/g, 'from');
 }
 
-function applyDetectedDialect(lang, wl, score) {
-  // Find the dialect in our data structure
-  // For now, we need to find a dialect that matches this language/wordlist combination
-  // The detect_dialect_from_text returns language and wordlist, but we need to pick a dialect
+// ─── Random input generators ─────────────────────────────────────────
 
-  // Try to find a matching dialect (prefer 'body' or first available)
-  let matchedDialect = null;
-  for (const langGroup of dialectsData) {
-    if (langGroup.language === lang) {
-      for (const dialect of langGroup.dialects) {
-        const parts = parseDialectId(dialect.full_id);
-        if (parts.wordlist === wl) {
-          // Prefer 'body' dialect if available
-          if (parts.dialect === 'body') {
-            matchedDialect = dialect;
-            break;
-          }
-          // Otherwise take the first match
-          if (!matchedDialect) {
-            matchedDialect = dialect;
-          }
-        }
-      }
-      if (matchedDialect) break;
-    }
-  }
-
-  // Only update if we found a match and it's different from current
-  if (matchedDialect && score > 0 && matchedDialect.full_id !== currentDialect?.full_id) {
-    document.getElementById('dialect').value = matchedDialect.full_id;
-    updateCurrentDialect();
-    updateDialectLabels();
-  }
-
-  // Update input label to show detected dialect
-  if (mode === 'decode' && matchedDialect && score > 0) {
-    const inputLabel = document.getElementById('input-dialect-label');
-    inputLabel.textContent = `Input: ${matchedDialect.display_name} (${score} words)`;
-  }
+// Parse target language from meta instruction for random_words
+function parseTargetLanguage() {
+  const instruction = document.getElementById('meta-input').value.trim().toLowerCase();
+  // Look for language names after "into" or "as" or just standalone
+  const match = instruction.match(/(?:into|as|to)\s+(english|latin)/);
+  if (match) return match[1];
+  // Fallback: check if instruction mentions a language
+  if (instruction.includes('english')) return 'english';
+  if (instruction.includes('latin')) return 'latin';
+  return 'english'; // default
 }
 
-// Main action
-window.doAction = function() {
-  if (mode === 'encode') doEncode();
-  else doDecode();
-};
-
-window.doEncode = function() {
-  if (!ready || !currentDialect) return;
-
-  const input = document.getElementById('input-area').value;
-  const seed = parseInt(document.getElementById('seed').value) || 0;
-
-  const errEl = document.getElementById('input-error');
-  errEl.classList.add('hidden');
-
-  try {
-    // Parse dialect ID to get components
-    const parts = parseDialectId(currentDialect.full_id);
-
-    // Choose encoding function based on whether it's character-level
-    let result;
-    if (currentDialect.is_character_level) {
-      // Character-level encoding (CS dialects: base16, base58, base64)
-      result = JSON.parse(wasmEncodeCharacters(
-        input,
-        parts.language,
-        parts.wordlist,
-        parts.dialect,
-        BigInt(seed)
-      ));
-    } else {
-      // Word-level encoding (English, Latin, etc.)
-      result = JSON.parse(wasmEncode(
-        input,
-        parts.language,
-        parts.wordlist,
-        parts.dialect,
-        BigInt(seed)
-      ));
-    }
-
-    if (result.error) {
-      errEl.textContent = result.error;
-      errEl.classList.remove('hidden');
-      return;
-    }
-
-    // Capture data mode for input label
-    lastDataMode = result.data_mode || null;
-    lastInputLength = input.length;
-    updateInputDialectLabel();
-
-    // Store result for cover word toggle
-    lastEncodedText = result.encoded_text;
-    lastPayloadWords = result.payload_words || [];
-    lastStats = result.stats || {};
-
-    // Update output display
-    const outEl = document.getElementById('output-area');
-    outEl.classList.remove('empty');
-    document.getElementById('copy-btn').style.display = '';
-    document.getElementById('stats-footer').style.display = '';
-
-    updateOutputDisplay();
-    updateBitCounts();
-  } catch (e) {
-    errEl.textContent = e.message || String(e);
-    errEl.classList.remove('hidden');
-  }
-};
-
-window.doDecode = function() {
-  if (!ready || !currentDialect) return;
-
-  const input = document.getElementById('input-area').value;
-  const parts = parseDialectId(currentDialect.full_id);
-
-  const errEl = document.getElementById('input-error');
-  errEl.classList.add('hidden');
-
-  try {
-    const result = JSON.parse(wasmDecode(input, parts.language, parts.wordlist));
-
-    const outEl = document.getElementById('output-area');
-
-    // If decode failed but we extracted payload words, show them
-    if (result.error && result.payload_words && result.payload_words.length > 0) {
-      outEl.innerHTML = `<div style="color: var(--text-dim); margin-bottom: 0.5rem; font-size: 0.85rem;">⚠️ ${result.error}</div>` +
-        `<div><strong>Extracted payload words:</strong></div>` +
-        `<div style="margin-top: 0.5rem;">${result.payload_words.join(' ')}</div>`;
-      outEl.classList.remove('empty');
-      outEl.dataset.plainText = result.payload_words.join(' ');
-      document.getElementById('copy-btn').style.display = '';
-
-      // Show extracted count in stats
-      const payloadCount = result.payload_words.length;
-      document.getElementById('stat-payload').textContent = payloadCount;
-      document.getElementById('stat-cover').textContent = '-';
-      document.getElementById('stat-total').textContent = '-';
-      document.getElementById('stat-ratio').textContent = '-';
-      document.getElementById('stats-footer').style.display = '';
-
-      // Update bit counts for partial decode
-      const inputBitsEl = document.getElementById('input-bits-info');
-      const inputBits = calculatePayloadWordBits(payloadCount);
-      if (inputBits > 0) {
-        inputBitsEl.textContent = `${inputBits} bits`;
-      }
-      document.getElementById('output-bits-info').textContent = ''; // No valid output
-      return;
-    }
-
-    // If decode completely failed with no payload words
-    if (result.error && (!result.payload_words || result.payload_words.length === 0)) {
-      outEl.innerHTML = `<div style="color: var(--error);">❌ Decode failed</div>` +
-        `<div style="color: var(--text-dim); margin-top: 0.5rem;">${result.error}</div>`;
-      outEl.classList.remove('empty');
-      outEl.dataset.plainText = '';
-      document.getElementById('copy-btn').style.display = 'none';
-      document.getElementById('stats-footer').style.display = 'none';
-      // Clear bit counts
-      document.getElementById('input-bits-info').textContent = '';
-      document.getElementById('output-bits-info').textContent = '';
-      return;
-    }
-
-    // Successful decode
-    outEl.textContent = result.decoded_text || '(empty)';
-    outEl.classList.remove('empty');
-    outEl.dataset.plainText = result.decoded_text || '';
-
-    document.getElementById('copy-btn').style.display = '';
-
-    // Show extracted count in stats
-    const payloadCount = (result.payload_words || []).length;
-    document.getElementById('stat-payload').textContent = payloadCount;
-    document.getElementById('stat-cover').textContent = '-';
-    document.getElementById('stat-total').textContent = '-';
-    document.getElementById('stat-ratio').textContent = '-';
-    document.getElementById('stats-footer').style.display = '';
-
-    // Update bit counts for decode mode
-    const inputBitsEl = document.getElementById('input-bits-info');
-    const outputBitsEl = document.getElementById('output-bits-info');
-
-    // Input: bits in the payload words extracted
-    const inputBits = calculatePayloadWordBits(payloadCount);
-    if (inputBits > 0) {
-      inputBitsEl.textContent = `${inputBits} bits`;
-    }
-
-    // Output: bits in the decoded text
-    const decodedText = result.decoded_text || '';
-    if (decodedText) {
-      // Try to detect the codec mode from decoded text
-      let outputBits = 0;
-      if (/^[0-9a-fA-F]+$/.test(decodedText) && decodedText.length % 2 === 0 && decodedText.length >= 2) {
-        outputBits = Math.floor(decodedText.length / 2) * 8;
-      } else if (/^[\x00-\x7F]+$/.test(decodedText)) {
-        outputBits = decodedText.length * 7; // ASCII-7
-      } else {
-        outputBits = new TextEncoder().encode(decodedText).length * 8;
-      }
-      if (outputBits > 0) {
-        outputBitsEl.textContent = `${outputBits} bits`;
-      }
-    }
-  } catch (e) {
-    // JavaScript error - show in output
-    const outEl = document.getElementById('output-area');
-    outEl.innerHTML = `<div style="color: var(--error);">❌ Error</div>` +
-      `<div style="color: var(--text-dim); margin-top: 0.5rem;">${e.message || String(e)}</div>`;
-    outEl.classList.remove('empty');
-    document.getElementById('copy-btn').style.display = 'none';
-    document.getElementById('stats-footer').style.display = 'none';
-    // Clear bit counts
-    document.getElementById('input-bits-info').textContent = '';
-    document.getElementById('output-bits-info').textContent = '';
-  }
-};
+function targetWordlist() {
+  const lang = parseTargetLanguage();
+  if (lang === 'latin') return 'default';
+  return 'bip39'; // default for English
+}
 
 window.randomWords = function(count) {
-  if (!ready || !currentDialect) return;
+  if (!ready) return;
 
-  const parts = parseDialectId(currentDialect.full_id);
+  const lang = parseTargetLanguage();
+  const wl = targetWordlist();
   const seed = Date.now();
 
   const errEl = document.getElementById('input-error');
   errEl.classList.add('hidden');
 
   try {
-    // Directly encode random words without codec overhead
-    const result = JSON.parse(wasmEncodeRandomWords(count, parts.language, parts.wordlist, parts.dialect, BigInt(seed)));
-
-    if (result.error) {
-      errEl.textContent = result.error;
+    const words = JSON.parse(wasmRandomWords(count, lang, wl, BigInt(seed)));
+    if (words.error) {
+      errEl.textContent = words.error;
       errEl.classList.remove('hidden');
       return;
     }
-
-    // Update input to show the random words
-    const inputWords = (result.payload_words || []).join(' ');
-    document.getElementById('input-area').value = inputWords;
-
-    // Capture data mode and update labels
-    lastDataMode = result.data_mode || 'words';
-    lastInputLength = inputWords.length;
-    updateInputDialectLabel();
-
-    // Store result for cover word toggle
-    lastEncodedText = result.encoded_text;
-    lastPayloadWords = result.payload_words || [];
-    lastStats = result.stats || {};
-
-    // Update output display
-    const outEl = document.getElementById('output-area');
-    outEl.classList.remove('empty');
-    document.getElementById('copy-btn').style.display = '';
-    document.getElementById('stats-footer').style.display = '';
-
-    updateOutputDisplay();
-    updateBitCounts();
-
+    document.getElementById('input-area').value = words.join(' ');
+    autoRunNow();
   } catch (e) {
     errEl.textContent = e.message || String(e);
     errEl.classList.remove('hidden');
   }
 };
 
-// Generate random hex string (32 bytes = 64 hex chars)
 window.randomHex = function() {
   const bytes = 32;
   const hex = Array.from(crypto.getRandomValues(new Uint8Array(bytes)))
@@ -1816,7 +1494,6 @@ window.randomHex = function() {
   autoRunNow();
 };
 
-// Generate random base64 string (~32 bytes worth)
 window.randomBase64 = function() {
   const bytes = 32;
   const randomBytes = crypto.getRandomValues(new Uint8Array(bytes));
@@ -1825,39 +1502,29 @@ window.randomBase64 = function() {
   autoRunNow();
 };
 
-// Generate random Bitcoin pubkey (bc1... format - Bech32)
 window.randomBitcoinKey = function() {
-  // Bech32 alphabet (lowercase only)
   const bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-
-  // Generate 39 random characters (42 total with "bc1" prefix)
   const length = 39;
   const randomValues = crypto.getRandomValues(new Uint8Array(length));
   const chars = Array.from(randomValues)
     .map(v => bech32Alphabet[v % bech32Alphabet.length])
     .join('');
-
-  const bitcoinKey = 'bc1' + chars;
-  document.getElementById('input-area').value = bitcoinKey;
+  document.getElementById('input-area').value = 'bc1' + chars;
   autoRunNow();
 };
 
-// Generate random Nostr pubkey (npub... format - NIP-19 Bech32)
 window.randomNostrKey = function() {
-  // Bech32 alphabet (lowercase only)
   const bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-
-  // Generate 59 random characters (63 total with "npub" prefix)
   const length = 59;
   const randomValues = crypto.getRandomValues(new Uint8Array(length));
   const chars = Array.from(randomValues)
     .map(v => bech32Alphabet[v % bech32Alphabet.length])
     .join('');
-
-  const nostrKey = 'npub' + chars;
-  document.getElementById('input-area').value = nostrKey;
+  document.getElementById('input-area').value = 'npub' + chars;
   autoRunNow();
 };
+
+// ─── Utilities ───────────────────────────────────────────────────────
 
 window.copyOutput = function() {
   const el = document.getElementById('output-area');
