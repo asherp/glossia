@@ -1,0 +1,52 @@
+# HTML Cover Words for CS Payloads
+#
+# Same structure as cover.yaml but uses <br> for line breaks instead of \n.
+# Used when output will be rendered in HTML (e.g., web demos).
+#
+# Selected via the "html" cover override in the pipeline:
+#   "encode into pgp html" -> CS pgp dialect + cover_html.yaml
+#
+# Output formats:
+#   Encrypted:  ----- BEGIN PGP ENCRYPTED MESSAGE -----<br><payload><br>----- END PGP ENCRYPTED MESSAGE -----
+#   Plain:      ----- BEGIN MESSAGE -----<br><payload><br>----- END MESSAGE -----
+#   Signature:  ----- BEGIN NOSTR SIGNATURE -----<br><payload><br>----- END NOSTR SIGNATURE -----
+
+"-----":
+  Dot: 1.0
+
+BEGIN:
+  Aux: 1.0
+  refinement: begin
+
+END:
+  Aux: 1.0
+  refinement: end
+
+ENCRYPTED:
+  Cop: 1.0
+
+MESSAGE:
+  To: 1.0
+
+"<br>":
+  Conj: 1.0
+
+NIP-04:
+  Prefix: 1.0
+  refinement: nip04
+
+NIP-44:
+  Prefix: 1.0
+  refinement: nip44
+
+NOSTR:
+  Prefix: 1.0
+  refinement: nostr
+
+SIGNATURE:
+  Modal: 1.0
+  refinement: sig
+
+PGP:
+  Prefix: 1.0
+  refinement: pgp

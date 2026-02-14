@@ -249,6 +249,55 @@ fn compute_k_candidates<R: Rng>(
     }
 }
 
+/// Parse an endpoint string into an Endpoint value.
+///
+/// Supports formats: "hex", "base64", "ascii7", "bytes", "auto"
+/// And languages: "english", "latin", "english/bip39", "english/bip39/body"
+///
+/// When `wordlist_override` is "default", resolves to the language's actual
+/// default wordlist (e.g., "bip39" for English) via `default_wordlist()`.
+fn parse_endpoint(s: &str, wordlist_override: &str) -> glossia::Endpoint {
+    match s.to_lowercase().as_str() {
+        "hex" => return glossia::Endpoint::Format(glossia::DataMode::Hex),
+        "base64" => return glossia::Endpoint::Format(glossia::DataMode::Base64),
+        "ascii7" | "ascii" => return glossia::Endpoint::Format(glossia::DataMode::Ascii7),
+        "bytes" | "bytes8" => return glossia::Endpoint::Format(glossia::DataMode::Bytes8),
+        "auto" => return glossia::Endpoint::Auto,
+        _ => {}
+    }
+
+    // Resolve effective wordlist for a language name.
+    let resolve_wordlist = |lang: &str, explicit_wl: &str| -> String {
+        if explicit_wl != "default" {
+            explicit_wl.to_string()
+        } else {
+            let dw = glossia::generator::default_wordlist(lang);
+            if dw == "default" { "default".to_string() } else { dw.to_string() }
+        }
+    };
+
+    // language/wordlist/dialect syntax
+    let parts: Vec<&str> = s.split('/').collect();
+    match parts.len() {
+        3 => glossia::Endpoint::language_full(parts[0], parts[1], parts[2]),
+        2 => glossia::Endpoint::Language {
+            language: parts[0].to_string(),
+            wordlist: parts[1].to_string(),
+            dialect: "body".to_string(),
+        },
+        1 => {
+            let lang = parts[0];
+            let wl = resolve_wordlist(lang, wordlist_override);
+            glossia::Endpoint::Language {
+                language: lang.to_string(),
+                wordlist: wl,
+                dialect: "body".to_string(),
+            }
+        }
+        _ => glossia::Endpoint::language(s),
+    }
+}
+
 /// Encode ASCII text to wordlist words using bit-packing.
 /// If wordlist has 2048 words (11 bits), we can pack bytes efficiently:
 /// - 1 word = 11 bits
@@ -327,6 +376,16 @@ fn print_usage(program_name: &str) {
     eprintln!("  --decode                Decode payload words back to bytes (inverse of --from-ascii)");
     eprintln!("                          Provide words as positional args or pipe via stdin");
     eprintln!("                          Auto-detects language/wordlist if --language not specified");
+    eprintln!();
+    eprintln!("Pipeline mode (translate between languages):");
+    eprintln!("  --meta <instruction>    Execute a meta-language pipeline instruction");
+    eprintln!("                          e.g., \"translate from english into latin\"");
+    eprintln!("  --into <target>         Encode into target language/format");
+    eprintln!("                          e.g., english, latin, latin/default/prose, hex");
+    eprintln!("  --from <source>         Decode from source language/format");
+    eprintln!("                          e.g., english, english/bip39, hex, base64");
+    eprintln!("                          Use --from with --into to transcode between languages");
+    eprintln!("                          Input comes from --from-ascii, positional args, or stdin");
     eprintln!("  --madlib                Replace payload words with [POS] placeholders");
     eprintln!("  --seed <N>              Seed for deterministic random generation");
     eprintln!("  --variations <N>         Generate N variations and select the most compact (default: 1)");
@@ -350,9 +409,15 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} --decode word1 word2 word3", program_name);
     eprintln!("  {} --random 5 --dialect subject --highlight-payload none", program_name);
     eprintln!("  {} --random 5 --dialect latin-body --highlight-payload bars", program_name);
+    eprintln!();
+    eprintln!("Pipeline examples:");
+    eprintln!("  {} --into english --from-ascii \"Hello World\"", program_name);
+    eprintln!("  {} --from english --into latin < english_prose.txt", program_name);
+    eprintln!("  {} --from english < prose.txt   (decode to original data)", program_name);
+    eprintln!("  {} --meta \"translate from english into latin\" < prose.txt", program_name);
 }
 
-fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String), String> {
+fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>), String> {
     let args: Vec<String> = env::args().collect();
     let program_name = args[0].clone();
 
@@ -385,6 +450,9 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut decode_mode = false;
     let mut merkle_highlight_mode: Option<HighlightMode> = None;
     let mut wordlist = "default".to_string();
+    let mut meta_instruction: Option<String> = None;
+    let mut pipeline_into: Option<String> = None;
+    let mut pipeline_from: Option<String> = None;
     let mut i = 1;
     
     while i < args.len() {
@@ -565,6 +633,27 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 delimiter = args[i + 1].clone();
                 i += 2;
             }
+            "--meta" => {
+                if i + 1 >= args.len() {
+                    return Err("--meta requires a value (pipeline instruction)".to_string());
+                }
+                meta_instruction = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--into" => {
+                if i + 1 >= args.len() {
+                    return Err("--into requires a value (target language or format)".to_string());
+                }
+                pipeline_into = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "--from" => {
+                if i + 1 >= args.len() {
+                    return Err("--from requires a value (source language or format)".to_string());
+                }
+                pipeline_from = Some(args[i + 1].clone());
+                i += 2;
+            }
             "--from-ascii" => {
                 if i + 1 >= args.len() {
                     return Err("--from-ascii requires a value (text string or '-' for stdin)".to_string());
@@ -615,8 +704,9 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         return Err("Cannot use --from-ascii with explicit words. Use one or the other.".to_string());
     }
     
-    if random_count.is_none() && words.is_empty() && ascii_input.is_none() && !show_grammar && !decode_mode {
-        return Err("No words provided. Use --random <N>, --from-ascii <text>, --decode <words>, or provide words as arguments.".to_string());
+    if random_count.is_none() && words.is_empty() && ascii_input.is_none() && !show_grammar && !decode_mode
+        && meta_instruction.is_none() && pipeline_into.is_none() && pipeline_from.is_none() {
+        return Err("No words provided. Use --random <N>, --from-ascii <text>, --decode <words>, --meta, --into, --from, or provide words as arguments.".to_string());
     }
 
     // Default length mode depends on grammar mode unless explicitly overridden:
@@ -630,7 +720,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         };
     }
     
-    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist))
+    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from))
 }
 
 /// Get the wordlist file path for a given language.
@@ -783,7 +873,7 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
 // --- CLI usage ---
 fn main() {
     
-    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist) = match parse_args() {
+    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from) = match parse_args() {
         Ok(args) => args,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -792,6 +882,66 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    // ── Pipeline mode ────────────────────────────────────────────────────
+    // --meta, --into, or --from flags route through Pipeline, bypassing
+    // the traditional generation path.
+    if meta_instruction.is_some() || pipeline_into.is_some() || pipeline_from.is_some() {
+        use glossia::Pipeline;
+        use std::io::Read;
+
+        let pipeline = if let Some(ref meta) = meta_instruction {
+            Pipeline::from_meta(meta).unwrap_or_else(|e| {
+                eprintln!("Error parsing meta instruction: {}", e);
+                std::process::exit(1);
+            })
+        } else {
+            let source = match pipeline_from {
+                Some(ref f) => parse_endpoint(f, &wordlist),
+                None => glossia::Endpoint::Auto,
+            };
+            let target = match pipeline_into {
+                Some(ref t) => parse_endpoint(t, &wordlist),
+                None => glossia::Endpoint::Auto,
+            };
+            Pipeline::from_params(source, target)
+        };
+
+        let seed_value = seed.unwrap_or_else(|| rand::thread_rng().gen::<u64>());
+        let pipeline = pipeline.with_seed(seed_value).with_verbose(verbose);
+
+        if verbose {
+            eprintln!("Pipeline: {} -> {}", pipeline.source, pipeline.target);
+            if seed.is_some() {
+                eprintln!("Using seed: {}", seed_value);
+            }
+        }
+
+        // Get input: from --from-ascii, positional words, or stdin.
+        let input = if let Some(ref ascii) = ascii_input {
+            ascii.clone()
+        } else if !words.is_empty() {
+            words.join(" ")
+        } else {
+            let mut buffer = String::new();
+            std::io::stdin().read_to_string(&mut buffer).unwrap_or_else(|e| {
+                eprintln!("Error reading from stdin: {}", e);
+                std::process::exit(1);
+            });
+            buffer.trim_end().to_string()
+        };
+
+        match pipeline.execute(&input) {
+            Ok(output) => {
+                println!("{}", glossia::generator::word_wrap(&output, width));
+            }
+            Err(e) => {
+                eprintln!("Pipeline error: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
 
     // Build DialectConfig to get dialect-specified wordlists.
     // The dialect knows its preferred payload/cover wordlists (from grammar.yaml).
@@ -2659,12 +2809,13 @@ mod tests {
     #[test]
     fn test_meta_payload_words_load() {
         let words = load_payload_words("meta").unwrap();
-        assert_eq!(words.len(), 16, "Meta should have exactly 16 payload words (2^4)");
+        assert_eq!(words.len(), 17, "Meta should have exactly 17 payload words (bitpacking: false)");
         // Spot-check some dialect identifiers
         assert!(words.contains(&"latin".to_string()), "Should contain 'latin'");
         assert!(words.contains(&"english".to_string()), "Should contain 'english'");
         assert!(words.contains(&"hex".to_string()), "Should contain 'hex'");
         assert!(words.contains(&"nostr".to_string()), "Should contain 'nostr'");
+        assert!(words.contains(&"html".to_string()), "Should contain 'html'");
     }
 
     #[test]

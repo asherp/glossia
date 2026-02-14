@@ -1003,8 +1003,8 @@ iQIzBAABCAAdFiEE...xK9Q==
           <button class="btn-sm preset-btn" data-meta="encode into english subject">Subject</button>
           <button class="btn-sm preset-btn" data-meta="encode into latin">Latin</button>
           <button class="btn-sm preset-btn" data-meta="encode into latin spells">Spells</button>
-          <button class="btn-sm preset-btn" data-meta="encode into pgp">PGP</button>
-          <button class="btn-sm preset-btn" data-meta="encode into nostr">Nostr</button>
+          <button class="btn-sm preset-btn" data-meta="encode into pgp html">PGP</button>
+          <button class="btn-sm preset-btn" data-meta="encode into nostr html">Nostr</button>
         </div>
       </div>
       <div class="control-group">
@@ -1259,6 +1259,8 @@ function updateOutputDisplay() {
       const payloadSet = new Set(lastPayloadWords.map(w => w.toLowerCase()));
       const words = lastEncodedText.split(/\s+/);
       const html = words.map(w => {
+        // Preserve <br> line-break tokens as raw HTML
+        if (w === '<br>') return '<br>';
         const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         if (payloadSet.has(clean)) {
           return `<mark>${escapeHtml(w)}</mark>`;
@@ -1266,7 +1268,8 @@ function updateOutputDisplay() {
         return escapeHtml(w);
       }).join(' ');
       outEl.innerHTML = html;
-      outEl.dataset.plainText = lastEncodedText;
+      // For copy: convert <br> back to \n for plain text
+      outEl.dataset.plainText = lastEncodedText.replace(/<br>/g, '\n');
     } else {
       const payloadOnly = lastPayloadWords.join(' ');
       const html = lastPayloadWords.map(w => `<mark>${escapeHtml(w)}</mark>`).join(' ');

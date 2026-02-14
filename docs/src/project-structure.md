@@ -50,6 +50,10 @@ glossia/
 │   │   ├── payload_hp.yaml     # Harry Potter themed payload
 │   │   ├── dialect.yaml        # Dialect overlays
 │   │   └── pos_mapping.yaml    # POS tag mapping
+│   ├── meta/
+│   │   ├── grammar.yaml        # Dialect calculus meta-grammar
+│   │   ├── payload.yaml        # Dialect identifiers (language/format names)
+│   │   └── cover.yaml          # Pipeline function words (verbs, preps, etc.)
 │   ├── math/
 │   │   └── primes/
 │   │       ├── grammar.yaml    # Arithmetic grammar

@@ -110,9 +110,15 @@ fn validate_payload_power_of_two(languages_dir: &Path) {
     validate_power_of_two_recursive(languages_dir, languages_dir);
 }
 
-/// Check if a language directory uses character-level encoding (payload_separator: "").
-/// These are format-conversion alphabets (base58, base64, etc.) that don't use bit-packing.
-fn is_character_level_encoding(dir: &Path) -> bool {
+/// Check if a language directory opts out of bit-packing validation.
+///
+/// Returns true when either:
+/// - `grammar.bitpacking` is explicitly `false`, or
+/// - `grammar.payload_separator` is `""` (character-level encoding, legacy check)
+///
+/// Languages that don't bit-pack (meta-language, character-level CS alphabets)
+/// are free to have non-power-of-two payload sizes.
+fn skips_bitpacking(dir: &Path) -> bool {
     let grammar_path = dir.join("grammar.yaml");
     let content = match fs::read_to_string(&grammar_path) {
         Ok(c) => c,
@@ -123,17 +129,26 @@ fn is_character_level_encoding(dir: &Path) -> bool {
         Err(_) => return false,
     };
     if let Some(grammar) = data.get("grammar") {
+        // Explicit opt-out: bitpacking: false
+        if let Some(bp) = grammar.get("bitpacking") {
+            if bp.as_bool() == Some(false) {
+                return true;
+            }
+        }
+        // Legacy: character-level encoding (payload_separator: "")
         if let Some(sep) = grammar.get("payload_separator") {
-            return sep.as_str() == Some("");
+            if sep.as_str() == Some("") {
+                return true;
+            }
         }
     }
     false
 }
 
 fn validate_power_of_two_recursive(base_dir: &Path, current_dir: &Path) {
-    // Skip character-level encodings (base58, base64, etc.) — they use format
-    // conversion, not bit-packing, so the power-of-two constraint doesn't apply.
-    if is_character_level_encoding(current_dir) {
+    // Skip languages that opt out of bit-packing (character-level alphabets,
+    // meta-language, etc.) — the power-of-two constraint doesn't apply.
+    if skips_bitpacking(current_dir) {
         return;
     }
 

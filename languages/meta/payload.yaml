@@ -9,12 +9,13 @@
 #   Pron = the dialect as a data reference (standalone)
 #
 # Statistics:
-#   Total words: 16 (2^4 = 4 bits per word)
+#   Total words: 17 (bitpacking: false — no power-of-two constraint)
 #
-# The 16 identifiers cover:
+# The 17 identifiers cover:
 #   Natural languages:  latin, english
 #   Output styles:      prose, body, subject, spells
 #   Data formats:       hex, base64, base58, ascii7, bits, bytes
+#   Rendering:          html
 #   Protocols:          nostr, pgp
 #   Formal systems:     primes, merkle
 #
@@ -87,6 +88,11 @@ spells:
 primes:
   N: 0.7
   Adj: 0.3
+
+html:
+  Adj: 0.6
+  N: 0.3
+  Pron: 0.1
 
 merkle:
   N: 0.6

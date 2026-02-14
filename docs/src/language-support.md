@@ -38,6 +38,15 @@ languages/my_language/
 └── dialect.yaml          # Optional: dialect overlays (subject/body/poetry)
 ```
 
+In addition, the language must be registered in the shared meta-grammar layer:
+
+```
+languages/meta/
+├── payload.yaml          # Append language name here as a dialect identifier
+├── cover.yaml            # Append new pipeline function words here (if needed)
+└── grammar.yaml          # Dialect calculus rules (usually no changes needed)
+```
+
 ### Wordlist Format
 
 Wordlists are YAML files mapping words to POS tag weights:
@@ -90,11 +99,21 @@ In debug builds, only English is embedded for faster compilation.
 
 ## Creating a New Language
 
-See the [Tools](./tools.md) chapter for the complete workflow, including:
+See the [Tools](./tools.md) chapter for the complete workflow. The process has two layers: creating the language itself, and registering it in the meta-grammar so that pipeline instructions can reference it.
+
+### Language Files
 
 1. Creating payload and cover wordlists with POS tagging
 2. Writing grammar rules in YAML format
 3. Testing and validating your language
+
+### Meta-Grammar Registration
+
+Every new language must also be registered in the **meta-grammar** (`languages/meta/`), which is Glossia's [Dialect Calculus](./dialect-calculus.md) layer. This enables pipeline instructions like `"translate from english into my_language"`.
+
+1. **Append the language name to `languages/meta/payload.yaml`** with appropriate POS weights (typically `N`, `Adj`, `Pron`). The meta payload must remain power-of-2 sized.
+2. **Check `languages/meta/cover.yaml`** for any new pipeline function words your language may need (new verbs, prepositions, etc.). Append them if not already present.
+3. **Add a match arm in `src/pipeline.rs`** in `meta_word_to_language()` to map the meta payload word to your language directory and default dialect.
 
 ### Key Requirements
 
@@ -102,6 +121,7 @@ See the [Tools](./tools.md) chapter for the complete workflow, including:
 - **Append-only**: Both wordlists are append-only for backward compatibility
 - **POS coverage**: Cover wordlist must include words for all function-word POS tags (Aux, Cop, To, Prefix, Dot)
 - **Frequency ordering**: Cover words should be ordered by frequency (most frequent first), especially for Merkle mode
+- **Meta-grammar registration**: The language name must appear in `languages/meta/payload.yaml` and `src/pipeline.rs` for pipeline routing to work
 
 ## English Wordlists
 

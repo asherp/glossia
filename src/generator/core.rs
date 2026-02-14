@@ -32,15 +32,16 @@ fn join_words_with_payload_grammar(
 
     // Payload-aware join: consecutive payload words use payload_separator,
     // all other transitions use " ".
-    // Newline cover words (e.g., Conj "\n" in ASCII armor) are output as-is
+    // Line-break cover words (Conj "\n" or "<br>") are output as-is
     // without preceding spaces.
+    let ends_with_break = |s: &str| s.ends_with('\n') || s.ends_with("<br>");
     let mut result = String::new();
     let mut payload_run = String::new(); // accumulates consecutive payload chars
 
     for (_i, word) in words.iter().enumerate() {
         let word_clean = normalize_token_for_bip39(word);
         let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
-        let is_newline = word.contains('\n');
+        let is_newline = word.contains('\n') || word == "<br>";
 
         if is_payload {
             // Accumulate into payload run
@@ -58,8 +59,8 @@ fn join_words_with_payload_grammar(
                 // Apply line wrapping if configured
                 if let Some(width) = line_width {
                     let wrapped = wrap_payload(&payload_text, width);
-                    // Only add a newline before payload if result doesn't already end with one
-                    if !result.is_empty() && !result.ends_with('\n') {
+                    // Only add a newline before payload if result doesn't already end with a break
+                    if !result.is_empty() && !ends_with_break(&result) {
                         result.push('\n');
                     }
                     result.push_str(&wrapped);
@@ -73,11 +74,11 @@ fn join_words_with_payload_grammar(
             }
             // Add the cover word
             if is_newline {
-                // Newline cover words (e.g., Conj "\n" for ASCII armor line breaks)
-                // are output directly — no preceding space.
+                // Line-break cover words (Conj "\n" or "<br>") are output
+                // directly — no preceding space.
                 result.push_str(word);
             } else {
-                if !result.is_empty() && !result.ends_with('\n') {
+                if !result.is_empty() && !ends_with_break(&result) {
                     result.push(' ');
                 }
                 result.push_str(word);
@@ -94,7 +95,7 @@ fn join_words_with_payload_grammar(
         };
         if let Some(width) = line_width {
             let wrapped = wrap_payload(&payload_text, width);
-            if !result.is_empty() && !result.ends_with('\n') {
+            if !result.is_empty() && !ends_with_break(&result) {
                 result.push('\n');
             }
             result.push_str(&wrapped);

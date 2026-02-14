@@ -175,12 +175,38 @@ glossia --show-grammar --dialect body
    - Optionally add `dialect.yaml` for subject/body variants
    - Test with `glossia --show-grammar --dialect body`
 
-5. **Test your language:**
+5. **Register the language in the meta-grammar:**
+
+   The meta-grammar (`languages/meta/`) is Glossia's dialect calculus layer. It treats language and format names as payload words so that pipeline instructions like `"translate from english into my_language"` can be parsed. When you add a new language, you must register it in the meta-layer.
+
+   - **Append to `languages/meta/payload.yaml`**: Add your language name with POS weights. Language names typically use `N` (encoder), `Adj` (format modifier), and `Pron` (data reference):
+     ```yaml
+     my_language:
+       N: 0.5
+       Adj: 0.4
+       Pron: 0.1
+     ```
+     The meta payload wordlist must remain a power-of-2 size (it is currently 16 = 2^4). If appending your language would exceed the current power-of-2 boundary, you may need to add additional identifiers to reach the next power of 2, or coordinate with existing entries.
+
+   - **Check `languages/meta/cover.yaml`**: If your language introduces new pipeline verbs, prepositions, or other function words that are not already present in the meta cover wordlist, append them there. For example, if your language requires a new encoding verb or a direction preposition not already covered by `encode`, `decode`, `translate`, `from`, `into`, etc., add it to the appropriate section of `languages/meta/cover.yaml`.
+
+   - **Update `src/pipeline.rs`**: The pipeline parser has match arms that map meta payload words to concrete language configurations. Add your language to `meta_word_to_language()`:
+     ```rust
+     "my_language" => Some(("my_language", "body")),
+     ```
+     If your language introduces new dialect modifiers, also update `meta_word_to_dialect()`.
+
+6. **Test your language:**
    ```bash
    glossia --random 12 --language my_language --seed 0
    ```
 
-6. **Verify decoding:**
+7. **Test meta-language integration:**
+   ```bash
+   glossia --meta "translate from english into my_language" <<< "abandon ability able"
+   ```
+
+8. **Verify decoding:**
    - Extract all words from output
    - Filter to only words in your payload wordlist
    - Verify the original payload is preserved in order
@@ -194,6 +220,13 @@ languages/my_language/
 ├── payload.yaml          # Payload wordlist with POS weights
 ├── cover.yaml            # Cover wordlist with POS weights
 └── dialect.yaml          # Optional: dialect overlays (subject/body/poetry)
+```
+
+In addition to the language directory, you must also update these shared files:
+```
+languages/meta/payload.yaml   # Append your language name as a dialect identifier
+languages/meta/cover.yaml     # Append any new pipeline function words (if needed)
+src/pipeline.rs                # Add match arm in meta_word_to_language()
 ```
 
 # Tools
