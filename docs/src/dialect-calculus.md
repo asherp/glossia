@@ -265,7 +265,11 @@ B (m(encode_B)) decode_A  =  m(B encode_B decode_A)
 
 ## Connection to Curry-Howard
 
-The Curry-Howard correspondence gives the dialect calculus a logical reading:
+The [Curry-Howard correspondence](https://en.wikipedia.org/wiki/Curry%E2%80%93Howard_correspondence) is the observation that **types are propositions** and **programs are proofs**. A function of type `A -> B` doesn't just transform data — it *proves* that `A` implies `B`. Type-checking a program is the same as verifying a proof. If the types don't line up, the "proof" is invalid — you've asserted something that doesn't follow.
+
+This isn't a metaphor. Curry noticed in 1934 that combinator types match axiom schemes of intuitionistic logic. Howard made it precise in 1969: natural deduction proofs correspond exactly to typed lambda terms. Every logical connective has a computational counterpart — conjunction is pairing, disjunction is tagged union, implication is function abstraction. See Philip Wadler's [Propositions as Types](https://homepages.inf.ed.ac.uk/wadler/papers/propositions-as-types/propositions-as-types.pdf) for an accessible treatment of the full story.
+
+The dialect calculus inherits this correspondence directly. Each column below is the *same* formal object seen from three angles:
 
 | Lambda calculus | Logic | Dialect calculus |
 |----------------|-------|-----------------|
@@ -276,7 +280,21 @@ The Curry-Howard correspondence gives the dialect calculus a logical reading:
 | `t` (truth) | Theorem | Valid encoded output exists |
 | Type error | Contradiction | Incompatible pipeline (wrong wordlist, wrong DataMode) |
 
-A well-typed pipeline term is a **proof** that the transformation preserves data. Type checking guarantees you can't compose incompatible dialects — the type system catches errors like "applying a Latin decoder to English text" before any data flows.
+### What this buys us
+
+**1. Type-checking is proof verification.** When the dialect calculus type-checks a pipeline like
+
+```
+hex_mode(B encode_latin hex_decode)(nostr_sig) : t
+```
+
+it is simultaneously verifying a *proof* that "given a Nostr hex signature and a hex decoder and a Latin encoder, a valid Latin encoding exists." If any component has the wrong type — say you accidentally pass a Latin decoder where a hex decoder is expected — the proof fails. The type system catches the error before any data flows.
+
+**2. Composition is transitivity.** The `B` combinator computes `B f g x = f(g(x))`. Logically, if `g` proves `A => B` and `f` proves `B => C`, then `B f g` proves `A => C`. This is why transcoding works: `decode_latin` proves "Latin implies Bits" and `encode_english` proves "Bits implies English", so their composition proves "Latin implies English." The proof factors through the bitstream, just as the data does.
+
+**3. Uninhabited types mean impossible pipelines.** If no term of type `Refined("hex", e) -> Refined("latin/body", e)` exists (because there's no direct hex-to-Latin transform), then the corresponding proposition "hex implies Latin" has no proof. You *must* factor through `Bits` — and the type system forces you to make this explicit by composing `B encode_latin hex_decode`.
+
+**4. The zero object is the tautology.** `Bits` being a zero object (every dialect has exactly one morphism to and from it) means that `Bits => D` and `D => Bits` are both provable for every dialect `D`. In logical terms, `Bits` is equivalent to every well-formed dialect — it's the canonical witness that all lossless encodings preserve the same information.
 
 ## Meta-grammar
 
