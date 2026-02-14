@@ -31,6 +31,7 @@ pub use generator::{
     load_payload_tree, load_cover_tree, load_cover_word_pos_tags,
     get_embedded_yaml, has_embedded_files, get_available_languages,
     get_available_wordlists,
+    detect_dialect, detect_dialect_best, DialectMatch,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use generator::get_wordlist_path;
@@ -40,7 +41,7 @@ pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};
 
 // Re-export codec functions and types
 pub use codec::{
-    encode, decode, encode_with_mode, decode_with_mode, encode_str, decode_str,
+    encode, decode, encode_with_mode, decode_with_mode, encode_str, encode_str_with_mode, decode_str,
     detect_mode, DataMode, DecodeError,
     hex_encode, hex_decode, base64_encode, base64_decode,
 };

@@ -805,6 +805,197 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
     None
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Dialect Detection
+// ═══════════════════════════════════════════════════════════════════════
+
+/// A scored candidate from dialect detection.
+#[derive(Clone, Debug)]
+pub struct DialectMatch {
+    /// Language name (e.g., "english", "latin", "cs").
+    pub language: String,
+    /// Wordlist profile (e.g., "default", "bip39", "base58").
+    pub wordlist: String,
+    /// Available dialects for this language (e.g., ["body", "subject", "prose"]).
+    pub dialects: Vec<String>,
+    /// Number of input words that matched this payload wordlist.
+    pub hits: usize,
+    /// Total number of input words tested.
+    pub total: usize,
+    /// Hit rate: `hits / total` (0.0 to 1.0).
+    pub hit_rate: f64,
+    /// Size of the payload wordlist.
+    pub wordlist_size: usize,
+}
+
+impl std::fmt::Display for DialectMatch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}/{} — {}/{} hits ({:.1}%), wordlist size: {}",
+            self.language,
+            self.wordlist,
+            self.hits,
+            self.total,
+            self.hit_rate * 100.0,
+            self.wordlist_size,
+        )
+    }
+}
+
+/// Binary search for a word in a sorted, newline-delimited string.
+///
+/// The `sorted_text` parameter is a `&'static str` of words separated by `\n`,
+/// sorted lexicographically (as produced by `build.rs` at compile time).
+/// Returns `true` if `word` is found as an exact line match.
+///
+/// Complexity: O(log n) string comparisons where n = number of words.
+fn binary_search_sorted_words(sorted_text: &str, word: &str) -> bool {
+    let bytes = sorted_text.as_bytes();
+    if bytes.is_empty() {
+        return false;
+    }
+
+    let mut lo: usize = 0;
+    let mut hi: usize = bytes.len();
+
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+
+        // Find the start of the line containing byte position `mid`.
+        let line_start = if mid == 0 || bytes[mid - 1] == b'\n' {
+            mid
+        } else {
+            let mut pos = mid;
+            while pos > lo && bytes[pos - 1] != b'\n' {
+                pos -= 1;
+            }
+            pos
+        };
+
+        // Find the end of the line (next newline or end of string).
+        let mut line_end = line_start;
+        while line_end < bytes.len() && bytes[line_end] != b'\n' {
+            line_end += 1;
+        }
+
+        let line = &sorted_text[line_start..line_end];
+
+        match line.cmp(word) {
+            std::cmp::Ordering::Equal => return true,
+            std::cmp::Ordering::Less => lo = line_end + 1,
+            std::cmp::Ordering::Greater => {
+                if line_start == 0 {
+                    return false;
+                }
+                hi = line_start;
+            }
+        }
+    }
+    false
+}
+
+/// Detect which dialect (language + wordlist) best matches the given input words.
+///
+/// Scans all available language × wordlist combinations and counts how many
+/// of the input words appear in each payload wordlist. Results are sorted by
+/// hit count (descending), then by hit rate.
+///
+/// # Arguments
+///
+/// * `input_words` — the words to test (typically extracted from encoded text
+///   by splitting on whitespace and normalizing).
+///
+/// # Returns
+///
+/// A vector of `DialectMatch` entries sorted best-first. Only entries with
+/// at least one hit are included.
+///
+/// # Example
+///
+/// ```no_run
+/// use glossia::generator::detect_dialect;
+///
+/// let words: Vec<String> = "abandon ability able about above".split_whitespace()
+///     .map(|s| s.to_string()).collect();
+/// let matches = detect_dialect(&words);
+/// if let Some(best) = matches.first() {
+///     println!("Detected: {}", best);
+/// }
+/// ```
+pub fn detect_dialect(input_words: &[String]) -> Vec<DialectMatch> {
+    use crate::grammar::DialectConfig;
+
+    if input_words.is_empty() {
+        return Vec::new();
+    }
+
+    // Normalize input words to lowercase, stripping trailing punctuation
+    let normalized: Vec<String> = input_words
+        .iter()
+        .map(|w| w.trim_end_matches('.').trim_end_matches(',').to_lowercase())
+        .filter(|w| !w.is_empty())
+        .collect();
+
+    let total = normalized.len();
+    let input_set: HashSet<&str> = normalized.iter().map(|s| s.as_str()).collect();
+
+    let mut results: Vec<DialectMatch> = Vec::new();
+
+    let languages = get_available_languages();
+    for &lang in languages {
+        let wordlists = get_available_wordlists(lang);
+        for wl_name in &wordlists {
+            // Every payload wordlist has a precomputed sorted index (built at compile time
+            // alongside the disjointness and power-of-two checks). Binary search gives
+            // O(log n) per word.
+            let sorted_words = match language_index::get_payload_word_index(lang, wl_name) {
+                Some(w) => w,
+                None => continue,
+            };
+
+            let mut hits = 0usize;
+            for word in &input_set {
+                if binary_search_sorted_words(sorted_words, word) {
+                    hits += 1;
+                }
+            }
+
+            if hits > 0 {
+                let wordlist_size = language_index::get_payload_word_count(lang, wl_name);
+                let dialects = DialectConfig::available_dialects(lang);
+                let hit_rate = hits as f64 / total as f64;
+
+                results.push(DialectMatch {
+                    language: lang.to_string(),
+                    wordlist: wl_name.clone(),
+                    dialects,
+                    hits,
+                    total,
+                    hit_rate,
+                    wordlist_size,
+                });
+            }
+        }
+    }
+
+    // Sort: most hits first, then highest hit rate, then smallest wordlist (more specific)
+    results.sort_by(|a, b| {
+        b.hits.cmp(&a.hits)
+            .then_with(|| b.hit_rate.partial_cmp(&a.hit_rate).unwrap_or(std::cmp::Ordering::Equal))
+            .then_with(|| a.wordlist_size.cmp(&b.wordlist_size))
+    });
+
+    results
+}
+
+/// Detect dialect and return the best match, or None if no payload words matched.
+///
+/// This is a convenience wrapper around [`detect_dialect`].
+pub fn detect_dialect_best(input_words: &[String]) -> Option<DialectMatch> {
+    detect_dialect(input_words).into_iter().next()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -927,5 +1118,134 @@ mod tests {
             assert_eq!(Pos::from_str(s), Some(*pos), "round-trip failed for {:?}", pos);
         }
         assert_eq!(Pos::from_str("Unknown"), None);
+    }
+
+    // ── Dialect detection tests ──────────────────────────────────────
+
+    #[test]
+    fn test_detect_dialect_bip39_words() {
+        // These are all BIP39 words → should detect english/default (or english/bip39)
+        let words: Vec<String> = "abandon ability able about above"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let matches = detect_dialect(&words);
+        assert!(!matches.is_empty(), "Should detect at least one dialect for BIP39 words");
+
+        let best = &matches[0];
+        assert_eq!(best.language, "english", "Best match should be English");
+        assert_eq!(best.hits, 5, "All 5 words should be hits");
+        assert!((best.hit_rate - 1.0).abs() < 0.001, "Hit rate should be 1.0");
+    }
+
+    #[test]
+    fn test_detect_dialect_empty_input() {
+        let words: Vec<String> = Vec::new();
+        let matches = detect_dialect(&words);
+        assert!(matches.is_empty(), "Empty input should return no matches");
+    }
+
+    #[test]
+    fn test_detect_dialect_no_matches() {
+        // These words shouldn't be in any payload wordlist
+        let words: Vec<String> = "xyzzyplugh fnord"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let matches = detect_dialect(&words);
+        assert!(matches.is_empty(), "Nonsense words should return no matches");
+    }
+
+    #[test]
+    fn test_detect_dialect_mixed_payload_and_cover() {
+        // Mix of payload words and cover/non-payload words
+        // "the" is a cover word, "abandon" and "zoo" are BIP39 payload words
+        let words: Vec<String> = "the abandon is zoo"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let matches = detect_dialect(&words);
+        assert!(!matches.is_empty(), "Should detect dialect from mixed words");
+
+        let best = &matches[0];
+        assert_eq!(best.language, "english");
+        // Should have 2 hits (abandon, zoo) — "the" and "is" are cover words
+        assert!(best.hits >= 2, "Should have at least 2 payload hits, got {}", best.hits);
+    }
+
+    #[test]
+    fn test_detect_dialect_strips_punctuation() {
+        // Words with trailing punctuation should still match
+        let words: Vec<String> = "abandon. ability, able"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let matches = detect_dialect(&words);
+        assert!(!matches.is_empty(), "Should detect dialect despite punctuation");
+
+        let best = &matches[0];
+        assert_eq!(best.hits, 3, "All 3 words should match after stripping punctuation");
+    }
+
+    #[test]
+    fn test_detect_dialect_best_convenience() {
+        let words: Vec<String> = "abandon ability"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let best = detect_dialect_best(&words);
+        assert!(best.is_some(), "Should detect best dialect");
+        assert_eq!(best.unwrap().language, "english");
+    }
+
+    #[test]
+    fn test_detect_dialect_includes_dialects() {
+        let words: Vec<String> = "abandon ability able"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let matches = detect_dialect(&words);
+        let best = &matches[0];
+        // English should have body, subject, prose dialects
+        assert!(best.dialects.contains(&"body".to_string()), "Should include body dialect");
+        assert!(best.dialects.contains(&"subject".to_string()), "Should include subject dialect");
+    }
+
+    #[test]
+    fn test_binary_search_sorted_words() {
+        let text = "apple\nbanana\ncherry\ndate\nelderberry";
+
+        // Found cases
+        assert!(binary_search_sorted_words(text, "apple"), "should find first word");
+        assert!(binary_search_sorted_words(text, "cherry"), "should find middle word");
+        assert!(binary_search_sorted_words(text, "elderberry"), "should find last word");
+        assert!(binary_search_sorted_words(text, "banana"), "should find second word");
+        assert!(binary_search_sorted_words(text, "date"), "should find fourth word");
+
+        // Not found cases
+        assert!(!binary_search_sorted_words(text, "aaa"), "should not find word before first");
+        assert!(!binary_search_sorted_words(text, "zzz"), "should not find word after last");
+        assert!(!binary_search_sorted_words(text, "car"), "should not find word between entries");
+        assert!(!binary_search_sorted_words(text, ""), "should not find empty string");
+
+        // Edge cases
+        assert!(!binary_search_sorted_words("", "apple"), "empty text should find nothing");
+        assert!(binary_search_sorted_words("solo", "solo"), "single word should be found");
+        assert!(!binary_search_sorted_words("solo", "other"), "single word should reject others");
+    }
+
+    #[test]
+    fn test_detect_dialect_uses_precomputed_index() {
+        // Verify exact wordlist_size from precomputed index (not estimated from YAML length)
+        let words: Vec<String> = "abandon ability able about above"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+        let matches = detect_dialect(&words);
+        let best = &matches[0];
+        assert_eq!(best.language, "english");
+        assert_eq!(best.wordlist, "bip39");
+        // BIP39 has exactly 2048 words — precomputed, not estimated
+        assert_eq!(best.wordlist_size, 2048, "wordlist_size should be exact (2048), not an estimate");
     }
 }

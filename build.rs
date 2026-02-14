@@ -413,6 +413,102 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
     code.push_str("    }\n");
     code.push_str("}\n\n");
 
+    // Generate precomputed payload word index for fast dialect detection.
+    // For each (language, wordlist profile), we extract payload words at build time,
+    // sort them, and write a newline-delimited text file to OUT_DIR.
+    // At runtime, binary search on these sorted texts gives O(log n) membership testing
+    // instead of scanning raw YAML strings.
+    let mut payload_index_entries: Vec<(String, String, String, usize)> = Vec::new(); // (lang, profile, filename, word_count)
+
+    for (lang, files) in &languages {
+        // Collect all payload files with their profile names
+        let mut payload_paths: Vec<(String, PathBuf)> = Vec::new();
+
+        if let Some(ref p) = files.payload {
+            let fname = p.file_name().unwrap().to_str().unwrap();
+            let profile = if fname == "payload.yaml" {
+                "default".to_string()
+            } else {
+                fname.strip_prefix("payload_").unwrap()
+                    .strip_suffix(".yaml").unwrap()
+                    .to_string()
+            };
+            payload_paths.push((profile, p.clone()));
+        }
+        for (name, path) in &files.other {
+            if name.starts_with("payload") && name.ends_with(".yaml") {
+                let profile = if name == "payload.yaml" {
+                    "default".to_string()
+                } else {
+                    name.strip_prefix("payload_").unwrap()
+                        .strip_suffix(".yaml").unwrap()
+                        .to_string()
+                };
+                payload_paths.push((profile, path.clone()));
+            }
+        }
+
+        for (profile, path) in &payload_paths {
+            let words = extract_yaml_keys(&path);
+            let mut sorted_words: Vec<String> = words.into_iter()
+                .map(|w| w.to_lowercase())
+                .collect();
+            sorted_words.sort();
+            sorted_words.dedup();
+
+            let word_count = sorted_words.len();
+            let sanitized_lang = lang.replace('/', "_");
+            let filename = format!("payload_words_{}_{}.txt", sanitized_lang, profile);
+            let word_file_path = Path::new(&out_dir).join(&filename);
+
+            let content = sorted_words.join("\n");
+            // Only write if changed (avoids triggering unnecessary rebuilds)
+            let should_write_words = match fs::read_to_string(&word_file_path) {
+                Ok(existing) => existing != content,
+                Err(_) => true,
+            };
+            if should_write_words {
+                fs::write(&word_file_path, &content).unwrap();
+            }
+
+            payload_index_entries.push((lang.clone(), profile.clone(), filename, word_count));
+        }
+    }
+
+    // Emit get_payload_word_index: returns sorted newline-delimited word list
+    code.push_str("/// Get a precomputed sorted word list for a payload wordlist.\n");
+    code.push_str("/// Returns a sorted, newline-delimited string of all payload words (lowercase).\n");
+    code.push_str("/// Use `binary_search_sorted_words()` on the result for O(log n) membership testing.\n");
+    code.push_str("pub fn get_payload_word_index(language: &str, wordlist: &str) -> Option<&'static str> {\n");
+    code.push_str("    match (language, wordlist) {\n");
+
+    for (lang, profile, filename, _count) in &payload_index_entries {
+        code.push_str(&format!(
+            "        (\"{}\", \"{}\") => Some(include_str!(concat!(env!(\"OUT_DIR\"), \"/{}\")))  ,\n",
+            lang, profile, filename
+        ));
+    }
+
+    code.push_str("        _ => None,\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
+    // Emit get_payload_word_count: precomputed word counts (exact, no estimation)
+    code.push_str("/// Get the exact precomputed word count for a payload wordlist.\n");
+    code.push_str("pub fn get_payload_word_count(language: &str, wordlist: &str) -> usize {\n");
+    code.push_str("    match (language, wordlist) {\n");
+
+    for (lang, profile, _filename, count) in &payload_index_entries {
+        code.push_str(&format!(
+            "        (\"{}\", \"{}\") => {},\n",
+            lang, profile, count
+        ));
+    }
+
+    code.push_str("        _ => 0,\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
     // Generate language file paths map
     code.push_str("/// Get file paths for a language\n");
     code.push_str("#[derive(Debug, Clone)]\n");
