@@ -149,7 +149,7 @@ dialects:
 
 Test your grammar:
 ```bash
-glossia --show-grammar --grammar body
+glossia --show-grammar --dialect body
 ```
 
 ## Complete Workflow
@@ -173,7 +173,7 @@ glossia --show-grammar --grammar body
 4. **Create grammar file:**
    - Write `grammar.yaml` with types and rules
    - Optionally add `dialect.yaml` for subject/body variants
-   - Test with `glossia --show-grammar --grammar body`
+   - Test with `glossia --show-grammar --dialect body`
 
 5. **Test your language:**
    ```bash

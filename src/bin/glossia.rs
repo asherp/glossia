@@ -72,7 +72,9 @@ fn parse_color(color_str: &str) -> Result<u8, String> {
 // All utility functions are now in the library (generator::utils)
 // Keeping only CLI-specific code below: HighlightMode, highlighting functions, argument parsing, main
 
-/// Apply highlighting to generated text based on highlight_mode
+/// Apply highlighting to generated text based on highlight_mode.
+/// Preserves embedded newlines (e.g., from CS grammar's Conj "\n" cover words)
+/// by processing each line independently.
 fn apply_highlighting(
     text: &str,
     payload_set: &HashSet<String>,
@@ -81,61 +83,71 @@ fn apply_highlighting(
     merkle_set: Option<&HashSet<String>>,
     merkle_highlight_mode: Option<HighlightMode>,
 ) -> String {
-    let words: Vec<&str> = text.split_whitespace().collect();
-    
-    if highlight_mode == HighlightMode::Madlib {
-        // For madlib mode, replace payload words with [POS] placeholders
-        words.iter().map(|word| {
-            let word_clean = normalize_token_for_bip39(word);
-            let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
-            let is_merkle = merkle_set.map(|s| !word_clean.is_empty() && s.contains(&word_clean)).unwrap_or(false);
-            
-            if is_payload || is_merkle {
-                // Find the payload token to get its POS tag
-                if let Some(payload_tok) = payload.iter().find(|t| t.word.to_lowercase() == word_clean) {
-                    // Use the first allowed POS tag for madlib
-                    if let Some(&first_pos) = payload_tok.allowed.iter().next() {
-                        let pos_str = first_pos.as_str();
-                        // Preserve punctuation
-                        let punct: String = word.chars().filter(|c| !c.is_alphabetic()).collect();
-                        format!("[{}]{}", pos_str, punct)
+    // Process each line independently to preserve embedded newlines
+    // (e.g., ASCII armor header/body/footer separation via Conj "\n" cover words)
+    text.split('\n')
+        .map(|line| {
+            let words: Vec<&str> = line.split_whitespace().collect();
+            if words.is_empty() {
+                return String::new();
+            }
+
+            if highlight_mode == HighlightMode::Madlib {
+                // For madlib mode, replace payload words with [POS] placeholders
+                words.iter().map(|word| {
+                    let word_clean = normalize_token_for_bip39(word);
+                    let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+                    let is_merkle = merkle_set.map(|s| !word_clean.is_empty() && s.contains(&word_clean)).unwrap_or(false);
+
+                    if is_payload || is_merkle {
+                        // Find the payload token to get its POS tag
+                        if let Some(payload_tok) = payload.iter().find(|t| t.word.to_lowercase() == word_clean) {
+                            // Use the first allowed POS tag for madlib
+                            if let Some(&first_pos) = payload_tok.allowed.iter().next() {
+                                let pos_str = first_pos.as_str();
+                                // Preserve punctuation
+                                let punct: String = word.chars().filter(|c| !c.is_alphabetic()).collect();
+                                format!("[{}]{}", pos_str, punct)
+                            } else {
+                                word.to_string()
+                            }
+                        } else {
+                            word.to_string()
+                        }
                     } else {
                         word.to_string()
                     }
-                } else {
-                    word.to_string()
-                }
+                }).collect::<Vec<String>>().join(" ")
             } else {
-                word.to_string()
+                words.iter().map(|word| {
+                    let word_clean = normalize_token_for_bip39(word);
+                    let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+                    let is_merkle = merkle_set.map(|s| !word_clean.is_empty() && s.contains(&word_clean)).unwrap_or(false);
+
+                    if is_payload {
+                        match highlight_mode {
+                            HighlightMode::None => word.to_string(),
+                            HighlightMode::Bars => wrap_payload_with_bars(word),
+                            HighlightMode::Color(color) => wrap_payload_with_color(word, color),
+                            HighlightMode::Madlib => unreachable!(), // Handled above
+                        }
+                    } else if is_merkle {
+                        // Use merkle highlight mode if specified, otherwise don't highlight
+                        match merkle_highlight_mode {
+                            Some(HighlightMode::None) => word.to_string(),
+                            Some(HighlightMode::Bars) => wrap_payload_with_bars(word),
+                            Some(HighlightMode::Color(color)) => wrap_payload_with_color(word, color),
+                            Some(HighlightMode::Madlib) => word.to_string(), // Madlib doesn't apply to merkle words
+                            None => word.to_string(), // No merkle highlighting specified
+                        }
+                    } else {
+                        word.to_string()
+                    }
+                }).collect::<Vec<String>>().join(" ")
             }
-        }).collect::<Vec<String>>().join(" ")
-    } else {
-        words.iter().map(|word| {
-            let word_clean = normalize_token_for_bip39(word);
-            let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
-            let is_merkle = merkle_set.map(|s| !word_clean.is_empty() && s.contains(&word_clean)).unwrap_or(false);
-            
-            if is_payload {
-                match highlight_mode {
-                    HighlightMode::None => word.to_string(),
-                    HighlightMode::Bars => wrap_payload_with_bars(word),
-                    HighlightMode::Color(color) => wrap_payload_with_color(word, color),
-                    HighlightMode::Madlib => unreachable!(), // Handled above
-                }
-            } else if is_merkle {
-                // Use merkle highlight mode if specified, otherwise don't highlight
-                match merkle_highlight_mode {
-                    Some(HighlightMode::None) => word.to_string(),
-                    Some(HighlightMode::Bars) => wrap_payload_with_bars(word),
-                    Some(HighlightMode::Color(color)) => wrap_payload_with_color(word, color),
-                    Some(HighlightMode::Madlib) => word.to_string(), // Madlib doesn't apply to merkle words
-                    None => word.to_string(), // No merkle highlighting specified
-                }
-            } else {
-                word.to_string()
-            }
-        }).collect::<Vec<String>>().join(" ")
-    }
+        })
+        .collect::<Vec<String>>()
+        .join("\n")
 }
 
 
@@ -265,7 +277,8 @@ fn print_usage(program_name: &str) {
     eprintln!("  --random <N>            Generate sentences from N random BIP39 words");
     eprintln!("  --from-ascii <text>     Encode ASCII plaintext to wordlist words");
     eprintln!("                          Use '-' to read from stdin");
-    eprintln!("  --grammar <grammar>      Grammar to use: 'body' (default), 'subject', or 'payload_only'");
+    eprintln!("  --dialect <dialect>       Dialect: 'body' (default), 'subject', or 'payload_only'");
+    eprintln!("                          Can include language: 'latin-body', 'english-subject', 'cs-nip04'");
     eprintln!("                          subject: Short sentences, may include prefixes (Re:, Fwd:, etc.)");
     eprintln!("                          body: Longer sentences, no prefixes");
     eprintln!("                          payload_only: Use only payload words, no cover words");
@@ -281,6 +294,7 @@ fn print_usage(program_name: &str) {
     eprintln!("  --demerkle              Parse mode: extract original payload from merkleized sequence");
     eprintln!("  --decode                Decode payload words back to bytes (inverse of --from-ascii)");
     eprintln!("                          Provide words as positional args or pipe via stdin");
+    eprintln!("                          Auto-detects language/wordlist if --language not specified");
     eprintln!("  --madlib                Replace BIP39 words with [POS] placeholders");
     eprintln!("  --seed <N>              Seed for deterministic random generation");
     eprintln!("  --variations <N>         Generate N variations and select the most compact (default: 1)");
@@ -302,11 +316,11 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} --from-ascii \"Hello World\"", program_name);
     eprintln!("  {} --from-ascii - < input.txt", program_name);
     eprintln!("  {} --decode word1 word2 word3", program_name);
-    eprintln!("  {} --random 5 --grammar subject --highlight-payload none", program_name);
-    eprintln!("  {} --random 5 --grammar body --highlight-payload bars", program_name);
+    eprintln!("  {} --random 5 --dialect subject --highlight-payload none", program_name);
+    eprintln!("  {} --random 5 --dialect latin-body --highlight-payload bars", program_name);
 }
 
-fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, bool, usize, usize, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String), String> {
+fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String), String> {
     let args: Vec<String> = env::args().collect();
     let program_name = args[0].clone();
 
@@ -322,10 +336,14 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut variations = 1;
     let mut highlight_mode = HighlightMode::None;
     let mut generation_mode = GenerationMode::Body;
+    let mut dialect_name = "body".to_string();
     let mut language = "english".to_string();
+    let mut language_was_explicit = false;
     let mut show_grammar = false;
     let mut k_min = 3;
     let mut k_max = 20;
+    let mut k_min_explicit = false;
+    let mut k_max_explicit = false;
     let mut length_mode = SentenceLengthMode::Compact;
     let mut length_mode_explicit = false;
     let mut width = 80;
@@ -367,15 +385,23 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                     .map_err(|_| format!("Invalid number for --random: {}", args[i + 1]))?);
                 i += 2;
             }
-            "--grammar" => {
+            "--dialect" => {
                 if i + 1 >= args.len() {
-                    return Err("--grammar requires a value".to_string());
+                    return Err("--dialect requires a value".to_string());
                 }
-                generation_mode = match args[i + 1].as_str() {
+                let raw = &args[i + 1];
+                // Support combined "language-dialect" syntax (e.g., "latin-body", "cs-nip04")
+                if let Some(pos) = raw.find('-') {
+                    language = raw[..pos].to_string();
+                    language_was_explicit = true;
+                    dialect_name = raw[pos + 1..].to_string();
+                } else {
+                    dialect_name = raw.clone();
+                }
+                generation_mode = match dialect_name.as_str() {
                     "subject" => GenerationMode::Subject,
-                    "body" => GenerationMode::Body,
                     "payload_only" => GenerationMode::PayloadOnly,
-                    _ => return Err(format!("Invalid grammar: {}. Use 'subject', 'body', or 'payload_only'", args[i + 1])),
+                    _ => GenerationMode::Body,
                 };
                 i += 2;
             }
@@ -439,6 +465,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                     return Err("--language requires a value".to_string());
                 }
                 language = args[i + 1].clone();
+                language_was_explicit = true;
                 i += 2;
             }
             "--wordlist" => {
@@ -461,6 +488,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 if k_min < 3 {
                     return Err("--k-min must be at least 3".to_string());
                 }
+                k_min_explicit = true;
                 i += 2;
             }
             "--k-max" => {
@@ -472,9 +500,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 if k_max < k_min {
                     return Err(format!("--k-max ({}) must be >= --k-min ({})", k_max, k_min));
                 }
-                if k_max > 20 {
-                    return Err("--k-max cannot exceed 20 (sequences only precomputed up to k=20)".to_string());
-                }
+                k_max_explicit = true;
                 i += 2;
             }
             "--length-mode" => {
@@ -572,7 +598,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         };
     }
     
-    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, language, show_grammar, k_min, k_max, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist))
+    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist))
 }
 
 /// Get the wordlist file path for a given language.
@@ -725,7 +751,7 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
 // --- CLI usage ---
 fn main() {
     
-    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, language, show_grammar, k_min, k_max, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist) = match parse_args() {
+    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist) = match parse_args() {
         Ok(args) => args,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -738,10 +764,9 @@ fn main() {
     // Build DialectConfig to get dialect-specified wordlists.
     // The dialect knows its preferred payload/cover wordlists (from grammar.yaml).
     let dialect_config = {
-        let dialect = glossia::generator::mode_to_dialect(generation_mode);
-        glossia::DialectConfig::from_language_dialect(&language, dialect)
+        glossia::DialectConfig::from_language_dialect(&language, &dialect_name)
             .unwrap_or_else(|e| {
-                eprintln!("Error loading dialect config for '{}' / '{}': {}", language, dialect, e);
+                eprintln!("Error loading dialect config for '{}' / '{}': {}", language, dialect_name, e);
                 std::process::exit(1);
             })
     };
@@ -749,7 +774,7 @@ fn main() {
     // Resolve wordlist: CLI --wordlist overrides dialect default.
     // "default" means "use whatever the dialect specifies".
     let wordlist_was_explicit = wordlist != "default";
-    let wordlist = if wordlist_was_explicit {
+    let mut wordlist = if wordlist_was_explicit {
         wordlist
     } else {
         // Use the dialect's declared payload wordlist
@@ -811,6 +836,48 @@ fn main() {
 
     // Handle --decode mode: decode payload words back to bytes
     if decode_mode {
+        // Collect raw input tokens first (before any dialect-specific processing)
+        let raw_tokens: Vec<String> = if !words.is_empty() {
+            words.clone()
+        } else {
+            use std::io::{self, Read};
+            let mut buffer = String::new();
+            io::stdin().read_to_string(&mut buffer)
+                .map_err(|e| {
+                    eprintln!("Error reading from stdin: {}", e);
+                    std::process::exit(1);
+                })
+                .unwrap();
+            buffer.split_whitespace().map(|s| s.to_string()).collect()
+        };
+
+        // Auto-detect dialect when neither --language nor --wordlist was explicitly set
+        let wordlist_was_explicit = wordlist != glossia::generator::default_wordlist(&language);
+        if !language_was_explicit && !wordlist_was_explicit {
+            let dialect_matches = glossia::generator::detect_dialect(&raw_tokens);
+            if let Some(best) = dialect_matches.first() {
+                language = best.language.clone();
+                wordlist = best.wordlist.clone();
+
+                eprintln!("Detected dialect: {}/{} ({}/{} words matched, {:.1}%)",
+                    best.language, best.wordlist,
+                    best.hits, best.total, best.hit_rate * 100.0);
+                if best.dialects.len() > 1 {
+                    eprintln!("  Available grammars: {}", best.dialects.join(", "));
+                }
+
+                // Show runner-up candidates in verbose mode
+                if verbose && dialect_matches.len() > 1 {
+                    eprintln!("  Other candidates:");
+                    for candidate in dialect_matches.iter().skip(1).take(3) {
+                        eprintln!("    {}", candidate);
+                    }
+                }
+            }
+        } else if verbose {
+            eprintln!("Using explicit dialect: {}/{}", language, wordlist);
+        }
+
         let all_words = match glossia::generator::load_payload_words_for_wordlist(&language, &wordlist) {
             Ok(w) => w,
             Err(e) => {
@@ -826,64 +893,30 @@ fn main() {
             .map(|g| g.payload_separator().to_string())
             .unwrap_or_else(|_| " ".to_string());
 
-        // If words provided, use them; otherwise read from stdin
-        let input_words: Vec<String> = if !words.is_empty() {
-            if payload_separator.is_empty() {
-                // For concatenated payloads, extract chars only from tokens where
-                // ALL characters are in the payload set (i.e. pure payload blocks).
-                // Tokens with mixed characters (like "BEGIN") are cover words — skip them.
-                let payload_set: std::collections::HashSet<String> = all_words.iter()
-                    .map(|w| w.to_lowercase())
-                    .collect();
-                words.iter()
-                    .flat_map(|w| {
-                        let trimmed = w.trim_matches(|c: char| !c.is_alphanumeric());
-                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
-                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
-                        if all_in_payload {
-                            trimmed.chars()
-                                .map(|c| c.to_lowercase().to_string())
-                                .collect::<Vec<_>>()
-                        } else {
-                            vec![]  // Skip cover words
-                        }
-                    })
-                    .collect()
-            } else {
-                words
-            }
-        } else {
-            use std::io::{self, Read};
-            let mut buffer = String::new();
-            io::stdin().read_to_string(&mut buffer)
-                .map_err(|e| {
-                    eprintln!("Error reading from stdin: {}", e);
-                    std::process::exit(1);
+        // Process raw tokens according to payload separator rules
+        let input_words: Vec<String> = if payload_separator.is_empty() {
+            // For concatenated payloads, extract chars only from tokens where
+            // ALL characters are in the payload set (i.e. pure payload blocks).
+            // Tokens with mixed characters (like "BEGIN") are cover words — skip them.
+            let payload_set: std::collections::HashSet<String> = all_words.iter()
+                .map(|w| w.to_lowercase())
+                .collect();
+            raw_tokens.iter()
+                .flat_map(|w| {
+                    let trimmed = w.trim_matches(|c: char| !c.is_alphanumeric());
+                    let all_in_payload = !trimmed.is_empty() && trimmed.chars()
+                        .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
+                    if all_in_payload {
+                        trimmed.chars()
+                            .map(|c| c.to_lowercase().to_string())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]  // Skip cover words
+                    }
                 })
-                .unwrap();
-            if payload_separator.is_empty() {
-                // For concatenated payloads, extract chars only from tokens where
-                // ALL characters are in the payload set (pure payload blocks).
-                let payload_set: std::collections::HashSet<String> = all_words.iter()
-                    .map(|w| w.to_lowercase())
-                    .collect();
-                buffer.split_whitespace()
-                    .flat_map(|token| {
-                        let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
-                        let all_in_payload = !trimmed.is_empty() && trimmed.chars()
-                            .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
-                        if all_in_payload {
-                            trimmed.chars()
-                                .map(|c| c.to_lowercase().to_string())
-                                .collect::<Vec<_>>()
-                        } else {
-                            vec![]  // Skip cover words
-                        }
-                    })
-                    .collect()
-            } else {
-                buffer.split_whitespace().map(|s| s.to_string()).collect()
-            }
+                .collect()
+        } else {
+            raw_tokens
         };
 
         if verbose {
@@ -1155,102 +1188,32 @@ fn main() {
     let cover_wl = dialect_config.cover_wordlist();
     let (cover_by_pos, refined_cover) = glossia::generator::load_cover_words_by_pos_for_wordlist(&wordlist_set, &language, cover_wl);
 
-    let get_cover = |pos: &Pos| -> Vec<&str> {
-        cover_by_pos.get(pos)
-            .map(|v| v.iter().map(|s| s.as_str()).collect())
-            .unwrap_or_default()
-    };
-
-    let det_words: Vec<&str> = get_cover(&Pos::Det);
-    let modal_words: Vec<&str> = get_cover(&Pos::Modal);
-    let aux_words: Vec<&str> = get_cover(&Pos::Aux);
-    let cop_words: Vec<&str> = get_cover(&Pos::Cop);
-    let to_words: Vec<&str> = get_cover(&Pos::To);
-    let conj_words: Vec<&str> = get_cover(&Pos::Conj);
-    let prefix_words: Vec<&str> = get_cover(&Pos::Prefix);
-    let adj_words: Vec<&str> = get_cover(&Pos::Adj);
-    let n_words: Vec<&str> = get_cover(&Pos::N);
-    let v_words: Vec<&str> = get_cover(&Pos::V);
-    let prep_words: Vec<&str> = get_cover(&Pos::Prep);
-    let adv_words: Vec<&str> = get_cover(&Pos::Adv);
-    
     if verbose {
         eprintln!("Loaded cover words from cover.yaml:");
-        eprintln!("  Adjectives: {}", adj_words.len());
-        eprintln!("  Nouns: {}", n_words.len());
-        eprintln!("  Verbs: {}", v_words.len());
-        eprintln!("  Prepositions: {}", prep_words.len());
-        eprintln!("  Adverbs: {}", adv_words.len());
-        if !prefix_words.is_empty() {
-            eprintln!("  Prefixes: {}", prefix_words.len());
+        for (pos, words) in &cover_by_pos {
+            eprintln!("  {:?}: {}", pos, words.len());
         }
     }
-    
-    // In merkle mode, exclude Merkle words from filler pool
+
+    // Build Lexicon from all POS categories in cover_by_pos.
+    // This handles any POS the grammar uses (including Dot for CS grammar).
     let lex = if merkle_mode {
         // Filter out Merkle words from each POS category
-        // Convert to owned Vec<String> to avoid lifetime issues
-        let filter_words = |words: &[&str]| -> Vec<String> {
-            words.iter()
+        let mut lex = Lexicon::new(payload_set.clone(), wordlist_set.clone());
+        for (pos, words) in &cover_by_pos {
+            let filtered: Vec<String> = words.iter()
                 .filter(|w| !merkle_words_set.contains(&w.to_lowercase()))
-                .map(|s| s.to_string())
-                .collect()
-        };
-        let det_f: Vec<String> = filter_words(&det_words);
-        let modal_f: Vec<String> = filter_words(&modal_words);
-        let aux_f: Vec<String> = filter_words(&aux_words);
-        let cop_f: Vec<String> = filter_words(&cop_words);
-        let to_f: Vec<String> = filter_words(&to_words);
-        let conj_f: Vec<String> = filter_words(&conj_words);
-        let prefix_f: Vec<String> = filter_words(&prefix_words);
-        let adj_f: Vec<String> = filter_words(&adj_words);
-        let n_f: Vec<String> = filter_words(&n_words);
-        let v_f: Vec<String> = filter_words(&v_words);
-        let prep_f: Vec<String> = filter_words(&prep_words);
-        let adv_f: Vec<String> = filter_words(&adv_words);
-        // Convert to &str slices for Lexicon
-        let det_s: Vec<&str> = det_f.iter().map(|s| s.as_str()).collect();
-        let modal_s: Vec<&str> = modal_f.iter().map(|s| s.as_str()).collect();
-        let aux_s: Vec<&str> = aux_f.iter().map(|s| s.as_str()).collect();
-        let cop_s: Vec<&str> = cop_f.iter().map(|s| s.as_str()).collect();
-        let to_s: Vec<&str> = to_f.iter().map(|s| s.as_str()).collect();
-        let conj_s: Vec<&str> = conj_f.iter().map(|s| s.as_str()).collect();
-        let prefix_s: Vec<&str> = prefix_f.iter().map(|s| s.as_str()).collect();
-        let adj_s: Vec<&str> = adj_f.iter().map(|s| s.as_str()).collect();
-        let n_s: Vec<&str> = n_f.iter().map(|s| s.as_str()).collect();
-        let v_s: Vec<&str> = v_f.iter().map(|s| s.as_str()).collect();
-        let prep_s: Vec<&str> = prep_f.iter().map(|s| s.as_str()).collect();
-        let adv_s: Vec<&str> = adv_f.iter().map(|s| s.as_str()).collect();
-        
-        Lexicon::new(payload_set.clone(), wordlist_set.clone())
-            .with_words(Pos::Det, &det_s)
-            .with_words(Pos::Modal, &modal_s)
-            .with_words(Pos::Aux, &aux_s)
-            .with_words(Pos::Cop, &cop_s)
-            .with_words(Pos::To, &to_s)
-            .with_words(Pos::Conj, &conj_s)
-            .with_words(Pos::Prefix, &prefix_s)
-            .with_words(Pos::Adj, &adj_s)
-            .with_words(Pos::N, &n_s)
-            .with_words(Pos::V, &v_s)
-            .with_words(Pos::Prep, &prep_s)
-            .with_words(Pos::Adv, &adv_s)
-            .with_refined_cover(refined_cover.clone())
+                .cloned()
+                .collect();
+            lex = lex.with_words(*pos, &filtered.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+        }
+        lex.with_refined_cover(refined_cover.clone())
     } else {
-        Lexicon::new(payload_set.clone(), wordlist_set.clone())
-            .with_words(Pos::Det, &det_words)
-            .with_words(Pos::Modal, &modal_words)
-            .with_words(Pos::Aux, &aux_words)
-            .with_words(Pos::Cop, &cop_words)
-            .with_words(Pos::To, &to_words)
-            .with_words(Pos::Conj, &conj_words)
-            .with_words(Pos::Prefix, &prefix_words)
-            .with_words(Pos::Adj, &adj_words)
-            .with_words(Pos::N, &n_words)
-            .with_words(Pos::V, &v_words)
-            .with_words(Pos::Prep, &prep_words)
-            .with_words(Pos::Adv, &adv_words)
-            .with_refined_cover(refined_cover.clone())
+        let mut lex = Lexicon::new(payload_set.clone(), wordlist_set.clone());
+        for (pos, words) in &cover_by_pos {
+            lex = lex.with_words(*pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+        }
+        lex.with_refined_cover(refined_cover.clone())
     };
 
     let input_word_count = if merkle_mode {
@@ -1270,17 +1233,29 @@ fn main() {
     }
 
     // Load grammar for payload format (needed for validation of concatenated payloads)
-    let encode_grammar = {
-        let dialect = match generation_mode {
-            GenerationMode::Subject => "subject",
-            GenerationMode::Body => "body",
-            GenerationMode::PayloadOnly => "body",
-        };
-        Grammar::from_language_dialect(&language, dialect).ok()
-    };
+    let encode_grammar = Grammar::from_language_dialect(&language, &dialect_name).ok();
     let encode_payload_separator = encode_grammar.as_ref()
         .map(|g| g.payload_separator().to_string())
         .unwrap_or_else(|| " ".to_string());
+
+    // Compute dynamic k_min/k_max from grammar when not explicitly set by user.
+    // Concatenated-payload grammars (payload_separator="") encode all payload
+    // in a single sentence — force k_min = k_max = overhead + payload_count.
+    let concat_payload = encode_grammar.as_ref()
+        .map(|g| g.payload_separator().is_empty())
+        .unwrap_or(false);
+    if let Some(ref grammar) = encode_grammar {
+        let min_k = grammar.min_sentence_length().unwrap_or(5);
+        if !k_min_explicit && !k_max_explicit && concat_payload {
+            let k = min_k + expanded_payload.len().saturating_sub(1);
+            k_min = k;
+            k_max = k;
+        }
+        if verbose {
+            eprintln!("Grammar min sentence length: {}", min_k);
+            eprintln!("Using k_min={}, k_max={}", k_min, k_max);
+        }
+    }
 
     // Generate multiple variations and select the most compact one
     let mut best_text: Option<String> = None;
@@ -1308,6 +1283,7 @@ fn main() {
             variations == 1 && verbose,
             generation_mode,
             &language,
+            Some(&dialect_name),
             k_min,
             k_max,
             length_mode,

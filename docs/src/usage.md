@@ -26,11 +26,11 @@ glossia --decode word1 word2 word3
 
 Words can be provided as positional arguments or piped via stdin.
 
-## Grammar Modes
+## Dialect Modes
 
-The `--grammar` flag selects the sentence generation style:
+The `--dialect` flag selects the sentence generation style. It can include the language: `--dialect latin-body`, `--dialect cs-nip04`.
 
-| Grammar | Default Length Mode | Description |
+| Dialect | Default Length Mode | Description |
 |---------|-------------------|-------------|
 | `body` (default) | `natural` | Longer sentences, natural prose. Best for email body text. |
 | `subject` | `compact` | Short sentences, may include prefixes (Re:, Fwd:). Best for subject lines. |
@@ -43,7 +43,7 @@ The `--length-mode` flag controls how sentence length is chosen:
 - **`compact`**: Try lengths from `k_min` to `k_max`, shortest first. Produces the most concise output.
 - **`natural`**: Sample length from the grammar's probability distribution. Produces more varied, natural-sounding text.
 
-If not specified, the default depends on the grammar: `body` uses `natural`, `subject` uses `compact`.
+If not specified, the default depends on the dialect: `body` uses `natural`, `subject` uses `compact`.
 
 ## Highlighting
 
@@ -126,7 +126,8 @@ Options:
   --random <N>              Generate N random payload words
   --from-ascii <text>       Encode ASCII text (use '-' for stdin)
   --decode                  Decode words back to bytes
-  --grammar <grammar>       body (default), subject, or payload_only
+  --dialect <dialect>       body (default), subject, or payload_only
+                          Can include language: latin-body, english-subject, cs-nip04
   --length-mode <mode>      compact or natural
   --highlight-payload <mode>  none, bars, or color name/code
   --highlight-merkle <mode>   Merkle word highlighting

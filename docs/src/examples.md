@@ -26,7 +26,7 @@ $ glossia --random 12 --seed 0
 **Compact mode** produces the shortest possible output:
 
 ```bash
-$ glossia --random 12 --grammar body --length-mode compact --seed 0
+$ glossia --random 12 --dialect body --length-mode compact --seed 0
 ```
 
 ```
@@ -39,7 +39,7 @@ Shield get bamboo. Pie own way. Yellow is set.
 Short phrases suitable for email subject lines:
 
 ```bash
-$ glossia --random 12 --grammar subject --seed 0
+$ glossia --random 12 --dialect subject --seed 0
 ```
 
 ```
@@ -61,7 +61,7 @@ Cricket see the gloom to army. The rid purpose already board the rid mosquito.
 ## Encoding an IP Address
 
 ```bash
-$ glossia --from-ascii "127.0.0.1" --grammar subject --length-mode compact --seed 0
+$ glossia --from-ascii "127.0.0.1" --dialect subject --length-mode compact --seed 0
 ```
 
 ```
@@ -150,13 +150,13 @@ Variations:
 Output just the payload words without grammar:
 
 ```bash
-$ glossia --random 12 --grammar payload_only --seed 0
+$ glossia --random 12 --dialect payload_only --seed 0
 ```
 
 With a custom delimiter:
 
 ```bash
-$ glossia --random 12 --grammar payload_only --delimiter ", " --seed 0
+$ glossia --random 12 --dialect payload_only --delimiter ", " --seed 0
 ```
 
 ## Reading from Stdin

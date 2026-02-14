@@ -53,7 +53,7 @@ Glossia defaults to **body grammar with natural length-mode**, which is optimize
 
 - **Subject grammar + compact mode**: Best for email subject lines where brevity is critical. Generates short phrases and may include prefixes (Re:, Fwd:, etc.). Uses compact mode to find the shortest possible sentence that fits the payload.
 
-You can override these defaults using `--grammar` and `--length-mode` flags as needed.
+You can override these defaults using `--dialect` and `--length-mode` flags as needed.
 
 ### Main Program
 
@@ -75,7 +75,7 @@ The embedded words are: `snake`, `robot`, `mixed`, `ship`, `program`, `night`, `
 **Subject grammar (shorter sentences with prefixes)**
 
 ```bash
-$ glossia --random 12 --grammar subject --seed 0
+$ glossia --random 12 --dialect subject --seed 0
 ```
 
 ```
@@ -86,7 +86,7 @@ hot a shield is cut a bamboo is own a way is yellow
 **Compact body grammar**
 
 ```bash
-$ glossia --random 12 --grammar body --length-mode compact --seed 0
+$ glossia --random 12 --dialect body --length-mode compact --seed 0
 ```
 
 ```
@@ -120,7 +120,7 @@ The API key is encoded into natural-looking prose. To decode, extract all BIP39 
 **Encode an IP address**
 
 ```bash
-$ glossia --from-ascii "127.0.0.1" --grammar subject --length-mode compact --seed 0
+$ glossia --from-ascii "127.0.0.1" --dialect subject --length-mode compact --seed 0
 ```
 
 ```
@@ -183,7 +183,7 @@ glossia --random 12 --language english --seed 0
 glossia --random 12 --seed 0
 
 # Show grammar rules
-glossia --show-grammar --grammar body
+glossia --show-grammar --dialect body
 
 # Verbose output for debugging
 glossia --random 12 --verbose --seed 0
@@ -192,7 +192,7 @@ glossia --random 12 --verbose --seed 0
 #### Command-Line Options
 
 - `--random <N>`: Generate sentences from N random BIP39 words
-- `--grammar <grammar>`: Grammar to use: `body` (default) or `subject`
+- `--dialect <dialect>`: Dialect to use: `body` (default) or `subject`. Can include language: `latin-body`, `english-subject`, `cs-nip04`.
   - `body`: Longer sentences, no prefixes. Best for email body text and prose.
   - `subject`: Short sentences, may include prefixes (Re:, Fwd:, etc.). Best for email subject lines where brevity is critical.
 - `--highlight <mode>`: Highlight words: `none` (default), `bars` (| |), or color name
@@ -240,8 +240,8 @@ If you want a single continuous “compactness ↔ naturalness” knob, a simple
 Higher \(\lambda\) yields shorter, more compact text; lower \(\lambda\) yields more natural (but sometimes longer) text.
 
 **CLI default behavior:** if you don't pass `--length-mode`, the program defaults to:
-- `--grammar subject` → `compact`
-- `--grammar body` → `natural`
+- `--dialect subject` → `compact`
+- `--dialect body` → `natural`
 
 ## Grammar Files
 

@@ -149,7 +149,7 @@ dialects:
             weight: 0.50
 ```
 
-The `--grammar subject` and `--grammar body` flags select which dialect overlay to apply on top of the base grammar rules.
+The `--dialect subject` and `--dialect body` flags select which dialect overlay to apply on top of the base grammar rules.
 
 ## Sentence Length Strategy
 
