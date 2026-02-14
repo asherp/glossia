@@ -1,0 +1,231 @@
+# Meta-Grammar — Dialect Calculus Pipeline Specifications
+#
+# The meta-grammar describes how encoding pipelines compose. It uses the
+# same CFG format and Montague type system as object-level grammars, but
+# reinterprets the types at the dialect level:
+#
+#   e = a data representation (hex, base64, Latin text, English text, bits)
+#   t = a valid encoded output (pipeline has been applied successfully)
+#
+# Refined types distinguish dialect entities:
+#   e[bits]        — raw bitstream (universal intermediate)
+#   e[hex]         — hex string
+#   e[base64]      — base64 string
+#   e[latin]       — Latin prose
+#   e[english]     — English prose
+#   e[nostr]       — Nostr signature data
+#   e[pgp]         — PGP message data
+#
+# The bitstream is the zero object: every dialect factors through e[bits].
+#
+# POS reinterpretation at the dialect level:
+#   N    = Encoder         (data -> valid output)
+#   V    = Transcoder      (source -> encoder for target)
+#   Adj  = Format transform (one representation -> another)
+#   Det  = DataMode wrapper (ascii7, hex, base64, bytes8)
+#   Adv  = Pipeline modifier (logging, verification)
+#   Pron = Concrete data reference (a specific payload)
+#   Prep = Parameterized encoder ("encode X *into* Y")
+#   Conj = Output combiner (concatenate or interleave)
+#   Cop  = Identity wrapper ("X *is* encoded as Y")
+#   Dot  = Pipeline terminator (complete, validated output)
+#
+# CCG combinators as pipeline algebra:
+#   B f g x   = f(g(x))   — transcode (decode then encode)
+#   C f x y   = f(y)(x)   — reverse pipeline direction
+#   T x f     = f(x)       — lift data to accept any encoder
+#   S f g x   = f(x)(g(x)) — fork: encode same data two ways
+#   I x       = x           — passthrough
+
+grammar:
+  name: "Dialect Calculus Meta-Grammar"
+
+  types:
+    # Encoder: given data, produce valid encoded output
+    - name: "N"
+      lambda_type: "e -> t"
+
+    # Transcoder: given source data, return encoder for target
+    - name: "V"
+      lambda_type: "e -> (e -> t)"
+
+    # Format transform: rewrite one representation as another
+    # e.g., hex decode to bytes, base64 decode to bytes
+    - name: "Adj"
+      lambda_type: "e -> e"
+
+    # DataMode wrapper: modify how an encoder processes input
+    # e.g., hex mode, base64 mode, ascii7 mode
+    - name: "Det"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    # Pipeline modifier: wrap encoder with verification, logging, etc.
+    - name: "Adv"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    # Parameterized encoder: "encode X into Y", "decode X from Y"
+    - name: "Prep"
+      lambda_type: "e -> (e -> t)"
+
+    # Output combiner: concatenate or interleave two encoded outputs
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
+    # Identity wrapper: "X is encoded as Y"
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    # Pipeline terminator: complete, validated output
+    - name: "Dot"
+      lambda_type: "t"
+
+    # Concrete data reference: a specific payload or dialect
+    - name: "Pron"
+      lambda_type: "e"
+
+    # Sentence-level modifier
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+    # Predicate modifier (not used in base dialect but declared for completeness)
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+  # Base rules (pipeline dialect)
+  #
+  # Pipeline specification sentences:
+  #   "encode hex as Latin"           — V Adj Prep N
+  #   "transcode from Latin into English" — V PP PP
+  #   "the hex encoder"               — Det N
+  #   "Latin prose"                    — Adj N
+  #
+  # The semantic derivation of these meta-sentences IS the pipeline.
+  rules:
+    sentence:
+      # A pipeline specification: source data, operation, terminator
+      lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+      cfg_productions:
+        # "encode <data> as <target>."
+        - production: "NP VP Dot"
+          weight: 0.40
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+
+        # "<data> is encoded as <target>."
+        - production: "NP Cop VP Dot"
+          weight: 0.20
+          lambda: "λnp:(e->t). λcop:((e->t)->(e->t)). λvp:((e->t)->t). vp(cop(np))"
+
+        # "transcode <source> from <format> into <target>."
+        - production: "VP PP PP Dot"
+          weight: 0.20
+          lambda: "λvp:((e->t)->t). vp"
+
+        # "the hex encoder transcodes into Latin."
+        - production: "NP VP PP Dot"
+          weight: 0.15
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+
+        # Conjoined: "encode as Latin and encode as English."
+        - production: "NP VP Conj NP VP Dot"
+          weight: 0.05
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+
+    noun_phrase:
+      # NP: a dialect or data representation
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        # "Latin" / "hex" / "bits" — bare dialect name
+        - production: "N"
+          weight: 0.30
+          lambda: "λn:(e->t). n"
+
+        # "the hex encoder" — DataMode wrapping an encoder
+        - production: "Det N"
+          weight: 0.25
+          lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
+
+        # "Latin prose" / "hex data" — format-qualified dialect
+        - production: "Adj N"
+          weight: 0.25
+          # B Adj N — compose format transform with encoder
+          lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+
+        # Concrete data reference: "it" / "the signature"
+        - production: "Pron"
+          weight: 0.10
+          lambda: "λpron:e. pron"
+
+        # "the base64 Latin encoder" — DataMode + format + encoder
+        - production: "Det Adj N"
+          weight: 0.10
+          lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). det(n)"
+
+    verb_phrase:
+      # VP: the pipeline operation
+      lambda: "λv:(e->(e->t)). v"
+      cfg_productions:
+        - production: "VP_BASE"
+          weight: 0.65
+          lambda: "λv:(e->(e->t)). v"
+        - production: "VP_BASE VP_PP_TAIL"
+          weight: 0.35
+          lambda: "λv:(e->(e->t)). v"
+
+    vp_base:
+      # Core verb phrase: the encoding/transcoding operation
+      lambda: "λv:(e->(e->t)). v"
+      cfg_productions:
+        # "transcodes NP" / "encodes NP"
+        - production: "V NP"
+          weight: 0.35
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+
+        # "is encoded" / "is transcoded"
+        - production: "Cop Adj"
+          weight: 0.20
+          lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+
+        # "can encode NP" / "will transcode NP"
+        - production: "Modal V NP"
+          weight: 0.20
+          lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
+
+        # "encodes NP into NP" — transitive with PP
+        - production: "V NP PP"
+          weight: 0.15
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+
+        # "can encode" — intransitive modal
+        - production: "Modal V"
+          weight: 0.05
+          lambda: "λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v)"
+
+        # "encodes to decode" — V To V (compose two pipeline stages)
+        - production: "V To V"
+          weight: 0.05
+          lambda: "λv2:(e->(e->t)). λto:((e->t)->(e->t)). λv1:(e->(e->t)). v1(to(v2))"
+
+    vp_with_pp:
+      # PP tail for pipeline direction: "into English" / "from Latin"
+      lambda: "λprep:(e->(e->t)). prep"
+      cfg_productions:
+        - production: "PP"
+          weight: 0.70
+          lambda: "λprep:(e->(e->t)). prep"
+        - production: "PP VP_PP_TAIL"
+          weight: 0.30
+          lambda: "λprep:(e->(e->t)). prep"
+
+    prepositional_phrase:
+      # PP: direction or parameterization — "into English", "from Latin", "as hex"
+      lambda: "λprep:(e->(e->t)). prep"
+      cfg_productions:
+        - production: "Prep NP"
+          weight: 1.0
+          lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"

@@ -1,0 +1,93 @@
+# Meta-Language Payload Wordlist — Dialect Identifiers
+#
+# Each word names a dialect or data format. These are the entities
+# that the dialect calculus composes into pipelines.
+#
+# At the meta-grammar level:
+#   N    = the dialect as an encoder ("latin encodes...")
+#   Adj  = the dialect as a format modifier ("latin prose", "hex data")
+#   Pron = the dialect as a data reference (standalone)
+#
+# Statistics:
+#   Total words: 16 (2^4 = 4 bits per word)
+#
+# The 16 identifiers cover:
+#   Natural languages:  latin, english
+#   Output styles:      prose, body, subject, spells
+#   Data formats:       hex, base64, base58, ascii7, bits, bytes
+#   Protocols:          nostr, pgp
+#   Formal systems:     primes, merkle
+#
+latin:
+  N: 0.5
+  Adj: 0.4
+  Pron: 0.1
+
+english:
+  N: 0.5
+  Adj: 0.4
+  Pron: 0.1
+
+hex:
+  Adj: 0.6
+  N: 0.3
+  Pron: 0.1
+
+base64:
+  Adj: 0.6
+  N: 0.3
+  Pron: 0.1
+
+base58:
+  Adj: 0.6
+  N: 0.3
+  Pron: 0.1
+
+ascii7:
+  Adj: 0.6
+  N: 0.3
+  Pron: 0.1
+
+bits:
+  N: 0.5
+  Adj: 0.4
+  Pron: 0.1
+
+bytes:
+  N: 0.5
+  Adj: 0.4
+  Pron: 0.1
+
+nostr:
+  N: 0.4
+  Adj: 0.5
+  Pron: 0.1
+
+pgp:
+  N: 0.4
+  Adj: 0.5
+  Pron: 0.1
+
+prose:
+  N: 0.6
+  Adj: 0.4
+
+body:
+  N: 0.6
+  Adj: 0.4
+
+subject:
+  N: 0.6
+  Adj: 0.4
+
+spells:
+  N: 0.7
+  Adj: 0.3
+
+primes:
+  N: 0.7
+  Adj: 0.3
+
+merkle:
+  N: 0.6
+  Adj: 0.4

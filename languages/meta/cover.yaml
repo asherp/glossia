@@ -1,0 +1,182 @@
+# Meta-Language Cover Wordlist — Pipeline Function Words
+#
+# These words provide the grammatical skeleton for pipeline specifications.
+# They fill function-word POS slots (Det, Prep, Cop, Modal, Aux, Conj, etc.)
+# and content slots (V, Adv) that are not payload-bearing.
+#
+# Disjoint from payload.yaml (which contains dialect identifiers).
+
+# ── Determiners (DataMode wrappers) ──────────────────────────
+
+the:
+  Det: 1.0
+  refinement: def
+
+a:
+  Det: 1.0
+  refinement: indef
+
+each:
+  Det: 1.0
+  refinement: quant
+
+every:
+  Det: 1.0
+  refinement: quant
+
+# ── Verbs (pipeline operations) ──────────────────────────────
+
+encode:
+  V: 1.0
+
+decode:
+  V: 1.0
+
+transcode:
+  V: 1.0
+
+convert:
+  V: 1.0
+
+transform:
+  V: 1.0
+
+translate:
+  V: 1.0
+
+produce:
+  V: 1.0
+
+generate:
+  V: 1.0
+
+# ── Prepositions (pipeline direction) ────────────────────────
+
+into:
+  Prep: 1.0
+
+from:
+  Prep: 1.0
+
+as:
+  Prep: 1.0
+
+through:
+  Prep: 1.0
+
+via:
+  Prep: 1.0
+
+# ── Adverbs (pipeline modifiers) ─────────────────────────────
+
+then:
+  Adv: 0.6
+  Conj: 0.4
+
+directly:
+  Adv: 1.0
+
+safely:
+  Adv: 1.0
+
+losslessly:
+  Adv: 1.0
+
+# ── Conjunctions (output combiners) ──────────────────────────
+
+and:
+  Conj: 1.0
+
+or:
+  Conj: 1.0
+
+# ── Copula (identity wrappers) ───────────────────────────────
+
+is:
+  Cop: 1.0
+  refinement: sg
+
+are:
+  Cop: 1.0
+  refinement: pl
+
+# ── Modal (pipeline capability) ──────────────────────────────
+
+can:
+  Modal: 1.0
+
+will:
+  Modal: 1.0
+
+shall:
+  Modal: 1.0
+
+must:
+  Modal: 1.0
+
+# ── Auxiliary ─────────────────────────────────────────────────
+
+has:
+  Aux: 1.0
+
+does:
+  Aux: 1.0
+
+# ── To (infinitive / pipeline chaining) ──────────────────────
+
+to:
+  To: 1.0
+
+# ── Dot (pipeline terminator) ────────────────────────────────
+
+".":
+  Dot: 1.0
+
+# ── Nouns (pipeline concepts — NOT dialect names) ────────────
+# These are structural nouns for the meta-language, not payload.
+
+encoder:
+  N: 1.0
+
+decoder:
+  N: 1.0
+
+pipeline:
+  N: 1.0
+
+output:
+  N: 0.7
+  V: 0.3
+
+data:
+  N: 1.0
+
+format:
+  N: 0.7
+  V: 0.3
+
+signature:
+  N: 1.0
+
+message:
+  N: 1.0
+
+# ── Adjectives (pipeline qualities — NOT format names) ───────
+
+encoded:
+  Adj: 1.0
+
+decoded:
+  Adj: 1.0
+
+raw:
+  Adj: 1.0
+
+valid:
+  Adj: 1.0
+
+compressed:
+  Adj: 1.0
+
+armored:
+  Adj: 1.0
