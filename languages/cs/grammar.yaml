@@ -1,21 +1,36 @@
-# CS Grammar — ASCII-Armored Base58 Messages
+# CS Grammar — ASCII-Armored Character-Level Messages & Signatures
 #
-# Structural grammar for encoding base58 payloads inside ASCII armor.
-# The grammar wraps a variable-length run of base58 characters (N slots)
+# Structural grammar for encoding character-level payloads inside ASCII armor.
+# The grammar wraps a variable-length run of characters (N slots)
 # with deterministic header/footer framing (cover-word slots).
 #
-# Output structure:
-#   HEADER  = ----- BEGIN <PROTOCOL> ENCRYPTED MESSAGE -----
-#   BODY    = <base58 characters>
-#   FOOTER  = ----- END <PROTOCOL> ENCRYPTED MESSAGE -----
+# Output structure (encrypted message dialects):
+#   ----- BEGIN <PROTOCOL> ENCRYPTED MESSAGE -----
+#   <payload characters>
+#   ----- END <PROTOCOL> ENCRYPTED MESSAGE -----
 #
-# Dialects select the protocol identifier:
-#   nip04  → NIP-04
-#   nip44  → NIP-44
-#   pgp    → PGP
+# Output structure (plain message dialects):
+#   ----- BEGIN MESSAGE -----
+#   <payload characters>
+#   ----- END MESSAGE -----
+#
+# Output structure (signature dialects):
+#   ----- BEGIN [<PROTOCOL>] SIGNATURE -----
+#   <payload characters>
+#   ----- END [<PROTOCOL>] SIGNATURE -----
+#
+# Dialects select the protocol identifier and payload alphabet:
+#   raw      → no armor, payload only
+#   nip04    → NIP-04  (base58, encrypted message armor)
+#   nip44    → NIP-44  (base58, encrypted message armor)
+#   pgp      → PGP     (base58, encrypted message armor)
+#   ascii7   → plain   (printable ASCII, 95 chars, plain message armor)
+#   sig        → plain   (base58, plain signature armor)
+#   sig_pgp    → PGP     (base58, PGP signature armor)
+#   sig_nostr  → NOSTR   (base58, Nostr Schnorr signature armor)
 #
 # Type inventory:
-#   e = entity (base58 character)
+#   e = entity (payload character)
 #   t = truth value (complete message / structural unit)
 
 grammar:
@@ -54,12 +69,17 @@ grammar:
     - name: "Modal"
       lambda_type: "(e -> t) -> (e -> t)"
 
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
   # Base rules (body dialect)
   #
   # sentence → HEADER BODY FOOTER
-  # HEADER   → Dot Aux[begin] Prefix Cop To Dot
+  # HEADER   → Dot Aux[begin] Prefix Cop To Dot Conj
   # BODY     → N | N BODY  (recursive: variable-length payload)
-  # FOOTER   → Dot Aux[end] Prefix Cop To Dot
+  # FOOTER   → Conj Dot Aux[end] Prefix Cop To Dot
+  #
+  # Conj = newline ("\n") — separates armor header/footer from payload body.
   rules:
     sentence:
       lambda: "λn:(e->t). n"
@@ -71,7 +91,7 @@ grammar:
     HEADER:
       lambda: "λn:(e->t). n"
       cfg_productions:
-        - production: "Dot Aux[begin] Prefix Cop To Dot"
+        - production: "Dot Aux[begin] Prefix Cop To Dot Conj"
           weight: 1.0
           lambda: "λn:(e->t). n"
 
@@ -88,7 +108,7 @@ grammar:
     FOOTER:
       lambda: "λn:(e->t). n"
       cfg_productions:
-        - production: "Dot Aux[end] Prefix Cop To Dot"
+        - production: "Conj Dot Aux[end] Prefix Cop To Dot"
           weight: 1.0
           lambda: "λn:(e->t). n"
 
@@ -100,7 +120,20 @@ grammar:
   # Each dialect may also specify:
   #   payload_wordlist: which payload file to use ("default" -> payload.yaml, "base58" -> payload_base58.yaml)
   #   cover_wordlist:   which cover file to use ("default" -> cover.yaml)
+  #   payload_line_width: override line wrapping (null = no wrapping)
   dialects:
+    raw:
+      # Raw payload characters only — no ASCII armor, no line wrapping.
+      # Used for compact representations where only the encoded data is needed.
+      payload_line_width: null
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
     nip04:
       payload_wordlist: "base58"
       cover_wordlist: "default"
@@ -108,14 +141,14 @@ grammar:
         HEADER:
           lambda: "λn:(e->t). n"
           cfg_productions:
-            - production: "Dot Aux[begin] Prefix[nip04] Cop To Dot"
+            - production: "Dot Aux[begin] Prefix[nip04] Cop To Dot Conj"
               weight: 1.0
               lambda: "λn:(e->t). n"
 
         FOOTER:
           lambda: "λn:(e->t). n"
           cfg_productions:
-            - production: "Dot Aux[end] Prefix[nip04] Cop To Dot"
+            - production: "Conj Dot Aux[end] Prefix[nip04] Cop To Dot"
               weight: 1.0
               lambda: "λn:(e->t). n"
 
@@ -126,14 +159,14 @@ grammar:
         HEADER:
           lambda: "λn:(e->t). n"
           cfg_productions:
-            - production: "Dot Aux[begin] Prefix[nip44] Cop To Dot"
+            - production: "Dot Aux[begin] Prefix[nip44] Cop To Dot Conj"
               weight: 1.0
               lambda: "λn:(e->t). n"
 
         FOOTER:
           lambda: "λn:(e->t). n"
           cfg_productions:
-            - production: "Dot Aux[end] Prefix[nip44] Cop To Dot"
+            - production: "Conj Dot Aux[end] Prefix[nip44] Cop To Dot"
               weight: 1.0
               lambda: "λn:(e->t). n"
 
@@ -144,13 +177,106 @@ grammar:
         HEADER:
           lambda: "λn:(e->t). n"
           cfg_productions:
-            - production: "Dot Aux[begin] Prefix[pgp] Cop To Dot"
+            - production: "Dot Aux[begin] Prefix[pgp] Cop To Dot Conj"
               weight: 1.0
               lambda: "λn:(e->t). n"
 
         FOOTER:
           lambda: "λn:(e->t). n"
           cfg_productions:
-            - production: "Dot Aux[end] Prefix[pgp] Cop To Dot"
+            - production: "Conj Dot Aux[end] Prefix[pgp] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    ascii7:
+      # Plain ASCII armor — no protocol tag, no "ENCRYPTED".
+      # Output: ----- BEGIN MESSAGE -----\n<payload>\n----- END MESSAGE -----
+      payload_wordlist: "ascii7"
+      cover_wordlist: "default"
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] To Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    # ── Signature dialects ─────────────────────────────────────────
+    #
+    # Cryptographic signature armor.  Structurally similar to message
+    # armor but uses SIGNATURE (Modal[sig]) instead of
+    # ENCRYPTED MESSAGE (Cop + To), making the header one token shorter.
+    #
+    # HEADER tokens:
+    #   Message (encrypted):  Dot Aux[begin] Prefix Cop To Dot Conj       (7)
+    #   Message (plain):      Dot Aux[begin] To Dot Conj                  (5)
+    #   Signature (protocol): Dot Aux[begin] Prefix Modal[sig] Dot Conj   (6)
+    #   Signature (plain):    Dot Aux[begin] Modal[sig] Dot Conj          (5)
+
+    sig:
+      # Plain signature armor — no protocol tag.
+      # Output: ----- BEGIN SIGNATURE -----\n<payload>\n----- END SIGNATURE -----
+      payload_wordlist: "base58"
+      cover_wordlist: "default"
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Modal[sig] Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Modal[sig] Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    sig_pgp:
+      # PGP signature armor.
+      # Output: ----- BEGIN PGP SIGNATURE -----\n<payload>\n----- END PGP SIGNATURE -----
+      payload_wordlist: "base58"
+      cover_wordlist: "default"
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[pgp] Modal[sig] Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Prefix[pgp] Modal[sig] Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    sig_nostr:
+      # Nostr signature armor (Schnorr/secp256k1).
+      # Output: ----- BEGIN NOSTR SIGNATURE -----\n<payload>\n----- END NOSTR SIGNATURE -----
+      # Nostr Schnorr sigs are 64 bytes (128 hex chars) — shorter than PGP.
+      payload_wordlist: "base16"
+      cover_wordlist: "default"
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nostr] Modal[sig] Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Prefix[nostr] Modal[sig] Dot"
               weight: 1.0
               lambda: "λn:(e->t). n"

@@ -407,11 +407,13 @@ impl Grammar {
         Ok((symbols, refinements))
     }
     
-    /// Extract payload_separator and dot_is_punctuation from grammar YAML content.
-    fn parse_payload_format(yaml_content: &str) -> (String, bool, Option<usize>) {
+    /// Extract payload_separator, dot_is_punctuation, and payload_line_width from grammar YAML.
+    /// Dialect-level overrides take precedence over grammar-level defaults.
+    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>) {
         let doc: Result<serde_yaml::Value, _> = serde_yaml::from_str(yaml_content);
         if let Ok(doc) = doc {
             if let Some(grammar) = doc.get("grammar") {
+                // Grammar-level defaults
                 let payload_sep = grammar.get("payload_separator")
                     .and_then(|v| v.as_str())
                     .unwrap_or(" ")
@@ -419,9 +421,24 @@ impl Grammar {
                 let dot_is_punct = grammar.get("dot_is_punctuation")
                     .and_then(|v| v.as_bool())
                     .unwrap_or(true);
-                let payload_line_width = grammar.get("payload_line_width")
+                let mut payload_line_width = grammar.get("payload_line_width")
                     .and_then(|v| v.as_u64())
                     .map(|v| v as usize);
+
+                // Dialect-level overrides (if dialect != "body")
+                if dialect != "body" {
+                    if let Some(dialect_data) = grammar.get("dialects")
+                        .and_then(|d| d.get(dialect))
+                    {
+                        // payload_line_width: null in YAML → override to None (no wrapping)
+                        if dialect_data.get("payload_line_width").is_some() {
+                            payload_line_width = dialect_data.get("payload_line_width")
+                                .and_then(|v| v.as_u64())
+                                .map(|v| v as usize);
+                        }
+                    }
+                }
+
                 return (payload_sep, dot_is_punct, payload_line_width);
             }
         }
@@ -443,7 +460,7 @@ impl Grammar {
                 Ok(language_config) => {
                     let rules = Self::build_rules_from_cfg_productions(yaml_content, dialect)?;
                     let (payload_separator, dot_is_punctuation, payload_line_width) =
-                        Self::parse_payload_format(yaml_content);
+                        Self::parse_payload_format(yaml_content, dialect);
                     return Ok(Grammar {
                         rules,
                         language_config: Some(language_config),
@@ -474,7 +491,7 @@ impl Grammar {
                 let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
                 let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
                 let (payload_separator, dot_is_punctuation, payload_line_width) =
-                    Self::parse_payload_format(&grammar_yaml);
+                    Self::parse_payload_format(&grammar_yaml, dialect);
                 return Ok(Grammar {
                     rules,
                     language_config: Some(language_config),
@@ -496,7 +513,7 @@ impl Grammar {
         let grammar_yaml = std::fs::read_to_string(grammar_path)?;
         let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, "body")?;
         let (payload_separator, dot_is_punctuation, payload_line_width) =
-            Self::parse_payload_format(&grammar_yaml);
+            Self::parse_payload_format(&grammar_yaml, "body");
         Ok(Grammar {
             rules,
             language_config: None,
@@ -792,6 +809,24 @@ impl Grammar {
                 prod.symbols.iter().any(|sym| matches!(sym, Sym::T(p) if *p == pos))
             )
         )
+    }
+
+    /// Minimum number of terminal symbols the grammar can produce from "S".
+    ///
+    /// Used to compute a dynamic `k_max` for the generator: grammars with
+    /// large fixed overhead (e.g., CS grammar: HEADER + BODY + FOOTER = 13
+    /// terminals minimum) need a larger k_max than the default 12.
+    ///
+    /// Returns `None` if no valid derivation exists within 200 terminals.
+    pub fn min_sentence_length(&self) -> Option<usize> {
+        let mut memo = HashMap::new();
+        for k in 1..=200 {
+            let sequences = self.enumerate_sequences_with_probability_internal("S", k, &mut memo);
+            if !sequences.is_empty() {
+                return Some(k);
+            }
+        }
+        None
     }
 
     /// Format the grammar rules in a concise text representation
@@ -1326,6 +1361,152 @@ mod tests {
             .expect("Unknown dialect should still load (uses base grammar)");
         assert_eq!(config.payload_wordlist(), "default");
         assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    // ── Cryptographic signature block tests ──────────────────────────
+
+    #[test]
+    fn test_cs_sig_grammar_loads() {
+        // Plain signature: ----- BEGIN SIGNATURE -----\n<payload>\n----- END SIGNATURE -----
+        let grammar = Grammar::from_language_dialect("cs", "sig")
+            .expect("Failed to load CS sig grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Sig grammar should use Dot (-----)");
+        assert!(grammar.grammar_uses_pos(Pos::Aux), "Sig grammar should use Aux (BEGIN/END)");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "Sig grammar should use Modal (SIGNATURE)");
+        assert!(grammar.grammar_uses_pos(Pos::N), "Sig grammar should use N (payload)");
+        // Plain sig should NOT use Prefix (no protocol tag) or Cop (no ENCRYPTED)
+        assert!(!grammar.grammar_uses_pos(Pos::Prefix), "Plain sig should not use Prefix");
+        assert!(!grammar.grammar_uses_pos(Pos::Cop), "Sig grammar should not use Cop (ENCRYPTED)");
+    }
+
+    #[test]
+    fn test_cs_sig_pgp_grammar_loads() {
+        // PGP signature: ----- BEGIN PGP SIGNATURE -----\n<payload>\n----- END PGP SIGNATURE -----
+        let grammar = Grammar::from_language_dialect("cs", "sig_pgp")
+            .expect("Failed to load CS sig_pgp grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Dot), "Sig PGP should use Dot");
+        assert!(grammar.grammar_uses_pos(Pos::Aux), "Sig PGP should use Aux");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "Sig PGP should use Modal (SIGNATURE)");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "Sig PGP should use Prefix (PGP)");
+        assert!(grammar.grammar_uses_pos(Pos::N), "Sig PGP should use N (payload)");
+        // PGP sig should NOT use Cop (no ENCRYPTED) or To (no MESSAGE)
+        assert!(!grammar.grammar_uses_pos(Pos::Cop), "Sig PGP should not use Cop");
+        assert!(!grammar.grammar_uses_pos(Pos::To), "Sig PGP should not use To");
+    }
+
+    #[test]
+    fn test_cs_sig_produces_sequences() {
+        let grammar = Grammar::from_language_dialect("cs", "sig")
+            .expect("Failed to load CS sig grammar");
+        // Plain sig: HEADER(5) + BODY(1+) + FOOTER(5) = minimum 11 tokens
+        // HEADER = Dot Aux[begin] Modal[sig] Dot Conj (5)
+        // FOOTER = Conj Dot Aux[end] Modal[sig] Dot (5)
+        // BODY = N (1)
+        let seqs_11 = grammar.enumerate_sequences_with_probability("S", 11);
+        assert!(!seqs_11.is_empty(),
+            "Plain sig should produce k=11 sequences (5 header + 1 body + 5 footer)");
+    }
+
+    #[test]
+    fn test_cs_sig_pgp_produces_sequences() {
+        let grammar = Grammar::from_language_dialect("cs", "sig_pgp")
+            .expect("Failed to load CS sig_pgp grammar");
+        // PGP sig: HEADER(6) + BODY(1+) + FOOTER(6) = minimum 13 tokens
+        // HEADER = Dot Aux[begin] Prefix[pgp] Modal[sig] Dot Conj (6)
+        // FOOTER = Conj Dot Aux[end] Prefix[pgp] Modal[sig] Dot (6)
+        // BODY = N (1)
+        let seqs_13 = grammar.enumerate_sequences_with_probability("S", 13);
+        assert!(!seqs_13.is_empty(),
+            "PGP sig should produce k=13 sequences (6 header + 1 body + 6 footer)");
+    }
+
+    #[test]
+    fn test_cs_sig_shorter_than_message() {
+        // Signature headers are 1 token shorter than message headers
+        // because SIGNATURE (1 word) replaces ENCRYPTED MESSAGE (2 words).
+        let sig_grammar = Grammar::from_language_dialect("cs", "sig_pgp")
+            .expect("Failed to load sig_pgp grammar");
+        let msg_grammar = Grammar::from_language_dialect("cs", "pgp")
+            .expect("Failed to load pgp grammar");
+        let sig_min = sig_grammar.min_sentence_length()
+            .expect("sig_pgp should have a minimum length");
+        let msg_min = msg_grammar.min_sentence_length()
+            .expect("pgp should have a minimum length");
+        assert_eq!(msg_min - sig_min, 2,
+            "PGP sig should be 2 tokens shorter than PGP message (1 less in header + 1 less in footer)");
+    }
+
+    #[test]
+    fn test_dialect_config_cs_sig_base58() {
+        let config = DialectConfig::from_language_dialect("cs", "sig")
+            .expect("Failed to load CS sig dialect config");
+        assert_eq!(config.payload_wordlist(), "base58",
+            "CS sig should use payload_base58.yaml");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_cs_sig_pgp_base58() {
+        let config = DialectConfig::from_language_dialect("cs", "sig_pgp")
+            .expect("Failed to load CS sig_pgp dialect config");
+        assert_eq!(config.payload_wordlist(), "base58",
+            "CS sig_pgp should use payload_base58.yaml");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_cs_sig_nostr_grammar_loads() {
+        // Nostr signature: ----- BEGIN NOSTR SIGNATURE -----\n<payload>\n----- END NOSTR SIGNATURE -----
+        let grammar = Grammar::from_language_dialect("cs", "sig_nostr")
+            .expect("Failed to load CS sig_nostr grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "Sig Nostr should use Prefix (NOSTR)");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "Sig Nostr should use Modal (SIGNATURE)");
+        assert!(!grammar.grammar_uses_pos(Pos::Cop), "Sig Nostr should not use Cop (ENCRYPTED)");
+        assert!(!grammar.grammar_uses_pos(Pos::To), "Sig Nostr should not use To (MESSAGE)");
+    }
+
+    #[test]
+    fn test_cs_sig_nostr_produces_sequences() {
+        let grammar = Grammar::from_language_dialect("cs", "sig_nostr")
+            .expect("Failed to load CS sig_nostr grammar");
+        // Same structure as sig_pgp: HEADER(6) + BODY(1+) + FOOTER(6) = minimum 13
+        let seqs_13 = grammar.enumerate_sequences_with_probability("S", 13);
+        assert!(!seqs_13.is_empty(),
+            "Nostr sig should produce k=13 sequences (6 header + 1 body + 6 footer)");
+    }
+
+    #[test]
+    fn test_cs_sig_nostr_same_framing_as_sig_pgp() {
+        // Nostr and PGP sigs have identical framing overhead (both use Prefix + Modal[sig])
+        let nostr = Grammar::from_language_dialect("cs", "sig_nostr")
+            .expect("Failed to load sig_nostr");
+        let pgp = Grammar::from_language_dialect("cs", "sig_pgp")
+            .expect("Failed to load sig_pgp");
+        assert_eq!(
+            nostr.min_sentence_length(),
+            pgp.min_sentence_length(),
+            "Nostr and PGP sig should have same framing overhead"
+        );
+    }
+
+    #[test]
+    fn test_dialect_config_cs_sig_nostr_base16() {
+        let config = DialectConfig::from_language_dialect("cs", "sig_nostr")
+            .expect("Failed to load CS sig_nostr dialect config");
+        assert_eq!(config.payload_wordlist(), "base16",
+            "CS sig_nostr should use payload_base16.yaml (hex for Schnorr sigs)");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_dialect_config_available_dialects_cs_includes_sig() {
+        let dialects = DialectConfig::available_dialects("cs");
+        assert!(dialects.contains(&"sig".to_string()),
+            "CS should include sig dialect");
+        assert!(dialects.contains(&"sig_pgp".to_string()),
+            "CS should include sig_pgp dialect");
+        assert!(dialects.contains(&"sig_nostr".to_string()),
+            "CS should include sig_nostr dialect");
     }
 }
 
