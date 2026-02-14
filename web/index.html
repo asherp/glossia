@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glossia - Turn Binary Data Into Natural Language</title>
 <meta name="description" content="Glossia encodes cryptographic keys, mnemonics, and binary data into grammatically correct natural language. Perfect for memorization, steganography, and human-friendly data representation.">
+<script>
+(function() {
+  // Client-side password gate — remove this block to make the site public
+  var HASH = '427aa30edc773eb9d6c7d54f326675f81934a5d759b59dc27a7f8baec1019c7b';
+  if (sessionStorage.getItem('glossia_auth') === 'ok') return;
+  async function check(pw) {
+    var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+    return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('');
+  }
+  var pw = prompt('Enter password to access Glossia:');
+  if (!pw) { document.documentElement.innerHTML = ''; throw new Error('access denied'); }
+  check(pw).then(function(h) {
+    if (h === HASH) { sessionStorage.setItem('glossia_auth', 'ok'); }
+    else { document.documentElement.innerHTML = '<body style="background:#0f1117;color:#e4e4e7;display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif"><h1>Access denied</h1></body>'; }
+  });
+})();
+</script>
 <style>
 :root {
   --bg: #0f1117;
