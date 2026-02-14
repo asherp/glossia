@@ -31,7 +31,45 @@ The English language files (wordlists, grammars, and type definitions) are **emb
 
 In debug builds, only English is embedded for faster compile times.
 
+## WebAssembly (Browser)
+
+Glossia can be compiled to WebAssembly and run entirely in the browser.
+
+### Prerequisites
+
+- Rust toolchain (1.70+)
+- [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
+- (Optional) [binaryen](https://github.com/WebAssembly/binaryen) for `wasm-opt` size optimization
+
+### Build
+
+```bash
+./build_web.sh
+```
+
+This runs `wasm-pack build --target web --no-default-features --features wasm`, copies the resulting `glossia.js` and `glossia_bg.wasm` into the `web/` directory, and optionally runs `wasm-opt -Os` if available.
+
+### Serve Locally
+
+```bash
+python3 -m http.server -d web 8080
+```
+
+Then open `http://localhost:8080/index.html`.
+
+### Manual Build
+
+If you prefer to run the steps yourself:
+
+```bash
+wasm-pack build --target web --no-default-features --features wasm
+mkdir -p web
+cp pkg/glossia_bg.wasm web/
+cp pkg/glossia.js web/
+```
+
 ## Requirements
 
 - Rust toolchain (1.70+)
 - For POS tagging tools: nlprule binary data files (`en_tokenizer.bin`, `en_rules.bin`)
+- For WASM builds: [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
