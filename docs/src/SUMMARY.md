@@ -8,6 +8,7 @@
 - [Examples](./examples.md)
 - [How It Works](./how-it-works.md)
 - [Grammar](./grammar.md)
+- [Dialect Calculus](./dialect-calculus.md)
 - [Language Support](./language-support.md)
 - [Tools](./tools.md)
 - [Project Structure](./project-structure.md)
