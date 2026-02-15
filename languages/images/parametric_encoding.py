@@ -12,12 +12,15 @@ The normal plane at each curve point is spanned by a Bishop frame (U1, U2),
 giving an M x M constellation of sequence positions per palette color.
 
 Usage:
-  from parametric_encoding import PaletteCurve, encode, decode
+  from parametric_encoding import build_encoder, encode, decode
 
-  curve = PaletteCurve.from_control_points(control_points_lab)
-  pixels_lab = encode(payload_words, curve, epsilon=5.0)
-  recovered  = decode(pixels_lab, curve, epsilon=5.0)
-  assert recovered == payload_words
+  enc = build_encoder('palette.yaml')
+  pixels_lab, meta = encode(payload, enc['curve'], enc['frame'],
+                            enc['n_palette'],
+                            constellation_map=enc['constellation_map'])
+  recovered = decode(pixels_lab, enc['curve'], enc['frame'],
+                     enc['n_palette'],
+                     constellation_map=enc['constellation_map'])
 """
 
 import numpy as np
@@ -25,6 +28,9 @@ from scipy.interpolate import CubicSpline
 from scipy.optimize import minimize_scalar
 import yaml
 import os
+
+# CIELAB Just-Noticeable Difference — fixed constellation grid spacing
+EPSILON = 2.3
 
 # ---------------------------------------------------------------------------
 # CIELAB <-> sRGB conversion (no external color library required)
@@ -610,12 +616,64 @@ class Constellation:
         return self.grid_to_position(a, b)
 
 
+class ConstellationMap:
+    """Per-color constellations keyed by palette index.
+
+    Each palette color gets its own Constellation sized to the local
+    tube radius: M_i = floor(2 * r(s_i) / epsilon) + 1.  This exploits
+    the full capacity of fat-tube regions instead of being limited by
+    the global minimum radius.
+    """
+
+    def __init__(self, radii, epsilon=EPSILON):
+        """Build one Constellation per palette color from local tube radii.
+
+        Args:
+            radii: 1-D array of tube radii, one per palette color
+            epsilon: grid spacing in CIELAB units (default: EPSILON)
+        """
+        radii = np.asarray(radii, dtype=np.float64)
+        self.epsilon = epsilon
+        self.constellations = [
+            Constellation.from_radius(float(r), epsilon) for r in radii
+        ]
+        self.M_values = np.array([c.M for c in self.constellations])
+        self.capacities = np.array([c.capacity for c in self.constellations])
+
+    def __getitem__(self, palette_index):
+        """Return the Constellation for a given palette color."""
+        return self.constellations[palette_index]
+
+    def __len__(self):
+        return len(self.constellations)
+
+    @property
+    def M_min(self):
+        return int(np.min(self.M_values))
+
+    @property
+    def M_max(self):
+        return int(np.max(self.M_values))
+
+    @property
+    def capacity_min(self):
+        return int(np.min(self.capacities))
+
+    @property
+    def capacity_max(self):
+        return int(np.max(self.capacities))
+
+    def total_capacity(self):
+        """Sum of all per-color capacities."""
+        return int(np.sum(self.capacities))
+
+
 # ---------------------------------------------------------------------------
 # Encode / Decode
 # ---------------------------------------------------------------------------
 
-def encode(payload_words, curve, frame, n_palette, epsilon,
-           tube_radius=None):
+def encode(payload_words, curve, frame, n_palette,
+           constellation_map=None):
     """Encode a payload word sequence into CIELAB pixel colors.
 
     Args:
@@ -623,8 +681,7 @@ def encode(payload_words, curve, frame, n_palette, epsilon,
         curve: PaletteCurve
         frame: BishopFrame
         n_palette: number of palette colors (N)
-        epsilon: constellation grid spacing in CIELAB units
-        tube_radius: tube radius in CIELAB units (if None, computed)
+        constellation_map: ConstellationMap (if None, computed)
 
     Returns:
         pixels_lab: (M, 3) array of encoded CIELAB colors
@@ -633,12 +690,14 @@ def encode(payload_words, curve, frame, n_palette, epsilon,
     payload_words = np.asarray(payload_words, dtype=int)
     n_words = len(payload_words)
 
-    # Compute tube radius if not given
-    if tube_radius is None:
-        s_pts, radii = compute_tube_radius(curve, frame, n_palette=n_palette)
-        tube_radius = float(np.min(radii))
-
-    constellation = Constellation.from_radius(tube_radius, epsilon)
+    # Compute constellation map if not given
+    if constellation_map is None:
+        s_palette = np.array([
+            w * curve.arc_length / max(n_palette - 1, 1)
+            for w in range(n_palette)
+        ])
+        _, radii = compute_tube_radius(curve, frame, s_values=s_palette)
+        constellation_map = ConstellationMap(radii)
 
     # Count occurrences of each word to assign sequence positions
     # Words are ordered by their position in the payload sequence.
@@ -649,6 +708,7 @@ def encode(payload_words, curve, frame, n_palette, epsilon,
 
     for i, w in enumerate(payload_words):
         w = int(w)
+        c = constellation_map[w]
         # Arc-length parameter for this palette color
         s_w = w * curve.arc_length / max(n_palette - 1, 1)
         base = curve.eval(s_w)
@@ -656,32 +716,33 @@ def encode(payload_words, curve, frame, n_palette, epsilon,
 
         # Assign sequence position within this word's constellation
         j = word_counters.get(w, 0)
-        if j >= constellation.capacity:
+        if j >= c.capacity:
             raise ValueError(
-                f"Payload word {w} appears more than {constellation.capacity} "
-                f"times (constellation capacity exceeded). Increase tube_radius "
-                f"or decrease epsilon."
+                f"Payload word {w} appears more than {c.capacity} "
+                f"times (constellation capacity exceeded)."
             )
         word_counters[w] = j + 1
 
         # Map sequence position to displacement
-        alpha1, alpha2 = constellation.position_to_displacement(j)
+        alpha1, alpha2 = c.position_to_displacement(j)
         pixel = base + alpha1 * U1 + alpha2 * U2
         pixels_lab[i] = pixel
 
     metadata = {
         'n_palette': n_palette,
-        'epsilon': epsilon,
-        'tube_radius': tube_radius,
-        'constellation_M': constellation.M,
-        'constellation_capacity': constellation.capacity,
+        'epsilon': EPSILON,
+        'M_min': constellation_map.M_min,
+        'M_max': constellation_map.M_max,
+        'capacity_min': constellation_map.capacity_min,
+        'capacity_max': constellation_map.capacity_max,
         'n_payload_words': n_words,
         'max_word_repeats': max(word_counters.values()) if word_counters else 0,
     }
     return pixels_lab, metadata
 
 
-def decode(pixels_lab, curve, frame, n_palette, epsilon, tube_radius=None):
+def decode(pixels_lab, curve, frame, n_palette,
+           constellation_map=None):
     """Decode CIELAB pixel colors back to a payload word sequence.
 
     Args:
@@ -689,8 +750,7 @@ def decode(pixels_lab, curve, frame, n_palette, epsilon, tube_radius=None):
         curve: PaletteCurve
         frame: BishopFrame
         n_palette: number of palette colors (N)
-        epsilon: constellation grid spacing
-        tube_radius: tube radius (if None, computed)
+        constellation_map: ConstellationMap (if None, computed)
 
     Returns:
         payload_words: list of ints, the recovered payload sequence
@@ -698,11 +758,13 @@ def decode(pixels_lab, curve, frame, n_palette, epsilon, tube_radius=None):
     pixels_lab = np.asarray(pixels_lab, dtype=np.float64)
     n_pixels = len(pixels_lab)
 
-    if tube_radius is None:
-        s_pts, radii = compute_tube_radius(curve, frame, n_palette=n_palette)
-        tube_radius = float(np.min(radii))
-
-    constellation = Constellation.from_radius(tube_radius, epsilon)
+    if constellation_map is None:
+        s_palette = np.array([
+            w * curve.arc_length / max(n_palette - 1, 1)
+            for w in range(n_palette)
+        ])
+        _, radii = compute_tube_radius(curve, frame, s_values=s_palette)
+        constellation_map = ConstellationMap(radii)
 
     # For each pixel: project onto curve, decompose residual, recover (word, position)
     decoded_entries = []  # list of (word_index, seq_position, pixel_index)
@@ -728,7 +790,8 @@ def decode(pixels_lab, curve, frame, n_palette, epsilon, tube_radius=None):
         alpha2 = float(np.dot(residual, U2))
 
         # Snap to constellation grid and recover sequence position
-        j = int(constellation.displacement_to_position(alpha1, alpha2))
+        c = constellation_map[w]
+        j = int(c.displacement_to_position(alpha1, alpha2))
         decoded_entries.append((w, j, i))
 
     # Sort by (word_index, sequence_position) and emit words in order
@@ -743,20 +806,20 @@ def decode(pixels_lab, curve, frame, n_palette, epsilon, tube_radius=None):
     return [entry[0] for entry in decoded_entries]
 
 
-def verify_roundtrip(payload_words, curve, frame, n_palette, epsilon,
-                     tube_radius=None, verbose=False):
+def verify_roundtrip(payload_words, curve, frame, n_palette,
+                     constellation_map=None, verbose=False):
     """Verify that encode -> decode recovers the original payload.
 
     Returns:
         True if round-trip succeeds, False otherwise
     """
     pixels_lab, metadata = encode(
-        payload_words, curve, frame, n_palette, epsilon,
-        tube_radius=tube_radius
+        payload_words, curve, frame, n_palette,
+        constellation_map=constellation_map
     )
     recovered = decode(
-        pixels_lab, curve, frame, n_palette, epsilon,
-        tube_radius=tube_radius
+        pixels_lab, curve, frame, n_palette,
+        constellation_map=constellation_map
     )
 
     success = list(payload_words) == recovered
@@ -777,7 +840,7 @@ def verify_roundtrip(payload_words, curve, frame, n_palette, epsilon,
 # ---------------------------------------------------------------------------
 
 def build_encoder(yaml_path=None, palette_name='viridis_approx',
-                  control_points_lab=None, n_palette=64, epsilon=5.0,
+                  control_points_lab=None, n_palette=64,
                   n_curve_samples=2000, n_frames=500):
     """Build all components needed for encoding/decoding.
 
@@ -786,13 +849,12 @@ def build_encoder(yaml_path=None, palette_name='viridis_approx',
         palette_name: palette key in YAML
         control_points_lab: direct control points (overrides yaml_path)
         n_palette: number of palette colors
-        epsilon: constellation grid spacing in CIELAB units
         n_curve_samples: curve sampling density
         n_frames: Bishop frame sampling density
 
     Returns:
-        dict with keys: curve, frame, n_palette, epsilon, tube_radius,
-                        constellation, metadata
+        dict with keys: curve, frame, n_palette, constellation_map,
+                        tube_radii, metadata
     """
     if control_points_lab is not None:
         curve = PaletteCurve.from_control_points(control_points_lab,
@@ -805,28 +867,30 @@ def build_encoder(yaml_path=None, palette_name='viridis_approx',
 
     frame = BishopFrame(curve, n_frames=n_frames)
 
-    # Compute tube radius
-    s_pts, radii = compute_tube_radius(curve, frame, n_palette=n_palette)
-    tube_radius = float(np.min(radii))
-    constellation = Constellation.from_radius(tube_radius, epsilon)
+    # Compute tube radius at each palette point
+    s_palette = np.array([
+        w * curve.arc_length / max(n_palette - 1, 1)
+        for w in range(n_palette)
+    ])
+    s_pts, radii = compute_tube_radius(curve, frame, s_values=s_palette)
+    constellation_map = ConstellationMap(radii)
 
     return {
         'curve': curve,
         'frame': frame,
         'n_palette': n_palette,
-        'epsilon': epsilon,
-        'tube_radius': tube_radius,
-        'constellation': constellation,
+        'constellation_map': constellation_map,
         'tube_radii': (s_pts, radii),
         'metadata': {
             'arc_length': curve.arc_length,
             'n_palette': n_palette,
-            'epsilon': epsilon,
-            'tube_radius': tube_radius,
-            'constellation_M': constellation.M,
-            'constellation_capacity': constellation.capacity,
+            'epsilon': EPSILON,
+            'M_min': constellation_map.M_min,
+            'M_max': constellation_map.M_max,
+            'capacity_min': constellation_map.capacity_min,
+            'capacity_max': constellation_map.capacity_max,
             'bits_per_pixel': (np.log2(n_palette) +
-                               2 * np.log2(max(constellation.M, 1))),
+                               2 * np.log2(max(constellation_map.M_min, 1))),
         }
     }
 
@@ -847,8 +911,6 @@ def main():
                         help='Palette name from palette.yaml')
     parser.add_argument('-N', '--n-palette', type=int, default=64,
                         help='Number of palette colors')
-    parser.add_argument('-e', '--epsilon', type=float, default=5.0,
-                        help='Constellation grid spacing (CIELAB units)')
     parser.add_argument('--info', action='store_true',
                         help='Print encoder info and exit')
     parser.add_argument('--verify', action='store_true',
@@ -858,8 +920,7 @@ def main():
     args = parser.parse_args()
 
     yaml_path = os.path.join(os.path.dirname(__file__), 'palette.yaml')
-    enc = build_encoder(yaml_path, args.palette, n_palette=args.n_palette,
-                        epsilon=args.epsilon)
+    enc = build_encoder(yaml_path, args.palette, n_palette=args.n_palette)
 
     if args.info:
         print("Parametric Curve Encoder")
@@ -880,28 +941,28 @@ def main():
     if args.verify:
         ok = verify_roundtrip(
             payload, enc['curve'], enc['frame'],
-            enc['n_palette'], enc['epsilon'],
-            tube_radius=enc['tube_radius'],
+            enc['n_palette'],
+            constellation_map=enc['constellation_map'],
             verbose=True
         )
         import sys
         sys.exit(0 if ok else 1)
 
     # Encode and print
+    cmap = enc['constellation_map']
     pixels_lab, meta = encode(
         payload, enc['curve'], enc['frame'],
-        enc['n_palette'], enc['epsilon'],
-        tube_radius=enc['tube_radius']
+        enc['n_palette'],
+        constellation_map=cmap
     )
     pixels_srgb = lab_to_srgb(pixels_lab)
 
     if args.verbose:
         print(f"Palette: {args.palette}, N={args.n_palette}, "
-              f"epsilon={args.epsilon}, tube_r={enc['tube_radius']:.1f}")
-        print(f"Constellation: {enc['constellation'].M}x"
-              f"{enc['constellation'].M} = "
-              f"{enc['constellation'].capacity} positions/word")
-        print(f"Bits/pixel: {meta.get('bits_per_pixel', enc['metadata']['bits_per_pixel']):.1f}")
+              f"epsilon={EPSILON}")
+        print(f"Constellation M range: {cmap.M_min}..{cmap.M_max}")
+        print(f"Capacity range: {cmap.capacity_min}..{cmap.capacity_max} positions/word")
+        print(f"Bits/pixel: {enc['metadata']['bits_per_pixel']:.1f}")
         print()
 
     print("CIELAB pixels:")

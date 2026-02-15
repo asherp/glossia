@@ -21,15 +21,16 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 from parametric_encoding import (
-    PaletteCurve, BishopFrame, Constellation,
+    PaletteCurve, BishopFrame, Constellation, ConstellationMap,
     compute_tube_radius, encode, decode, build_encoder,
-    lab_to_srgb, srgb_to_lab,
+    lab_to_srgb, srgb_to_lab, EPSILON,
 )
 
 import matplotlib
 matplotlib.use('Agg')  # non-interactive backend
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from scipy.spatial import KDTree
 
 
 def plot_3d_curve_and_encoding(enc, payload, output_path='encoding_3d.png',
@@ -90,10 +91,11 @@ def plot_3d_curve_and_encoding(enc, payload, output_path='encoding_3d.png',
     if show_constellation:
         n_pal = enc['n_palette']
         show_indices = [0, n_pal // 4, n_pal // 2, 3 * n_pal // 4, n_pal - 1]
-        constellation = enc['constellation']
-        M = constellation.M
+        cmap = enc['constellation_map']
 
         for wi in show_indices:
+            constellation = cmap[wi]
+            M = constellation.M
             s_w = wi * curve.arc_length / max(n_pal - 1, 1)
             base = curve.eval(s_w)
             _, U1, U2 = frame.eval_frame(s_w)
@@ -109,8 +111,8 @@ def plot_3d_curve_and_encoding(enc, payload, output_path='encoding_3d.png',
     if payload:
         pixels_lab, meta = encode(
             payload, curve, frame,
-            enc['n_palette'], enc['epsilon'],
-            tube_radius=enc['tube_radius']
+            enc['n_palette'],
+            constellation_map=enc['constellation_map']
         )
         pixels_rgb = lab_to_srgb(pixels_lab) / 255.0
         ax.scatter(pixels_lab[:, 1], pixels_lab[:, 2], pixels_lab[:, 0],
@@ -140,9 +142,10 @@ def plot_3d_curve_and_encoding(enc, payload, output_path='encoding_3d.png',
     if title:
         ax.set_title(title)
     else:
+        cmap = enc['constellation_map']
         ax.set_title(f'Parametric Encoding in CIELAB\n'
-                     f'N={enc["n_palette"]}, M={enc["constellation"].M}, '
-                     f'ε={enc["epsilon"]:.1f}, r={enc["tube_radius"]:.1f}')
+                     f'N={enc["n_palette"]}, M={cmap.M_min}..{cmap.M_max}, '
+                     f'ε={EPSILON:.1f}')
     ax.legend(loc='upper left')
 
     plt.tight_layout()
@@ -159,28 +162,26 @@ def plot_tube_radius_profile(enc, output_path='tube_profile.png'):
         output_path: where to save
     """
     s_pts, radii = enc['tube_radii']
+    cmap = enc['constellation_map']
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
 
     # Tube radius
+    r_min = float(np.min(radii))
     ax1.fill_between(s_pts, radii, alpha=0.3, color='steelblue')
     ax1.plot(s_pts, radii, color='steelblue', linewidth=2)
-    ax1.axhline(y=enc['tube_radius'], color='red', linestyle='--',
-                label=f'r_min = {enc["tube_radius"]:.1f}')
-    ax1.axhline(y=enc['epsilon'], color='orange', linestyle=':',
-                label=f'ε = {enc["epsilon"]:.1f}')
+    ax1.axhline(y=r_min, color='red', linestyle='--',
+                label=f'r_min = {r_min:.1f}')
+    ax1.axhline(y=EPSILON, color='orange', linestyle=':',
+                label=f'ε = {EPSILON:.1f}')
     ax1.set_ylabel('Tube radius (CIELAB Δ)')
     ax1.set_title('Tube Radius Profile Along Palette Curve')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
-    # Constellation capacity at each point
-    eps = enc['epsilon']
-    M_local = np.floor(2 * radii / eps).astype(int) + 1
-    capacity_local = M_local ** 2
-    ax2.fill_between(s_pts, capacity_local, alpha=0.3, color='forestgreen')
-    ax2.plot(s_pts, capacity_local, color='forestgreen', linewidth=2)
-    ax2.axhline(y=enc['constellation'].capacity, color='red', linestyle='--',
-                label=f'Global M²={enc["constellation"].capacity}')
+    # Per-color constellation capacity
+    ax2.fill_between(s_pts, cmap.capacities, alpha=0.3, color='forestgreen')
+    ax2.plot(s_pts, cmap.capacities, color='forestgreen', linewidth=2,
+             label=f'Per-color M² ({cmap.capacity_min}..{cmap.capacity_max})')
     ax2.set_xlabel('Arc length s (CIELAB Δ)')
     ax2.set_ylabel('Constellation capacity (M²)')
     ax2.legend()
@@ -192,9 +193,179 @@ def plot_tube_radius_profile(enc, output_path='tube_profile.png'):
     print(f"Saved tube profile to {output_path}")
 
 
+def generate_voronoi_seeds(n, width, height, seed=None, relax_iters=5):
+    """Generate well-spaced seed points via Lloyd relaxation.
+
+    Starts with jittered grid, then iterates Lloyd's algorithm
+    (move each seed to its Voronoi cell centroid) for even spacing.
+
+    Args:
+        n: number of seed points
+        width, height: canvas dimensions
+        seed: random seed for reproducibility
+        relax_iters: Lloyd relaxation iterations (0 = pure random)
+
+    Returns:
+        (n, 2) array of (x, y) seed coordinates
+    """
+    rng = np.random.RandomState(seed)
+
+    # Start with jittered grid
+    cols = max(int(np.ceil(np.sqrt(n * width / height))), 1)
+    rows = max(int(np.ceil(n / cols)), 1)
+    cx = np.linspace(0, width, cols + 2)[1:-1]
+    cy = np.linspace(0, height, rows + 2)[1:-1]
+    gx, gy = np.meshgrid(cx, cy)
+    grid_pts = np.column_stack([gx.ravel(), gy.ravel()])
+
+    if len(grid_pts) >= n:
+        # Subsample grid + add jitter
+        indices = rng.choice(len(grid_pts), size=n, replace=False)
+        seeds = grid_pts[indices].astype(np.float64)
+    else:
+        # Pad with random points
+        extra = n - len(grid_pts)
+        pad = np.column_stack([
+            rng.uniform(0, width, extra),
+            rng.uniform(0, height, extra)
+        ])
+        seeds = np.vstack([grid_pts, pad]).astype(np.float64)
+
+    # Add jitter
+    jitter_x = width / max(cols, 1) * 0.25
+    jitter_y = height / max(rows, 1) * 0.25
+    seeds[:, 0] += rng.uniform(-jitter_x, jitter_x, n)
+    seeds[:, 1] += rng.uniform(-jitter_y, jitter_y, n)
+
+    # Clamp to canvas
+    seeds[:, 0] = np.clip(seeds[:, 0], 1, width - 2)
+    seeds[:, 1] = np.clip(seeds[:, 1], 1, height - 2)
+
+    # Lloyd relaxation: move seeds toward cell centroids
+    for _ in range(relax_iters):
+        tree = KDTree(seeds)
+        # Sample a dense grid and assign each to nearest seed
+        sx = np.linspace(0, width, min(width, 200))
+        sy = np.linspace(0, height, min(height, 200))
+        gx2, gy2 = np.meshgrid(sx, sy)
+        sample_pts = np.column_stack([gx2.ravel(), gy2.ravel()])
+        _, indices = tree.query(sample_pts)
+
+        # Compute centroids
+        new_seeds = seeds.copy()
+        for i in range(n):
+            mask = indices == i
+            if np.any(mask):
+                new_seeds[i] = sample_pts[mask].mean(axis=0)
+
+        # Clamp
+        new_seeds[:, 0] = np.clip(new_seeds[:, 0], 1, width - 2)
+        new_seeds[:, 1] = np.clip(new_seeds[:, 1], 1, height - 2)
+        seeds = new_seeds
+
+    return seeds
+
+
+def render_voronoi_image(pixels_srgb, width, height, seed=None,
+                          relax_iters=5, border_width=1.5,
+                          border_color=(20, 20, 40), bg_color=(15, 15, 35)):
+    """Render encoded colors as a Voronoi diagram.
+
+    Each payload word becomes a Voronoi cell filled with its encoded color.
+    Cell borders are drawn as thin dark lines.
+
+    Args:
+        pixels_srgb: (N, 3) array of sRGB colors, one per payload word
+        width, height: output image dimensions in pixels
+        seed: random seed for seed point placement
+        relax_iters: Lloyd relaxation iterations for even spacing
+        border_width: border thickness in pixels (0 = no borders)
+        border_color: RGB tuple for cell borders
+        bg_color: RGB tuple for background
+
+    Returns:
+        (height, width, 3) numpy array (uint8 RGB image)
+    """
+    n = len(pixels_srgb)
+    pixels_srgb = np.asarray(pixels_srgb, dtype=np.uint8)
+
+    # Generate seed points
+    seeds = generate_voronoi_seeds(n, width, height, seed=seed,
+                                    relax_iters=relax_iters)
+
+    # Build KDTree for nearest-seed lookup
+    tree = KDTree(seeds)
+
+    # Rasterize: for each output pixel, find nearest seed
+    xx, yy = np.meshgrid(np.arange(width), np.arange(height))
+    pixel_coords = np.column_stack([xx.ravel(), yy.ravel()])
+    dists, indices = tree.query(pixel_coords, k=2 if border_width > 0 else 1)
+
+    if border_width > 0:
+        # Cell interiors: color from nearest seed
+        nearest_idx = indices[:, 0]
+        img_flat = pixels_srgb[nearest_idx]
+
+        # Borders: where the two nearest seeds are almost equidistant
+        d1, d2 = dists[:, 0], dists[:, 1]
+        border_mask = (d2 - d1) < border_width
+        img_flat[border_mask] = np.array(border_color, dtype=np.uint8)
+    else:
+        nearest_idx = indices if indices.ndim == 1 else indices[:, 0]
+        img_flat = pixels_srgb[nearest_idx]
+
+    img = img_flat.reshape(height, width, 3)
+    return img, seeds
+
+
+def render_payload_voronoi(enc, payload, output_path='encoded_voronoi.png',
+                            width=400, height=400, seed=42,
+                            border_width=1.5):
+    """Render encoded payload as a Voronoi diagram and save.
+
+    Args:
+        enc: encoder dict
+        payload: list of payload word indices
+        output_path: where to save
+        width, height: image dimensions
+        seed: random seed for cell placement
+        border_width: cell border thickness
+    """
+    pixels_lab, meta = encode(
+        payload, enc['curve'], enc['frame'],
+        enc['n_palette'],
+        constellation_map=enc['constellation_map']
+    )
+    pixels_srgb = lab_to_srgb(pixels_lab)
+
+    img, seeds = render_voronoi_image(
+        pixels_srgb, width, height, seed=seed,
+        border_width=border_width
+    )
+
+    fig, ax = plt.subplots(1, 1, figsize=(6, 6))
+    ax.imshow(img)
+    # Mark seed points
+    ax.scatter(seeds[:, 0], seeds[:, 1], c='white', s=6, zorder=10,
+               alpha=0.6, edgecolors='none')
+    ax.set_xlim(0, width)
+    ax.set_ylim(height, 0)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title(f'Voronoi Encoding: {len(payload)} words\n'
+                 f'N={enc["n_palette"]}, ε={EPSILON:.1f}')
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight',
+                facecolor='#0f0f23')
+    plt.close()
+    print(f"Saved Voronoi image to {output_path}")
+    return img
+
+
 def render_payload_image(enc, payload, output_path='encoded_image.png',
                           width=None):
-    """Render the encoded payload as a 2D pixel image.
+    """Render the encoded payload as a 2D pixel grid image.
 
     Args:
         enc: encoder dict
@@ -204,8 +375,8 @@ def render_payload_image(enc, payload, output_path='encoded_image.png',
     """
     pixels_lab, meta = encode(
         payload, enc['curve'], enc['frame'],
-        enc['n_palette'], enc['epsilon'],
-        tube_radius=enc['tube_radius']
+        enc['n_palette'],
+        constellation_map=enc['constellation_map']
     )
     pixels_srgb = lab_to_srgb(pixels_lab)
 
@@ -225,8 +396,7 @@ def render_payload_image(enc, payload, output_path='encoded_image.png',
     fig, ax = plt.subplots(1, 1, figsize=(max(width * 0.5, 3), max(height * 0.5, 3)))
     ax.imshow(img, interpolation='nearest', aspect='equal')
     ax.set_title(f'Encoded payload: {n} words, {width}x{height} pixels\n'
-                 f'N={enc["n_palette"]}, ε={enc["epsilon"]:.1f}')
-    # Grid lines
+                 f'N={enc["n_palette"]}, ε={EPSILON:.1f}')
     ax.set_xticks(np.arange(-0.5, width, 1), minor=True)
     ax.set_yticks(np.arange(-0.5, height, 1), minor=True)
     ax.grid(which='minor', color='white', linewidth=0.5, alpha=0.5)
@@ -237,7 +407,7 @@ def render_payload_image(enc, payload, output_path='encoded_image.png',
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
-    print(f"Saved encoded image to {output_path}")
+    print(f"Saved pixel grid image to {output_path}")
 
     return img
 
@@ -284,17 +454,18 @@ def main():
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--palette', default='viridis_approx')
     parser.add_argument('-N', '--n-palette', type=int, default=16)
-    parser.add_argument('-e', '--epsilon', type=float, default=5.0)
     parser.add_argument('--output', type=str, default=None,
                         help='Output directory for plots')
-    parser.add_argument('--mode', choices=['3d', 'image', 'profile', 'palette', 'all'],
+    parser.add_argument('--mode', choices=['3d', 'image', 'voronoi', 'profile', 'palette', 'all'],
                         default='all', help='Which plot(s) to generate')
+    parser.add_argument('--img-size', type=int, default=400,
+                        help='Voronoi image width/height in pixels')
     args = parser.parse_args()
 
     # Build encoder
     yaml_path = os.path.join(os.path.dirname(__file__), 'palette.yaml')
     enc = build_encoder(yaml_path, args.palette,
-                        n_palette=args.n_palette, epsilon=args.epsilon)
+                        n_palette=args.n_palette)
 
     # Parse or generate payload
     if args.payload:
@@ -310,10 +481,10 @@ def main():
     # Output directory
     out_dir = args.output or os.path.dirname(__file__)
 
-    print(f"Palette: {args.palette}, N={args.n_palette}, epsilon={args.epsilon}")
-    print(f"Tube radius: {enc['tube_radius']:.1f} CIELAB")
-    print(f"Constellation: {enc['constellation'].M}x{enc['constellation'].M} "
-          f"= {enc['constellation'].capacity} positions/word")
+    cmap = enc['constellation_map']
+    print(f"Palette: {args.palette}, N={args.n_palette}, epsilon={EPSILON}")
+    print(f"Constellation M range: {cmap.M_min}..{cmap.M_max}")
+    print(f"Capacity range: {cmap.capacity_min}..{cmap.capacity_max} positions/word")
     print(f"Bits/pixel: {enc['metadata']['bits_per_pixel']:.1f}")
     print(f"Payload: {payload[:10]}{'...' if len(payload) > 10 else ''} "
           f"({len(payload)} words)")
@@ -323,6 +494,12 @@ def main():
         plot_3d_curve_and_encoding(
             enc, payload,
             output_path=os.path.join(out_dir, 'encoding_3d.png'))
+
+    if args.mode in ('voronoi', 'all'):
+        render_payload_voronoi(
+            enc, payload,
+            output_path=os.path.join(out_dir, 'encoded_voronoi.png'),
+            width=args.img_size, height=args.img_size, seed=args.seed)
 
     if args.mode in ('image', 'all'):
         render_payload_image(
