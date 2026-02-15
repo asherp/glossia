@@ -189,21 +189,18 @@ grammar:
   # If payload_wordlist / cover_wordlist are omitted, both default to "default".
   dialects:
     subject:
+      # Base subject dialect — no prefix. Use subject_re or subject_fwd for Re:/Fwd:.
+      # Prefix routing is handled by auto-detection in the pipeline layer:
+      # input starting with "Re:" → subject_re, "Fwd:" → subject_fwd, else → subject.
       payload_wordlist: "default"
       cover_wordlist: "default"
       rules:
         sentence:
-          # S = Prefix? SContent
-          # Prefix is t→t, SContent is t
+          # S = SContent (no prefix)
           lambda: "λs:t. s"
           cfg_productions:
-            - production: "Prefix SContent"
-              weight: 0.3
-              # Prefix(SContent) — Prefix modifies sentence
-              lambda: "λs:t. λpfx:(t->t). pfx(s)"
             - production: "SContent"
-              weight: 0.7
-              # I SContent — identity
+              weight: 1.0
               lambda: "λs:t. s"
 
         sentence_content:
@@ -297,6 +294,31 @@ grammar:
             - production: "Prep Det[quant] N"
               weight: 0.25
               lambda: "λn:(e->t). λdet:((e->t)->(e->t)). λprep:(e->(e->t)). prep(det(n))"
+
+    subject_re:
+      # Subject with Re: prefix — inherits all rules from subject,
+      # overrides sentence to deterministically include Prefix[re].
+      # Analogous to how CS pgp dialect pins Prefix[pgp] in armor headers.
+      parent: subject
+      rules:
+        sentence:
+          lambda: "λs:t. λpfx:(t->t). pfx(s)"
+          cfg_productions:
+            - production: "Prefix[re] SContent"
+              weight: 1.0
+              lambda: "λs:t. λpfx:(t->t). pfx(s)"
+
+    subject_fwd:
+      # Subject with Fwd: prefix — inherits all rules from subject,
+      # overrides sentence to deterministically include Prefix[fwd].
+      parent: subject
+      rules:
+        sentence:
+          lambda: "λs:t. λpfx:(t->t). pfx(s)"
+          cfg_productions:
+            - production: "Prefix[fwd] SContent"
+              weight: 1.0
+              lambda: "λs:t. λpfx:(t->t). pfx(s)"
 
     prose:
       # Prose dialect — longer, flowing sentences for natural paragraph text.

@@ -498,10 +498,12 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 } else {
                     dialect_name = raw.clone();
                 }
-                generation_mode = match dialect_name.as_str() {
-                    "subject" => GenerationMode::Subject,
-                    "payload_only" => GenerationMode::PayloadOnly,
-                    _ => GenerationMode::Body,
+                generation_mode = if dialect_name.starts_with("subject") {
+                    GenerationMode::Subject
+                } else if dialect_name == "payload_only" {
+                    GenerationMode::PayloadOnly
+                } else {
+                    GenerationMode::Body
                 };
                 i += 2;
             }

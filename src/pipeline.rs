@@ -705,6 +705,24 @@ pub fn encode_into_language(
     verbose: bool,
     cover_override: Option<&str>,
 ) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
+    // Auto-detect subject prefix from input (Re: / Fwd:).
+    // When dialect is "subject", check if input starts with a known prefix,
+    // strip it, and route to the appropriate dialect variant (subject_re / subject_fwd).
+    // This mirrors how CS grammar routes to pgp/nip04 based on explicit dialect choice,
+    // but here the "choice" is inferred from the input content.
+    let (input, dialect) = if dialect == "subject" {
+        let trimmed = input.trim_start();
+        if trimmed.to_lowercase().starts_with("re:") {
+            (&trimmed[3..].trim_start() as &str, "subject_re")
+        } else if trimmed.to_lowercase().starts_with("fwd:") {
+            (&trimmed[4..].trim_start() as &str, "subject_fwd")
+        } else {
+            (input, dialect)
+        }
+    } else {
+        (input, dialect)
+    };
+
     // Resolve "default" wordlist to actual name (e.g., "bip39" for English).
     let wordlist = if wordlist == "default" {
         let dw = default_wordlist(language);
@@ -780,9 +798,10 @@ pub fn encode_into_language(
 
     // 6. Generate text.
     let mut rng = StdRng::seed_from_u64(seed);
-    let mode = match dialect {
-        "subject" => GenerationMode::Subject,
-        _ => GenerationMode::Body,
+    let mode = if dialect.starts_with("subject") {
+        GenerationMode::Subject
+    } else {
+        GenerationMode::Body
     };
     let (text, payload_set) = generate_text_with_original_payload(
         &mut rng,

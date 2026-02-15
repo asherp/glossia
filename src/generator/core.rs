@@ -817,10 +817,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
             sentence_count += 1;
             
             // Get the next payload word's POS for start_symbol selection
-            // For the first sentence in subject mode, decide if we want a prefix (30% chance)
+            // Prefix presence is now dialect-driven (subject vs subject_re vs subject_fwd),
+            // not random. The grammar's sentence rule deterministically includes or excludes Prefix.
             let (start_symbol, want_prefix) = if sentence_count == 1 && mode == GenerationMode::Subject {
-                let want_prefix = rng.gen_bool(0.3);  // Match grammar: S = (0.3: Prefix SContent) | (0.7: SContent)
-                ("S", want_prefix)  // First sentence: use "S" which includes (0.3: Prefix SContent) option
+                ("S", false)  // Prefix is controlled by the dialect grammar, not by a coin flip
             } else if current_payload_i < payload.len() {
                 let next_word = &payload[current_payload_i];
                 if next_word.allowed.is_empty() {

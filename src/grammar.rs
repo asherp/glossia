@@ -219,20 +219,36 @@ impl DialectConfig {
             _ => None,
         });
 
+        // Helper: extract payload/cover wordlist refs from a dialect YAML node,
+        // falling back to parent dialect if the node has a `parent:` field.
+        fn extract_wordlist_refs(dialects: &serde_yaml::Value, dialect: &str) -> Option<(String, String)> {
+            let dialect_data = dialects.get(dialect)?;
+
+            // Check for parent inheritance
+            let parent_refs = dialect_data.get("parent")
+                .and_then(|p| p.as_str())
+                .and_then(|parent| extract_wordlist_refs(dialects, parent));
+
+            let (default_payload, default_cover) = parent_refs
+                .unwrap_or_else(|| ("default".to_string(), "default".to_string()));
+
+            let payload = dialect_data.get("payload_wordlist")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or(default_payload);
+            let cover = dialect_data.get("cover_wordlist")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .unwrap_or(default_cover);
+            Some((payload, cover))
+        }
+
         if let Some(content) = yaml_content {
             if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(content) {
                 if let Some(grammar) = doc.get("grammar") {
                     if let Some(dialects) = grammar.get("dialects") {
-                        if let Some(dialect_data) = dialects.get(dialect) {
-                            let payload = dialect_data.get("payload_wordlist")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("default")
-                                .to_string();
-                            let cover = dialect_data.get("cover_wordlist")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("default")
-                                .to_string();
-                            return (payload, cover);
+                        if let Some(refs) = extract_wordlist_refs(dialects, dialect) {
+                            return refs;
                         }
                     }
                 }
@@ -247,16 +263,8 @@ impl DialectConfig {
                 if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
                     if let Some(grammar) = doc.get("grammar") {
                         if let Some(dialects) = grammar.get("dialects") {
-                            if let Some(dialect_data) = dialects.get(dialect) {
-                                let payload = dialect_data.get("payload_wordlist")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("default")
-                                    .to_string();
-                                let cover = dialect_data.get("cover_wordlist")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("default")
-                                    .to_string();
-                                return (payload, cover);
+                            if let Some(refs) = extract_wordlist_refs(dialects, dialect) {
+                                return refs;
                             }
                         }
                     }
@@ -365,9 +373,24 @@ impl Grammar {
                 rules = parse_rules_map(rules_map)?;
             }
 
-            // If dialect != "body", overlay dialect-specific rules
+            // If dialect != "body", overlay dialect-specific rules.
+            // Supports `parent:` field for dialect inheritance (e.g., subject_re inherits from subject).
             if dialect != "body" {
                 if let Some(dialects) = grammar.get("dialects") {
+                    // Check if the dialect has a parent — if so, apply parent rules first.
+                    if let Some(dialect_data) = dialects.get(dialect) {
+                        if let Some(parent) = dialect_data.get("parent").and_then(|p| p.as_str()) {
+                            if let Some(parent_data) = dialects.get(parent) {
+                                if let Some(parent_rules_map) = parent_data.get("rules").and_then(|r| r.as_mapping()) {
+                                    let parent_rules = parse_rules_map(parent_rules_map)?;
+                                    for (name, rule) in parent_rules {
+                                        rules.insert(name, rule);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Then apply the dialect's own rules on top.
                     if let Some(dialect_data) = dialects.get(dialect) {
                         if let Some(dialect_rules_map) = dialect_data.get("rules").and_then(|r| r.as_mapping()) {
                             let dialect_rules = parse_rules_map(dialect_rules_map)?;
@@ -1171,10 +1194,24 @@ mod tests {
     }
 
     #[test]
-    fn test_grammar_uses_pos_subject_has_prefix() {
-        // English subject grammar should use Prefix
+    fn test_grammar_uses_pos_subject_no_prefix() {
+        // Base subject dialect should NOT use Prefix (prefix is dialect-driven, not random)
         let grammar = Grammar::from_language_dialect("english", "subject").expect("Failed to load grammar");
-        assert!(grammar.grammar_uses_pos(Pos::Prefix), "English subject grammar should use Prefix");
+        assert!(!grammar.grammar_uses_pos(Pos::Prefix), "Base subject grammar should not use Prefix");
+    }
+
+    #[test]
+    fn test_grammar_uses_pos_subject_re_has_prefix() {
+        // subject_re dialect should use Prefix[re]
+        let grammar = Grammar::from_language_dialect("english", "subject_re").expect("Failed to load subject_re grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "subject_re grammar should use Prefix");
+    }
+
+    #[test]
+    fn test_grammar_uses_pos_subject_fwd_has_prefix() {
+        // subject_fwd dialect should use Prefix[fwd]
+        let grammar = Grammar::from_language_dialect("english", "subject_fwd").expect("Failed to load subject_fwd grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "subject_fwd grammar should use Prefix");
     }
 
     #[test]

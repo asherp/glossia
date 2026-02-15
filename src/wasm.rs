@@ -47,6 +47,22 @@ fn encode_inner(
     grammar_dialect: &str,
     seed: u64,
 ) -> Result<String, String> {
+    // Auto-detect subject prefix from input (Re: / Fwd:).
+    // When dialect is "subject", check if input starts with a known prefix,
+    // strip it, and route to the appropriate dialect variant.
+    let (input, grammar_dialect) = if grammar_dialect == "subject" {
+        let trimmed = input.trim_start();
+        if trimmed.to_lowercase().starts_with("re:") {
+            (trimmed[3..].trim_start(), "subject_re")
+        } else if trimmed.to_lowercase().starts_with("fwd:") {
+            (trimmed[4..].trim_start(), "subject_fwd")
+        } else {
+            (input, grammar_dialect)
+        }
+    } else {
+        (input, grammar_dialect)
+    };
+
     // 1. Load payload wordlist and build WordlistTree
     let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
     let payload_tree = WordlistTree::new(payload_words.clone());
@@ -101,9 +117,10 @@ fn encode_inner(
 
     // 7. Generate text with seeded RNG
     let mut rng = StdRng::seed_from_u64(seed);
-    let mode = match grammar_dialect {
-        "subject" => GenerationMode::Subject,
-        _ => GenerationMode::Body,
+    let mode = if grammar_dialect.starts_with("subject") {
+        GenerationMode::Subject
+    } else {
+        GenerationMode::Body
     };
     let (text, used_payload) = generate_text_with_original_payload(
         &mut rng,
@@ -462,6 +479,129 @@ fn generate_dialect_display_name(
     }
 }
 
+/// Transcode text from one language to another via Pipeline.
+///
+/// The meta instruction is a natural-language pipeline specification:
+/// - `"translate from english into latin"` — transcode English prose to Latin
+/// - `"encode into english"` — encode raw data into English prose
+/// - `"decode from english"` — decode English prose back to raw data
+///
+/// Returns JSON: `{ "output": "...", "source": "...", "target": "..." }` or `{ "error": "..." }`
+#[wasm_bindgen]
+pub fn transcode(input: &str, meta_instruction: &str, seed: u64) -> String {
+    let result = transcode_inner(input, meta_instruction, seed);
+    match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn transcode_inner(input: &str, meta_instruction: &str, seed: u64) -> Result<String, String> {
+    use crate::pipeline::Pipeline;
+
+    let pipeline = Pipeline::from_meta(meta_instruction)
+        .map_err(|e| format!("Pipeline parse error: {}", e))?;
+
+    let pipeline = pipeline.with_seed(seed);
+
+    let result = pipeline.execute_rich(input)
+        .map_err(|e| format!("Pipeline error: {}", e))?;
+
+    let mut response = serde_json::json!({
+        "output": result.output,
+        "source": format!("{}", pipeline.source),
+        "target": format!("{}", pipeline.target),
+        "payload_words": result.payload_words,
+    });
+
+    if let Some(mode) = &result.data_mode {
+        response["data_mode"] = serde_json::json!(mode.to_string());
+    }
+
+    if let Some(stats) = &result.stats {
+        response["stats"] = serde_json::json!({
+            "payload_count": stats.payload_count,
+            "cover_count": stats.cover_count,
+            "total_words": stats.total_words,
+            "ratio": stats.ratio,
+        });
+    }
+
+    Ok(response.to_string())
+}
+
+/// Execute a pipeline with explicit source and target endpoints.
+///
+/// Source/target follow the same format as `--from`/`--into` CLI flags:
+/// - Language: `"english"`, `"latin"`, `"english/bip39/body"`
+/// - Format: `"hex"`, `"base64"`, `"ascii7"`, `"bytes"`
+/// - Auto: `"auto"` — auto-detect from input content
+///
+/// Returns JSON: `{ "output": "...", "source": "...", "target": "..." }` or `{ "error": "..." }`
+#[wasm_bindgen]
+pub fn pipeline_execute(input: &str, source: &str, target: &str, seed: u64) -> String {
+    let result = pipeline_execute_inner(input, source, target, seed);
+    match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn pipeline_execute_inner(
+    input: &str,
+    source_str: &str,
+    target_str: &str,
+    seed: u64,
+) -> Result<String, String> {
+    use crate::pipeline::{Pipeline, Endpoint};
+    use crate::generator::data::default_wordlist;
+
+    let parse_ep = |s: &str| -> Endpoint {
+        match s.to_lowercase().as_str() {
+            "hex" => Endpoint::Format(codec::DataMode::Hex),
+            "base64" => Endpoint::Format(codec::DataMode::Base64),
+            "ascii7" | "ascii" => Endpoint::Format(codec::DataMode::Ascii7),
+            "bytes" | "bytes8" => Endpoint::Format(codec::DataMode::Bytes8),
+            "auto" => Endpoint::Auto,
+            _ => {
+                let parts: Vec<&str> = s.split('/').collect();
+                match parts.len() {
+                    3 => Endpoint::language_full(parts[0], parts[1], parts[2]),
+                    2 => Endpoint::Language {
+                        language: parts[0].to_string(),
+                        wordlist: parts[1].to_string(),
+                        dialect: "body".to_string(),
+                    },
+                    _ => {
+                        let lang = parts[0];
+                        let wl = default_wordlist(lang);
+                        Endpoint::Language {
+                            language: lang.to_string(),
+                            wordlist: wl.to_string(),
+                            dialect: "body".to_string(),
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    let source = parse_ep(source_str);
+    let target = parse_ep(target_str);
+    let pipeline = Pipeline::from_params(source, target).with_seed(seed);
+
+    let output = pipeline.execute(input)
+        .map_err(|e| format!("Pipeline error: {}", e))?;
+
+    let response = serde_json::json!({
+        "output": output,
+        "source": format!("{}", pipeline.source),
+        "target": format!("{}", pipeline.target),
+    });
+
+    Ok(response.to_string())
+}
+
 /// Get the exact wordlist size for a language/wordlist combination.
 ///
 /// Returns JSON: `{ "size": 2048 }` or `{ "error": "..." }`
@@ -606,9 +746,10 @@ fn encode_characters_inner(
 
     // 7. Generate text
     let mut rng = StdRng::seed_from_u64(seed);
-    let mode = match grammar_dialect {
-        "subject" => GenerationMode::Subject,
-        _ => GenerationMode::Body,
+    let mode = if grammar_dialect.starts_with("subject") {
+        GenerationMode::Subject
+    } else {
+        GenerationMode::Body
     };
     let (text, used_payload) = generate_text_with_original_payload(
         &mut rng,
@@ -712,9 +853,10 @@ fn encode_random_words_inner(
 
     // 7. Generate text with the same RNG (re-seeded for text generation)
     let mut text_rng = StdRng::seed_from_u64(seed.wrapping_add(1)); // Offset seed for text gen
-    let mode = match grammar_dialect {
-        "subject" => GenerationMode::Subject,
-        _ => GenerationMode::Body,
+    let mode = if grammar_dialect.starts_with("subject") {
+        GenerationMode::Subject
+    } else {
+        GenerationMode::Body
     };
     let (text, used_payload) = generate_text_with_original_payload(
         &mut text_rng,

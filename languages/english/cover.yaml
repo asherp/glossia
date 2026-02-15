@@ -683,6 +683,7 @@ fund:
 
 "fwd:":
   Prefix: 1.0
+  refinement: fwd
 
 fyi:
   N: 1.0
@@ -1412,6 +1413,7 @@ ratio:
 
 "re:":
   Prefix: 1.0
+  refinement: re
 
 reach:
   V: 0.7
