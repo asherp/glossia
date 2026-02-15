@@ -1,0 +1,151 @@
+# Music Cover Wordlist for Glossia
+#
+# Structural tokens for MIDI note sequences. Same architectural role
+# as CS cover.yaml (-----/BEGIN/END/\n) — these provide musical framing
+# around the payload notes, not data.
+#
+# All use function-word POS tags so they're excluded from payload embedding.
+# Refinement tags let the grammar deterministically place the correct token.
+#
+# Output rendering: Primary format is text notation (space-separated tokens).
+# MIDI binary export is a separate post-processing layer.
+#
+# Example output:
+#   tempo=120 time=4/4
+#   C4 quarter | E4 eighth | rest quarter | G4 half |
+#   ||
+
+# ── Barline / section markers (Dot — structural punctuation) ──
+
+"|":
+  Dot: 1.0
+
+"||":
+  Dot: 1.0
+  refinement: end
+
+# ── Rests (Cop — fills a beat position without payload) ────────
+
+rest:
+  Cop: 1.0
+
+# ── Note durations (Adj — modify the payload note's length) ───
+# These attach to payload notes: "C4 quarter", "E4 eighth"
+
+whole:
+  Adj: 1.0
+  refinement: whole
+
+half:
+  Adj: 1.0
+  refinement: half
+
+dotted-half:
+  Adj: 1.0
+  refinement: dotted-half
+
+quarter:
+  Adj: 1.0
+  refinement: quarter
+
+dotted-quarter:
+  Adj: 1.0
+  refinement: dotted-quarter
+
+eighth:
+  Adj: 1.0
+  refinement: eighth
+
+sixteenth:
+  Adj: 1.0
+  refinement: sixteenth
+
+# ── Dynamics (Adv — modify how a note/phrase is performed) ─────
+# Standard 6-level orchestral dynamic range + sforzando accent.
+# These don't carry data — they provide musical texture.
+
+pp:
+  Adv: 1.0
+  refinement: pp
+
+p:
+  Adv: 1.0
+  refinement: p
+
+mp:
+  Adv: 1.0
+  refinement: mp
+
+mf:
+  Adv: 1.0
+  refinement: mf
+
+f:
+  Adv: 1.0
+  refinement: f
+
+ff:
+  Adv: 1.0
+  refinement: ff
+
+sfz:
+  Adv: 1.0
+  refinement: sfz
+
+# ── Tempo / header tokens (Aux — structural framing) ──────────
+# Pre-formatted with default values (analogous to CS "BEGIN", "END")
+
+"tempo=120":
+  Aux: 1.0
+  refinement: tempo
+
+"time=4/4":
+  Aux: 1.0
+  refinement: time
+
+"key=C":
+  Aux: 1.0
+  refinement: key
+
+# ── Separator (Conj — between structural sections) ────────────
+
+"\n":
+  Conj: 1.0
+
+# ── Articulation markers (Modal — modify note attack/release) ─
+# Universal articulations (instrument-agnostic).
+
+legato:
+  Modal: 1.0
+  refinement: legato
+
+staccato:
+  Modal: 1.0
+  refinement: staccato
+
+tenuto:
+  Modal: 1.0
+  refinement: tenuto
+
+marcato:
+  Modal: 1.0
+  refinement: marcato
+
+accent:
+  Modal: 1.0
+  refinement: accent
+
+# ── Repeat / structure (Prefix — section-level modifiers) ──────
+
+repeat:
+  Prefix: 1.0
+  refinement: repeat
+
+"da-capo":
+  Prefix: 1.0
+  refinement: dacapo
+
+# ── Tie / slur (To — connects notes) ──────────────────────────
+
+tie:
+  To: 1.0

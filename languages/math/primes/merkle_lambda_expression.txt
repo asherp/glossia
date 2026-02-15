@@ -1,0 +1,33 @@
+# Lambda Expression for Merkelization Process
+# Suitable for Glossia grammar.yaml integration
+
+# Core merkelization function
+merkleize = λleaves: List[Prime]. 
+  let max_leaf = fold(max, leaves) in
+  let n = length(leaves) in
+  let merkle_primes = generate_primes_after(max_leaf, n-1) in
+  let tree = build_tree(map(leaf, leaves), merkle_primes) in
+  let tree_assigned = assign_bfs(tree, reverse(merkle_primes)) in
+  preorder(tree_assigned)
+
+# Recursive tree building (bottom-up)
+build_tree = λnodes: List[Node]. λprimes: List[Prime].
+  if length(nodes) == 1 then
+    nodes[0]
+  else
+    let pairs = zip(nodes[::2], nodes[1::2]) in
+    let parents = map(λ(p, prime). pair(p[0], p[1], prime), zip(pairs, primes)) in
+    build_tree(parents, primes[length(pairs):])
+
+# Pre-order traversal
+preorder = λnode: Node.
+  if is_leaf(node) then
+    [node.data]
+  else
+    [node.data] ++ preorder(node.left) ++ preorder(node.right)
+
+# Type signature
+# merkleize : List[Prime] → List[Prime]
+# Input: n leaf primes
+# Output: 2n-1 primes (pre-order traversal: root, left_subtree, right_subtree)
+# Property: All internal node primes > all leaf primes (disjoint sets)

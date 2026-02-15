@@ -1,0 +1,11 @@
+name: cltk
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8
+  - pip
+  - pip:
+    - cltk>=1.0.0
+    - nltk>=3.8
+    - pyyaml>=5.4.0

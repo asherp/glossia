@@ -1,0 +1,124 @@
+MERKLE GRAMMAR EXAMPLE WORKFLOW
+================================
+
+INPUT: 4 leaf primes
+------------------------
+Leaves: [2, 5, 11, 23]
+
+
+STEP 1: MERKELIZATION
+------------------------
+1. Find max leaf: max([2,5,11,23]) = 23
+2. Generate 3 Merkle primes > 23: [29, 31, 37]
+3. Build tree bottom-up:
+   
+   Level 0 (leaves):     2    5    11   23
+   
+   Level 1 (pairs):     [29]      [31]
+                        / \       / \
+                       2   5    11  23
+   
+   Level 2 (root):     [37]
+                       /  \
+                     [29] [31]
+                     / \  / \
+                    2  5 11 23
+
+4. Assign primes top-down (BFS):
+   - Root: 37 (largest)
+   - Level 1 left: 31
+   - Level 1 right: 29
+
+5. Pre-order traversal: [37, 31, 2, 5, 29, 11, 23]
+
+MERKELIZED SEQUENCE:
+37, 31, 2, 5, 29, 11, 23
+│   │   │  │  │   │   │
+│   │   │  │  │   │   └─ Leaf (23)
+│   │   │  │  │   └───── Leaf (11)
+│   │   │  │  └───────── Merkle node (29)
+│   │   │  └──────────── Leaf (5)
+│   │   └─────────────── Leaf (2)
+│   └─────────────────── Merkle node (31)
+└─────────────────────── Root/Merkle node (37)
+
+
+STEP 2: GRAMMAR PATTERN GENERATION
+-----------------------------------
+Grammar rule: merkle_sequence
+Pattern for 4-leaf balanced tree: N V Det Det V Det Det Dot
+
+This maps to:
+N    = Root (37)
+V    = Internal node (31)
+Det  = Leaf (2)
+Det  = Leaf (5)
+V    = Internal node (29)
+Det  = Leaf (11)
+Det  = Leaf (23)
+Dot  = End marker
+
+
+STEP 3: POS SEQUENCE
+---------------------
+POS:  N    V    Det  Det  V    Det  Det  Dot
+Prime: 37   31   2    5    29   11   23   .
+
+
+STEP 4: WORD ASSIGNMENT (from wordlist)
+-----------------------------------------
+POS slots filled with words:
+
+N  → "root"      (noun - represents tree root)
+V  → "pairs"     (verb - represents pairing operation)
+Det → "the"      (determiner - represents leaf)
+Det → "two"      (determiner - represents leaf)
+V  → "combines"  (verb - represents combining operation)
+Det → "each"     (determiner - represents leaf)
+Det → "pair"     (determiner - represents leaf)
+Dot → "."        (punctuation)
+
+
+STEP 5: FINAL OUTPUT
+---------------------
+Natural language text:
+"root pairs the two combines each pair."
+
+
+VERIFICATION
+------------
+Parse the sequence back:
+  Input: 37, 31, 2, 5, 29, 11, 23
+  Extract leaves: 2, 5, 11, 23 ✓
+  Verify structure: valid ✓
+
+
+ALTERNATIVE WORD ASSIGNMENTS
+-----------------------------
+Different word selections could produce:
+
+Option 1: "root pairs the two combines each pair."
+Option 2: "tree merges a some joins the two."
+Option 3: "node combines each pair joins the some."
+
+All follow the same POS pattern: N V Det Det V Det Det Dot
+
+
+TREE STRUCTURE VISUALIZATION
+-----------------------------
+        37 (N - root)
+       /  \
+     31    29 (V - internal nodes)
+    / \   / \
+   2  5  11 23 (Det - leaves)
+
+Grammar pattern matches this structure:
+N(root) V(left_internal) Det Det V(right_internal) Det Det Dot
+
+
+PROPERTIES PRESERVED
+--------------------
+✓ Disjoint sets: Merkle primes (37,31,29) > Leaf primes (2,5,11,23)
+✓ Order preservation: Leaves appear in original order (2,5,11,23)
+✓ Pre-order traversal: Root → Left subtree → Right subtree
+✓ Deterministic parsing: Can extract leaves from sequence

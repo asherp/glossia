@@ -11,4 +11,5 @@
 - [Dialect Calculus](./dialect-calculus.md)
 - [Language Support](./language-support.md)
 - [Tools](./tools.md)
+- [Image Codec](./image-codec.md)
 - [Project Structure](./project-structure.md)

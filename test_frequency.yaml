@@ -1,0 +1,2033 @@
+abeo:
+  V: 1.0
+absum:
+  Conj: 1.0
+accedo:
+  V: 1.0
+accido:
+  V: 1.0
+accipio:
+  V: 1.0
+accuso:
+  V: 1.0
+acer:
+  N: 1.0
+acerbus:
+  Adj: 1.0
+acies:
+  N: 1.0
+actio:
+  N: 1.0
+addo:
+  V: 1.0
+adduco:
+  V: 1.0
+adeo:
+  V: 1.0
+adfero:
+  V: 1.0
+adficio:
+  V: 1.0
+adhibeo:
+  Conj: 1.0
+adhuc:
+  Adv: 1.0
+adicio:
+  V: 1.0
+aditus:
+  N: 1.0
+admoneo:
+  Conj: 1.0
+adsum:
+  Conj: 1.0
+adventus:
+  N: 1.0
+adversus:
+  Adj: 1.0
+aedes:
+  N: 0.5
+  V: 0.5
+aeneas:
+  N: 1.0
+aeque:
+  Adv: 1.0
+aequor:
+  N: 1.0
+aequus:
+  Adj: 1.0
+aes:
+  N: 1.0
+aestimo:
+  V: 1.0
+aetas:
+  N: 1.0
+aeternus:
+  Adj: 1.0
+africa:
+  N: 1.0
+ager:
+  N: 1.0
+agito:
+  V: 1.0
+agmen:
+  N: 1.0
+ago:
+  V: 1.0
+aio:
+  V: 1.0
+alienus:
+  Adj: 1.0
+aliquis:
+  Pron: 1.0
+aliter:
+  Adv: 1.0
+alius:
+  Pron: 1.0
+alo:
+  V: 1.0
+alter:
+  Conj: 1.0
+altus:
+  Adj: 1.0
+amicitia:
+  N: 1.0
+amicus:
+  N: 1.0
+amitto:
+  V: 1.0
+amnis:
+  N: 0.5
+  V: 0.5
+amo:
+  V: 1.0
+amor:
+  N: 1.0
+ample:
+  Adv: 1.0
+amplus:
+  Adj: 1.0
+anima:
+  N: 1.0
+animal:
+  N: 1.0
+animus:
+  N: 1.0
+annus:
+  N: 1.0
+ante:
+  Prep: 1.0
+antea:
+  Adv: 1.0
+antiquus:
+  Adj: 1.0
+antonius:
+  Conj: 1.0
+aperio:
+  V: 1.0
+appareo:
+  Conj: 1.0
+aptus:
+  Adj: 1.0
+apud:
+  Prep: 1.0
+aqua:
+  N: 1.0
+arator:
+  N: 1.0
+arbitror:
+  N: 1.0
+arbor:
+  N: 1.0
+ardeo:
+  Conj: 1.0
+argentum:
+  N: 1.0
+arma:
+  N: 1.0
+armatus:
+  Adj: 1.0
+ars:
+  N: 1.0
+asia:
+  N: 1.0
+asper:
+  Conj: 1.0
+aspicio:
+  V: 1.0
+atque:
+  Conj: 1.0
+auctor:
+  N: 1.0
+audacia:
+  N: 1.0
+audeo:
+  Conj: 1.0
+audio:
+  V: 1.0
+aufero:
+  V: 1.0
+augeo:
+  Conj: 1.0
+aura:
+  N: 1.0
+aureus:
+  Adj: 1.0
+auris:
+  N: 0.5
+  V: 0.5
+aurum:
+  N: 1.0
+aut:
+  Conj: 1.0
+autem:
+  Conj: 1.0
+auxilium:
+  Conj: 1.0
+avaritia:
+  N: 1.0
+beatus:
+  Adj: 1.0
+bellum:
+  N: 1.0
+bene:
+  Adv: 1.0
+bibo:
+  V: 1.0
+boni:
+  N: 1.0
+bonum:
+  N: 1.0
+bonus:
+  Adj: 1.0
+bos:
+  N: 1.0
+brevis:
+  Conj: 1.0
+cado:
+  V: 1.0
+caedes:
+  N: 0.5
+  V: 0.5
+caedo:
+  V: 1.0
+caelum:
+  N: 1.0
+caesar:
+  N: 1.0
+campus:
+  N: 1.0
+canis:
+  N: 0.5
+  V: 0.5
+cano:
+  V: 1.0
+capio:
+  V: 1.0
+caput:
+  V: 1.0
+careo:
+  Conj: 1.0
+carmen:
+  N: 1.0
+carus:
+  Adj: 1.0
+castra:
+  N: 1.0
+casus:
+  N: 1.0
+catilina:
+  N: 1.0
+cato:
+  N: 1.0
+causa:
+  N: 1.0
+caveo:
+  Conj: 1.0
+cedo:
+  V: 1.0
+censeo:
+  Conj: 1.0
+centurio:
+  N: 1.0
+cerno:
+  V: 1.0
+certamen:
+  N: 1.0
+certe:
+  Adv: 1.0
+certus:
+  Adj: 1.0
+ceterum:
+  Adv: 1.0
+ceterus:
+  Adj: 1.0
+cibus:
+  N: 1.0
+civilis:
+  Conj: 1.0
+civis:
+  N: 0.5
+  V: 0.5
+civitas:
+  N: 1.0
+clamor:
+  N: 1.0
+clarus:
+  Adj: 1.0
+classis:
+  N: 0.5
+  V: 0.5
+claudo:
+  V: 1.0
+coepio:
+  V: 1.0
+cognosco:
+  V: 1.0
+cogo:
+  V: 1.0
+cohors:
+  N: 1.0
+colligo:
+  V: 1.0
+colloco:
+  V: 1.0
+collum:
+  N: 1.0
+colo:
+  V: 1.0
+color:
+  N: 1.0
+comes:
+  V: 1.0
+committo:
+  V: 1.0
+commoveo:
+  Conj: 1.0
+communis:
+  Conj: 1.0
+comparo:
+  V: 1.0
+compono:
+  V: 1.0
+concedo:
+  V: 1.0
+condicio:
+  N: 1.0
+condo:
+  V: 1.0
+confero:
+  V: 1.0
+conficio:
+  V: 1.0
+confirmo:
+  V: 1.0
+conjunx:
+  N: 1.0
+conor:
+  N: 1.0
+consisto:
+  V: 1.0
+consto:
+  V: 1.0
+consul:
+  N: 0.5
+  V: 0.5
+consulo:
+  V: 1.0
+consumo:
+  V: 1.0
+contemno:
+  V: 1.0
+contendo:
+  V: 1.0
+contineo:
+  Conj: 1.0
+contingo:
+  V: 1.0
+contio:
+  N: 1.0
+contra:
+  Adv: 1.0
+convenio:
+  V: 1.0
+converto:
+  V: 1.0
+copia:
+  N: 1.0
+cornu:
+  N: 1.0
+corpus:
+  N: 1.0
+corrumpo:
+  V: 1.0
+credo:
+  V: 1.0
+cresco:
+  V: 1.0
+crimen:
+  N: 1.0
+crudelis:
+  Conj: 1.0
+culpa:
+  N: 1.0
+cum:
+  Adv: 0.5
+  Prep: 0.5
+cunctus:
+  N: 1.0
+cupio:
+  V: 1.0
+cur:
+  Adv: 1.0
+cura:
+  N: 1.0
+curo:
+  V: 1.0
+curro:
+  V: 1.0
+currus:
+  N: 1.0
+cursus:
+  N: 1.0
+custos:
+  N: 1.0
+damno:
+  V: 1.0
+damnum:
+  N: 1.0
+dea:
+  N: 1.0
+debeo:
+  Conj: 1.0
+decerno:
+  V: 1.0
+decet:
+  N: 1.0
+decus:
+  N: 1.0
+deduco:
+  V: 1.0
+defendo:
+  V: 1.0
+defensio:
+  N: 1.0
+defero:
+  V: 1.0
+deficio:
+  V: 1.0
+deicio:
+  V: 1.0
+deinde:
+  Adv: 1.0
+delecto:
+  V: 1.0
+denique:
+  Adv: 1.0
+depono:
+  V: 1.0
+descendo:
+  V: 1.0
+desero:
+  V: 1.0
+desidero:
+  V: 1.0
+desino:
+  V: 1.0
+desum:
+  Conj: 1.0
+detraho:
+  V: 1.0
+deus:
+  N: 1.0
+dextra:
+  N: 1.0
+dictum:
+  N: 1.0
+dies:
+  N: 1.0
+differo:
+  V: 1.0
+dignitas:
+  N: 1.0
+dignus:
+  Adj: 1.0
+diligo:
+  V: 1.0
+dimitto:
+  V: 1.0
+discedo:
+  V: 1.0
+disco:
+  V: 1.0
+diu:
+  Adv: 1.0
+diversus:
+  Adj: 1.0
+dives:
+  V: 1.0
+divido:
+  V: 1.0
+divinus:
+  Adj: 1.0
+divitiae:
+  N: 1.0
+doceo:
+  Conj: 1.0
+doleo:
+  Conj: 1.0
+dolor:
+  N: 1.0
+dolus:
+  N: 1.0
+domina:
+  N: 1.0
+dominus:
+  N: 1.0
+domus:
+  N: 1.0
+donec:
+  Conj: 1.0
+dono:
+  V: 1.0
+donum:
+  N: 1.0
+dubito:
+  V: 1.0
+dubius:
+  Adj: 1.0
+duco:
+  V: 1.0
+dulcis:
+  Conj: 1.0
+dum:
+  Conj: 1.0
+duo:
+  V: 1.0
+durus:
+  Adj: 1.0
+dux:
+  N: 1.0
+ecce:
+  Adv: 1.0
+edictum:
+  N: 1.0
+efficio:
+  V: 1.0
+effugio:
+  V: 1.0
+effundo:
+  V: 1.0
+ego:
+  Pron: 1.0
+egregius:
+  Adj: 1.0
+eligo:
+  V: 1.0
+emo:
+  V: 1.0
+enim:
+  Conj: 1.0
+epistula:
+  N: 1.0
+eques:
+  V: 1.0
+equidem:
+  Adv: 1.0
+equus:
+  N: 1.0
+ergo:
+  Conj: 1.0
+eripio:
+  V: 1.0
+erro:
+  V: 1.0
+error:
+  N: 1.0
+etenim:
+  Conj: 1.0
+evenio:
+  V: 1.0
+excipio:
+  V: 1.0
+excito:
+  V: 1.0
+excutio:
+  V: 1.0
+exemplum:
+  N: 1.0
+exeo:
+  V: 1.0
+exerceo:
+  Conj: 1.0
+exigo:
+  V: 1.0
+existimo:
+  V: 1.0
+exitium:
+  Conj: 1.0
+exitus:
+  N: 1.0
+expedio:
+  V: 1.0
+experior:
+  N: 1.0
+exspecto:
+  V: 1.0
+extra:
+  Prep: 1.0
+extremus:
+  Adj: 1.0
+facies:
+  N: 1.0
+facile:
+  Adv: 1.0
+facilis:
+  Conj: 1.0
+facinus:
+  N: 1.0
+facio:
+  V: 1.0
+factum:
+  N: 1.0
+facultas:
+  N: 1.0
+fallo:
+  V: 1.0
+falsus:
+  Adj: 1.0
+fama:
+  N: 1.0
+familia:
+  N: 1.0
+fateor:
+  V: 1.0
+fatum:
+  N: 1.0
+fax:
+  N: 1.0
+felix:
+  N: 1.0
+femina:
+  N: 1.0
+fera:
+  N: 1.0
+fere:
+  Adv: 1.0
+fero:
+  V: 1.0
+ferrum:
+  N: 1.0
+fides:
+  N: 1.0
+filia:
+  N: 1.0
+filius:
+  Conj: 1.0
+fingo:
+  V: 1.0
+finis:
+  N: 0.5
+  V: 0.5
+fio:
+  V: 1.0
+flamma:
+  N: 1.0
+flecto:
+  V: 1.0
+fleo:
+  Conj: 1.0
+fluctus:
+  N: 1.0
+flumen:
+  N: 1.0
+fons:
+  N: 1.0
+foris:
+  N: 0.5
+  V: 0.5
+forma:
+  N: 1.0
+fortasse:
+  Adv: 1.0
+forte:
+  Adv: 1.0
+fortis:
+  Conj: 1.0
+fortuna:
+  N: 1.0
+forum:
+  N: 1.0
+frango:
+  V: 1.0
+frater:
+  N: 1.0
+fraus:
+  N: 1.0
+fructus:
+  N: 1.0
+frustra:
+  Adv: 1.0
+fuga:
+  N: 1.0
+fugio:
+  V: 1.0
+funus:
+  N: 1.0
+furor:
+  N: 1.0
+galli:
+  N: 1.0
+gallia:
+  N: 1.0
+gaudeo:
+  Conj: 1.0
+gaudium:
+  Conj: 1.0
+gens:
+  N: 1.0
+genus:
+  N: 1.0
+germani:
+  N: 1.0
+gero:
+  V: 1.0
+gigno:
+  V: 1.0
+gladius:
+  N: 1.0
+gloria:
+  N: 1.0
+gradus:
+  N: 1.0
+grandis:
+  Conj: 1.0
+gratia:
+  N: 1.0
+gratus:
+  Adj: 1.0
+gravis:
+  Conj: 1.0
+habeo:
+  Conj: 1.0
+haereo:
+  Conj: 1.0
+haud:
+  Adv: 1.0
+herba:
+  N: 1.0
+hic:
+  Pron: 1.0
+hinc:
+  Adv: 1.0
+hodie:
+  Adv: 1.0
+homo:
+  N: 1.0
+honestus:
+  Adj: 1.0
+honor:
+  N: 1.0
+hora:
+  N: 1.0
+hortor:
+  N: 1.0
+hospes:
+  V: 1.0
+hostis:
+  N: 0.5
+  V: 0.5
+huc:
+  Adv: 1.0
+humanus:
+  Adj: 1.0
+humus:
+  N: 1.0
+ibi:
+  Adv: 1.0
+ictus:
+  N: 1.0
+idem:
+  Pron: 1.0
+ideo:
+  Adv: 1.0
+igitur:
+  Adv: 0.5
+  Conj: 0.5
+ignarus:
+  Adj: 1.0
+ignis:
+  N: 0.5
+  V: 0.5
+ignoro:
+  V: 1.0
+ignosco:
+  V: 1.0
+ignotus:
+  Adj: 1.0
+ille:
+  Pron: 1.0
+illic:
+  Adv: 1.0
+imago:
+  N: 1.0
+imitor:
+  N: 1.0
+immo:
+  Adv: 1.0
+impedio:
+  V: 1.0
+impello:
+  V: 1.0
+imperium:
+  Conj: 1.0
+impero:
+  V: 1.0
+impetus:
+  N: 1.0
+impius:
+  Adj: 1.0
+impleo:
+  Conj: 1.0
+impono:
+  V: 1.0
+improbus:
+  Adj: 1.0
+inanis:
+  Conj: 1.0
+incertus:
+  Adj: 1.0
+incido:
+  V: 1.0
+incipio:
+  V: 1.0
+inde:
+  Adv: 1.0
+infelix:
+  N: 1.0
+infero:
+  Conj: 1.0
+infestus:
+  Adj: 1.0
+ingenium:
+  Conj: 1.0
+ingens:
+  N: 1.0
+ingratus:
+  Adj: 1.0
+inimicus:
+  Adj: 1.0
+iniquus:
+  Adj: 1.0
+initium:
+  Conj: 1.0
+injuria:
+  N: 1.0
+inquam:
+  Conj: 1.0
+insidiae:
+  N: 1.0
+insignis:
+  Conj: 1.0
+instituo:
+  V: 1.0
+insto:
+  V: 1.0
+instruo:
+  V: 1.0
+insula:
+  N: 1.0
+integer:
+  Conj: 1.0
+inter:
+  Prep: 1.0
+interdum:
+  Adv: 1.0
+interea:
+  Adv: 1.0
+interim:
+  Adv: 1.0
+intersum:
+  Conj: 1.0
+intra:
+  Prep: 1.0
+intro:
+  V: 1.0
+invenio:
+  V: 1.0
+invidia:
+  N: 1.0
+invitus:
+  Adj: 1.0
+ipse:
+  Pron: 1.0
+ira:
+  N: 1.0
+irascor:
+  N: 1.0
+iratus:
+  Adj: 1.0
+iste:
+  Pron: 1.0
+ita:
+  Adv: 1.0
+italia:
+  N: 1.0
+itaque:
+  Conj: 1.0
+item:
+  Adv: 1.0
+iter:
+  N: 1.0
+iterum:
+  Adv: 1.0
+jaceo:
+  Conj: 1.0
+jacio:
+  V: 1.0
+jacto:
+  V: 1.0
+jam:
+  Adv: 1.0
+jubeo:
+  Conj: 1.0
+jucundus:
+  Adj: 1.0
+judex:
+  N: 1.0
+judicium:
+  Conj: 1.0
+judico:
+  V: 1.0
+jugum:
+  N: 1.0
+jungo:
+  V: 1.0
+juppiter:
+  N: 1.0
+jus:
+  N: 1.0
+justus:
+  Adj: 1.0
+juvenis:
+  N: 0.5
+  V: 0.5
+juvo:
+  V: 1.0
+labor:
+  N: 1.0
+laboro:
+  V: 1.0
+lacrima:
+  N: 1.0
+laedo:
+  V: 1.0
+laetus:
+  Adj: 1.0
+lapis:
+  N: 1.0
+late:
+  Adv: 1.0
+lateo:
+  Conj: 1.0
+laudo:
+  V: 1.0
+laus:
+  N: 1.0
+legatus:
+  N: 1.0
+legio:
+  N: 1.0
+lego:
+  V: 1.0
+levis:
+  Conj: 1.0
+lex:
+  N: 1.0
+libenter:
+  Adv: 1.0
+liber:
+  Conj: 1.0
+liberi:
+  N: 1.0
+libero:
+  V: 1.0
+libertas:
+  N: 1.0
+libertus:
+  N: 1.0
+libido:
+  N: 1.0
+liceo:
+  V: 1.0
+limen:
+  N: 1.0
+lingua:
+  N: 1.0
+littera:
+  N: 1.0
+litus:
+  N: 1.0
+locus:
+  N: 1.0
+longe:
+  Adv: 1.0
+longus:
+  Adj: 1.0
+loquor:
+  N: 1.0
+luctus:
+  N: 1.0
+ludo:
+  V: 1.0
+ludus:
+  N: 1.0
+lumen:
+  N: 1.0
+lux:
+  N: 1.0
+maestus:
+  Adj: 1.0
+magis:
+  Adv: 1.0
+magnus:
+  Adj: 1.0
+majores:
+  Conj: 1.0
+male:
+  Adv: 1.0
+malo:
+  V: 1.0
+malus:
+  Adj: 1.0
+maneo:
+  Conj: 1.0
+manus:
+  N: 1.0
+mare:
+  N: 0.5
+  V: 0.5
+maritus:
+  N: 1.0
+marius:
+  N: 1.0
+mater:
+  N: 1.0
+materia:
+  N: 1.0
+maxime:
+  Adv: 1.0
+medius:
+  Adj: 1.0
+membrum:
+  N: 1.0
+memini:
+  V: 1.0
+memoria:
+  N: 1.0
+memoro:
+  V: 1.0
+mens:
+  N: 1.0
+mensis:
+  N: 0.5
+  V: 0.5
+mereo:
+  Conj: 1.0
+metellus:
+  N: 1.0
+metuo:
+  V: 1.0
+metus:
+  N: 1.0
+meus:
+  Conj: 1.0
+miles:
+  V: 1.0
+minae:
+  N: 1.0
+minime:
+  Adv: 1.0
+minus:
+  Adj: 0.5
+  Adv: 0.5
+miror:
+  N: 1.0
+mirus:
+  Adj: 1.0
+misceo:
+  Conj: 1.0
+miser:
+  Adj: 1.0
+mitto:
+  V: 1.0
+modo:
+  Adv: 1.0
+modus:
+  N: 1.0
+mollis:
+  Conj: 1.0
+moneo:
+  Conj: 1.0
+mons:
+  N: 1.0
+morbus:
+  N: 1.0
+morior:
+  N: 1.0
+moror:
+  N: 1.0
+mors:
+  N: 1.0
+mos:
+  N: 1.0
+motus:
+  N: 1.0
+moveo:
+  Conj: 1.0
+mox:
+  Adv: 1.0
+mulier:
+  N: 0.5
+  V: 0.5
+multi:
+  N: 1.0
+multum:
+  Adv: 1.0
+multus:
+  Adj: 1.0
+mundus:
+  N: 1.0
+munitio:
+  N: 1.0
+munus:
+  N: 1.0
+murus:
+  N: 1.0
+muto:
+  V: 1.0
+nam:
+  Conj: 1.0
+namque:
+  Conj: 1.0
+nascor:
+  N: 1.0
+natio:
+  N: 1.0
+natura:
+  N: 1.0
+natus:
+  N: 1.0
+navis:
+  N: 0.5
+  V: 0.5
+nec:
+  Adv: 1.0
+necesse:
+  N: 1.0
+nego:
+  V: 1.0
+negotium:
+  Conj: 1.0
+nemo:
+  Pron: 1.0
+nemus:
+  N: 1.0
+neque:
+  Conj: 1.0
+nero:
+  N: 1.0
+nescio:
+  V: 1.0
+nihil:
+  Pron: 1.0
+nimis:
+  Adv: 1.0
+nimium:
+  Adv: 1.0
+nisi:
+  Conj: 1.0
+nobilis:
+  Conj: 1.0
+noceo:
+  Conj: 1.0
+nolo:
+  V: 1.0
+nomen:
+  N: 1.0
+nomino:
+  V: 1.0
+non:
+  Adv: 1.0
+nondum:
+  Adv: 1.0
+nonne:
+  Adv: 1.0
+nos:
+  Pron: 1.0
+nosco:
+  V: 1.0
+noster:
+  Pron: 1.0
+notus:
+  Adj: 1.0
+novus:
+  Adj: 1.0
+nox:
+  N: 1.0
+nubes:
+  N: 0.5
+  V: 0.5
+nudus:
+  Adj: 1.0
+nullus:
+  Adj: 1.0
+num:
+  Adv: 1.0
+numen:
+  N: 1.0
+numero:
+  V: 1.0
+numerus:
+  N: 1.0
+numquam:
+  Adv: 1.0
+nunc:
+  Adv: 1.0
+nuntio:
+  V: 1.0
+nuntius:
+  Conj: 1.0
+nuper:
+  Adv: 1.0
+obicio:
+  V: 1.0
+obtineo:
+  Conj: 1.0
+occido:
+  V: 1.0
+occupo:
+  V: 1.0
+occurro:
+  V: 1.0
+oculus:
+  N: 1.0
+odi:
+  V: 1.0
+offero:
+  V: 1.0
+officium:
+  Conj: 1.0
+olim:
+  Adv: 1.0
+omitto:
+  V: 1.0
+omnino:
+  Adv: 1.0
+omnis:
+  Conj: 1.0
+onus:
+  N: 1.0
+opera:
+  N: 1.0
+opinio:
+  N: 1.0
+oporteo:
+  V: 1.0
+oppidum:
+  N: 1.0
+opprimo:
+  V: 1.0
+ops:
+  N: 1.0
+opto:
+  V: 1.0
+opus:
+  N: 1.0
+ora:
+  N: 1.0
+oratio:
+  N: 1.0
+orbis:
+  N: 0.5
+  V: 0.5
+ordo:
+  N: 1.0
+orior:
+  N: 1.0
+oro:
+  V: 1.0
+ostendo:
+  V: 1.0
+otium:
+  Conj: 1.0
+paene:
+  Adv: 1.0
+palam:
+  Adv: 1.0
+par:
+  N: 1.0
+parco:
+  V: 1.0
+pareo:
+  Conj: 1.0
+pario:
+  V: 1.0
+pariter:
+  Adv: 1.0
+pars:
+  N: 1.0
+partim:
+  Adv: 1.0
+parum:
+  Adv: 1.0
+parvus:
+  Adj: 1.0
+pateo:
+  Conj: 1.0
+pater:
+  N: 1.0
+patior:
+  N: 1.0
+patria:
+  N: 1.0
+patrius:
+  Adj: 1.0
+pauci:
+  N: 1.0
+paucus:
+  Adj: 1.0
+paulo:
+  Adv: 1.0
+pax:
+  N: 1.0
+pecco:
+  V: 1.0
+pectus:
+  N: 1.0
+pecunia:
+  N: 1.0
+pecus:
+  N: 1.0
+pedes:
+  V: 1.0
+pello:
+  V: 1.0
+pendeo:
+  Conj: 1.0
+per:
+  Prep: 1.0
+perdo:
+  V: 1.0
+pereo:
+  V: 1.0
+perfero:
+  V: 1.0
+permitto:
+  V: 1.0
+pertineo:
+  Conj: 1.0
+pervenio:
+  V: 1.0
+pes:
+  N: 1.0
+peto:
+  V: 1.0
+phoebus:
+  N: 1.0
+pietas:
+  N: 1.0
+piso:
+  N: 1.0
+placeo:
+  Conj: 1.0
+plebs:
+  N: 1.0
+plenus:
+  Adj: 1.0
+plerique:
+  N: 1.0
+poena:
+  N: 1.0
+pondus:
+  N: 1.0
+pono:
+  V: 1.0
+populus:
+  N: 1.0
+porro:
+  Adv: 1.0
+porta:
+  N: 1.0
+portus:
+  N: 1.0
+posco:
+  V: 1.0
+possideo:
+  Conj: 1.0
+possum:
+  V: 1.0
+post:
+  Prep: 1.0
+postea:
+  Adv: 1.0
+posterus:
+  Adj: 1.0
+postquam:
+  Conj: 1.0
+postremo:
+  Adv: 1.0
+postulo:
+  V: 1.0
+potens:
+  N: 1.0
+potentia:
+  N: 1.0
+potestas:
+  N: 1.0
+potius:
+  Adv: 1.0
+praebeo:
+  Conj: 1.0
+praeceps:
+  N: 1.0
+praeda:
+  N: 1.0
+praemium:
+  Conj: 1.0
+praesens:
+  N: 1.0
+praesto:
+  V: 1.0
+praeter:
+  Conj: 0.5
+  Prep: 0.5
+praetor:
+  N: 1.0
+precor:
+  N: 1.0
+premo:
+  V: 1.0
+pretium:
+  Conj: 1.0
+prex:
+  N: 1.0
+primus:
+  Adj: 1.0
+prior:
+  N: 1.0
+privatus:
+  Adj: 1.0
+pro:
+  Prep: 1.0
+probo:
+  V: 1.0
+procedo:
+  V: 1.0
+procul:
+  Adv: 1.0
+proelium:
+  Conj: 1.0
+profecto:
+  Adv: 1.0
+profero:
+  V: 1.0
+prohibeo:
+  Conj: 1.0
+promitto:
+  V: 1.0
+prope:
+  Adv: 0.5
+  Prep: 0.5
+propero:
+  V: 1.0
+propono:
+  V: 1.0
+proprius:
+  Adj: 1.0
+propter:
+  Prep: 1.0
+prosum:
+  V: 1.0
+publicus:
+  Adj: 1.0
+pudeo:
+  Conj: 1.0
+pudor:
+  N: 1.0
+puella:
+  N: 1.0
+puer:
+  Conj: 1.0
+pugna:
+  N: 1.0
+pugno:
+  V: 1.0
+pulcher:
+  N: 1.0
+puto:
+  V: 1.0
+qua:
+  Adv: 0.5
+  Conj: 0.5
+quaero:
+  V: 1.0
+quaestio:
+  N: 1.0
+quam:
+  Adv: 1.0
+quamquam:
+  Conj: 1.0
+quamvis:
+  Conj: 1.0
+quanto:
+  Adv: 1.0
+quantum:
+  Adv: 1.0
+quantus:
+  Adj: 0.5
+  Pron: 0.5
+quare:
+  Adv: 0.5
+  Conj: 0.5
+quasi:
+  Conj: 1.0
+queror:
+  N: 1.0
+quia:
+  Conj: 1.0
+quidam:
+  N: 1.0
+quidem:
+  Adv: 1.0
+quies:
+  N: 1.0
+quin:
+  Conj: 1.0
+quippe:
+  Adv: 0.5
+  Conj: 0.5
+quiris:
+  V: 1.0
+quis:
+  Pron: 1.0
+quisquam:
+  N: 1.0
+quisque:
+  Pron: 1.0
+quisquis:
+  N: 1.0
+quo:
+  Adv: 0.5
+  Conj: 0.5
+quod:
+  Conj: 1.0
+quondam:
+  Adv: 1.0
+quoniam:
+  Conj: 1.0
+quoque:
+  Adv: 1.0
+quotiens:
+  Adv: 1.0
+rapio:
+  V: 1.0
+rarus:
+  Adj: 1.0
+ratio:
+  N: 1.0
+recedo:
+  V: 1.0
+recens:
+  N: 1.0
+recipio:
+  V: 1.0
+recito:
+  V: 1.0
+recte:
+  Adv: 1.0
+rectus:
+  Adj: 1.0
+recuso:
+  V: 1.0
+reddo:
+  V: 1.0
+redeo:
+  V: 1.0
+refero:
+  V: 1.0
+regio:
+  N: 1.0
+regius:
+  Adj: 1.0
+regnum:
+  N: 1.0
+rego:
+  V: 1.0
+religio:
+  N: 1.0
+relinquo:
+  V: 1.0
+reliquus:
+  Adj: 1.0
+remitto:
+  V: 1.0
+reor:
+  V: 1.0
+repente:
+  Adv: 1.0
+reperio:
+  V: 1.0
+repeto:
+  V: 1.0
+res:
+  Conj: 1.0
+resisto:
+  V: 1.0
+respicio:
+  V: 1.0
+restituo:
+  V: 1.0
+retineo:
+  Conj: 1.0
+reus:
+  N: 1.0
+revertor:
+  N: 1.0
+revoco:
+  V: 1.0
+rex:
+  N: 1.0
+rideo:
+  Conj: 1.0
+ripa:
+  N: 1.0
+rogo:
+  V: 1.0
+roma:
+  N: 1.0
+romani:
+  N: 1.0
+romanus:
+  Adj: 1.0
+rumpo:
+  V: 1.0
+ruo:
+  V: 1.0
+rursus:
+  Adv: 1.0
+sacer:
+  Conj: 1.0
+sacrum:
+  N: 1.0
+saepe:
+  Adv: 1.0
+saevus:
+  Adj: 1.0
+salus:
+  N: 1.0
+salvos:
+  Adj: 1.0
+sanctus:
+  Adj: 1.0
+sane:
+  Adv: 1.0
+sanguen:
+  N: 1.0
+sanguis:
+  N: 1.0
+sapiens:
+  N: 1.0
+satis:
+  Adv: 1.0
+saxum:
+  N: 1.0
+scelus:
+  N: 1.0
+scilicet:
+  Adv: 1.0
+scio:
+  V: 1.0
+scribo:
+  V: 1.0
+secundus:
+  Adj: 1.0
+securus:
+  Adj: 1.0
+sed:
+  Conj: 1.0
+sedeo:
+  Conj: 1.0
+sedes:
+  N: 0.5
+  V: 0.5
+semel:
+  Adv: 1.0
+semen:
+  N: 1.0
+semper:
+  Adv: 1.0
+senator:
+  N: 1.0
+senatus:
+  N: 1.0
+senectus:
+  N: 1.0
+senex:
+  N: 1.0
+sensus:
+  N: 1.0
+sentio:
+  V: 1.0
+sequor:
+  N: 1.0
+sermo:
+  N: 1.0
+servio:
+  V: 1.0
+servo:
+  V: 1.0
+servos:
+  N: 1.0
+sic:
+  Adv: 1.0
+sicilia:
+  N: 1.0
+sicut:
+  Adv: 1.0
+sidus:
+  N: 1.0
+signum:
+  N: 1.0
+silva:
+  N: 1.0
+similis:
+  Conj: 1.0
+simul:
+  Adv: 1.0
+sin:
+  Conj: 1.0
+sine:
+  Prep: 1.0
+singulus:
+  N: 1.0
+sino:
+  V: 1.0
+sinus:
+  N: 1.0
+sive:
+  Conj: 1.0
+societas:
+  N: 1.0
+sol:
+  N: 1.0
+soleo:
+  Conj: 1.0
+solum:
+  N: 1.0
+solvo:
+  V: 1.0
+somnus:
+  N: 1.0
+soror:
+  N: 1.0
+sors:
+  N: 1.0
+spargo:
+  V: 1.0
+spatium:
+  Conj: 1.0
+species:
+  Conj: 1.0
+specto:
+  V: 1.0
+spero:
+  V: 1.0
+spes:
+  N: 1.0
+spiritus:
+  N: 1.0
+statim:
+  Adv: 1.0
+statua:
+  N: 1.0
+statuo:
+  V: 1.0
+sto:
+  V: 1.0
+studium:
+  Conj: 1.0
+stultus:
+  Adj: 1.0
+suadeo:
+  Conj: 1.0
+sub:
+  Prep: 1.0
+subeo:
+  V: 1.0
+subito:
+  Adv: 1.0
+sulla:
+  N: 1.0
+sum:
+  Conj: 1.0
+summa:
+  N: 1.0
+summus:
+  Adj: 1.0
+sumo:
+  V: 1.0
+super:
+  Prep: 1.0
+superbus:
+  Adj: 1.0
+supero:
+  V: 1.0
+supersum:
+  Conj: 1.0
+surgo:
+  V: 1.0
+suscipio:
+  V: 1.0
+sustineo:
+  Conj: 1.0
+suus:
+  Adj: 0.5
+  Pron: 0.5
+tabula:
+  N: 1.0
+taceo:
+  Conj: 1.0
+tacitus:
+  Adj: 1.0
+talis:
+  Conj: 1.0
+tamen:
+  Adv: 1.0
+tamquam:
+  Adv: 1.0
+tandem:
+  Adv: 1.0
+tango:
+  V: 1.0
+tantum:
+  Adv: 1.0
+tantus:
+  Adj: 1.0
+tectum:
+  N: 1.0
+tego:
+  V: 1.0
+tellus:
+  N: 1.0
+telum:
+  N: 1.0
+templum:
+  N: 1.0
+tempto:
+  V: 1.0
+tempus:
+  N: 1.0
+tendo:
+  V: 1.0
+tenebrae:
+  N: 1.0
+teneo:
+  Conj: 1.0
+tener:
+  Conj: 1.0
+tenuis:
+  Conj: 1.0
+tergum:
+  N: 1.0
+terra:
+  N: 1.0
+terreo:
+  Conj: 1.0
+terror:
+  N: 1.0
+tertius:
+  Adj: 1.0
+tiberius:
+  Conj: 1.0
+timeo:
+  Conj: 1.0
+timor:
+  N: 1.0
+tollo:
+  V: 1.0
+torqueo:
+  Conj: 1.0
+tot:
+  Adv: 1.0
+trado:
+  V: 1.0
+traho:
+  V: 1.0
+transeo:
+  V: 1.0
+tres:
+  Conj: 0.5
+  N: 0.5
+tribunus:
+  N: 1.0
+tribuo:
+  V: 1.0
+tristis:
+  Conj: 1.0
+tueor:
+  V: 1.0
+tum:
+  Adv: 1.0
+tunc:
+  Adv: 1.0
+turba:
+  N: 1.0
+turpis:
+  Conj: 1.0
+tutus:
+  Adj: 1.0
+tuus:
+  Adj: 1.0
+ubi:
+  Adv: 1.0
+ullus:
+  Adj: 1.0
+ultimus:
+  Adj: 1.0
+ultro:
+  Adv: 1.0
+umbra:
+  N: 1.0
+umquam:
+  Adv: 1.0
+una:
+  Adv: 1.0
+unda:
+  N: 1.0
+unde:
+  Adv: 1.0
+undique:
+  Adv: 1.0
+unus:
+  Adj: 1.0
+urbs:
+  N: 1.0
+usque:
+  Prep: 1.0
+usus:
+  N: 1.0
+uterque:
+  N: 1.0
+uti:
+  Conj: 1.0
+utilis:
+  Conj: 1.0
+utilitas:
+  N: 1.0
+utor:
+  N: 1.0
+utrum:
+  N: 1.0
+uxor:
+  N: 1.0
+vaco:
+  V: 1.0
+vacuus:
+  Adj: 1.0
+valeo:
+  Conj: 1.0
+validus:
+  Adj: 1.0
+varius:
+  Adj: 1.0
+vastus:
+  Adj: 1.0
+veho:
+  V: 1.0
+vel:
+  Adv: 1.0
+velut:
+  Adv: 1.0
+vendo:
+  V: 1.0
+venenum:
+  N: 1.0
+venio:
+  V: 1.0
+ventus:
+  N: 1.0
+verbum:
+  N: 1.0
+vereor:
+  V: 1.0
+vero:
+  Adv: 1.0
+versor:
+  N: 1.0
+versus:
+  N: 1.0
+verto:
+  V: 1.0
+verum:
+  Conj: 1.0
+verus:
+  Adj: 1.0
+vester:
+  Conj: 1.0
+vestis:
+  N: 0.5
+  V: 0.5
+veto:
+  V: 1.0
+vetus:
+  N: 1.0
+via:
+  N: 1.0
+victor:
+  N: 1.0
+victoria:
+  N: 1.0
+video:
+  Conj: 1.0
+vinco:
+  V: 1.0
+vinum:
+  N: 1.0
+vir:
+  N: 1.0
+virgo:
+  N: 1.0
+virtus:
+  N: 1.0
+vis:
+  Conj: 1.0
+vita:
+  N: 1.0
+vitium:
+  Conj: 1.0
+vito:
+  V: 1.0
+vivo:
+  V: 1.0
+vivus:
+  Adj: 1.0
+vix:
+  Adv: 1.0
+voco:
+  V: 1.0
+volo:
+  Conj: 1.0
+voluntas:
+  N: 1.0
+voluptas:
+  N: 1.0
+vos:
+  Pron: 1.0
+votum:
+  N: 1.0
+vox:
+  N: 1.0
+vulnus:
+  N: 1.0
+vultus:
+  N: 1.0

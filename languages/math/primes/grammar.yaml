@@ -1,0 +1,110 @@
+# Merkle Tree Grammar Rules Encoded in Lambda Calculus
+# This file defines Merkle tree structures using lambda calculus notation
+# Maps Merkle tree concepts to POS sequences for natural language generation
+#
+# Mapping:
+#   Root (Merkle root) → N (noun, head of structure)
+#   Leaf (leaf node) → Det (determiner, leaf element)
+#   Internal (internal node) → V (verb, combines elements)
+#   Sequence (pre-order traversal) → N V Det Det (root, left, right)
+
+grammar:
+  name: "Merkle Tree Grammar"
+  
+  # Constraints for word selection
+  constraints:
+    # Prime ordering constraint: cover words (non-primes) must satisfy
+    # left_prime < cover_word < right_prime when placed between primes
+    prime_ordering:
+      enabled: true
+      description: "Cover words must be non-prime integers satisfying left_prime < cover_word < right_prime"
+  
+  # Type system mapping Merkle tree components to semantic types
+  # Uses standard POS tags but with Merkle tree semantics
+  types:
+    # Noun represents root/internal nodes (entities that combine)
+    - name: "N"
+      lambda_type: "e -> t"
+    
+    # Verb represents internal nodes that combine two subtrees
+    - name: "V"
+      lambda_type: "e -> (e -> t)"
+    
+    # Determiner represents leaf nodes (atomic elements)
+    - name: "Det"
+      lambda_type: "e -> t"
+
+  # Lambda calculus rules for Merkle tree structure
+  # Each rule represents a function that builds Merkle tree structures
+  # Note: Lambda expressions use simple POS constants (N, V, Det) compatible with Glossia's parser
+  # The full Merkle lambda expressions are documented in merkle_lambda.md
+  rules:
+    # Merkle tree: represents pre-order traversal of Merkle tree
+    # Conceptually: merkleize(leaves) = preorder(assign_bfs(build_tree(leaves, gen_merkle(max(leaves), n-1))))
+    # See merkle_lambda.md for full lambda expression
+    merkle_tree:
+      lambda: "N"
+      cfg_productions:
+        # Pre-order traversal pattern: Root (N), Left subtree, Right subtree
+        # Simple case: Root, Leaf, Leaf (2-leaf tree)
+        - production: "N Det Det"
+          weight: 0.4
+          lambda: "N"
+        # Left subtree has internal node (3-leaf tree)
+        - production: "N V Det Det"
+          weight: 0.3
+          lambda: "N"
+        # Right subtree has internal node (3-leaf tree)
+        - production: "N Det V Det"
+          weight: 0.2
+          lambda: "N"
+        # Both subtrees have internal nodes (4-leaf balanced tree)
+        - production: "N V Det V Det"
+          weight: 0.1
+          lambda: "N"
+    
+    # Internal node: combines two subtrees (represents pair operation)
+    # Conceptually: pair(left, right, prime) = Internal(left, right, prime)
+    # See merkle_lambda.md for full lambda expression
+    internal_node:
+      lambda: "V"
+      cfg_productions:
+        # Pair two leaves
+        - production: "V Det Det"
+          weight: 0.5
+          lambda: "V"
+        # Pair internal with leaf
+        - production: "V V Det Det"
+          weight: 0.25
+          lambda: "V"
+        # Pair leaf with internal
+        - production: "V Det V Det"
+          weight: 0.15
+          lambda: "V"
+        # Pair two internal nodes
+        - production: "V V Det V Det"
+          weight: 0.10
+          lambda: "V"
+    
+    # Merkle sequence: produces pre-order traversal sequence
+    # Conceptually: merkle_sequence(tree) = preorder(tree)
+    # See merkle_lambda.md for full lambda expression
+    merkle_sequence:
+      lambda: "N"
+      cfg_productions:
+        # Simple 2-leaf tree: Root, Leaf, Leaf
+        - production: "N Det Det"
+          weight: 0.4
+          lambda: "N"
+        # 3-leaf tree: Root, Internal(Leaf, Leaf), Leaf
+        - production: "N V Det Det Det"
+          weight: 0.3
+          lambda: "N"
+        # 4-leaf tree: Root, Leaf, Internal(Leaf, Leaf)
+        - production: "N Det V Det Det"
+          weight: 0.2
+          lambda: "N"
+        # 4-leaf balanced: Root, Internal(Leaf, Leaf), Internal(Leaf, Leaf)
+        - production: "N V Det Det V Det Det"
+          weight: 0.1
+          lambda: "N"

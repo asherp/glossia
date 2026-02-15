@@ -309,7 +309,19 @@ fn parse_endpoint(s: &str, wordlist_override: &str) -> glossia::Endpoint {
 fn encode_ascii_to_words(ascii_text: &str, language: &str, wordlist: &str) -> Result<(Vec<String>, glossia::DataMode), String> {
     let all_words = glossia::generator::load_payload_words_for_wordlist(language, wordlist)?;
     let tree = glossia::WordlistTree::new(all_words);
-    glossia::codec::encode_str_with_mode(ascii_text, &tree).map_err(|e| e.to_string())
+
+    // Check if this language uses bitpacking or base-N conversion
+    // Load grammar to check bitpacking flag (use "body" as default dialect for check)
+    let grammar = glossia::Grammar::from_language_dialect(language, "body")
+        .map_err(|e| format!("Failed to load grammar: {}", e))?;
+
+    if grammar.uses_bitpacking() {
+        // Power-of-2 wordlist: use bitpacking codec
+        glossia::codec::encode_str_with_mode(ascii_text, &tree).map_err(|e| e.to_string())
+    } else {
+        // Non-power-of-2: use base-N conversion
+        glossia::codec::encode_str_base_n(ascii_text, &tree).map_err(|e| e.to_string())
+    }
 }
 
 /// Calculate input bits based on data mode and input text
@@ -1114,7 +1126,24 @@ fn main() {
             }
         }
 
-        match glossia::codec::decode_with_mode(&input_words, &tree) {
+        // Check if this language uses bitpacking or base-N decoding
+        let uses_bitpacking = grammar.as_ref()
+            .map(|g| g.uses_bitpacking())
+            .unwrap_or(true);
+
+        let decode_result = if uses_bitpacking {
+            glossia::codec::decode_with_mode(&input_words, &tree)
+        } else {
+            // Base-N decoding: decode to bytes, then detect mode
+            glossia::codec::decode_base_n(&input_words, &tree)
+                .map(|bytes| {
+                    // For base-N, we assume Bytes8 mode (UTF-8 text)
+                    // TODO: store mode in header for base-N encodings
+                    (glossia::DataMode::Bytes8, bytes)
+                })
+        };
+
+        match decode_result {
             Ok((mode, bytes)) => {
                 use std::io::Write;
                 // For text modes (hex, base64, ascii), reconstruct the original string.

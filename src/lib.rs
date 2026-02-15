@@ -7,6 +7,7 @@ pub mod grammar;
 pub mod generator;
 pub mod merkle;
 pub mod codec;
+pub mod pipeline;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
@@ -45,6 +46,9 @@ pub use codec::{
     detect_mode, DataMode, DecodeError,
     hex_encode, hex_decode, base64_encode, base64_decode,
 };
+
+// Re-export pipeline types and functions
+pub use pipeline::{Pipeline, Endpoint, PipelineError, encode_into_language, decode_from_language};
 
 #[cfg(feature = "native")]
 use nlprule::{Tokenizer, Rules};

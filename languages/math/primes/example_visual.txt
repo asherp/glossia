@@ -1,0 +1,158 @@
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                    MERKLE GRAMMAR EXAMPLE - VISUAL GUIDE                  ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ STEP 1: INPUT PRIMES (Leaves)                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    [2, 5, 11, 23]
+     │  │  │   │
+     └──┴──┴───┘
+     4 leaf primes
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ STEP 2: MERKELIZATION PROCESS                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Tree Structure:
+    
+           37 (root - largest Merkle prime)
+          /  \
+        31    29 (internal nodes - Merkle primes)
+       / \   / \
+      2  5  11 23 (leaves - original primes)
+    
+    Pre-order Traversal: [37, 31, 2, 5, 29, 11, 23]
+    
+    Properties:
+    • Merkle primes (37, 31, 29) > Leaf primes (2, 5, 11, 23) ✓
+    • Order preserved: leaves appear as [2, 5, 11, 23] ✓
+    • Deterministic: can parse back to original leaves ✓
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ STEP 3: GRAMMAR PATTERN MATCHING                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Grammar Rule: merkle_sequence
+    Pattern: N V Det Det V Det Det Dot
+    
+    Mapping:
+    ┌─────┬──────────┬─────────────────────────────────────┐
+    │ POS │  Prime   │  Tree Component                    │
+    ├─────┼──────────┼─────────────────────────────────────┤
+    │ N   │    37    │  Root node                          │
+    │ V   │    31    │  Left internal node                 │
+    │ Det │     2    │  Left leaf                          │
+    │ Det │     5    │  Left leaf                          │
+    │ V   │    29    │  Right internal node                 │
+    │ Det │    11    │  Right leaf                          │
+    │ Det │    23    │  Right leaf                          │
+    │ Dot │     .    │  End marker                          │
+    └─────┴──────────┴─────────────────────────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ STEP 4: WORD ASSIGNMENT (from wordlist)                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    POS Sequence:  N    V      Det   Det   V        Det   Det   Dot
+    Primes:        37   31     2     5    29        11    23    .
+    Words:          root pairs  the   two  combines  each  pair  .
+    
+    Result: "root pairs the two combines each pair."
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ COMPLETE FLOW DIAGRAM                                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Input Primes
+         │
+         │ [2, 5, 11, 23]
+         ▼
+    ┌─────────────────┐
+    │  Merkelization  │
+    │   (Python)      │
+    └─────────────────┘
+         │
+         │ [37, 31, 2, 5, 29, 11, 23]
+         ▼
+    ┌─────────────────┐
+    │ Grammar Pattern │
+    │  (grammar.yaml) │
+    └─────────────────┘
+         │
+         │ N V Det Det V Det Det Dot
+         ▼
+    ┌─────────────────┐
+    │  Fill Slots     │
+    │  (Glossia)      │
+    └─────────────────┘
+         │
+         │ "root pairs the two combines each pair."
+         ▼
+    ┌─────────────────┐
+    │ Natural Language│
+    │     Output      │
+    └─────────────────┘
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ VERIFICATION                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    Parse sequence back:
+    
+    Input:  37, 31, 2, 5, 29, 11, 23
+             │   │  │  │  │   │   │
+             │   │  │  │  │   │   └─ Leaf (23)
+             │   │  │  │  │   └───── Leaf (11)
+             │   │  │  │  └───────── Merkle (29)
+             │   │  │  └──────────── Leaf (5)
+             │   │  └─────────────── Leaf (2)
+             │   └────────────────── Merkle (31)
+             └────────────────────── Root (37)
+    
+    Extract leaves: [2, 5, 11, 23] ✓
+    Matches original input! ✓
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ DIFFERENT TREE SIZES                                                     │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    2-Leaf Tree:
+    Input: [2, 5]
+    Tree:    7
+            / \
+           2  5
+    Pattern: N Det Det Dot
+    Example: "root the two."
+    
+    3-Leaf Tree:
+    Input: [2, 5, 11]
+    Tree:      13
+              /  \
+             7   11
+            / \
+           2  5
+    Pattern: N V Det Det Det Dot
+    Example: "root pairs the two three."
+    
+    4-Leaf Tree (shown above):
+    Pattern: N V Det Det V Det Det Dot
+    Example: "root pairs the two combines each pair."
+
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│ KEY INSIGHTS                                                             │
+└─────────────────────────────────────────────────────────────────────────┘
+
+    • Merkle tree structure is preserved in POS sequence
+    • Grammar generates patterns matching tree topology
+    • Words fill slots while maintaining structural relationships
+    • Natural language output structurally represents Merkle tree
+    • Can parse back to original primes from sequence

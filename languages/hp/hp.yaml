@@ -1,0 +1,103 @@
+accio:
+  V: 1.0
+aguamenti:
+  N: 1.0
+alohomora:
+  N: 1.0
+avada:
+  N: 1.0
+crucio:
+  V: 1.0
+depulso:
+  V: 1.0
+descendo:
+  V: 1.0
+diffindo:
+  V: 1.0
+engorgio:
+  V: 1.0
+evanesca:
+  V: 1.0
+evanesco:
+  V: 1.0
+expecto:
+  V: 1.0
+expelliarmus:
+  V: 1.0
+finite:
+  V: 1.0
+flagrate:
+  V: 1.0
+homenum:
+  N: 1.0
+immobulus:
+  Adj: 1.0
+imperio:
+  V: 1.0
+incantatem:
+  N: 1.0
+incendio:
+  V: 1.0
+inflamari:
+  V: 1.0
+kedavra:
+  N: 1.0
+lacarnum:
+  N: 1.0
+legilimens:
+  N: 1.0
+levicorpus:
+  N: 1.0
+leviosa:
+  Adj: 1.0
+liberacorpus:
+  N: 1.0
+lumos:
+  N: 0.5
+  V: 0.5
+morsmordre:
+  N: 1.0
+nox:
+  N: 1.0
+obliviate:
+  V: 1.0
+patronum:
+  N: 1.0
+petrificus:
+  Adj: 1.0
+protego:
+  V: 1.0
+reducto:
+  V: 1.0
+reparo:
+  V: 1.0
+revelio:
+  V: 1.0
+rictusempra:
+  N: 1.0
+sanentur:
+  V: 1.0
+sectumsempra:
+  N: 1.0
+serpensortia:
+  N: 1.0
+silencio:
+  V: 1.0
+sonorus:
+  Adj: 1.0
+stupefy:
+  V: 1.0
+totalus:
+  Adj: 1.0
+vera:
+  Adj: 0.7
+  Adv: 0.3
+verto:
+  V: 1.0
+vipera:
+  N: 1.0
+vulnera:
+  N: 0.5
+  V: 0.5
+wingardium:
+  N: 1.0

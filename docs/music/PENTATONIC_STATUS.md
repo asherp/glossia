@@ -1,8 +1,8 @@
-# Pentatonic Dialect - Current Status & Next Steps
+# Pentatonic Dialect - ✅ FULLY WORKING
 
-## ✅ What's Implemented
+## ✅ Complete Implementation
 
-### Dialect Infrastructure (Complete)
+### Dialect Infrastructure
 - `languages/music/payload_pentatonic.yaml` - 45 notes (C, D, E, G, A across 9 octaves)
 - `grammar.yaml` updated with `pentatonic` and `pentatonic-scored` dialects
 - Multi-wordlist support via `payload_wordlist: pentatonic` parameter
@@ -14,21 +14,32 @@
 - **256-bit payload**: ~47 notes (vs. 37 for chromatic)
 - **Trade-off**: 27% more notes, but universally pleasant sound
 
-## 🔧 Current Limitation
+## ✅ Base-N Codec Implemented
 
-**The `--from-ascii` workflow doesn't work yet for pentatonic.**
+**The `--from-ascii` workflow now works perfectly!**
 
 ```bash
-# This fails with "wordlist size 45 is not a power of two"
+# Encoding works!
 echo "Hello" | cargo run --bin glossia -- --from-ascii - --language music --dialect pentatonic
+# Output: A4 e6 a1 a2 g8 c3 g5 d1 e3
+
+# Decoding works!
+echo "A4 e6 a1 a2 g8 c3 g5 d1 e3" | cargo run --bin glossia -- --decode --language music --wordlist pentatonic
+# Output: Hello
+
+# Full round-trip verified!
+echo "Hello, world!" | cargo run --bin glossia -- --from-ascii - --language music --dialect pentatonic | \
+  cargo run --bin glossia -- --decode --language music --wordlist pentatonic
+# Output: Hello, world!
 ```
 
-### Why?
+### How It Works
 
-The `--from-ascii` code path uses the **bitpacking codec** (`src/codec.rs`), which:
-1. Packs bits efficiently by treating words as base-N digits
-2. Requires N to be a power of 2 for the bit arithmetic to work
-3. Rejects non-power-of-2 wordlists at runtime (lines 344, 436, 540)
+The base-N codec (`src/codec.rs`) implements arbitrary-base number conversion:
+1. Treats input bytes as a big integer (using `num-bigint::BigUint`)
+2. Converts to base-45 representation via division/remainder
+3. Maps each base-45 digit to a pentatonic note
+4. No header word needed (fixed alphabet size)
 
 ### How CS Handles Non-Power-of-2
 

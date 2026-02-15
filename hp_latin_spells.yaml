@@ -1,0 +1,150 @@
+# Harry Potter Spells with Latin Incantations
+# Extracted Latin words from spell incantations
+#
+# Total spells: 41
+# Total unique Latin words: 50
+#
+spells:
+  Accio:
+  - accio
+  Aguamenti:
+  - aguamenti
+  Alohomora:
+  - alohomora
+  Avada Kedavra:
+  - avada
+  - kedavra
+  Crucio:
+  - crucio
+  Depulso:
+  - depulso
+  Descendo:
+  - descendo
+  Diffindo:
+  - diffindo
+  Engorgio:
+  - engorgio
+  Evanesco:
+  - evanesco
+  Expecto Patronum:
+  - expecto
+  - patronum
+  Expelliarmus:
+  - expelliarmus
+  Finite Incantatem:
+  - finite
+  - incantatem
+  Flagrate:
+  - flagrate
+  Homenum Revelio:
+  - homenum
+  - revelio
+  Immobulus:
+  - immobulus
+  Imperio:
+  - imperio
+  Incendio:
+  - incendio
+  Lacarnum Inflamari:
+  - lacarnum
+  - inflamari
+  Legilimens:
+  - legilimens
+  Levicorpus:
+  - levicorpus
+  Liberacorpus:
+  - liberacorpus
+  Lumos:
+  - lumos
+  Morsmordre:
+  - morsmordre
+  Nox:
+  - nox
+  Obliviate:
+  - obliviate
+  Petrificus Totalus:
+  - petrificus
+  - totalus
+  Protego:
+  - protego
+  Reducto:
+  - reducto
+  Reparo:
+  - reparo
+  Revelio:
+  - revelio
+  Rictusempra:
+  - rictusempra
+  Sectumsempra:
+  - sectumsempra
+  Serpensortia:
+  - serpensortia
+  Silencio:
+  - silencio
+  Sonorus:
+  - sonorus
+  Stupefy:
+  - stupefy
+  Wingardium Leviosa:
+  - wingardium
+  - leviosa
+  Vera Verto:
+  - vera
+  - verto
+  Vipera Evanesca:
+  - vipera
+  - evanesca
+  Vulnera Sanentur:
+  - vulnera
+  - sanentur
+words:
+  revelio: 2
+  accio: 1
+  aguamenti: 1
+  alohomora: 1
+  avada: 1
+  crucio: 1
+  depulso: 1
+  descendo: 1
+  diffindo: 1
+  engorgio: 1
+  evanesca: 1
+  evanesco: 1
+  expecto: 1
+  expelliarmus: 1
+  finite: 1
+  flagrate: 1
+  homenum: 1
+  immobulus: 1
+  imperio: 1
+  incantatem: 1
+  incendio: 1
+  inflamari: 1
+  kedavra: 1
+  lacarnum: 1
+  legilimens: 1
+  levicorpus: 1
+  leviosa: 1
+  liberacorpus: 1
+  lumos: 1
+  morsmordre: 1
+  nox: 1
+  obliviate: 1
+  patronum: 1
+  petrificus: 1
+  protego: 1
+  reducto: 1
+  reparo: 1
+  rictusempra: 1
+  sanentur: 1
+  sectumsempra: 1
+  serpensortia: 1
+  silencio: 1
+  sonorus: 1
+  stupefy: 1
+  totalus: 1
+  vera: 1
+  verto: 1
+  vipera: 1
+  vulnera: 1
+  wingardium: 1

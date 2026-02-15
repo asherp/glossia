@@ -1,0 +1,132 @@
+# Pentatonic Scale Payload Wordlist for Glossia
+#
+# Major Pentatonic: 5 notes per octave (1, 2, 3, 5, 6)
+# In C: C, D, E, G, A
+#
+# 5 notes × 9 octaves (C0-C8) = 45 symbols
+# 45 symbols = log₂(45) ≈ 5.49 bits per note
+#
+# 256-bit payload requires ~47 notes (vs. 37 for chromatic)
+#
+# Trade-off: Lower capacity, universally pleasant sound.
+# Pentatonic scales are found in music worldwide (Chinese, African,
+# Native American, Celtic, Blues) and naturally avoid dissonance.
+#
+# MIDI range: C0 (MIDI 12) to C8 (MIDI 108)
+
+# ── Octave 0 (MIDI 12-21) ─────────────────────────────────────
+
+C0:
+  N: 1.0
+D0:
+  N: 1.0
+E0:
+  N: 1.0
+G0:
+  N: 1.0
+A0:
+  N: 1.0
+
+# ── Octave 1 (MIDI 24-33) ─────────────────────────────────────
+
+C1:
+  N: 1.0
+D1:
+  N: 1.0
+E1:
+  N: 1.0
+G1:
+  N: 1.0
+A1:
+  N: 1.0
+
+# ── Octave 2 (MIDI 36-45) ─────────────────────────────────────
+
+C2:
+  N: 1.0
+D2:
+  N: 1.0
+E2:
+  N: 1.0
+G2:
+  N: 1.0
+A2:
+  N: 1.0
+
+# ── Octave 3 (MIDI 48-57) ─────────────────────────────────────
+
+C3:
+  N: 1.0
+D3:
+  N: 1.0
+E3:
+  N: 1.0
+G3:
+  N: 1.0
+A3:
+  N: 1.0
+
+# ── Octave 4 (MIDI 60-69) — middle C octave ───────────────────
+
+C4:
+  N: 1.0
+D4:
+  N: 1.0
+E4:
+  N: 1.0
+G4:
+  N: 1.0
+A4:
+  N: 1.0
+
+# ── Octave 5 (MIDI 72-81) ─────────────────────────────────────
+
+C5:
+  N: 1.0
+D5:
+  N: 1.0
+E5:
+  N: 1.0
+G5:
+  N: 1.0
+A5:
+  N: 1.0
+
+# ── Octave 6 (MIDI 84-93) ─────────────────────────────────────
+
+C6:
+  N: 1.0
+D6:
+  N: 1.0
+E6:
+  N: 1.0
+G6:
+  N: 1.0
+A6:
+  N: 1.0
+
+# ── Octave 7 (MIDI 96-105) ────────────────────────────────────
+
+C7:
+  N: 1.0
+D7:
+  N: 1.0
+E7:
+  N: 1.0
+G7:
+  N: 1.0
+A7:
+  N: 1.0
+
+# ── Octave 8 (MIDI 108-117) ───────────────────────────────────
+
+C8:
+  N: 1.0
+D8:
+  N: 1.0
+E8:
+  N: 1.0
+G8:
+  N: 1.0
+A8:
+  N: 1.0

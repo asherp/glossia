@@ -1,5 +1,7 @@
 use crate::merkle::WordlistTree;
 use std::fmt;
+use num_bigint::BigUint;
+use num_traits::Zero;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Data Mode
@@ -577,6 +579,101 @@ pub fn decode_str(words: &[String], wordlist: &WordlistTree) -> Result<String, D
         DataMode::Base64 => Ok(base64_encode(&bytes)),
         DataMode::Hex => Ok(hex_encode(&bytes)),
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Base-N Encoding (for non-power-of-2 wordlists)
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Encode bytes as base-N representation using arbitrary-size wordlist.
+///
+/// For wordlists where N is not a power of 2 (e.g., pentatonic with 45 notes),
+/// we can't use bitpacking. Instead, treat the input as a big integer and
+/// convert to base-N, similar to base58 encoding in Bitcoin.
+///
+/// No header word needed - the wordlist size is fixed and known.
+pub fn encode_base_n(data: &[u8], wordlist: &WordlistTree) -> Result<Vec<String>, DecodeError> {
+    if wordlist.is_empty() {
+        return Err(DecodeError::EmptyWordlist);
+    }
+    if data.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let base = wordlist.len();
+    let mut num = BigUint::from_bytes_be(data);
+    let mut result = Vec::new();
+    let base_uint = BigUint::from(base);
+
+    while num > BigUint::zero() {
+        let remainder = &num % &base_uint;
+        let digit = if remainder.is_zero() {
+            0
+        } else {
+            remainder.to_u64_digits()[0] as usize
+        };
+        result.push(wordlist.get(digit).unwrap().clone());
+        num /= &base_uint;
+    }
+
+    result.reverse();
+
+    // Preserve leading zero bytes (important for round-trip)
+    let leading_zeros = data.iter().take_while(|&&b| b == 0).count();
+    for _ in 0..leading_zeros {
+        result.insert(0, wordlist.get(0).unwrap().clone());
+    }
+
+    Ok(result)
+}
+
+/// Decode base-N representation back to bytes.
+pub fn decode_base_n(words: &[String], wordlist: &WordlistTree) -> Result<Vec<u8>, DecodeError> {
+    use std::collections::HashMap;
+
+    if wordlist.is_empty() {
+        return Err(DecodeError::EmptyWordlist);
+    }
+    if words.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let base = wordlist.len();
+    let mut num = BigUint::zero();
+    let base_uint = BigUint::from(base);
+
+    // Build reverse index (case-insensitive to match WordlistTree behavior)
+    let mut word_to_index: HashMap<String, usize> = HashMap::new();
+    for (i, word) in wordlist.words().iter().enumerate() {
+        word_to_index.insert(word.to_lowercase(), i);
+    }
+
+    // Convert from base-N to big integer
+    for word in words {
+        let digit = word_to_index.get(&word.to_lowercase())
+            .ok_or_else(|| DecodeError::UnknownWord(word.clone()))?;
+        num = num * &base_uint + BigUint::from(*digit);
+    }
+
+    // Convert to bytes
+    let bytes = num.to_bytes_be();
+
+    // Restore leading zeros
+    let leading_zeros = words.iter().take_while(|w| {
+        word_to_index.get(&w.to_lowercase()).map(|&i| i == 0).unwrap_or(false)
+    }).count();
+
+    let mut result = vec![0u8; leading_zeros];
+    result.extend_from_slice(&bytes);
+
+    Ok(result)
+}
+
+/// Encode string with auto-mode detection, using base-N for non-power-of-2 wordlists.
+pub fn encode_str_base_n(s: &str, wordlist: &WordlistTree) -> Result<(Vec<String>, DataMode), DecodeError> {
+    let (mode, data) = detect_mode(s);
+    let words = encode_base_n(&data, wordlist)?;
+    Ok((words, mode))
 }
 
 #[cfg(test)]
