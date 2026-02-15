@@ -533,6 +533,18 @@ HTML_TEMPLATE = """
              oninput="document.getElementById('cells-display').textContent=this.value"
              onchange="autoEncode()">
 
+      <label>&epsilon; (grid spacing)
+        <span class="slider-value" id="eps-display">{{ epsilon }}</span>
+        <span style="color:#666680;font-size:0.7rem;float:right;margin-right:4rem;">
+          &sigma;95 &asymp; <span id="sigma95-display">{{ "%.1f"|format(epsilon / 5.6) }}</span>
+        </span>
+      </label>
+      <input type="range" name="epsilon" id="eps-slider"
+             min="2.3" max="30" step="0.5" value="{{ epsilon }}"
+             oninput="document.getElementById('eps-display').textContent=this.value;
+                      document.getElementById('sigma95-display').textContent=(this.value/5.6).toFixed(1)"
+             onchange="autoEncode()">
+
       <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;margin-bottom:1rem;">
         <input type="checkbox" name="circular" value="1"
                {{ 'checked' if circular }}
@@ -622,6 +634,26 @@ HTML_TEMPLATE = """
       <div class="stat">
         <div class="value">{{ total_bits }}</div>
         <div class="label">Total bits</div>
+      </div>
+      <div class="stat">
+        <div class="value">{{ "%.1f"|format(meta.epsilon) }}</div>
+        <div class="label">&epsilon; (CIELAB)</div>
+      </div>
+      <div class="stat">
+        <div class="value">{{ "%.1f"|format(meta.sigma95) }}</div>
+        <div class="label">&sigma;95 (single px)</div>
+      </div>
+      <div class="stat">
+        <div class="value">{{ meta.px_per_cell }}</div>
+        <div class="label">px / cell</div>
+      </div>
+      <div class="stat">
+        <div class="value">&times;{{ "%.0f"|format(meta.noise_reduction) }}</div>
+        <div class="label">&radic;(px/cell) avg</div>
+      </div>
+      <div class="stat">
+        <div class="value">{{ "%.1f"|format(meta.effective_sigma95) }}</div>
+        <div class="label">&sigma;95 (averaged)</div>
       </div>
     </div>
   </div>
@@ -743,6 +775,7 @@ def index():
         img_size=400,
         seed=42,
         n_cells=20,
+        epsilon=EPSILON,
         circular=False,
         noise_sigma=0.0,
         brightness=0.0,
@@ -781,6 +814,7 @@ def random_payload():
     img_size = int(request.form.get('img_size', 400))
     voronoi_seed = int(request.form.get('seed', 42))
     n_cells = int(request.form.get('n_cells', 20))
+    epsilon = float(request.form.get('epsilon', EPSILON))
     circular = request.form.get('circular') == '1'
     perturb = parse_perturb_params(request.form)
 
@@ -790,7 +824,7 @@ def random_payload():
 
     return do_encode(payload_str, palette, n_palette,
                      img_size, voronoi_seed, circular=circular,
-                     perturb=perturb)
+                     perturb=perturb, epsilon=epsilon)
 
 
 @app.route('/encode', methods=['POST'])
@@ -800,22 +834,33 @@ def encode_route():
     n_palette = int(request.form.get('n_palette', 16))
     img_size = int(request.form.get('img_size', 400))
     voronoi_seed = int(request.form.get('seed', 42))
+    epsilon = float(request.form.get('epsilon', EPSILON))
     circular = request.form.get('circular') == '1'
     perturb = parse_perturb_params(request.form)
 
     return do_encode(payload_str, palette, n_palette,
                      img_size, voronoi_seed, circular=circular,
-                     perturb=perturb)
+                     perturb=perturb, epsilon=epsilon)
 
 
 def do_encode(payload_str, palette, n_palette,
-              img_size, voronoi_seed, circular=False, perturb=None):
+              img_size, voronoi_seed, circular=False, perturb=None,
+              epsilon=None):
     if perturb is None:
         perturb = {'noise_sigma': 0.0, 'brightness': 0.0,
                    'color_temp': 0.0, 'saturation': 1.0}
+    if epsilon is None:
+        epsilon = EPSILON
 
     enc = get_encoder(palette, n_palette)
-    cmap = enc['constellation_map']
+
+    # Rebuild ConstellationMap with custom epsilon if it differs from default
+    if abs(epsilon - EPSILON) > 1e-6:
+        _, radii = enc['tube_radii']
+        cmap = ConstellationMap(radii, epsilon=epsilon)
+    else:
+        cmap = enc['constellation_map']
+
     payload = [int(x.strip()) for x in payload_str.split(',') if x.strip()]
 
     # Clamp to valid range
@@ -851,7 +896,8 @@ def do_encode(payload_str, palette, n_palette,
     perturbed_svg = None
     perturb_accuracy = 100.0
     perturb_correct = len(payload)
-    bits_per_pixel = enc['metadata']['bits_per_pixel']
+    bits_per_pixel = (np.log2(n_palette) +
+                      2 * np.log2(max(cmap.M_min, 1)))
     total_bits = int(len(payload) * bits_per_pixel)
     perturb_bits_recovered = total_bits
     perturb_words = []
@@ -900,6 +946,11 @@ def do_encode(payload_str, palette, n_palette,
             'r': int(rgb[0]), 'g': int(rgb[1]), 'b': int(rgb[2]),
         })
 
+    n_cells = len(payload)
+    px_per_cell = (img_size * img_size) / max(n_cells, 1)
+    noise_reduction = np.sqrt(px_per_cell)
+    effective_sigma95 = epsilon / 5.6 * noise_reduction
+
     meta_dict = {
         'M_min': cmap.M_min,
         'M_max': cmap.M_max,
@@ -907,6 +958,11 @@ def do_encode(payload_str, palette, n_palette,
         'capacity_min': cmap.capacity_min,
         'capacity_max': cmap.capacity_max,
         'max_word_repeats': meta.get('max_word_repeats', 0),
+        'epsilon': epsilon,
+        'sigma95': epsilon / 5.6,
+        'px_per_cell': int(px_per_cell),
+        'noise_reduction': noise_reduction,
+        'effective_sigma95': effective_sigma95,
     }
 
     return render_template_string(
@@ -917,6 +973,7 @@ def do_encode(payload_str, palette, n_palette,
         img_size=img_size,
         seed=voronoi_seed,
         n_cells=len(payload),
+        epsilon=epsilon,
         circular=circular,
         noise_sigma=perturb['noise_sigma'],
         brightness=perturb['brightness'],
