@@ -1,0 +1,305 @@
+# MIDI Note Payload Wordlist for Glossia (music language)
+#
+# All 128 MIDI note values (0-127) as note-name tokens.
+# Scientific pitch notation: C-1 (MIDI 0) through G9 (MIDI 127).
+#
+# 128 symbols = 2^7 → 7 bits per note
+#
+# Each token is a single MIDI note event (pitch). Duration, velocity,
+# and timing are provided by cover tokens and grammar structure.
+#
+# Octave convention: MIDI 60 = C4 (middle C)
+#   MIDI 0   = C-1
+#   MIDI 21  = A0  (lowest piano key)
+#   MIDI 60  = C4  (middle C)
+#   MIDI 108 = C8  (highest piano key)
+#   MIDI 127 = G9
+
+# ── Octave -1 (MIDI 0-11) ─────────────────────────────────────
+
+"C-1":
+  N: 1.0
+"Db-1":
+  N: 1.0
+"D-1":
+  N: 1.0
+"Eb-1":
+  N: 1.0
+"E-1":
+  N: 1.0
+"F-1":
+  N: 1.0
+"Gb-1":
+  N: 1.0
+"G-1":
+  N: 1.0
+"Ab-1":
+  N: 1.0
+"A-1":
+  N: 1.0
+"Bb-1":
+  N: 1.0
+"B-1":
+  N: 1.0
+
+# ── Octave 0 (MIDI 12-23) ─────────────────────────────────────
+
+C0:
+  N: 1.0
+Db0:
+  N: 1.0
+D0:
+  N: 1.0
+Eb0:
+  N: 1.0
+E0:
+  N: 1.0
+F0:
+  N: 1.0
+Gb0:
+  N: 1.0
+G0:
+  N: 1.0
+Ab0:
+  N: 1.0
+A0:
+  N: 1.0
+Bb0:
+  N: 1.0
+B0:
+  N: 1.0
+
+# ── Octave 1 (MIDI 24-35) ─────────────────────────────────────
+
+C1:
+  N: 1.0
+Db1:
+  N: 1.0
+D1:
+  N: 1.0
+Eb1:
+  N: 1.0
+E1:
+  N: 1.0
+F1:
+  N: 1.0
+Gb1:
+  N: 1.0
+G1:
+  N: 1.0
+Ab1:
+  N: 1.0
+A1:
+  N: 1.0
+Bb1:
+  N: 1.0
+B1:
+  N: 1.0
+
+# ── Octave 2 (MIDI 36-47) ─────────────────────────────────────
+
+C2:
+  N: 1.0
+Db2:
+  N: 1.0
+D2:
+  N: 1.0
+Eb2:
+  N: 1.0
+E2:
+  N: 1.0
+F2:
+  N: 1.0
+Gb2:
+  N: 1.0
+G2:
+  N: 1.0
+Ab2:
+  N: 1.0
+A2:
+  N: 1.0
+Bb2:
+  N: 1.0
+B2:
+  N: 1.0
+
+# ── Octave 3 (MIDI 48-59) ─────────────────────────────────────
+
+C3:
+  N: 1.0
+Db3:
+  N: 1.0
+D3:
+  N: 1.0
+Eb3:
+  N: 1.0
+E3:
+  N: 1.0
+F3:
+  N: 1.0
+Gb3:
+  N: 1.0
+G3:
+  N: 1.0
+Ab3:
+  N: 1.0
+A3:
+  N: 1.0
+Bb3:
+  N: 1.0
+B3:
+  N: 1.0
+
+# ── Octave 4 (MIDI 60-71) — middle C octave ───────────────────
+
+C4:
+  N: 1.0
+Db4:
+  N: 1.0
+D4:
+  N: 1.0
+Eb4:
+  N: 1.0
+E4:
+  N: 1.0
+F4:
+  N: 1.0
+Gb4:
+  N: 1.0
+G4:
+  N: 1.0
+Ab4:
+  N: 1.0
+A4:
+  N: 1.0
+Bb4:
+  N: 1.0
+B4:
+  N: 1.0
+
+# ── Octave 5 (MIDI 72-83) ─────────────────────────────────────
+
+C5:
+  N: 1.0
+Db5:
+  N: 1.0
+D5:
+  N: 1.0
+Eb5:
+  N: 1.0
+E5:
+  N: 1.0
+F5:
+  N: 1.0
+Gb5:
+  N: 1.0
+G5:
+  N: 1.0
+Ab5:
+  N: 1.0
+A5:
+  N: 1.0
+Bb5:
+  N: 1.0
+B5:
+  N: 1.0
+
+# ── Octave 6 (MIDI 84-95) ─────────────────────────────────────
+
+C6:
+  N: 1.0
+Db6:
+  N: 1.0
+D6:
+  N: 1.0
+Eb6:
+  N: 1.0
+E6:
+  N: 1.0
+F6:
+  N: 1.0
+Gb6:
+  N: 1.0
+G6:
+  N: 1.0
+Ab6:
+  N: 1.0
+A6:
+  N: 1.0
+Bb6:
+  N: 1.0
+B6:
+  N: 1.0
+
+# ── Octave 7 (MIDI 96-107) ────────────────────────────────────
+
+C7:
+  N: 1.0
+Db7:
+  N: 1.0
+D7:
+  N: 1.0
+Eb7:
+  N: 1.0
+E7:
+  N: 1.0
+F7:
+  N: 1.0
+Gb7:
+  N: 1.0
+G7:
+  N: 1.0
+Ab7:
+  N: 1.0
+A7:
+  N: 1.0
+Bb7:
+  N: 1.0
+B7:
+  N: 1.0
+
+# ── Octave 8 (MIDI 108-119) ───────────────────────────────────
+
+C8:
+  N: 1.0
+Db8:
+  N: 1.0
+D8:
+  N: 1.0
+Eb8:
+  N: 1.0
+E8:
+  N: 1.0
+F8:
+  N: 1.0
+Gb8:
+  N: 1.0
+G8:
+  N: 1.0
+Ab8:
+  N: 1.0
+A8:
+  N: 1.0
+Bb8:
+  N: 1.0
+B8:
+  N: 1.0
+
+# ── Octave 9 (MIDI 120-127, partial) ──────────────────────────
+
+C9:
+  N: 1.0
+Db9:
+  N: 1.0
+D9:
+  N: 1.0
+Eb9:
+  N: 1.0
+E9:
+  N: 1.0
+F9:
+  N: 1.0
+Gb9:
+  N: 1.0
+G9:
+  N: 1.0

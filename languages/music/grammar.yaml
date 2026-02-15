@@ -1,0 +1,234 @@
+# Music Grammar — MIDI Note Sequence Structure
+#
+# Structural grammar for encoding binary payloads as MIDI note sequences.
+# Follows the same architecture as CS (ASCII armor): the grammar generates
+# a structural frame, payload notes fill the N slots, cover tokens provide
+# musical context (durations, rests, barlines, dynamics).
+#
+# Output structure (raw dialect):
+#   <payload notes with durations>
+#
+# Output structure (scored dialect):
+#   tempo=120 time=4/4\n
+#   <bars of notes separated by barlines>
+#   ||
+#
+# Type inventory (reinterpreted for music):
+#   e = pitch (a MIDI note event)
+#   t = complete musical unit (bar, phrase, piece)
+#
+# POS reinterpretation for music:
+#   N     = payload note (carries data)
+#   Adj   = duration (whole, half, quarter, eighth, sixteenth)
+#   Adv   = dynamics (pp, p, mp, mf, f, ff)
+#   Dot   = barline (|) or double barline (||)
+#   Cop   = rest (fills beat without payload)
+#   Aux   = header tokens (tempo, time, key)
+#   Modal = articulation (legato, staccato)
+#   Conj  = section separator (\n)
+#   Prefix = repeat/structure markers (da-capo, repeat)
+#   To    = tie (connects notes across barlines)
+
+grammar:
+  name: "Music Grammar"
+
+  # Notes are space-separated tokens (not concatenated like CS base58).
+  payload_separator: " "
+
+  # Dot produces barlines, not sentence-ending periods.
+  dot_is_punctuation: false
+
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+
+    - name: "Adj"
+      lambda_type: "e -> e"
+
+    - name: "Adv"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Dot"
+      lambda_type: "t"
+
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+  # Base rules — simple note sequence (analogous to CS "raw" body)
+  #
+  # sentence → BARS
+  # BARS → BAR | BAR BARS
+  # BAR → BEAT BEAT BEAT BEAT Dot  (4 beats per bar, barline)
+  # BEAT → N Adj | Cop Adj          (note+duration or rest+duration)
+  rules:
+    sentence:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "BARS Dot[end]"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+    BARS:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "BAR"
+          weight: 0.15
+          lambda: "λn:(e->t). n"
+        - production: "BAR BARS"
+          weight: 0.85
+          lambda: "λn:(e->t). n"
+
+    BAR:
+      # 4/4 time: four beats per bar, then barline
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "BEAT BEAT BEAT BEAT Dot"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+    BEAT:
+      # A beat is either a payload note or a rest, each with a duration.
+      # Dynamics and articulation optionally modify notes.
+      #
+      # One payload note per BEAT slot (7 bits/note). Durations (whole, half,
+      # quarter, eighth, sixteenth) are interpretive — they specify musical
+      # rendering but don't change payload capacity. For subdivision (multiple
+      # notes per beat), see future SUBDIVISION rules.
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "N Adj"
+          weight: 0.70
+          # Payload note + duration: "C4 quarter"
+          lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+        - production: "Cop Adj"
+          weight: 0.15
+          # Rest + duration: "rest quarter"
+          lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+        - production: "Adv N Adj"
+          weight: 0.10
+          # Dynamic + note + duration: "mf C4 quarter"
+          lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+        - production: "Modal N Adj"
+          weight: 0.05
+          # Articulation + note + duration: "staccato C4 eighth"
+          lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+
+  # Dialect overrides
+  dialects:
+    raw:
+      # Raw note sequence — no barlines, no headers. Just payload notes.
+      # Analogous to CS "raw" dialect.
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        BODY:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "N BODY"
+              weight: 0.9
+              lambda: "λn:(e->t). n"
+
+    scored:
+      # Scored output — header with tempo/time/key, structured bars, double barline.
+      # Analogous to CS armored dialects (HEADER BODY FOOTER).
+      #
+      # Output:
+      #   tempo=120 time=4/4
+      #   C4 quarter E4 quarter G4 quarter C5 quarter |
+      #   D4 half Gb4 half |
+      #   ||
+      #
+      # Variable bar lengths (70% 4-beat, 15% 3-beat, etc.) represent
+      # expressive timing (fermatas, rubato), not literal time signature changes.
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER BARS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Aux[tempo] Aux[time] Conj"
+              weight: 1.0
+              # Header tokens are templates. Renderer interprets:
+              #   Aux[tempo] → "tempo=120" (default)
+              #   Aux[time]  → "time=4/4"  (default)
+              #   Conj       → "\n"
+              # Output: "tempo=120 time=4/4\n"
+              lambda: "λn:(e->t). n"
+
+        BARS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BAR"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "BAR BARS"
+              weight: 0.85
+              lambda: "λn:(e->t). n"
+
+        BAR:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BEAT BEAT BEAT BEAT Dot"
+              weight: 0.70
+              # Standard 4-beat bar
+              lambda: "λn:(e->t). n"
+            - production: "BEAT BEAT BEAT Dot"
+              weight: 0.15
+              # 3-beat bar (waltz / 3/4)
+              lambda: "λn:(e->t). n"
+            - production: "BEAT BEAT Dot"
+              weight: 0.10
+              # 2-beat bar (half notes)
+              lambda: "λn:(e->t). n"
+            - production: "BEAT Dot"
+              weight: 0.05
+              # Single-beat bar (whole note)
+              lambda: "λn:(e->t). n"
+
+        BEAT:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.60
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.10
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.15
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+            - production: "Modal N Adj"
+              weight: 0.10
+              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+            - production: "N Adj To N Adj"
+              weight: 0.05
+              # Tied notes: "C4 half tie C4 quarter"
+              lambda: "λn:(e->t). λadj:(e->e). λto:((e->t)->(e->t)). to(adj(n))"
