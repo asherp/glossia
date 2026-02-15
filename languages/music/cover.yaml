@@ -93,16 +93,17 @@ sfz:
   refinement: sfz
 
 # ── Tempo / header tokens (Aux — structural framing) ──────────
+# Pre-formatted with default values (analogous to CS "BEGIN", "END")
 
-tempo:
+"tempo=120":
   Aux: 1.0
   refinement: tempo
 
-time:
+"time=4/4":
   Aux: 1.0
   refinement: time
 
-key:
+"key=C":
   Aux: 1.0
   refinement: key
 
