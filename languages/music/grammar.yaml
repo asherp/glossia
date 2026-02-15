@@ -32,6 +32,10 @@
 grammar:
   name: "Music Grammar"
 
+  # Music supports multiple payload wordlists (chromatic, pentatonic, etc.)
+  # with varying sizes. Disable bitpacking to allow non-power-of-two wordlists.
+  bitpacking: false
+
   # Notes are space-separated tokens (not concatenated like CS base58).
   payload_separator: " "
 
@@ -133,6 +137,7 @@ grammar:
     raw:
       # Raw note sequence — no barlines, no headers. Just payload notes.
       # Analogous to CS "raw" dialect.
+      # Uses default payload.yaml (chromatic, 128 notes, 7 bits/note)
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -231,4 +236,91 @@ grammar:
             - production: "N Adj To N Adj"
               weight: 0.05
               # Tied notes: "C4 half tie C4 quarter"
+              lambda: "λn:(e->t). λadj:(e->e). λto:((e->t)->(e->t)). to(adj(n))"
+
+    pentatonic:
+      # Pentatonic scale variant — uses payload_pentatonic.yaml (45 notes, 5.49 bits/note)
+      # Same structure as raw, but more efficient encoding when data permits.
+      # Auto-detection: If all required notes fit in pentatonic scale, use this dialect.
+      payload_wordlist: pentatonic
+      bitpacking: false  # 45 notes is not a power of 2
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        BODY:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "N BODY"
+              weight: 0.9
+              lambda: "λn:(e->t). n"
+
+    pentatonic-scored:
+      # Scored output with pentatonic scale
+      payload_wordlist: pentatonic
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER BARS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Aux[tempo] Aux[time] Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        BARS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BAR"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "BAR BARS"
+              weight: 0.85
+              lambda: "λn:(e->t). n"
+
+        BAR:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BEAT BEAT BEAT BEAT Dot"
+              weight: 0.70
+              lambda: "λn:(e->t). n"
+            - production: "BEAT BEAT BEAT Dot"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "BEAT BEAT Dot"
+              weight: 0.10
+              lambda: "λn:(e->t). n"
+            - production: "BEAT Dot"
+              weight: 0.05
+              lambda: "λn:(e->t). n"
+
+        BEAT:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.60
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.10
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.15
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+            - production: "Modal N Adj"
+              weight: 0.10
+              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+            - production: "N Adj To N Adj"
+              weight: 0.05
               lambda: "λn:(e->t). λadj:(e->e). λto:((e->t)->(e->t)). to(adj(n))"
