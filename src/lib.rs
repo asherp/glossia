@@ -8,6 +8,7 @@ pub mod generator;
 pub mod merkle;
 pub mod codec;
 pub mod pipeline;
+pub mod scale;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
@@ -33,6 +34,7 @@ pub use generator::{
     get_embedded_yaml, has_embedded_files, get_available_languages,
     get_available_wordlists,
     detect_dialect, detect_dialect_best, DialectMatch,
+    inject_scale_payload,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use generator::get_wordlist_path;

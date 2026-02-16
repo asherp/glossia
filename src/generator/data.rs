@@ -388,6 +388,31 @@ pub fn load_payload_words_for_wordlist(language: &str, wordlist: &str) -> Result
     Ok(load_or_build_payload_cache(language, wordlist)?.words.clone())
 }
 
+/// Inject a scale-derived payload wordlist into the in-memory cache.
+///
+/// Call this before any `load_payload_words_for_wordlist()` for a scale-based dialect.
+/// The words are derived from the chromatic payload filtered by a scale definition,
+/// so no `payload_*.yaml` file is needed.
+///
+/// All words are tagged with POS `N` (the only payload POS in the music language).
+pub fn inject_scale_payload(language: &str, wordlist_name: &str, mut words: Vec<String>) -> Result<(), String> {
+    let cache_key = format!("{}:{}", language, wordlist_name);
+    let cache_map = PAYLOAD_CACHE_BY_LANGUAGE.get_or_init(|| Mutex::new(HashMap::new()));
+
+    // Build POS mapping: every scale note is N (noun = pitch predicate).
+    let mut pos_mapping: HashMap<String, Vec<Pos>> = HashMap::with_capacity(words.len());
+    for word in &words {
+        pos_mapping.insert(word.to_lowercase(), vec![Pos::N]);
+    }
+
+    words.sort();
+    words.dedup();
+
+    let data = PayloadCacheData { words, pos_mapping };
+    cache_map.lock().unwrap().insert(cache_key, Arc::new(data));
+    Ok(())
+}
+
 /// Load payload words from embedded payload.yaml
 pub fn load_payload_words_from_embedded(language: &str) -> Result<Vec<String>, String> {
     let (payload_filename, _) = wordlist_filenames(language, default_wordlist(language));

@@ -2,159 +2,99 @@
 
 ## ✅ Complete Implementation
 
-### Dialect Infrastructure
-- `languages/music/payload_pentatonic.yaml` - 45 notes (C, D, E, G, A across 9 octaves)
-- `grammar.yaml` updated with `pentatonic` and `pentatonic-scored` dialects
-- Multi-wordlist support via `payload_wordlist: pentatonic` parameter
-- Build system correctly discovers and embeds pentatonic wordlist
-- `bitpacking: false` flag allows non-power-of-2 wordlists
+### Scale-Derived Wordlists
 
-### Encoding Capacity
-- **45 notes**: log₂(45) ≈ 5.49 bits/note
-- **256-bit payload**: ~47 notes (vs. 37 for chromatic)
-- **Trade-off**: 27% more notes, but universally pleasant sound
+Pentatonic (and other scale-based dialects) are now **derived at runtime** from the
+chromatic payload via interval patterns defined in `grammar.yaml`. No static
+`payload_pentatonic.yaml` file is needed.
 
-## ✅ Base-N Codec Implemented
+```yaml
+# In languages/music/grammar.yaml
+pentatonic:
+  parent: raw
+  scale:
+    intervals: [2, 2, 3, 2, 3]   # major pentatonic
+    root: C
+```
 
-**The `--from-ascii` workflow now works perfectly!**
+The `scale:` definition specifies:
+- **intervals**: semitone steps between consecutive scale degrees (must sum to 12)
+- **root**: starting pitch class (C, D, Eb, F#, etc.)
+
+At dialect load time, `DialectConfig` loads the full 128-note chromatic payload,
+filters it to notes matching the scale's pitch classes, and injects the derived
+wordlist into the in-memory cache. All downstream code (codec, pipeline, CLI)
+sees a normal wordlist transparently.
+
+### Available Scale Dialects
+
+| Dialect | Intervals | Root | Notes/octave | Notes total | Bits/note |
+|---------|-----------|------|-------------|-------------|-----------|
+| `pentatonic` | [2,2,3,2,3] | C | 5 | ~54 | ~5.75 |
+| `pentatonic-scored` | [2,2,3,2,3] | C | 5 | ~54 | ~5.75 |
+| `minor-pentatonic` | [3,2,2,3,2] | A | 5 | ~54 | ~5.75 |
+| `blues` | [3,2,1,1,3,2] | A | 6 | ~65 | ~6.02 |
+
+### Adding New Scale Dialects
+
+To add a new scale (e.g., whole-tone, diatonic), just add to `grammar.yaml`:
+
+```yaml
+whole-tone:
+  parent: raw
+  scale:
+    intervals: [2, 2, 2, 2, 2, 2]
+    root: C
+```
+
+To change the key, change the root:
+
+```yaml
+pentatonic-d:
+  parent: scored
+  scale:
+    intervals: [2, 2, 3, 2, 3]
+    root: D    # D major pentatonic: D, E, Gb, A, B
+```
+
+### Encoding / Decoding
 
 ```bash
-# Encoding works!
+# Encoding works via base-N codec (non-power-of-2 wordlist)
 echo "Hello" | cargo run --bin glossia -- --from-ascii - --language music --dialect pentatonic
-# Output: A4 e6 a1 a2 g8 c3 g5 d1 e3
 
-# Decoding works!
-echo "A4 e6 a1 a2 g8 c3 g5 d1 e3" | cargo run --bin glossia -- --decode --language music --wordlist pentatonic
-# Output: Hello
+# Decoding
+echo "a4 e6 a1 a2 g8 c3 g5 d1 e3" | cargo run --bin glossia -- --decode --language music --dialect pentatonic
 
-# Full round-trip verified!
+# Full round-trip
 echo "Hello, world!" | cargo run --bin glossia -- --from-ascii - --language music --dialect pentatonic | \
-  cargo run --bin glossia -- --decode --language music --wordlist pentatonic
-# Output: Hello, world!
+  cargo run --bin glossia -- --decode --language music --dialect pentatonic
 ```
 
-### How It Works
+## Architecture
 
-The base-N codec (`src/codec.rs`) implements arbitrary-base number conversion:
-1. Treats input bytes as a big integer (using `num-bigint::BigUint`)
-2. Converts to base-45 representation via division/remainder
-3. Maps each base-45 digit to a pentatonic note
-4. No header word needed (fixed alphabet size)
+### How Scale Derivation Works
 
-### How CS Handles Non-Power-of-2
+1. `DialectConfig::from_language_dialect("music", "pentatonic")` parses `grammar.yaml`
+2. Finds `scale: { intervals: [2,2,3,2,3], root: C }` in the pentatonic dialect
+3. Loads the base chromatic payload (128 MIDI notes from `payload.yaml`)
+4. Computes valid pitch classes: root C + intervals → {C(0), D(2), E(4), G(7), A(9)}
+5. Filters chromatic payload to only notes with those pitch classes
+6. Injects derived wordlist into the in-memory cache under key `"music:pentatonic"`
+7. All subsequent `load_payload_words_for_wordlist("music", "pentatonic")` calls find it
 
-CS dialects (ascii-7 with 95 chars, base58 with 58 chars) also have `bitpacking: false`, but they:
-- Don't support `--from-ascii` direct encoding
-- Are used via `--from` / `--into` pipeline transformations
-- Work as intermediate formats in transformation chains
+### Key Modules
 
-Example:
-```bash
-# CS doesn't encode directly from ASCII:
-echo "test" | glossia --into cs --from hex < hex_data.txt
-```
+- `src/scale.rs` — pitch class mapping, interval pattern → pitch classes, payload filtering
+- `src/grammar.rs` — `DialectConfig::parse_scale_ref()` parses scale definitions from YAML
+- `src/generator/data.rs` — `inject_scale_payload()` populates the wordlist cache
+- `languages/music/grammar.yaml` — declarative scale definitions per dialect
 
-## 🎯 Solutions (Pick One)
+### Design Principle
 
-### Option 1: Base Conversion Codec (Recommended)
-Implement non-bitpacking encoding like base conversion:
-- Treat 45-note pentatonic as base-45 number system
-- Convert binary data → base-45 representation → note sequence
-- Similar to how base58 encoding works in Bitcoin
-
-**Implementation**:
-- Add `encode_base_n()` and `decode_base_n()` functions to `src/codec.rs`
-- Check `bitpacking` flag in grammar; if false, use base-N codec
-- Update CLI to route non-bitpacking languages through base-N path
-
-**Pros**: Full `--from-ascii` support, efficient encoding
-**Cons**: New codec implementation (~200 lines)
-
-### Option 2: Auto-Detection with Fallback
-When encoding ASCII → music:
-1. Try encoding with pentatonic (45 notes)
-2. If wordlist exhausted, fall back to chromatic (128 notes)
-3. Decoder auto-detects which was used
-
-**Implementation**:
-- Pre-convert data to note indices: `data_bytes → [0..127]`
-- Filter: if all indices < 45, use pentatonic; else chromatic
-- This matches user's stated goal: "assume most restrictive vocabulary"
-
-**Pros**: Automatic optimization, no new codec
-**Cons**: Still requires base-N conversion for 45-note wordlist
-
-### Option 3: Explicit Word Sequences Only
-Document that pentatonic dialect works for:
-- Generating prose from explicit note lists
-- Transforming between dialects
-- NOT for `--from-ascii` encoding
-
-**Pros**: No code changes, works today
-**Cons**: Limited utility
-
-## ✅ What Works Today
-
-Even without `--from-ascii`, the pentatonic dialect infrastructure is complete:
-
-### 1. Generate from Explicit Notes
-```bash
-# These notes are all in pentatonic scale
-cargo run --bin glossia -- C4 E4 G4 A4 C5 D5 --language music --dialect pentatonic-scored
-```
-
-**Output**:
-```
-tempo=120 time=4/4
-C4 quarter E4 half G4 quarter A4 whole |
-C5 half D5 quarter ||
-```
-
-### 2. Decode Works Perfectly
-```bash
-# Decoding filters by N-tagged tokens, so chromatic and pentatonic decode identically
-echo "C4 E4 G4 A4 C5" | cargo run --bin glossia -- --decode --language music
-```
-
-### 3. Multi-Dialect System
-The architecture is proven:
-- CS has 6 payload variants (base58, base64, base16, ascii7, etc.)
-- Music now has 2 (chromatic=default, pentatonic)
-- Adding blues (54 notes), diatonic (63 notes) is straightforward
-
-## 📋 Recommended Next Steps
-
-1. **Implement base-N codec** (Option 1) - enables full `--from-ascii` support
-2. **Add blues and diatonic scales** - prove multi-scale system
-3. **Auto-detection logic** - use most restrictive scale that fits
-4. **Update docs** - once codec is working, update main README
-
-## 🎵 Sound Quality Comparison
-
-| Dialect | Notes | Encoding | Sound |
-|---------|-------|----------|-------|
-| **chromatic** (default) | 128 | Works | Atonal, experimental |
-| **pentatonic** | 45 | Needs codec | Folk-like, pleasant |
-| **blues** (future) | 54 | Needs codec | Blues licks |
-| **diatonic** (future) | 63 | Needs codec | Familiar melodies |
-
-## 💡 Key Insight
-
-**The multi-wordlist infrastructure is complete.** The missing piece is just the non-bitpacking codec, which is a well-understood problem (base conversion) with a straightforward solution.
-
-Once implemented, we get:
-- ✅ Automatic scale selection (pentatonic < blues < diatonic < chromatic)
-- ✅ Optimal encoding (fewest bits for the data's "musical vocabulary")
-- ✅ Beautiful sound (constrained to pleasant scales)
-
-## Code Pointers
-
-- Wordlist definitions: `languages/music/payload*.yaml`
-- Grammar with dialects: `languages/music/grammar.yaml`
-- Bitpacking codec (needs bypass): `src/codec.rs:344, 436, 540`
-- CLI encode entry point: `src/bin/glossia.rs:309-313`
-- Build-time validation: `build.rs:121-131` (checks `bitpacking` flag)
-
----
-
-**Status**: Infrastructure complete, codec implementation needed for `--from-ascii` workflow.
+A scale is defined by its **interval structure**, not a fixed set of pitches.
+The grammar declares the structural rule (intervals + root), and the wordlist
+is its extension — the set of all MIDI notes satisfying that predicate across
+all octaves. This is the Montague Grammar approach: the scale is a predicate
+`λroot. λnote. (note mod 12) ∈ intervals_from(root, pattern)`, and the payload
+wordlist is its denotation.

@@ -7,7 +7,7 @@ pub mod utils;
 // Re-export public API items
 pub use types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
 pub use core::{generate_text, generate_text_with_original_payload, max_subsequence_embedding, plan_sentence, fill_slots};
-pub use data::{load_payload_words, load_payload_words_for_wordlist, load_cover_words_by_pos, load_cover_words_by_pos_for_wordlist, build_pos_mapping, build_pos_mapping_for_wordlist, tag_word, select_random_words, wordlist_filenames, default_wordlist, load_payload_tree, load_cover_tree, load_cover_word_pos_tags, get_embedded_yaml, has_embedded_files, get_available_languages, get_available_wordlists, detect_dialect, detect_dialect_best, DialectMatch};
+pub use data::{load_payload_words, load_payload_words_for_wordlist, load_cover_words_by_pos, load_cover_words_by_pos_for_wordlist, build_pos_mapping, build_pos_mapping_for_wordlist, tag_word, select_random_words, wordlist_filenames, default_wordlist, load_payload_tree, load_cover_tree, load_cover_word_pos_tags, get_embedded_yaml, has_embedded_files, get_available_languages, get_available_wordlists, detect_dialect, detect_dialect_best, DialectMatch, inject_scale_payload};
 #[cfg(not(target_arch = "wasm32"))]
 pub use data::get_wordlist_path;
 pub use cache::{SequenceCache, print_sentence_kinds_once};

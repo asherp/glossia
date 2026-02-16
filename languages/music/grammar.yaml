@@ -239,88 +239,34 @@ grammar:
               lambda: "λn:(e->t). λadj:(e->e). λto:((e->t)->(e->t)). to(adj(n))"
 
     pentatonic:
-      # Pentatonic scale variant — uses payload_pentatonic.yaml (45 notes, 5.49 bits/note)
-      # Same structure as raw, but more efficient encoding when data permits.
-      # Auto-detection: If all required notes fit in pentatonic scale, use this dialect.
-      payload_wordlist: pentatonic
-      bitpacking: false  # 45 notes is not a power of 2
-      rules:
-        sentence:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "BODY"
-              weight: 1.0
-              lambda: "λn:(e->t). n"
-
-        BODY:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "N"
-              weight: 0.1
-              lambda: "λn:(e->t). n"
-            - production: "N BODY"
-              weight: 0.9
-              lambda: "λn:(e->t). n"
+      # Major pentatonic scale — derived from chromatic payload via interval pattern.
+      # Intervals [2,2,3,2,3] from root C produce pitch classes {C,D,E,G,A}.
+      # Applied across all octaves → 45 notes (5.49 bits/note).
+      # Change root to get any transposition (e.g., root: D → {D,E,Gb,A,B}).
+      parent: raw
+      scale:
+        intervals: [2, 2, 3, 2, 3]
+        root: C
 
     pentatonic-scored:
-      # Scored output with pentatonic scale
-      payload_wordlist: pentatonic
-      rules:
-        sentence:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "HEADER BARS Dot[end]"
-              weight: 1.0
-              lambda: "λn:(e->t). n"
+      # Scored output with major pentatonic scale.
+      parent: scored
+      scale:
+        intervals: [2, 2, 3, 2, 3]
+        root: C
 
-        HEADER:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "Aux[tempo] Aux[time] Conj"
-              weight: 1.0
-              lambda: "λn:(e->t). n"
+    minor-pentatonic:
+      # Minor pentatonic scale — intervals [3,2,2,3,2] from root A.
+      # Produces pitch classes {A,C,D,E,G} — relative minor of C major pentatonic.
+      parent: raw
+      scale:
+        intervals: [3, 2, 2, 3, 2]
+        root: A
 
-        BARS:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "BAR"
-              weight: 0.15
-              lambda: "λn:(e->t). n"
-            - production: "BAR BARS"
-              weight: 0.85
-              lambda: "λn:(e->t). n"
-
-        BAR:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "BEAT BEAT BEAT BEAT Dot"
-              weight: 0.70
-              lambda: "λn:(e->t). n"
-            - production: "BEAT BEAT BEAT Dot"
-              weight: 0.15
-              lambda: "λn:(e->t). n"
-            - production: "BEAT BEAT Dot"
-              weight: 0.10
-              lambda: "λn:(e->t). n"
-            - production: "BEAT Dot"
-              weight: 0.05
-              lambda: "λn:(e->t). n"
-
-        BEAT:
-          lambda: "λn:(e->t). n"
-          cfg_productions:
-            - production: "N Adj"
-              weight: 0.60
-              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
-            - production: "Cop Adj"
-              weight: 0.10
-              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
-            - production: "Adv N Adj"
-              weight: 0.15
-              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
-            - production: "Modal N Adj"
-              weight: 0.10
-              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
-            - production: "N Adj To N Adj"
-              weight: 0.05
-              lambda: "λn:(e->t). λadj:(e->e). λto:((e->t)->(e->t)). to(adj(n))"
+    blues:
+      # Blues scale — minor pentatonic + flat 5th (blue note).
+      # Intervals [3,2,1,1,3,2] from root A → {A,C,D,Eb,E,G}.
+      parent: raw
+      scale:
+        intervals: [3, 2, 1, 1, 3, 2]
+        root: A

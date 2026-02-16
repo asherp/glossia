@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::types::{Pos, Sym};
 use crate::type_driven_grammar::LanguageConfig;
 use crate::semantic_types::{SemanticType, pos_to_semantic_type};
+use crate::scale::ScaleDefinition;
 
 #[derive(Clone, Debug)]
 pub struct Production {
@@ -97,10 +98,15 @@ pub struct DialectConfig {
     dialect: String,
     /// Payload wordlist profile (e.g., "default", "hp", "bip39", "base58").
     /// Resolved via `wordlist_filenames()` to `payload_{name}.yaml` (or `payload.yaml` for "default").
+    /// For scale-derived dialects, this is set to the dialect name (e.g., "pentatonic").
     payload_wl: String,
     /// Cover wordlist profile.
     /// Resolved via `wordlist_filenames()` to `cover_{name}.yaml` (or `cover.yaml` for "default").
     cover_wl: String,
+    /// Optional scale definition (intervals + root) for scale-derived dialects.
+    /// When present, the payload wordlist is derived at runtime from the base
+    /// chromatic payload filtered by the scale's interval pattern.
+    scale: Option<ScaleDefinition>,
 }
 
 impl DialectConfig {
@@ -108,15 +114,40 @@ impl DialectConfig {
     ///
     /// Reads the `dialects.<dialect>.payload_wordlist` and `dialects.<dialect>.cover_wordlist`
     /// fields. Falls back to `"default"` when fields are absent (backward compatible).
+    ///
+    /// If the dialect defines a `scale:` section (intervals + root), the payload wordlist
+    /// is derived at runtime from the base chromatic payload filtered by the scale pattern.
+    /// The derived words are injected into the in-memory cache so that subsequent
+    /// `load_payload_words_for_wordlist()` calls find them transparently.
     pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar = Grammar::from_language_dialect(language, dialect)?;
-        let (payload_wl, cover_wl) = Self::parse_wordlist_refs(language, dialect);
+        let (mut payload_wl, cover_wl) = Self::parse_wordlist_refs(language, dialect);
+        let scale = Self::parse_scale_ref(language, dialect);
+
+        // If this dialect has a scale definition, derive the payload wordlist
+        // from the base chromatic payload and inject it into the cache.
+        if let Some(ref scale_def) = scale {
+            // Use dialect name as the wordlist identifier for scale-derived payloads.
+            if payload_wl == "default" {
+                payload_wl = dialect.to_string();
+            }
+
+            // Load the base chromatic payload and filter by scale.
+            let chromatic = crate::generator::load_payload_words_for_wordlist(language, "default")
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+            let derived = crate::scale::filter_payload_by_scale(&chromatic, scale_def)
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+            crate::generator::inject_scale_payload(language, &payload_wl, derived)
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
+        }
+
         Ok(DialectConfig {
             grammar,
             language: language.to_string(),
             dialect: dialect.to_string(),
             payload_wl,
             cover_wl,
+            scale,
         })
     }
 
@@ -133,6 +164,11 @@ impl DialectConfig {
     /// Payload wordlist profile name (e.g., "default", "hp", "bip39").
     pub fn payload_wordlist(&self) -> &str {
         &self.payload_wl
+    }
+
+    /// Scale definition, if this dialect derives its payload from interval patterns.
+    pub fn scale(&self) -> Option<&ScaleDefinition> {
+        self.scale.as_ref()
     }
 
     /// Cover wordlist profile name (e.g., "default").
@@ -277,6 +313,72 @@ impl DialectConfig {
         }
 
         ("default".to_string(), "default".to_string())
+    }
+
+    /// Parse a `scale:` definition from a dialect in grammar.yaml.
+    ///
+    /// Walks the dialect inheritance chain (via `parent:`) to find a scale definition.
+    /// Returns `None` if no scale is defined anywhere in the chain.
+    fn parse_scale_ref(language: &str, dialect: &str) -> Option<ScaleDefinition> {
+        if dialect == "body" {
+            return None;
+        }
+
+        fn extract_scale(dialects: &serde_yaml::Value, dialect: &str) -> Option<ScaleDefinition> {
+            let dialect_data = dialects.get(dialect)?;
+
+            // Check this dialect's own scale definition first.
+            if let Some(scale_value) = dialect_data.get("scale") {
+                if let Ok(scale) = crate::scale::parse_scale_definition(scale_value) {
+                    return Some(scale);
+                }
+            }
+
+            // Fall back to parent's scale definition.
+            dialect_data.get("parent")
+                .and_then(|p| p.as_str())
+                .and_then(|parent| extract_scale(dialects, parent))
+        }
+
+        // Try embedded grammar.yaml first
+        let yaml_content = crate::generator::data::get_embedded_yaml(
+            &format!("{}/grammar.yaml", language),
+        ).or_else(|| match language {
+            "latin" => Some(include_str!("../languages/latin/grammar.yaml")),
+            "english" => Some(include_str!("../languages/english/grammar.yaml")),
+            _ => None,
+        });
+
+        if let Some(content) = yaml_content {
+            if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(content) {
+                if let Some(grammar) = doc.get("grammar") {
+                    if let Some(dialects) = grammar.get("dialects") {
+                        if let Some(scale) = extract_scale(dialects, dialect) {
+                            return Some(scale);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: try reading from filesystem (native only)
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
+            if let Ok(content) = std::fs::read_to_string(&grammar_yaml_path) {
+                if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                    if let Some(grammar) = doc.get("grammar") {
+                        if let Some(dialects) = grammar.get("dialects") {
+                            if let Some(scale) = extract_scale(dialects, dialect) {
+                                return Some(scale);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 }
 
@@ -1644,6 +1746,100 @@ mod tests {
             "CS should include sig_pgp dialect");
         assert!(dialects.contains(&"sig_nostr".to_string()),
             "CS should include sig_nostr dialect");
+    }
+
+    #[test]
+    fn test_music_pentatonic_scale_definition() {
+        let config = DialectConfig::from_language_dialect("music", "pentatonic")
+            .expect("Failed to load music pentatonic dialect config");
+
+        // Scale should be parsed from grammar.yaml
+        let scale = config.scale().expect("Pentatonic dialect should have a scale definition");
+        assert_eq!(scale.intervals, vec![2, 2, 3, 2, 3], "Major pentatonic intervals");
+        assert_eq!(scale.root, "C");
+
+        // Payload wordlist should be "pentatonic" (dialect name, not "default")
+        assert_eq!(config.payload_wordlist(), "pentatonic");
+
+        // Should be able to load the derived payload words
+        let words = crate::generator::load_payload_words_for_wordlist("music", "pentatonic")
+            .expect("Should load scale-derived payload");
+
+        // C major pentatonic has 5 pitch classes (C,D,E,G,A) across 9 octaves (0-8)
+        // = 45 notes. But chromatic payload starts at octave -1 (C-1..B-1) + octaves 0-9.
+        // Pitch class C,D,E,G,A appear in octaves -1,0,1,2,3,4,5,6,7,8,9
+        // C-1..G9 covers 11 octaves: octaves -1 through 9.
+        // But octave 9 is partial (C9..G9 = 8 notes). C,D,E,G = 4 pentatonic notes in oct 9.
+        // A is pitch class 9 = A9 doesn't exist (MIDI 127 = G9).
+        // Full octaves -1..8: 10 octaves × 5 = 50, + partial oct 9: C,D,E,G = 4 → 54 total
+        assert!(words.len() > 40, "Should have at least 40 pentatonic notes, got {}", words.len());
+        assert!(words.len() < 60, "Should have fewer than 60 notes, got {}", words.len());
+
+        // Verify only pentatonic pitch classes are present
+        for word in &words {
+            let pc_name = crate::scale::pitch_class_of_note(word)
+                .expect(&format!("Should extract pitch class from '{}'", word));
+            let pc = crate::scale::pitch_class_from_name(pc_name)
+                .expect(&format!("Should parse pitch class '{}'", pc_name));
+            assert!(
+                [0, 2, 4, 7, 9].contains(&pc),
+                "Note '{}' has pitch class {} ({}) which is not in C major pentatonic",
+                word, pc, pc_name
+            );
+        }
+    }
+
+    #[test]
+    fn test_music_blues_scale_definition() {
+        let config = DialectConfig::from_language_dialect("music", "blues")
+            .expect("Failed to load music blues dialect config");
+
+        let scale = config.scale().expect("Blues dialect should have a scale definition");
+        assert_eq!(scale.intervals, vec![3, 2, 1, 1, 3, 2], "Blues scale intervals");
+        assert_eq!(scale.root, "A");
+
+        let words = crate::generator::load_payload_words_for_wordlist("music", "blues")
+            .expect("Should load blues scale payload");
+
+        // Blues scale from A: {A(9), C(0), D(2), Eb(3), E(4), G(7)} = 6 pitch classes
+        // More notes than pentatonic (6 vs 5 per octave)
+        assert!(words.len() > 50, "Blues should have more notes than pentatonic, got {}", words.len());
+
+        // Verify only blues pitch classes
+        let valid_pcs = [0, 2, 3, 4, 7, 9]; // A,C,D,Eb,E,G
+        for word in &words {
+            let pc = crate::scale::pitch_class_of_note(word)
+                .and_then(crate::scale::pitch_class_from_name)
+                .expect(&format!("Should get pitch class for '{}'", word));
+            assert!(
+                valid_pcs.contains(&pc),
+                "Note '{}' (pc={}) not in A blues scale",
+                word, pc
+            );
+        }
+    }
+
+    #[test]
+    fn test_music_scored_dialect_no_scale() {
+        let config = DialectConfig::from_language_dialect("music", "scored")
+            .expect("Failed to load music scored dialect config");
+
+        // Scored dialect has no scale — uses full chromatic payload
+        assert!(config.scale().is_none(), "Scored dialect should not have a scale");
+        assert_eq!(config.payload_wordlist(), "default");
+    }
+
+    #[test]
+    fn test_music_pentatonic_scored_inherits_scale() {
+        let config = DialectConfig::from_language_dialect("music", "pentatonic-scored")
+            .expect("Failed to load music pentatonic-scored dialect config");
+
+        // Should have scale (defined directly on pentatonic-scored, not inherited from scored)
+        let scale = config.scale().expect("pentatonic-scored should have a scale");
+        assert_eq!(scale.intervals, vec![2, 2, 3, 2, 3]);
+
+        // Payload should be derived, not "default"
+        assert_eq!(config.payload_wordlist(), "pentatonic-scored");
     }
 }
 

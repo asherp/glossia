@@ -527,9 +527,12 @@ struct GrammarDoc {
     dialects: Option<HashMap<String, DialectDefinition>>,
 }
 
-/// Dialect-specific rule overrides
+/// Dialect-specific rule overrides.
+/// All fields are optional — a dialect may only specify `parent:`, `scale:`,
+/// or `payload_wordlist:` without overriding any rules.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DialectDefinition {
+    #[serde(default)]
     pub rules: HashMap<String, RuleDefinition>,
 }
 
