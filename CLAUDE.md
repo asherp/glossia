@@ -34,6 +34,10 @@ LambdaTerm: Variable | Constant(Pos) | Application(f, a) | Abstraction(var, type
 | Pron | `e` | entity reference |
 | Dot | `t` | sentence-level truth |
 
+## Documentation
+
+All project documentation lives in `docs/src/` (mdBook format). When creating or updating documentation, write to files in that directory and update `docs/src/SUMMARY.md` as needed.
+
 ## Wordlist rules
 
 - Wordlists are **strictly append-only** for backward compatibility
