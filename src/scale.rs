@@ -166,6 +166,37 @@ pub fn parse_scale_definition(scale_value: &serde_yaml::Value) -> Result<ScaleDe
     Ok(ScaleDefinition { intervals, root })
 }
 
+/// Derive a canonical refinement tag from a scale definition.
+///
+/// Known interval patterns map to human-readable scale names:
+///   - `[2,2,3,2,3]` → `"pentatonic"`
+///   - `[3,2,2,3,2]` → `"minor-pentatonic"`
+///   - `[3,2,1,1,3,2]` → `"blues"`
+///   - `[2,2,1,2,2,2,1]` → `"diatonic"`
+///   - `[2,1,2,2,1,2,2]` → `"minor"`
+///   - `[1,1,1,1,1,1,1,1,1,1,1,1]` → `"chromatic"`
+///
+/// Unrecognized patterns get a canonical fallback: `"scale/{root}/{intervals-joined-by-dash}"`.
+///
+/// The returned tag includes the root note: `"{scale_name}/{root}"` (e.g., `"pentatonic/C"`).
+/// Exception: chromatic has no root distinction, so it returns just `"chromatic"`.
+pub fn derive_refinement_tag(scale: &ScaleDefinition) -> String {
+    let scale_name = match scale.intervals.as_slice() {
+        [2, 2, 3, 2, 3] => "pentatonic",
+        [3, 2, 2, 3, 2] => "minor-pentatonic",
+        [3, 2, 1, 1, 3, 2] => "blues",
+        [2, 2, 1, 2, 2, 2, 1] => "diatonic",
+        [2, 1, 2, 2, 1, 2, 2] => "minor",
+        [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] => return "chromatic".to_string(),
+        _ => {
+            // Fallback: canonical encoding of the interval pattern
+            let intervals_str: Vec<String> = scale.intervals.iter().map(|i| i.to_string()).collect();
+            return format!("scale/{}/{}", scale.root, intervals_str.join("-"));
+        }
+    };
+    format!("{}/{}", scale_name, scale.root)
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -332,5 +363,41 @@ mod tests {
             assert_eq!(pitch_class_from_name(name), Some(i as u8),
                 "Pitch class name '{}' should map to {}", name, i);
         }
+    }
+
+    #[test]
+    fn test_derive_refinement_tag_known_scales() {
+        let penta = ScaleDefinition { intervals: vec![2,2,3,2,3], root: "C".into() };
+        assert_eq!(derive_refinement_tag(&penta), "pentatonic/C");
+
+        let penta_d = ScaleDefinition { intervals: vec![2,2,3,2,3], root: "D".into() };
+        assert_eq!(derive_refinement_tag(&penta_d), "pentatonic/D");
+
+        let minor_penta = ScaleDefinition { intervals: vec![3,2,2,3,2], root: "A".into() };
+        assert_eq!(derive_refinement_tag(&minor_penta), "minor-pentatonic/A");
+
+        let blues = ScaleDefinition { intervals: vec![3,2,1,1,3,2], root: "A".into() };
+        assert_eq!(derive_refinement_tag(&blues), "blues/A");
+
+        let diatonic = ScaleDefinition { intervals: vec![2,2,1,2,2,2,1], root: "C".into() };
+        assert_eq!(derive_refinement_tag(&diatonic), "diatonic/C");
+
+        let minor = ScaleDefinition { intervals: vec![2,1,2,2,1,2,2], root: "A".into() };
+        assert_eq!(derive_refinement_tag(&minor), "minor/A");
+    }
+
+    #[test]
+    fn test_derive_refinement_tag_chromatic() {
+        let chromatic = ScaleDefinition {
+            intervals: vec![1,1,1,1,1,1,1,1,1,1,1,1],
+            root: "C".into(),
+        };
+        assert_eq!(derive_refinement_tag(&chromatic), "chromatic");
+    }
+
+    #[test]
+    fn test_derive_refinement_tag_unknown_pattern() {
+        let exotic = ScaleDefinition { intervals: vec![4,3,5], root: "E".into() };
+        assert_eq!(derive_refinement_tag(&exotic), "scale/E/4-3-5");
     }
 }

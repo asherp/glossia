@@ -176,6 +176,18 @@ impl DialectConfig {
         &self.cover_wl
     }
 
+    /// Get the refinement tag for N (payload note) slots, if any.
+    ///
+    /// Returns the auto-derived or explicit type_refinements tag for the N POS.
+    /// This is used to populate `Lexicon::refined_payload` for runtime validation.
+    pub fn n_refinement_tag(&self) -> Option<String> {
+        // If there's a scale, derive the tag from it
+        if let Some(ref scale_def) = self.scale {
+            return Some(crate::scale::derive_refinement_tag(scale_def));
+        }
+        None
+    }
+
     /// Override the payload wordlist (e.g., from CLI `--wordlist` flag).
     /// This also updates the cover wordlist to the corresponding named variant
     /// if one exists, otherwise leaves cover unchanged.
@@ -514,11 +526,98 @@ impl Grammar {
                     }
                 }
             }
+
+            // --- Inject type_refinements into POS slots ---
+            // After all rules are resolved, inject refinement tags from type_refinements
+            // (explicit or auto-derived from scale definition).
+            if dialect != "body" {
+                if let Some(dialects) = grammar.get("dialects") {
+                    let type_refs = Self::resolve_type_refinements(dialects, dialect);
+                    if !type_refs.is_empty() {
+                        Self::inject_type_refinements(&mut rules, &type_refs);
+                    }
+                }
+            }
         }
 
         Ok(rules)
     }
-    
+
+    /// Resolve type_refinements for a dialect, walking the inheritance chain.
+    ///
+    /// Priority:
+    /// 1. Explicit `type_refinements:` on the dialect itself
+    /// 2. Auto-derived from `scale:` on the dialect (via `derive_refinement_tag`)
+    /// 3. Inherited from parent dialect (same priority chain)
+    /// 4. Empty (no refinements)
+    fn resolve_type_refinements(
+        dialects: &serde_yaml::Value,
+        dialect: &str,
+    ) -> HashMap<String, String> {
+        let dialect_data = match dialects.get(dialect) {
+            Some(d) => d,
+            None => return HashMap::new(),
+        };
+
+        // 1. Explicit type_refinements on this dialect
+        if let Some(tr) = dialect_data.get("type_refinements").and_then(|v| v.as_mapping()) {
+            let mut refs = HashMap::new();
+            for (pos_key, ref_val) in tr {
+                if let (Some(pos_str), Some(ref_str)) = (pos_key.as_str(), ref_val.as_str()) {
+                    refs.insert(pos_str.to_string(), ref_str.to_string());
+                }
+            }
+            if !refs.is_empty() {
+                return refs;
+            }
+        }
+
+        // 2. Auto-derive from scale definition
+        if let Some(scale_value) = dialect_data.get("scale") {
+            if let Ok(scale_def) = crate::scale::parse_scale_definition(scale_value) {
+                let tag = crate::scale::derive_refinement_tag(&scale_def);
+                let mut refs = HashMap::new();
+                refs.insert("N".to_string(), tag);
+                return refs;
+            }
+        }
+
+        // 3. Inherit from parent
+        if let Some(parent) = dialect_data.get("parent").and_then(|p| p.as_str()) {
+            return Self::resolve_type_refinements(dialects, parent);
+        }
+
+        HashMap::new()
+    }
+
+    /// Inject type refinement tags into all productions that contain matching POS slots.
+    ///
+    /// For each (POS, refinement_tag) in type_refinements, iterates all grammar rules
+    /// and injects the refinement tag into any terminal slot matching that POS,
+    /// unless the slot already has an explicit refinement.
+    fn inject_type_refinements(
+        rules: &mut HashMap<String, GrammarRule>,
+        type_refs: &HashMap<String, String>,
+    ) {
+        for rule in rules.values_mut() {
+            for prod in &mut rule.productions {
+                for (i, sym) in prod.symbols.iter().enumerate() {
+                    if let Sym::T(pos) = sym {
+                        let pos_name = pos.as_str();
+                        if let Some(ref_tag) = type_refs.get(pos_name) {
+                            // Only inject if no explicit refinement already set
+                            if prod.refinements.get(i).map_or(true, |r| r.is_none()) {
+                                if i < prod.refinements.len() {
+                                    prod.refinements[i] = Some(ref_tag.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Parse a CFG production string like "Cop Adj" or "Det[def] N" into symbol + refinement sequences.
     /// Refinement syntax: POS[tag] (e.g. Det[def], Cop[sg]).
     /// Non-terminals and unrefined terminals get refinement None.
@@ -1840,6 +1939,88 @@ mod tests {
 
         // Payload should be derived, not "default"
         assert_eq!(config.payload_wordlist(), "pentatonic-scored");
+    }
+
+    #[test]
+    fn test_music_pentatonic_n_slots_carry_refinement() {
+        // Verify that N slots in pentatonic sequences carry the auto-derived refinement tag.
+        let config = DialectConfig::from_language_dialect("music", "pentatonic")
+            .expect("Failed to load music pentatonic dialect config");
+
+        let sequences = config.grammar.precompute_sequences_with_probability("S", 4);
+        let mut found_n_with_refinement = false;
+
+        for k_seqs in &sequences {
+            for seq in k_seqs {
+                for (i, &pos) in seq.sequence.iter().enumerate() {
+                    if pos == Pos::N {
+                        let ref_tag = seq.refinements.get(i).and_then(|r| r.as_deref());
+                        assert_eq!(
+                            ref_tag,
+                            Some("pentatonic/C"),
+                            "N slot at position {} should have refinement 'pentatonic/C', got {:?}",
+                            i, ref_tag
+                        );
+                        found_n_with_refinement = true;
+                    }
+                }
+            }
+        }
+
+        assert!(found_n_with_refinement, "Should have found at least one N slot in pentatonic sequences");
+    }
+
+    #[test]
+    fn test_music_blues_n_slots_carry_refinement() {
+        // Blues uses explicit type_refinements: N: "blues/A"
+        let config = DialectConfig::from_language_dialect("music", "blues")
+            .expect("Failed to load music blues dialect config");
+
+        let sequences = config.grammar.precompute_sequences_with_probability("S", 4);
+        let mut found_n = false;
+
+        for k_seqs in &sequences {
+            for seq in k_seqs {
+                for (i, &pos) in seq.sequence.iter().enumerate() {
+                    if pos == Pos::N {
+                        let ref_tag = seq.refinements.get(i).and_then(|r| r.as_deref());
+                        assert_eq!(
+                            ref_tag,
+                            Some("blues/A"),
+                            "N slot at position {} should have refinement 'blues/A', got {:?}",
+                            i, ref_tag
+                        );
+                        found_n = true;
+                    }
+                }
+            }
+        }
+
+        assert!(found_n, "Should have found at least one N slot in blues sequences");
+    }
+
+    #[test]
+    fn test_music_raw_chromatic_no_n_refinement() {
+        // Raw chromatic dialect has no scale, so N slots should have no refinement.
+        let config = DialectConfig::from_language_dialect("music", "raw")
+            .expect("Failed to load music raw dialect config");
+
+        let sequences = config.grammar.precompute_sequences_with_probability("S", 3);
+
+        for k_seqs in &sequences {
+            for seq in k_seqs {
+                for (i, &pos) in seq.sequence.iter().enumerate() {
+                    if pos == Pos::N {
+                        let ref_tag = seq.refinements.get(i).and_then(|r| r.as_deref());
+                        assert_eq!(
+                            ref_tag, None,
+                            "Raw chromatic N slot should have no refinement, got {:?}",
+                            ref_tag
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 

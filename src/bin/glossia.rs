@@ -1423,6 +1423,17 @@ fn main() {
         }
     }
 
+    // Build refined_payload map from dialect's scale definition (if any).
+    // Maps refinement tags to valid payload word sets for runtime validation.
+    let refined_payload = {
+        let mut rp = std::collections::HashMap::new();
+        if let Some(ref_tag) = dialect_config.n_refinement_tag() {
+            // The payload_set already contains the scale-filtered words
+            rp.insert(ref_tag, payload_set.clone());
+        }
+        rp
+    };
+
     // Build Lexicon from all POS categories in cover_by_pos.
     // This handles any POS the grammar uses (including Dot for CS grammar).
     let lex = if merkle_mode {
@@ -1436,12 +1447,14 @@ fn main() {
             lex = lex.with_words(*pos, &filtered.iter().map(|s| s.as_str()).collect::<Vec<_>>());
         }
         lex.with_refined_cover(refined_cover.clone())
+            .with_refined_payload(refined_payload)
     } else {
         let mut lex = Lexicon::new(payload_set.clone(), wordlist_set.clone());
         for (pos, words) in &cover_by_pos {
             lex = lex.with_words(*pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
         }
         lex.with_refined_cover(refined_cover.clone())
+            .with_refined_payload(refined_payload)
     };
 
     let input_word_count = if merkle_mode {

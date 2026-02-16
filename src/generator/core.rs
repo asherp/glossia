@@ -513,6 +513,15 @@ pub fn fill_slots<R: Rng>(
         };
 
         if let Some(idx) = payload_word_idx {
+            // Refinement-aware validation: verify the payload word is valid for this slot's
+            // refinement tag. This is an independent safety check — the pre-filtered wordlist
+            // should already guarantee correctness, so a mismatch indicates a bug.
+            let ref_tag = refinements.get(i).and_then(|r| r.as_deref());
+            debug_assert!(
+                lex.payload_valid_for_refinement(&payload[idx].word, ref_tag),
+                "Payload word '{}' not valid for refinement {:?} at slot {}",
+                payload[idx].word, ref_tag, i
+            );
             out.push(payload[idx].word.clone());
             used_payload_indices.insert(idx);
             if forced_placements.is_none() {

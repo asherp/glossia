@@ -56,6 +56,12 @@ pub struct Lexicon {
     pub(crate) wordlist_set: HashSet<String>,
     /// Cover words indexed by (POS, refinement_tag) for grammar-driven morphology.
     pub(crate) refined_cover: HashMap<(Pos, String), Vec<String>>,
+    /// Payload words indexed by refinement tag for type-level validation.
+    /// Maps scale/dialect refinement tags (e.g., "pentatonic/C") to the set of
+    /// valid payload words for that refinement. Used as an independent safety check
+    /// during payload placement: even if the wordlist was pre-filtered correctly,
+    /// the refinement tag serves as runtime validation.
+    pub(crate) refined_payload: HashMap<String, HashSet<String>>,
 }
 
 impl Lexicon {
@@ -65,6 +71,7 @@ impl Lexicon {
             payload_set,
             wordlist_set,
             refined_cover: HashMap::new(),
+            refined_payload: HashMap::new(),
         }
     }
 
@@ -80,6 +87,29 @@ impl Lexicon {
     pub fn with_refined_cover(mut self, refined_cover: HashMap<(Pos, String), Vec<String>>) -> Self {
         self.refined_cover = refined_cover;
         self
+    }
+
+    /// Set the refined payload word map for type-level validation.
+    pub fn with_refined_payload(mut self, refined_payload: HashMap<String, HashSet<String>>) -> Self {
+        self.refined_payload = refined_payload;
+        self
+    }
+
+    /// Check if a payload word is valid for a given refinement tag.
+    /// Returns true if:
+    ///   - No refinement tag is specified (no constraint)
+    ///   - No refined_payload entry exists for the tag (no constraint data available)
+    ///   - The word is in the refined_payload set for the tag
+    pub fn payload_valid_for_refinement(&self, word: &str, refinement: Option<&str>) -> bool {
+        match refinement {
+            None => true,
+            Some(tag) => {
+                match self.refined_payload.get(tag) {
+                    None => true, // No constraint data — allow (pre-filtering is primary)
+                    Some(valid_words) => valid_words.contains(&word.to_lowercase()),
+                }
+            }
+        }
     }
 
     pub fn pick_cover<R: Rng>(&self, rng: &mut R, pos: Pos, recent_words: &[&str]) -> String {
