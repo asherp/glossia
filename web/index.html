@@ -32,8 +32,8 @@
   --text-dim: #8b8d97;
   --accent: #7c6cf0;
   --accent-hover: #9488f5;
-  --mark-bg: rgba(124, 108, 240, 0.2);
-  --mark-border: rgba(124, 108, 240, 0.5);
+  --mark-bg: rgba(14, 165, 233, 0.15);
+  --mark-border: rgba(14, 165, 233, 0.4);
   --error: #ef4444;
   --success: #22c55e;
   --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
@@ -47,8 +47,8 @@
   --border: #dadce0;
   --text: #1f2937;
   --text-dim: #6b7280;
-  --mark-bg: rgba(124, 108, 240, 0.12);
-  --mark-border: rgba(124, 108, 240, 0.4);
+  --mark-bg: rgba(14, 165, 233, 0.08);
+  --mark-border: rgba(14, 165, 233, 0.3);
   --shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.08);
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -243,12 +243,12 @@ textarea::placeholder { color: var(--text-dim); }
   color: var(--text-dim);
   font-size: 0.85rem;
 }
-.output-area mark {
+mark {
   background: var(--mark-bg);
   border: 1px solid var(--mark-border);
   border-radius: 3px;
   padding: 0.1em 0.3em;
-  color: var(--accent);
+  color: #0ea5e9;
   font-weight: 600;
 }
 
@@ -791,7 +791,7 @@ footer a:hover { text-decoration: underline; }
   <div id="app" class="hidden">
     <!-- Hero Section -->
     <section class="hero animate-in">
-      <h2>Make Cryptographic Data Human-Friendly</h2>
+      <h2>A Linguistic Codec for Human-Machine Communication</h2>
       <p class="subtitle">
         Convert PGP signatures, API keys, and binary data into natural language prose.
         Backward-compatible with existing tools—just add a human-friendly UX layer that flows through email, documents, and voice.
@@ -842,6 +842,11 @@ footer a:hover { text-decoration: underline; }
         <div class="icon">✅</div>
         <h4>Verifiable</h4>
         <p>Perfect round-trip encoding and decoding. Easier to spot-check than hex. Decode by simply filtering against the payload wordlist—it's mathematically guaranteed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🎚️</div>
+        <h4>Tunable Compactness</h4>
+        <p>Control output density with natural language: encode "compactly" for 20-30% fewer words, "naturally" for readable prose, or "optimally" to generate variations and pick the best.</p>
       </div>
     </div>
 
@@ -938,6 +943,20 @@ iQIzBAABCAAdFiEE...xK9Q==
         <p>Experience the transformation live—encode and decode instantly in your browser</p>
       </div>
 
+      <!-- Compactness Explainer -->
+      <div style="max-width: 800px; margin: 0 auto 1.5rem; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem;">
+        <h4 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 0.75rem; font-family: var(--font-mono);">💡 New: Compactness Control</h4>
+        <p style="font-size: 0.85rem; color: var(--text-dim); line-height: 1.6; margin-bottom: 0.75rem;">
+          Control output density with natural language modifiers in the meta instruction:
+        </p>
+        <div style="display: grid; gap: 0.5rem; font-size: 0.8rem; font-family: var(--font-mono);">
+          <div style="display: flex; gap: 0.5rem;"><code style="color: var(--accent); font-weight: 600;">compactly</code> <span style="color: var(--text-dim);">— Shortest sentences, 20-30% fewer words (ideal for hex/API keys)</span></div>
+          <div style="display: flex; gap: 0.5rem;"><code style="color: var(--accent); font-weight: 600;">naturally</code> <span style="color: var(--text-dim);">— Readable prose with natural grammar flow (default)</span></div>
+          <div style="display: flex; gap: 0.5rem;"><code style="color: var(--accent); font-weight: 600;">minimally</code> <span style="color: var(--text-dim);">— Aggressive word count minimization</span></div>
+          <div style="display: flex; gap: 0.5rem;"><code style="color: var(--accent); font-weight: 600;">optimally</code> <span style="color: var(--text-dim);">— Generate 50 variations, pick the most compact</span></div>
+        </div>
+      </div>
+
     <!-- Side-by-side panels -->
     <div class="panels">
       <!-- Left panel: Input -->
@@ -994,17 +1013,18 @@ iQIzBAABCAAdFiEE...xK9Q==
     <div class="controls-section">
       <div class="control-group" style="flex: 3; min-width: 280px;">
         <label for="meta-input">Meta Instruction</label>
-        <input type="text" id="meta-input" value="encode into english" style="width: 100%;">
+        <input type="text" id="meta-input" value="encode into english naturally" style="width: 100%;">
       </div>
       <div class="control-group">
         <label>Presets</label>
         <div style="display: flex; gap: 0.35rem; flex-wrap: wrap;">
-          <button class="btn-sm preset-btn" data-meta="encode into english">English</button>
+          <button class="btn-sm preset-btn" data-meta="encode into english naturally" title="Natural readable prose (default)">Natural</button>
+          <button class="btn-sm preset-btn" data-meta="encode into english compactly" title="Shortest sentences, maximum payload density">Compact</button>
+          <button class="btn-sm preset-btn" data-meta="encode into english minimally" title="Aggressive word count minimization">Minimal</button>
+          <button class="btn-sm preset-btn" data-meta="encode into english optimally" title="Generate 50 variations, pick the best">Optimal</button>
           <button class="btn-sm preset-btn" data-meta="encode into english subject">Subject</button>
-          <button class="btn-sm preset-btn" data-meta="encode into latin">Latin</button>
+          <button class="btn-sm preset-btn" data-meta="encode into latin compactly">Latin</button>
           <button class="btn-sm preset-btn" data-meta="encode into latin spells">Spells</button>
-          <button class="btn-sm preset-btn" data-meta="encode into pgp html">PGP</button>
-          <button class="btn-sm preset-btn" data-meta="encode into nostr html">Nostr</button>
         </div>
       </div>
       <div class="control-group">
@@ -1062,10 +1082,12 @@ iQIzBAABCAAdFiEE...xK9Q==
       <ul>
         <li><strong>WASM-powered:</strong> Full Rust engine compiled to WebAssembly—runs entirely in your browser at near-native speed</li>
         <li><strong>Client-side only:</strong> No server, no API calls, no tracking. Your data never leaves your device.</li>
+        <li><strong>Meta-language control:</strong> Natural language pipeline specifications with compactness modifiers (compactly, naturally, optimally)</li>
         <li><strong>Context-Free Grammars (CFG):</strong> Generate grammatically valid sentence structures</li>
         <li><strong>Montague Grammar:</strong> Lambda calculus ensures type-safe semantic composition</li>
         <li><strong>POS-based encoding:</strong> Payload words fill noun, verb, adjective slots naturally</li>
         <li><strong>Maximum subsequence matching:</strong> Optimal placement of payload words in generated structures</li>
+        <li><strong>Adaptive compactness:</strong> Length-mode selection and variation generation for optimal word count</li>
         <li><strong>Merkle-tree wordlists:</strong> Cryptographic proofs for wordlist integrity</li>
         <li><strong>Multi-language support:</strong> English, Czech, Latin, and custom dialects</li>
         <li><strong>Verifiable and reproducible:</strong> Inspect the code on <a href="https://github.com/asherp/glossia" style="color: var(--accent);">GitHub</a>, build it yourself</li>
@@ -1112,7 +1134,7 @@ import init, {
 } from './glossia.js';
 
 let ready = false;
-let metaInstruction = 'encode into english';
+let metaInstruction = 'encode into english naturally';
 
 // Store last result for cover word toggle
 let lastEncodedText = '';
@@ -1129,7 +1151,7 @@ function generateExamples() {
       const heroInput = heroWords.join(' ');
       document.getElementById('hero-before').textContent = heroInput;
 
-      const heroResult = JSON.parse(wasmTranscode(heroInput, 'encode into english', BigInt(42)));
+      const heroResult = JSON.parse(wasmTranscode(heroInput, 'encode into english naturally', BigInt(42)));
       if (!heroResult.error && heroResult.output) {
         const payloadSet = new Set((heroResult.payload_words || []).map(w => w.toLowerCase()));
         const words = heroResult.output.split(/\s+/);
@@ -1155,7 +1177,7 @@ function generateExamples() {
       document.getElementById('pgp-armor').textContent = pgpResult.output;
     }
 
-    const proseResult = JSON.parse(wasmTranscode(pgpHex, 'encode into english', BigInt(42)));
+    const proseResult = JSON.parse(wasmTranscode(pgpHex, 'encode into english naturally', BigInt(42)));
     if (!proseResult.error && proseResult.output) {
       const payloadSet = new Set((proseResult.payload_words || []).map(w => w.toLowerCase()));
       const words = proseResult.output.split(/\s+/);
