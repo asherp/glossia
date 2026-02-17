@@ -152,6 +152,14 @@ pub struct Pipeline {
     pub verbose: bool,
     /// When true, replace `\n` with `<br>` in output for HTML rendering.
     pub html: bool,
+    /// Sentence length selection mode (compact vs. natural).
+    pub length_mode: Option<SentenceLengthMode>,
+    /// Generate N variations and select the most compact.
+    pub variations: Option<usize>,
+    /// Maximum sentence length (POS slots).
+    pub k_max: Option<usize>,
+    /// Minimum sentence length (POS slots).
+    pub k_min: Option<usize>,
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -249,6 +257,15 @@ impl Pipeline {
         .copied()
         .collect();
 
+        // Adverbs that modify pipeline behavior (not payload words).
+        let meta_adverbs: HashSet<&str> = [
+            "compactly", "efficiently", "naturally", "minimally",
+            "optimally", "thoroughly",
+        ]
+        .iter()
+        .copied()
+        .collect();
+
         let mut current_role: Option<Role> = None;
         let mut source: Option<Endpoint> = None;
         let mut target: Option<Endpoint> = None;
@@ -258,6 +275,12 @@ impl Pipeline {
         let mut source_explicit = false;
         let mut target_explicit = false;
         let mut html = false;
+
+        // Pipeline parameters from adverbs.
+        let mut length_mode: Option<SentenceLengthMode> = None;
+        let mut variations: Option<usize> = None;
+        let mut k_max: Option<usize> = None;
+        let mut k_min: Option<usize> = None;
 
         for &token in &tokens {
             let lower = token.to_lowercase();
@@ -272,6 +295,35 @@ impl Pipeline {
             // Output rendering modifier: "html" → replace \n with <br> in output.
             if lower == "html" {
                 html = true;
+                continue;
+            }
+
+            // Adverb modifiers: control compactness, variations, sentence length.
+            if meta_adverbs.contains(lower) {
+                match lower {
+                    "compactly" => {
+                        length_mode = Some(SentenceLengthMode::Compact);
+                    }
+                    "efficiently" => {
+                        length_mode = Some(SentenceLengthMode::Compact);
+                        k_max = Some(20);
+                    }
+                    "naturally" => {
+                        length_mode = Some(SentenceLengthMode::Natural);
+                    }
+                    "minimally" => {
+                        length_mode = Some(SentenceLengthMode::Compact);
+                        k_min = Some(2);
+                        k_max = Some(12);
+                    }
+                    "optimally" => {
+                        variations = Some(50);
+                    }
+                    "thoroughly" => {
+                        variations = Some(100);
+                    }
+                    _ => {}
+                }
                 continue;
             }
 
@@ -364,6 +416,10 @@ impl Pipeline {
             seed: 0,
             verbose: false,
             html,
+            length_mode,
+            variations,
+            k_max,
+            k_min,
         })
     }
 
@@ -375,6 +431,10 @@ impl Pipeline {
             seed: 0,
             verbose: false,
             html: false,
+            length_mode: None,
+            variations: None,
+            k_max: None,
+            k_min: None,
         }
     }
 
@@ -393,6 +453,30 @@ impl Pipeline {
     /// Enable HTML output rendering (cover wordlist override to "html").
     pub fn with_html(mut self, html: bool) -> Self {
         self.html = html;
+        self
+    }
+
+    /// Set sentence length mode (compact vs. natural).
+    pub fn with_length_mode(mut self, mode: SentenceLengthMode) -> Self {
+        self.length_mode = Some(mode);
+        self
+    }
+
+    /// Set number of variations to generate (select most compact).
+    pub fn with_variations(mut self, count: usize) -> Self {
+        self.variations = Some(count);
+        self
+    }
+
+    /// Set maximum sentence length (POS slots).
+    pub fn with_k_max(mut self, k_max: usize) -> Self {
+        self.k_max = Some(k_max);
+        self
+    }
+
+    /// Set minimum sentence length (POS slots).
+    pub fn with_k_min(mut self, k_min: usize) -> Self {
+        self.k_min = Some(k_min);
         self
     }
 
@@ -514,6 +598,9 @@ impl Pipeline {
         let (text, _, _, _) = encode_into_language(
             input, language, wordlist, dialect, None, self.seed, self.verbose,
             self.cover_override(),
+            self.length_mode,
+            self.k_min,
+            self.k_max,
         )?;
         Ok(text)
     }
@@ -532,6 +619,9 @@ impl Pipeline {
         let (text, _payload_set, encoded_words, data_mode) = encode_into_language(
             input, language, wordlist, dialect, None, self.seed, self.verbose,
             self.cover_override(),
+            self.length_mode,
+            self.k_min,
+            self.k_max,
         )?;
 
         let payload_count = encoded_words.len();
@@ -704,6 +794,9 @@ pub fn encode_into_language(
     seed: u64,
     verbose: bool,
     cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
 ) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
     // Auto-detect subject prefix from input (Re: / Fwd:).
     // When dialect is "subject", check if input starts with a known prefix,
@@ -793,7 +886,10 @@ pub fn encode_into_language(
         let k = min_k + payload_toks.len().saturating_sub(1);
         (k, k)
     } else {
-        (5, 12)
+        // Use overrides if provided, otherwise defaults
+        let default_k_min = 5;
+        let default_k_max = 12;
+        (k_min_override.unwrap_or(default_k_min), k_max_override.unwrap_or(default_k_max))
     };
 
     // 6. Generate text.
@@ -803,6 +899,12 @@ pub fn encode_into_language(
     } else {
         GenerationMode::Body
     };
+    // Use provided length_mode, or default based on generation mode
+    let length_mode = length_mode.unwrap_or_else(|| match mode {
+        GenerationMode::Subject => SentenceLengthMode::Compact,
+        GenerationMode::Body => SentenceLengthMode::Natural,
+        GenerationMode::PayloadOnly => SentenceLengthMode::Compact,
+    });
     let (text, payload_set) = generate_text_with_original_payload(
         &mut rng,
         &lex,
@@ -814,7 +916,7 @@ pub fn encode_into_language(
         Some(dialect),
         k_min,
         k_max,
-        SentenceLengthMode::Natural,
+        length_mode,
         " ",
     );
 
@@ -1182,5 +1284,73 @@ mod tests {
         let p = Pipeline::from_meta("encode into nostr").unwrap();
         assert_eq!(p.target, Endpoint::language_with_dialect("cs", "nip04"),
             "nostr should route to cs language with nip04 dialect");
+    }
+
+    // ── Adverb modifiers ────────────────────────────────────────────
+
+    #[test]
+    fn test_adverb_compactly() {
+        let p = Pipeline::from_meta("encode hex into english compactly").unwrap();
+        assert_eq!(p.length_mode, Some(SentenceLengthMode::Compact),
+            "compactly should set length_mode to Compact");
+    }
+
+    #[test]
+    fn test_adverb_efficiently() {
+        let p = Pipeline::from_meta("translate from hex into latin efficiently").unwrap();
+        assert_eq!(p.length_mode, Some(SentenceLengthMode::Compact),
+            "efficiently should set length_mode to Compact");
+        assert_eq!(p.k_max, Some(20),
+            "efficiently should set k_max to 20");
+    }
+
+    #[test]
+    fn test_adverb_naturally() {
+        let p = Pipeline::from_meta("encode hex into english naturally").unwrap();
+        assert_eq!(p.length_mode, Some(SentenceLengthMode::Natural),
+            "naturally should set length_mode to Natural");
+    }
+
+    #[test]
+    fn test_adverb_minimally() {
+        let p = Pipeline::from_meta("encode into latin minimally").unwrap();
+        assert_eq!(p.length_mode, Some(SentenceLengthMode::Compact),
+            "minimally should set length_mode to Compact");
+        assert_eq!(p.k_min, Some(2),
+            "minimally should set k_min to 2");
+        assert_eq!(p.k_max, Some(12),
+            "minimally should set k_max to 12");
+    }
+
+    #[test]
+    fn test_adverb_optimally() {
+        let p = Pipeline::from_meta("encode hex into english optimally").unwrap();
+        assert_eq!(p.variations, Some(50),
+            "optimally should set variations to 50");
+    }
+
+    #[test]
+    fn test_adverb_thoroughly() {
+        let p = Pipeline::from_meta("translate from hex into latin thoroughly").unwrap();
+        assert_eq!(p.variations, Some(100),
+            "thoroughly should set variations to 100");
+    }
+
+    #[test]
+    fn test_multiple_adverbs() {
+        let p = Pipeline::from_meta("encode hex into english compactly optimally").unwrap();
+        assert_eq!(p.length_mode, Some(SentenceLengthMode::Compact),
+            "compactly should set length_mode");
+        assert_eq!(p.variations, Some(50),
+            "optimally should set variations");
+    }
+
+    #[test]
+    fn test_adverb_with_dialect_modifier() {
+        let p = Pipeline::from_meta("encode into latin prose compactly").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("latin", "prose"),
+            "prose dialect should be preserved");
+        assert_eq!(p.length_mode, Some(SentenceLengthMode::Compact),
+            "compactly should set length_mode");
     }
 }

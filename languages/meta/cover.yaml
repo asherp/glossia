@@ -82,6 +82,34 @@ safely:
 losslessly:
   Adv: 1.0
 
+# Compactness modifiers (control sentence length and payload density)
+
+compactly:
+  Adv: 1.0
+  # Sets length_mode = Compact (shortest sentences first)
+
+efficiently:
+  Adv: 1.0
+  # Sets length_mode = Compact, k_max = 20 (allow longer sequences for more payload slots)
+
+naturally:
+  Adv: 1.0
+  # Sets length_mode = Natural (sample from grammar distribution)
+
+minimally:
+  Adv: 1.0
+  # Sets length_mode = Compact, k_min = 2, k_max = 12 (minimize total words)
+
+# Optimization modifiers
+
+optimally:
+  Adv: 1.0
+  # Generate multiple variations and select best (variations = 50)
+
+thoroughly:
+  Adv: 1.0
+  # Generate many variations for best result (variations = 100)
+
 # ── Conjunctions (output combiners) ──────────────────────────
 
 and:
