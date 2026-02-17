@@ -17,6 +17,8 @@ The result is a system where:
 - Translation between any two representations is lossless, because all representations factor through a common binary intermediate.
 - A meta-language, itself governed by the same type algebra, specifies pipelines like "translate from English into Latin" as grammatically valid sentences whose semantic derivation *is* the pipeline specification.
 
+**Glossia is not steganography.** Steganography hides messages in noise --- the goal is *secrecy*, where an observer cannot detect that a message exists at all. Glossia's goal is *privacy*: anyone with the matching payload wordlist can immediately see that a Glossia-encoded text carries data. The payload words are not hidden; they are grammatically prominent. This is a deliberate design choice. By keeping payload words easily distinguishable from cover words, Glossia maximizes signal-to-noise ratio and decoding reliability, while freeing the surrounding medium --- prose, images, music --- to optimize for aesthetics and readability rather than obfuscation. The result is closer to a *linguistic encoding* than a covert channel: the privacy comes from the wordlist (a shared secret), not from the invisibility of the message.
+
 This paper develops the theory, describes the architecture, and presents applications across four media: human language, images, music, and mathematics.
 
 ## 2. Theoretical Foundations
@@ -166,7 +168,7 @@ Glossia supports a Merkle tree mode that wraps $N$ payload words in a cryptograp
 This provides:
 - **Tamper detection**: The Merkle structure proves the payload words are authentic and in the correct order.
 - **Natural appearance**: Common words like "the" appear as the root and internal nodes, maintaining the illusion of natural prose.
-- **Steganographic Merkle proofs**: The proof structure is hidden within the grammatical scaffolding.
+- **Structural Merkle proofs**: The proof structure is carried by the grammatical scaffolding.
 
 ## 4. Application: Human Language Encoding
 
@@ -210,7 +212,7 @@ Larger vocabularies increase bits per word, yielding more compact encodings. Bec
 
 ## 5. Application: Image Encoding
 
-### 5.1 Color-Space Steganography
+### 5.1 Color-Space Encoding
 
 The Glossia image codec encodes binary data into images using a geometric construction in CIELAB perceptual color space. The core idea:
 
@@ -570,7 +572,7 @@ The system compiles to a single binary with no runtime file dependencies. A WebA
 
 **Combinatory Categorial Grammar** (Steedman, 2000) extended Montague's approach with combinators for flexible word order and composition. Glossia uses the B, C, S, T, I combinators for both sentence construction and pipeline specification.
 
-**Steganography** research has explored hiding data in text (linguistic steganography) and images. Glossia's image codec differs from traditional steganography in that it is not adversarial --- the goal is aesthetic human-readable encoding, not hidden communication.
+**Steganography** research has explored hiding data in text (linguistic steganography) and images. Glossia differs from steganography in a fundamental way: steganography provides *secrecy* (an observer cannot detect that a message exists), while Glossia provides *privacy* (anyone with the payload wordlist can see the data is there). This distinction is analogous to the difference between a locked diary written in plain English (private) and invisible ink on a blank page (secret). In Glossia, payload words are grammatically prominent and trivially extractable given the wordlist --- there is no attempt to make them indistinguishable from cover words. This transparency is a feature: by boosting signal above noise rather than burying it, Glossia achieves reliable decoding and frees the surrounding medium to optimize for human readability and aesthetic quality rather than statistical undetectability.
 
 **QR codes** (ISO/IEC 18004) encode binary data as 2D black-and-white matrices. Glossia's image codec achieves higher information density per visual element and greater noise tolerance, at the cost of requiring a color-capable display and camera.
 
