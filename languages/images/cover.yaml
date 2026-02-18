@@ -1,0 +1,153 @@
+# Image Cover Wordlist for Glossia
+#
+# Structural tokens for image encoding. Same architectural role as
+# music/cover.yaml (barlines, durations, dynamics) — these provide
+# visual framing around the payload colors, not data.
+#
+# All use function-word POS tags so they're excluded from payload embedding.
+# Refinement tags let the grammar deterministically place the correct token.
+#
+# Output rendering: Primary format is text notation (space-separated tokens).
+# Image rendering (PNG/SVG) is a separate post-processing layer, analogous
+# to how music/render_midi.py turns note tokens into MIDI files.
+#
+# Example output (grid dialect):
+#   size=256 cols=4 palette=viridis
+#   c03 cell c15 cell c42 cell c07 cell |
+#   c28 cell c11 cell c55 cell c33 cell |
+#   ||
+#
+# Example output (voronoi dialect):
+#   voronoi: size=400 palette=viridis
+#   c03 cell c15 cell c42 cell c07 cell c28 cell
+#   ||
+
+# == Row / frame separators (Dot -- structural punctuation) ===========
+
+"|":
+  Dot: 1.0
+
+"||":
+  Dot: 1.0
+  refinement: end
+
+# == Background fill (Cop -- fills a cell position without payload) ===
+# Analogous to "rest" in music: occupies a cell slot but carries no data.
+
+bg:
+  Cop: 1.0
+
+# == Cell shape (Adj -- modify how the palette color is displayed) ====
+# Analogous to note durations in music: every payload color gets a shape.
+# The renderer interprets these to produce different visual elements.
+
+cell:
+  Adj: 1.0
+  refinement: cell
+
+patch:
+  Adj: 1.0
+  refinement: patch
+
+dot:
+  Adj: 1.0
+  refinement: dot
+
+tile:
+  Adj: 1.0
+  refinement: tile
+
+triangle:
+  Adj: 1.0
+  refinement: triangle
+
+hexagon:
+  Adj: 1.0
+  refinement: hexagon
+
+pixel:
+  Adj: 1.0
+  refinement: pixel
+
+# == Style modifiers (Adv -- modify how a cell is rendered) ===========
+# Analogous to dynamics in music (pp, mf, ff): control visual intensity.
+
+filled:
+  Adv: 1.0
+  refinement: filled
+
+outlined:
+  Adv: 1.0
+  refinement: outlined
+
+stroked:
+  Adv: 1.0
+  refinement: stroked
+
+gradient:
+  Adv: 1.0
+  refinement: gradient
+
+# == Header tokens (Aux -- structural framing) ========================
+# Pre-formatted with default values (analogous to tempo=120, time=4/4).
+# The renderer interprets these as canvas configuration.
+
+"size=256":
+  Aux: 1.0
+  refinement: size
+
+"cols=4":
+  Aux: 1.0
+  refinement: cols
+
+"palette=viridis":
+  Aux: 1.0
+  refinement: palette
+
+# == Separator (Conj -- between structural sections) ==================
+
+"\n":
+  Conj: 1.0
+
+# == Rendering hints (Modal -- modify rendering quality) ==============
+# Analogous to articulation in music (staccato, legato).
+
+smooth:
+  Modal: 1.0
+  refinement: smooth
+
+crisp:
+  Modal: 1.0
+  refinement: crisp
+
+rounded:
+  Modal: 1.0
+  refinement: rounded
+
+# == Border/connection markers (To -- cell decoration) ================
+
+border:
+  To: 1.0
+
+# == Dialect markers (Prefix -- layout type identifiers) ==============
+# Select which visual layout the renderer should use.
+
+"voronoi:":
+  Prefix: 1.0
+  refinement: voronoi
+
+"grid:":
+  Prefix: 1.0
+  refinement: grid
+
+"patches:":
+  Prefix: 1.0
+  refinement: patches
+
+"mosaic:":
+  Prefix: 1.0
+  refinement: mosaic
+
+"constellation:":
+  Prefix: 1.0
+  refinement: constellation

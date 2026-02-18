@@ -1,0 +1,476 @@
+# Image Grammar — Parametric Color Encoding Structure
+#
+# Structural grammar for encoding binary payloads as color sequences
+# rendered into images. Follows the same architecture as music (MIDI
+# note sequences): the grammar generates a structural frame, payload
+# colors fill the N slots, cover tokens provide visual context (shapes,
+# styles, row markers, headers).
+#
+# Output structure (raw dialect):
+#   <payload colors>
+#
+# Output structure (grid dialect):
+#   size=256 cols=4 palette=viridis\n
+#   <rows of color cells separated by row markers>
+#   ||
+#
+# Output structure (voronoi dialect):
+#   voronoi: size=400 palette=viridis\n
+#   <color cells>
+#   ||
+#
+# Type inventory (reinterpreted for images):
+#   e = color (a palette color sample)
+#   t = complete visual unit (row, frame, image)
+#
+# POS reinterpretation for images:
+#   N     = palette color (carries data)
+#   Adj   = cell shape (cell, patch, dot, tile, triangle, hexagon, pixel)
+#   Adv   = style modifier (filled, outlined, stroked, gradient)
+#   Dot   = row separator (|) or frame end (||)
+#   Cop   = background fill (occupies cell without payload)
+#   Aux   = header tokens (size, cols, palette)
+#   Modal = rendering hint (smooth, crisp, rounded)
+#   Conj  = section separator (\n)
+#   Prefix = layout dialect marker (voronoi:, grid:, patches:, mosaic:)
+#   To    = border/connection marker
+
+grammar:
+  name: "Image Grammar"
+
+  # Images support multiple palette sizes (16, 32, 64, 96 colors)
+  # with varying capacities. Disable bitpacking to allow non-power-of-two
+  # palette sizes for custom palettes.
+  bitpacking: false
+
+  # Colors are space-separated tokens (not concatenated like CS base58).
+  payload_separator: " "
+
+  # Dot produces row markers, not sentence-ending periods.
+  dot_is_punctuation: false
+
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+
+    - name: "Adj"
+      lambda_type: "e -> e"
+
+    - name: "Adv"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Dot"
+      lambda_type: "t"
+
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+  # Base rules — grid layout (analogous to music "scored" with bars)
+  #
+  # sentence → ROWS Dot[end]
+  # ROWS → ROW | ROW ROWS
+  # ROW → CELL CELL CELL CELL Dot  (4 cells per row, row marker)
+  # CELL → N Adj | Cop Adj          (color+shape or background+shape)
+  rules:
+    sentence:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "ROWS Dot[end]"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+    ROWS:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "ROW"
+          weight: 0.15
+          lambda: "λn:(e->t). n"
+        - production: "ROW ROWS"
+          weight: 0.85
+          lambda: "λn:(e->t). n"
+
+    ROW:
+      # 4 cells per row (like 4 beats per bar in music's 4/4 time).
+      # This is the default grid width; dialects can override.
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "CELL CELL CELL CELL Dot"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+
+    CELL:
+      # A cell is either a payload color or background, each with a shape.
+      # Style modifiers and rendering hints optionally modify colors.
+      #
+      # One palette color per CELL slot (6 bits/color with N=64).
+      # Shapes (cell, patch, dot, etc.) are interpretive — they specify
+      # visual rendering but don't change payload capacity.
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "N Adj"
+          weight: 0.70
+          # Payload color + shape: "c23 cell"
+          lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+        - production: "Cop Adj"
+          weight: 0.15
+          # Background + shape: "bg cell"
+          lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+        - production: "Adv N Adj"
+          weight: 0.10
+          # Style + color + shape: "filled c23 cell"
+          lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+        - production: "Modal N Adj"
+          weight: 0.05
+          # Rendering hint + color + shape: "smooth c23 cell"
+          lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+
+  # Dialect overrides
+  dialects:
+    raw:
+      # Raw color sequence — no row markers, no headers. Just payload colors.
+      # Analogous to music "raw" dialect and CS "raw" dialect.
+      # Uses default payload.yaml (64 colors, 6 bits/color)
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        BODY:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "N BODY"
+              weight: 0.9
+              lambda: "λn:(e->t). n"
+
+    grid:
+      # Grid layout — header with size/cols/palette, structured rows, end marker.
+      # Analogous to music "scored" dialect.
+      #
+      # Output:
+      #   size=256 cols=4 palette=viridis
+      #   c03 cell c15 cell c42 cell c07 cell |
+      #   c28 cell c11 cell c55 cell c33 cell |
+      #   ||
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER ROWS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Aux[size] Aux[cols] Aux[palette] Conj"
+              weight: 1.0
+              # Header tokens are templates. Renderer interprets:
+              #   Aux[size]    → "size=256" (default)
+              #   Aux[cols]    → "cols=4"   (default)
+              #   Aux[palette] → "palette=viridis"
+              #   Conj         → "\n"
+              # Output: "size=256 cols=4 palette=viridis\n"
+              lambda: "λn:(e->t). n"
+
+        ROWS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "ROW"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "ROW ROWS"
+              weight: 0.85
+              lambda: "λn:(e->t). n"
+
+        ROW:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "CELL CELL CELL CELL Dot"
+              weight: 0.70
+              # Standard 4-cell row
+              lambda: "λn:(e->t). n"
+            - production: "CELL CELL CELL CELL CELL CELL CELL CELL Dot"
+              weight: 0.15
+              # Wide 8-cell row
+              lambda: "λn:(e->t). n"
+            - production: "CELL CELL Dot"
+              weight: 0.10
+              # Narrow 2-cell row
+              lambda: "λn:(e->t). n"
+            - production: "CELL Dot"
+              weight: 0.05
+              # Single-cell row
+              lambda: "λn:(e->t). n"
+
+        CELL:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.60
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.10
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.15
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+            - production: "Modal N Adj"
+              weight: 0.10
+              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+            - production: "N Adj To N Adj"
+              weight: 0.05
+              # Bordered pair: "c03 cell border c15 cell"
+              lambda: "λn:(e->t). λadj:(e->e). λto:((e->t)->(e->t)). to(adj(n))"
+
+    voronoi:
+      # Voronoi cell layout — the signature visual dialect.
+      # Lloyd-relaxed Voronoi cells, each filled with a payload color.
+      # Cell borders and seed positions are cover (not payload).
+      #
+      # Output:
+      #   voronoi: size=400 palette=viridis
+      #   c03 cell c15 cell c42 cell c07 cell c28 cell c11 cell
+      #   ||
+      #
+      # No row markers — the renderer arranges cells as a Voronoi diagram.
+      # The CELLS rule is flat (not grid-structured) because Voronoi layout
+      # is inherently spatial, not row-based.
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER CELLS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Prefix[voronoi] Aux[size] Aux[palette] Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        CELLS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "CELL"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "CELL CELLS"
+              weight: 0.9
+              lambda: "λn:(e->t). n"
+
+        CELL:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.75
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.10
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.10
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+            - production: "Modal N Adj"
+              weight: 0.05
+              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+
+    patches:
+      # Rectangular patches — quilt-like grid of colored rectangles.
+      # Structured with rows, like the base grid, but uses "patch" shape.
+      #
+      # Output:
+      #   patches: size=256 cols=4 palette=viridis
+      #   c03 patch c15 patch c42 patch c07 patch |
+      #   c28 patch c11 patch c55 patch c33 patch |
+      #   ||
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER ROWS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Prefix[patches] Aux[size] Aux[cols] Aux[palette] Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        ROWS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "ROW"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "ROW ROWS"
+              weight: 0.85
+              lambda: "λn:(e->t). n"
+
+        ROW:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "CELL CELL CELL CELL Dot"
+              weight: 0.80
+              # Standard 4-patch row
+              lambda: "λn:(e->t). n"
+            - production: "CELL CELL Dot"
+              weight: 0.15
+              # 2-patch row (large patches)
+              lambda: "λn:(e->t). n"
+            - production: "CELL Dot"
+              weight: 0.05
+              # Single large patch
+              lambda: "λn:(e->t). n"
+
+        CELL:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.80
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.10
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.10
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+
+    mosaic:
+      # Mosaic tile layout — irregular colored tiles with grout lines.
+      # Flat cell sequence (like voronoi), tiles have varied shapes.
+      #
+      # Output:
+      #   mosaic: size=400 palette=viridis
+      #   c03 tile c15 hexagon c42 triangle c07 tile
+      #   ||
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER CELLS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Prefix[mosaic] Aux[size] Aux[palette] Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        CELLS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "CELL"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "CELL CELLS"
+              weight: 0.9
+              lambda: "λn:(e->t). n"
+
+        CELL:
+          # Mosaic cells use mixed shapes for visual variety.
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.70
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.10
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.15
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+            - production: "Modal N Adj"
+              weight: 0.05
+              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+
+    constellation:
+      # Constellation layout — colored dots on a dark background.
+      # Connecting lines and background gradient are cover.
+      #
+      # Output:
+      #   constellation: size=400 palette=viridis
+      #   c03 dot c15 dot c42 dot c07 dot
+      #   ||
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER CELLS Dot[end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Prefix[constellation] Aux[size] Aux[palette] Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        CELLS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "CELL"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "CELL CELLS"
+              weight: 0.9
+              lambda: "λn:(e->t). n"
+
+        CELL:
+          # Constellation cells are always dots (the shape IS the dialect).
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Adj"
+              weight: 0.80
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Cop Adj"
+              weight: 0.05
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv N Adj"
+              weight: 0.10
+              lambda: "λn:(e->t). λadj:(e->e). λadv:((e->t)->(e->t)). adv(adj(n))"
+            - production: "Modal N Adj"
+              weight: 0.05
+              lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
+
+    # -- Reduced palette dialects (like music's pentatonic) -----------
+    #
+    # These use a smaller subset of the 64-color palette for constrained
+    # environments or specific aesthetic goals. The palette curve is the
+    # same; fewer colors are sampled from it.
+
+    warm:
+      # Warm palette — 32 colors from the warm palette curve.
+      # Override palette header to indicate warm palette.
+      parent: grid
+
+    cool:
+      # Cool palette — 32 colors from the cool palette curve.
+      parent: grid
