@@ -19,9 +19,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(__file__))
 from parametric_encoding import (
-    PaletteCurve, BishopFrame, Constellation, ConstellationMap,
-    compute_tube_radius, encode, decode, build_encoder,
-    lab_to_srgb, srgb_to_lab, lab_in_srgb_gamut, EPSILON,
+    PaletteCurve, BishopFrame,
+    encode, decode, lab_to_srgb,
+    select_encoding_params, encode_header, decode_header,
+    derive_config_table,
 )
 
 from visualize_encoding import render_voronoi_image, generate_voronoi_seeds
@@ -34,19 +35,31 @@ import matplotlib.pyplot as plt
 app = Flask(__name__)
 
 # ---------------------------------------------------------------------------
-# Build encoder once at startup
+# Optimal config cache — derived from curve geometry, cached by palette name
 # ---------------------------------------------------------------------------
 
 YAML_PATH = os.path.join(os.path.dirname(__file__), 'palette.yaml')
-ENCODERS = {}  # cache by (palette, N)
+CONFIG_CACHE = {}
 
 
-def get_encoder(palette='viridis_approx', n_palette=16):
-    key = (palette, n_palette)
-    if key not in ENCODERS:
-        ENCODERS[key] = build_encoder(
-            YAML_PATH, palette, n_palette=n_palette)
-    return ENCODERS[key]
+def get_optimal_config(palette_name='viridis_approx'):
+    """Build curve + frame and derive optimal (N, epsilon) for a palette.
+
+    Caches by palette name since the optimal config depends only on the
+    curve geometry.
+    """
+    if palette_name not in CONFIG_CACHE:
+        curve = PaletteCurve.from_yaml(YAML_PATH, palette_name)
+        frame = BishopFrame(curve)
+        configs = derive_config_table(curve, frame)
+        opt = select_encoding_params(curve, frame, configs=configs)
+        CONFIG_CACHE[palette_name] = {
+            'curve': curve,
+            'frame': frame,
+            'opt': opt,
+            'configs': configs,
+        }
+    return CONFIG_CACHE[palette_name]
 
 
 # ---------------------------------------------------------------------------
@@ -251,21 +264,24 @@ def perturb_lab(pixels_lab, noise_sigma=0.0, brightness=0.0,
     return out
 
 
-def render_palette_strip(enc, scale=40):
+def render_palette_strip(curve, s_palette, scale=40):
     """Render palette as a horizontal color strip, return PNG bytes."""
-    n_pal = enc['n_palette']
-    curve = enc['curve']
-    s_pts = np.linspace(0, curve.arc_length, n_pal)
-    pts_lab = curve.eval(s_pts)
+    n_pal = len(s_palette)
+    pts_lab = curve.eval(s_palette)
     pts_srgb = lab_to_srgb(pts_lab)
 
     img = pts_srgb.reshape(1, n_pal, 3)
 
-    fig_w = max(n_pal * scale / 100, 3)
+    # Scale down for large palettes
+    effective_scale = scale if n_pal <= 32 else max(scale * 32 / n_pal, 5)
+    fig_w = max(n_pal * effective_scale / 100, 3)
     fig, ax = plt.subplots(1, 1, figsize=(fig_w, 0.8))
     ax.imshow(img, interpolation='nearest', aspect='auto')
-    ax.set_xticks(range(n_pal))
-    ax.set_xticklabels(range(n_pal), fontsize=7, color='#c0c0c0')
+    if n_pal <= 32:
+        ax.set_xticks(range(n_pal))
+        ax.set_xticklabels(range(n_pal), fontsize=7, color='#c0c0c0')
+    else:
+        ax.set_xticks([])
     ax.set_yticks([])
     ax.tick_params(axis='x', colors='#c0c0c0')
     plt.tight_layout(pad=0.2)
@@ -430,6 +446,8 @@ HTML_TEMPLATE = """
     text-transform: uppercase;
     margin-top: 0.2rem;
   }
+  .stat.derived .value { color: #ffd700; }
+  .stat.derived .label { color: #998a00; }
   .roundtrip {
     margin-top: 1rem;
     padding: 0.8rem;
@@ -513,17 +531,22 @@ HTML_TEMPLATE = """
     margin-bottom: 1.5rem;
   }
   .perturb-panel h2 { color: #ffaa7f; }
+  .header-tag {
+    color: #ffd700;
+    font-weight: bold;
+    font-size: 0.7rem;
+  }
 </style>
 </head>
 <body>
 <div class="container">
   <h1>Glossia Image Encoder</h1>
-  <p class="subtitle">Parametric curve encoding in CIELAB color space</p>
+  <p class="subtitle">Parametric curve encoding in CIELAB color space &mdash; self-describing adaptive radix</p>
 
   <form method="POST" action="/encode" id="main-form">
     <div class="panel">
       <h2>Payload</h2>
-      <label>Word indices (comma-separated, 0 to N-1)</label>
+      <label>Word indices (comma-separated, 0 to {{ derived_N - 1 }})</label>
       <input type="text" name="payload" value="{{ payload_str }}"
              placeholder="0,3,3,7,15,8,8,8,12,5" id="payload-input">
 
@@ -531,18 +554,6 @@ HTML_TEMPLATE = """
       <input type="range" name="n_cells" id="cells-slider"
              min="3" max="100" value="{{ n_cells }}"
              oninput="document.getElementById('cells-display').textContent=this.value"
-             onchange="autoEncode()">
-
-      <label>&epsilon; (grid spacing)
-        <span class="slider-value" id="eps-display">{{ epsilon }}</span>
-        <span style="color:#666680;font-size:0.7rem;float:right;margin-right:4rem;">
-          &sigma;95 &asymp; <span id="sigma95-display">{{ "%.1f"|format(epsilon / 5.6) }}</span>
-        </span>
-      </label>
-      <input type="range" name="epsilon" id="eps-slider"
-             min="2.3" max="30" step="0.5" value="{{ epsilon }}"
-             oninput="document.getElementById('eps-display').textContent=this.value;
-                      document.getElementById('sigma95-display').textContent=(this.value/5.6).toFixed(1)"
              onchange="autoEncode()">
 
       <label style="display:inline-flex;align-items:center;gap:0.5rem;cursor:pointer;margin-bottom:1rem;">
@@ -555,15 +566,11 @@ HTML_TEMPLATE = """
       <div class="row">
         <div>
           <label>Palette</label>
-          <select name="palette">
+          <select name="palette" onchange="autoEncode()">
             <option value="viridis_approx" {{ 'selected' if palette=='viridis_approx' }}>viridis_approx</option>
             <option value="warm" {{ 'selected' if palette=='warm' }}>warm</option>
             <option value="cool" {{ 'selected' if palette=='cool' }}>cool</option>
           </select>
-        </div>
-        <div>
-          <label>N (palette size)</label>
-          <input type="text" name="n_palette" value="{{ n_palette }}">
         </div>
         <div>
           <label>Image size</label>
@@ -572,6 +579,21 @@ HTML_TEMPLATE = """
         <div>
           <label>Seed</label>
           <input type="text" name="seed" value="{{ seed }}">
+        </div>
+      </div>
+
+      <div class="row" style="margin-bottom:1rem;">
+        <div class="stat derived" style="padding:0.4rem 0.6rem;">
+          <div class="value" style="font-size:1rem;">N={{ derived_N }}</div>
+          <div class="label">palette size (derived)</div>
+        </div>
+        <div class="stat derived" style="padding:0.4rem 0.6rem;">
+          <div class="value" style="font-size:1rem;">&epsilon;={{ "%.1f"|format(derived_eps) }}</div>
+          <div class="label">grid spacing (derived)</div>
+        </div>
+        <div class="stat derived" style="padding:0.4rem 0.6rem;">
+          <div class="value" style="font-size:1rem;">{{ derived_bpc }} bpc</div>
+          <div class="label">bits/cell (derived)</div>
         </div>
       </div>
 
@@ -611,17 +633,29 @@ HTML_TEMPLATE = """
     {% endif %}
 
     <div class="stats">
+      <div class="stat derived">
+        <div class="value">{{ derived_N }}</div>
+        <div class="label">N (derived)</div>
+      </div>
+      <div class="stat derived">
+        <div class="value">{{ "%.1f"|format(derived_eps) }}</div>
+        <div class="label">&epsilon; (derived)</div>
+      </div>
+      <div class="stat derived">
+        <div class="value">{{ derived_bpc }}</div>
+        <div class="label">Bits/cell</div>
+      </div>
       <div class="stat">
         <div class="value">{{ n_words }}</div>
-        <div class="label">Words</div>
+        <div class="label">Payload words</div>
+      </div>
+      <div class="stat">
+        <div class="value">{{ n_words + 1 }}</div>
+        <div class="label">Total cells</div>
       </div>
       <div class="stat">
         <div class="value">{{ meta.M_min }}..{{ meta.M_max }}</div>
         <div class="label">M range</div>
-      </div>
-      <div class="stat">
-        <div class="value">{{ "%.1f"|format(meta.bits_per_pixel) }}</div>
-        <div class="label">Bits/pixel</div>
       </div>
       <div class="stat">
         <div class="value">{{ meta.capacity_min }}..{{ meta.capacity_max }}</div>
@@ -634,10 +668,6 @@ HTML_TEMPLATE = """
       <div class="stat">
         <div class="value">{{ total_bits }}</div>
         <div class="label">Total bits</div>
-      </div>
-      <div class="stat">
-        <div class="value">{{ "%.1f"|format(meta.epsilon) }}</div>
-        <div class="label">&epsilon; (CIELAB)</div>
       </div>
       <div class="stat">
         <div class="value">{{ "%.1f"|format(meta.sigma95) }}</div>
@@ -737,7 +767,13 @@ HTML_TEMPLATE = """
       {% for p in pixels %}
       <tr>
         <td>{{ p.idx }}</td>
-        <td>{{ p.word }}</td>
+        <td>
+          {% if p.word == 'HEADER' %}
+            <span class="header-tag">HEADER</span>
+          {% else %}
+            {{ p.word }}
+          {% endif %}
+        </td>
         <td><span class="swatch" style="background:rgb({{ p.r }},{{ p.g }},{{ p.b }})"></span></td>
         <td>L*={{ "%.1f"|format(p.L) }} a*={{ "%.1f"|format(p.a) }} b*={{ "%.1f"|format(p.bstar) }}</td>
         <td>({{ p.r }}, {{ p.g }}, {{ p.b }})</td>
@@ -765,17 +801,17 @@ function autoEncode() {
 
 @app.route('/', methods=['GET'])
 def index():
-    enc = get_encoder()
-    palette_img = img_to_data_uri(render_palette_strip(enc))
+    cfg = get_optimal_config()
+    opt = cfg['opt']
+    palette_img = img_to_data_uri(
+        render_palette_strip(cfg['curve'], opt['s_palette']))
     return render_template_string(
         HTML_TEMPLATE,
         payload_str='0,3,3,7,15,8,8,8,12,5',
         palette='viridis_approx',
-        n_palette=16,
         img_size=400,
         seed=42,
         n_cells=20,
-        epsilon=EPSILON,
         circular=False,
         noise_sigma=0.0,
         brightness=0.0,
@@ -794,6 +830,9 @@ def index():
         perturb_correct=0,
         perturb_bits_recovered=0,
         perturb_words=[],
+        derived_N=opt['N'],
+        derived_eps=opt['epsilon'],
+        derived_bpc=opt['bits_per_cell'],
     )
 
 
@@ -810,82 +849,87 @@ def parse_perturb_params(form):
 @app.route('/random', methods=['POST'])
 def random_payload():
     palette = request.form.get('palette', 'viridis_approx')
-    n_palette = int(request.form.get('n_palette', 16))
     img_size = int(request.form.get('img_size', 400))
     voronoi_seed = int(request.form.get('seed', 42))
     n_cells = int(request.form.get('n_cells', 20))
-    epsilon = float(request.form.get('epsilon', EPSILON))
     circular = request.form.get('circular') == '1'
     perturb = parse_perturb_params(request.form)
 
+    cfg = get_optimal_config(palette)
+    N = cfg['opt']['N']
+
     np.random.seed(None)  # true random
-    payload = np.random.randint(0, n_palette, size=n_cells).tolist()
+    payload = np.random.randint(0, N, size=n_cells).tolist()
     payload_str = ','.join(str(w) for w in payload)
 
-    return do_encode(payload_str, palette, n_palette,
+    return do_encode(payload_str, palette,
                      img_size, voronoi_seed, circular=circular,
-                     perturb=perturb, epsilon=epsilon)
+                     perturb=perturb)
 
 
 @app.route('/encode', methods=['POST'])
 def encode_route():
     payload_str = request.form.get('payload', '0,1,2,3')
     palette = request.form.get('palette', 'viridis_approx')
-    n_palette = int(request.form.get('n_palette', 16))
     img_size = int(request.form.get('img_size', 400))
     voronoi_seed = int(request.form.get('seed', 42))
-    epsilon = float(request.form.get('epsilon', EPSILON))
     circular = request.form.get('circular') == '1'
     perturb = parse_perturb_params(request.form)
 
-    return do_encode(payload_str, palette, n_palette,
+    return do_encode(payload_str, palette,
                      img_size, voronoi_seed, circular=circular,
-                     perturb=perturb, epsilon=epsilon)
+                     perturb=perturb)
 
 
-def do_encode(payload_str, palette, n_palette,
-              img_size, voronoi_seed, circular=False, perturb=None,
-              epsilon=None):
+def do_encode(payload_str, palette,
+              img_size, voronoi_seed, circular=False, perturb=None):
     if perturb is None:
         perturb = {'noise_sigma': 0.0, 'brightness': 0.0,
                    'color_temp': 0.0, 'saturation': 1.0}
-    if epsilon is None:
-        epsilon = EPSILON
 
-    enc = get_encoder(palette, n_palette)
+    cfg = get_optimal_config(palette)
+    curve = cfg['curve']
+    frame = cfg['frame']
+    opt = cfg['opt']
+    configs = cfg['configs']
 
-    # Rebuild ConstellationMap with custom epsilon if it differs from default
-    if abs(epsilon - EPSILON) > 1e-6:
-        _, radii = enc['tube_radii']
-        cmap = ConstellationMap(radii, epsilon=epsilon)
-    else:
-        cmap = enc['constellation_map']
+    N = opt['N']
+    eps = opt['epsilon']
+    cmap = opt['constellation_map']
+    s_palette = opt['s_palette']
+    bpc = opt['bits_per_cell']
 
     payload = [int(x.strip()) for x in payload_str.split(',') if x.strip()]
-
     # Clamp to valid range
-    payload = [max(0, min(w, n_palette - 1)) for w in payload]
+    payload = [max(0, min(w, N - 1)) for w in payload]
 
-    # Encode
-    pixels_lab, meta = encode(
-        payload, enc['curve'], enc['frame'],
-        enc['n_palette'],
-        constellation_map=cmap
+    # Encode header pixel (self-describing: declares N and epsilon)
+    header_pixel = encode_header(N, eps, curve, frame, configs=configs)
+
+    # Encode payload pixels
+    payload_pixels, meta = encode(
+        payload, curve, frame, N,
+        constellation_map=cmap,
+        s_palette=s_palette,
     )
-    pixels_srgb = lab_to_srgb(pixels_lab)
 
-    # Decode for round-trip check (clean)
+    # Combine: header + payload (header is visually indistinguishable)
+    all_pixels_lab = np.vstack([header_pixel.reshape(1, 3), payload_pixels])
+    all_pixels_srgb = lab_to_srgb(all_pixels_lab)
+
+    # Clean round-trip decode
+    decode_header(all_pixels_lab[0], curve, frame, configs=configs)
     decoded = decode(
-        pixels_lab, enc['curve'], enc['frame'],
-        enc['n_palette'],
-        constellation_map=cmap
+        all_pixels_lab[1:], curve, frame, N,
+        constellation_map=cmap,
+        s_palette=s_palette,
     )
     roundtrip_ok = (payload == decoded)
 
-    # Render clean image
-    encoded_svg = render_voronoi_svg(pixels_srgb, img_size=img_size,
+    # Render clean image (all pixels including header)
+    encoded_svg = render_voronoi_svg(all_pixels_srgb, img_size=img_size,
                                       seed=voronoi_seed, circular=circular)
-    palette_img = img_to_data_uri(render_palette_strip(enc))
+    palette_img = img_to_data_uri(render_palette_strip(curve, s_palette))
 
     # --- Perturbation ---
     has_perturbation = (perturb['noise_sigma'] > 0 or
@@ -896,15 +940,14 @@ def do_encode(payload_str, palette, n_palette,
     perturbed_svg = None
     perturb_accuracy = 100.0
     perturb_correct = len(payload)
-    bits_per_pixel = (np.log2(n_palette) +
-                      2 * np.log2(max(cmap.M_min, 1)))
-    total_bits = int(len(payload) * bits_per_pixel)
+    total_bits = int(len(payload) * bpc)
     perturb_bits_recovered = total_bits
     perturb_words = []
 
     if has_perturbation:
+        # Perturb all pixels (header + payload)
         perturbed_lab = perturb_lab(
-            pixels_lab,
+            all_pixels_lab,
             noise_sigma=perturb['noise_sigma'],
             brightness=perturb['brightness'],
             color_temp=perturb['color_temp'],
@@ -914,52 +957,68 @@ def do_encode(payload_str, palette, n_palette,
         perturbed_svg = render_voronoi_svg(perturbed_srgb, img_size=img_size,
                                             seed=voronoi_seed, circular=circular)
 
-        # Decode perturbed colors
-        perturbed_decoded = decode(
-            perturbed_lab, enc['curve'], enc['frame'],
-            enc['n_palette'],
-            constellation_map=cmap
-        )
+        # Decode perturbed: header then payload
+        try:
+            decode_header(perturbed_lab[0], curve, frame, configs=configs)
+            perturbed_decoded = decode(
+                perturbed_lab[1:], curve, frame, N,
+                constellation_map=cmap,
+                s_palette=s_palette,
+            )
+        except Exception:
+            perturbed_decoded = [-1] * len(payload)
 
         # Compute accuracy
         perturb_correct = sum(1 for a, b in zip(payload, perturbed_decoded)
                               if a == b)
         perturb_accuracy = 100.0 * perturb_correct / len(payload) if payload else 100.0
-        perturb_bits_recovered = int(perturb_correct * bits_per_pixel)
+        perturb_bits_recovered = int(perturb_correct * bpc)
 
         perturb_words = []
         for i, (expected, got) in enumerate(zip(payload, perturbed_decoded)):
             perturb_words.append({
-                'idx': i,
+                'idx': i + 1,  # +1 because pixel 0 is header
                 'expected': expected,
                 'got': got,
                 'ok': expected == got,
             })
 
-    # Build pixel detail list
+    # Build pixel detail list (header + payload)
     pixel_details = []
-    for i, (lab, rgb, w) in enumerate(zip(pixels_lab, pixels_srgb, payload)):
+    # Header pixel
+    h_lab = all_pixels_lab[0]
+    h_rgb = all_pixels_srgb[0]
+    pixel_details.append({
+        'idx': 0,
+        'word': 'HEADER',
+        'L': h_lab[0], 'a': h_lab[1], 'bstar': h_lab[2],
+        'r': int(h_rgb[0]), 'g': int(h_rgb[1]), 'b': int(h_rgb[2]),
+    })
+    # Payload pixels
+    for i, (lab, rgb, w) in enumerate(zip(
+            all_pixels_lab[1:], all_pixels_srgb[1:], payload)):
         pixel_details.append({
-            'idx': i,
+            'idx': i + 1,
             'word': w,
             'L': lab[0], 'a': lab[1], 'bstar': lab[2],
             'r': int(rgb[0]), 'g': int(rgb[1]), 'b': int(rgb[2]),
         })
 
-    n_cells = len(payload)
-    px_per_cell = (img_size * img_size) / max(n_cells, 1)
+    n_total_cells = len(all_pixels_lab)  # header + payload
+    px_per_cell = (img_size * img_size) / max(n_total_cells, 1)
     noise_reduction = np.sqrt(px_per_cell)
-    effective_sigma95 = epsilon / 5.6 * noise_reduction
+    sigma95 = eps / 5.6
+    effective_sigma95 = sigma95 * noise_reduction
 
     meta_dict = {
         'M_min': cmap.M_min,
         'M_max': cmap.M_max,
-        'bits_per_pixel': bits_per_pixel,
+        'bits_per_pixel': bpc,
         'capacity_min': cmap.capacity_min,
         'capacity_max': cmap.capacity_max,
         'max_word_repeats': meta.get('max_word_repeats', 0),
-        'epsilon': epsilon,
-        'sigma95': epsilon / 5.6,
+        'epsilon': eps,
+        'sigma95': sigma95,
         'px_per_cell': int(px_per_cell),
         'noise_reduction': noise_reduction,
         'effective_sigma95': effective_sigma95,
@@ -969,11 +1028,9 @@ def do_encode(payload_str, palette, n_palette,
         HTML_TEMPLATE,
         payload_str=payload_str,
         palette=palette,
-        n_palette=n_palette,
         img_size=img_size,
         seed=voronoi_seed,
         n_cells=len(payload),
-        epsilon=epsilon,
         circular=circular,
         noise_sigma=perturb['noise_sigma'],
         brightness=perturb['brightness'],
@@ -992,6 +1049,9 @@ def do_encode(payload_str, palette, n_palette,
         perturb_correct=perturb_correct,
         perturb_bits_recovered=perturb_bits_recovered,
         perturb_words=perturb_words,
+        derived_N=N,
+        derived_eps=eps,
+        derived_bpc=bpc,
     )
 
 
@@ -1007,8 +1067,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # Pre-warm the default encoder
-    print("Building default encoder...")
-    get_encoder()
+    print("Deriving optimal config for default palette...")
+    cfg = get_optimal_config()
+    opt = cfg['opt']
+    print(f"  N={opt['N']}, epsilon={opt['epsilon']:.1f}, "
+          f"bpc={opt['bits_per_cell']}")
     print(f"Ready! Open http://{args.host}:{args.port}")
 
     app.run(host=args.host, port=args.port, debug=args.debug)
