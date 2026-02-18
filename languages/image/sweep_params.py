@@ -57,10 +57,9 @@ def sweep():
             if cmap.M_min < 2:
                 continue  # Too few constellation positions, skip
 
-            # Bits per cell (uniform packing uses M_min)
-            word_bits = int(np.log2(N))
-            pos_bits = int(2 * np.log2(cmap.M_min))
-            bits_per_cell = word_bits + pos_bits
+            # True capacity: log2(N * M_min^2) — mixed-radix, any N
+            states_per_cell = N * cmap.M_min ** 2
+            bits_per_cell = float(np.log2(states_per_cell))
 
             if bits_per_cell < 2:
                 continue
@@ -144,7 +143,7 @@ def print_results(results):
         ratio_vs_qr = qr_l_modules / r['n_cells']
         print(f"{r['N']:>3} {r['epsilon']:>5.1f} {r['ecc_ratio']:>5.0%} "
               f"{r['img_size']:>5} "
-              f"{r['M_min']:>5} {r['bits_per_cell']:>6} "
+              f"{r['M_min']:>5} {r['bits_per_cell']:>6.1f} "
               f"{r['n_cells']:>5} {r['px_per_cell']:>8} "
               f"{r['noise_reduction']:>6.0f} "
               f"{r['sigma95_single']:>7.1f} "
@@ -197,7 +196,7 @@ def print_results(results):
         print(f"  N={r['N']:>2}, ε={r['epsilon']:>5.1f}, "
               f"ECC={r['ecc_ratio']:>4.0%} -> "
               f"{r['n_cells']:>3} cells, "
-              f"{r['bits_per_cell']:>2} b/cell, "
+              f"{r['bits_per_cell']:>5.1f} b/cell, "
               f"{ratio_vs_qr:>5.0f}× vs QR-L  "
               f"[img sizes: {', '.join(str(s) for s in sorted(img_options))}]")
 

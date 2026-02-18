@@ -1,7 +1,7 @@
 # Image Grammar — Parametric Color Encoding Structure
 #
 # Structural grammar for encoding binary payloads as color sequences
-# rendered into images. Follows the same architecture as music (MIDI
+# rendered into an image. Follows the same architecture as music (MIDI
 # note sequences): the grammar generates a structural frame, payload
 # colors fill the N slots, cover tokens provide visual context (shapes,
 # styles, row markers, headers).
@@ -19,11 +19,11 @@
 #   <color cells>
 #   ||
 #
-# Type inventory (reinterpreted for images):
+# Type inventory (reinterpreted for image):
 #   e = color (a palette color sample)
 #   t = complete visual unit (row, frame, image)
 #
-# POS reinterpretation for images:
+# POS reinterpretation for image:
 #   N     = palette color (carries data)
 #   Adj   = cell shape (cell, patch, dot, tile, triangle, hexagon, pixel)
 #   Adv   = style modifier (filled, outlined, stroked, gradient)
@@ -38,7 +38,7 @@
 grammar:
   name: "Image Grammar"
 
-  # Images support multiple palette sizes (16, 32, 64, 96 colors)
+  # Image language supports multiple palette sizes (16, 32, 64, 96 colors)
   # with varying capacities. Disable bitpacking to allow non-power-of-two
   # palette sizes for custom palettes.
   bitpacking: false
@@ -144,7 +144,7 @@ grammar:
     raw:
       # Raw color sequence — no row markers, no headers. Just payload colors.
       # Analogous to music "raw" dialect and CS "raw" dialect.
-      # Uses default payload.yaml (64 colors, 6 bits/color)
+      payload_wordlist: viridis
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -169,9 +169,10 @@ grammar:
       #
       # Output:
       #   size=256 cols=4 palette=viridis
-      #   c03 cell c15 cell c42 cell c07 cell |
-      #   c28 cell c11 cell c55 cell c33 cell |
+      #   #2a788e cell #22a884 cell #7ad151 cell #440255 cell |
+      #   #414487 cell #355f8d cell #fde725 cell #46327e cell |
       #   ||
+      payload_wordlist: viridis
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -248,14 +249,15 @@ grammar:
       # Lloyd-relaxed Voronoi cells, each filled with a payload color.
       # Cell borders and seed positions are cover (not payload).
       #
-      # Output:
-      #   voronoi: size=400 palette=viridis
-      #   c03 cell c15 cell c42 cell c07 cell c28 cell c11 cell
-      #   ||
+      # The s-value metadata on each token enables similarity-aware
+      # relaxation: cells with close s-values get an extra repulsive
+      # force, pushing perceptually similar colors apart for visual
+      # distinctness and easier decoding.
       #
       # No row markers — the renderer arranges cells as a Voronoi diagram.
       # The CELLS rule is flat (not grid-structured) because Voronoi layout
       # is inherently spatial, not row-based.
+      payload_wordlist: viridis
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -300,12 +302,7 @@ grammar:
     patches:
       # Rectangular patches — quilt-like grid of colored rectangles.
       # Structured with rows, like the base grid, but uses "patch" shape.
-      #
-      # Output:
-      #   patches: size=256 cols=4 palette=viridis
-      #   c03 patch c15 patch c42 patch c07 patch |
-      #   c28 patch c11 patch c55 patch c33 patch |
-      #   ||
+      payload_wordlist: viridis
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -363,11 +360,7 @@ grammar:
     mosaic:
       # Mosaic tile layout — irregular colored tiles with grout lines.
       # Flat cell sequence (like voronoi), tiles have varied shapes.
-      #
-      # Output:
-      #   mosaic: size=400 palette=viridis
-      #   c03 tile c15 hexagon c42 triangle c07 tile
-      #   ||
+      payload_wordlist: viridis
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -413,11 +406,7 @@ grammar:
     constellation:
       # Constellation layout — colored dots on a dark background.
       # Connecting lines and background gradient are cover.
-      #
-      # Output:
-      #   constellation: size=400 palette=viridis
-      #   c03 dot c15 dot c42 dot c07 dot
-      #   ||
+      payload_wordlist: viridis
       rules:
         sentence:
           lambda: "λn:(e->t). n"
@@ -460,17 +449,21 @@ grammar:
               weight: 0.05
               lambda: "λn:(e->t). λadj:(e->e). λmod:((e->t)->(e->t)). mod(adj(n))"
 
-    # -- Reduced palette dialects (like music's pentatonic) -----------
+    # -- Palette selection ------------------------------------------------
     #
-    # These use a smaller subset of the 64-color palette for constrained
-    # environments or specific aesthetic goals. The palette curve is the
-    # same; fewer colors are sampled from it.
-
-    warm:
-      # Warm palette — 32 colors from the warm palette curve.
-      # Override palette header to indicate warm palette.
-      parent: grid
-
-    cool:
-      # Cool palette — 32 colors from the cool palette curve.
-      parent: grid
+    # Palettes are wordlists, not dialects. Combine any layout dialect
+    # with any palette via --wordlist:
+    #
+    #   --language image --dialect voronoi                   (default: viridis)
+    #   --language image --dialect voronoi --wordlist plasma
+    #   --language image --dialect grid --wordlist rocket
+    #
+    # Available palettes (payload_<name>.yaml):
+    #   viridis  (128 colors, CC0)     — deep purple through teal to yellow-green
+    #   plasma   (128 colors, CC0)     — dark purple through magenta to orange-yellow
+    #   inferno  (128 colors, CC0)     — near-black through red-orange to bright yellow
+    #   magma    ( 64 colors, CC0)     — near-black through purple-pink to pale white
+    #   cividis  (128 colors, CC0)     — dark blue through olive-grey to yellow (CVD-safe)
+    #   turbo    (  8 colors, Apache)  — dark blue through rainbow to dark red
+    #   mako     ( 64 colors, BSD-3)   — deep purple-black through teal to pale cyan
+    #   rocket   ( 32 colors, BSD-3)   — near-black through magenta to pale white

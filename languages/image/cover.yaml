@@ -13,13 +13,13 @@
 #
 # Example output (grid dialect):
 #   size=256 cols=4 palette=viridis
-#   c03 cell c15 cell c42 cell c07 cell |
-#   c28 cell c11 cell c55 cell c33 cell |
+#   #2a788e cell #22a884 cell #7ad151 cell #440255 cell |
+#   #414487 cell #355f8d cell #fde725 cell #46327e cell |
 #   ||
 #
 # Example output (voronoi dialect):
 #   voronoi: size=400 palette=viridis
-#   c03 cell c15 cell c42 cell c07 cell c28 cell
+#   #2a788e cell #22a884 cell #7ad151 cell #440255 cell #414487 cell
 #   ||
 
 # == Row / frame separators (Dot -- structural punctuation) ===========

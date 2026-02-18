@@ -2,7 +2,7 @@
 """
 Flask demo for parametric curve image encoding.
 
-Encode payload word sequences into colored pixel images and decode them back.
+Encode payload word sequences into colored pixel image and decode them back.
 Visualizes the palette, encoded image, and round-trip verification.
 
 Usage:
@@ -1071,7 +1071,7 @@ if __name__ == '__main__':
     cfg = get_optimal_config()
     opt = cfg['opt']
     print(f"  N={opt['N']}, epsilon={opt['epsilon']:.1f}, "
-          f"bpc={opt['bits_per_cell']}")
+          f"bpc={opt['bits_per_cell']:.2f}")
     print(f"Ready! Open http://{args.host}:{args.port}")
 
     app.run(host=args.host, port=args.port, debug=args.debug)

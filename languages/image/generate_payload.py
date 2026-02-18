@@ -35,7 +35,6 @@ from parametric_encoding import (
     PaletteCurve,
     BishopFrame,
     select_encoding_params,
-    generate_payload_tokens,
     lab_to_srgb,
     srgb_to_lab,
 )
@@ -282,12 +281,35 @@ def bootstrap_palette_yaml(names=None, output_path=PALETTE_YAML, n_ctrl=6):
 # Payload YAML generation
 # ---------------------------------------------------------------------------
 
+def srgb_to_css_hex(r, g, b):
+    """Convert sRGB (0-255) to CSS hex string '#RRGGBB'."""
+    return f"#{int(r):02x}{int(g):02x}{int(b):02x}"
+
+
+def lab_to_token_name(L, a, b):
+    """Convert CIELAB coordinates to a token name string.
+
+    Format: "L*_a*_b*" with 2 decimal places, e.g. "15.03_40.54_-32.50".
+    This is collision-free (float precision), valid as a YAML key and
+    Glossia token (no spaces), and self-describing (any renderer can
+    convert LAB→sRGB without needing the wordlist YAML).
+    """
+    return f"{L:.2f}_{a:.2f}_{b:.2f}"
+
+
 def generate_for_palette(palette_name, control_points_lab):
     """Run curve analysis and return payload entries for one palette.
 
+    Token names are CIELAB coordinates ("L*_a*_b*") which are inherently
+    collision-free — even when two palette positions round to the same
+    8-bit sRGB, their CIELAB coordinates differ by at least ~1.7 units
+    (at N=128 with arc length ~220). No nudge hack needed.
+
+    The sRGB hex rendering is stored as an inner value for convenience.
+
     Returns:
         dict with keys:
-            tokens: list of token dicts (name, lab, srgb, arc_length, M, capacity)
+            tokens: list of token dicts (name, srgb_hex, s, M, capacity)
             metadata: dict with N, epsilon, bits_per_cell, arc_length, etc.
         or None if no valid configuration found.
     """
@@ -307,20 +329,33 @@ def generate_for_palette(palette_name, control_points_lab):
     # Evaluate colors at each palette position
     labs = curve.eval(s_palette)
     srgbs = lab_to_srgb(labs)
-    token_names = generate_payload_tokens(N)
+
+    # Generate CIELAB token names — collision-free by construction.
+    # Each palette position has unique float-precision CIELAB coordinates.
+    # No nudge/dedup needed (unlike sRGB hex keys where 8-bit rounding
+    # can cause collisions in low-gradient regions like near-black).
+    lab_names = []
+    seen = set()
+    for i in range(N):
+        lab = labs[i]
+        name = lab_to_token_name(float(lab[0]), float(lab[1]), float(lab[2]))
+        assert name not in seen, (
+            f"Palette '{palette_name}': CIELAB collision at position {i}: {name} "
+            f"(this should never happen — adjacent palette positions differ by "
+            f"~{float(curve.arc_length) / N:.1f} CIELAB units)"
+        )
+        seen.add(name)
+        lab_names.append(name)
 
     tokens = []
     for i in range(N):
         lab = labs[i]
         srgb = srgbs[i]
         tokens.append({
-            "name": token_names[i],
+            "name": lab_names[i],
             "index": i,
-            "lab": [round(float(lab[0]), 2),
-                    round(float(lab[1]), 2),
-                    round(float(lab[2]), 2)],
-            "srgb": [int(srgb[0]), int(srgb[1]), int(srgb[2])],
-            "arc_length": round(float(s_palette[i]), 4),
+            "srgb_hex": srgb_to_css_hex(int(srgb[0]), int(srgb[1]), int(srgb[2])),
+            "s": round(float(s_palette[i]), 4),
             "M": int(cmap[i].M),
             "capacity": int(cmap[i].capacity),
         })
@@ -330,10 +365,12 @@ def generate_for_palette(palette_name, control_points_lab):
         "N": N,
         "epsilon": round(epsilon, 4),
         "bits_per_cell": result["bits_per_cell"],
+        "states_per_cell": result.get("states_per_cell", 0),
         "word_bits": result["word_bits"],
         "pos_bits": result["pos_bits"],
         "M_min": result["M_min"],
         "M_max": result["M_max"],
+        "srgb_dist_min": round(result.get("srgb_dist_min", 0.0), 1),
         "arc_length": round(float(curve.arc_length), 4),
         "control_points_lab": [list(map(float, p)) for p in pts],
     }
@@ -352,8 +389,20 @@ def generate_for_palette(palette_name, control_points_lab):
 def write_payload_yaml(palette_name, data, output_dir=SCRIPT_DIR):
     """Write payload_<palette>.yaml in Glossia wordlist format.
 
-    The file is valid Glossia payload YAML (token: {N: 1.0}) with
-    CIELAB/sRGB coordinates in comments for portability.
+    Token names are CIELAB coordinates ("L*_a*_b*"), e.g. "15.03_40.54_-32.50".
+    Each token carries:
+      - N: 1.0            POS tag for the Glossia grammar (payload noun)
+      - srgb: "#RRGGBB"   8-bit sRGB hex rendering (for SVG fill etc.)
+      - s: <float>        arc-length position on the palette curve
+      - M: <int>          constellation grid size (bits capacity at this position)
+
+    The CIELAB coordinates are IN the key itself — no need for separate
+    L/a/b inner values. This makes keys collision-free (float precision)
+    even when two palette positions round to the same 8-bit sRGB.
+
+    The Rust grammar engine reads N: 1.0 and ignores the rest (they fail
+    POS tag parsing). Renderers parse the key to get CIELAB directly, or
+    read the inner srgb for CSS fill colors.
     """
     meta = data["metadata"]
     tokens = data["tokens"]
@@ -376,40 +425,35 @@ def write_payload_yaml(palette_name, data, output_dir=SCRIPT_DIR):
     lines.append(f"# Parametric curve encoding parameters:")
     lines.append(f"#   N (palette size):  {meta['N']}")
     lines.append(f"#   epsilon (JND):     {meta['epsilon']}")
-    lines.append(f"#   bits per cell:     {meta['bits_per_cell']}")
-    lines.append(f"#   word bits:         {meta['word_bits']}")
-    lines.append(f"#   position bits:     {meta['pos_bits']}")
+    lines.append(f"#   bits per cell:     {meta['bits_per_cell']:.2f}")
+    lines.append(f"#   word bits:         {meta['word_bits']:.2f}")
+    lines.append(f"#   position bits:     {meta['pos_bits']:.2f}")
+    if 'states_per_cell' in meta:
+        lines.append(f"#   states per cell:   {meta['states_per_cell']}")
     lines.append(f"#   M_min (grid):      {meta['M_min']}")
     lines.append(f"#   M_max (grid):      {meta['M_max']}")
+    lines.append(f"#   sRGB dist min:     {meta['srgb_dist_min']}")
     lines.append(f"#   arc length:        {meta['arc_length']}")
     lines.append(f"#")
     lines.append(f"# Control points (CIELAB):")
     for cp in meta["control_points_lab"]:
         lines.append(f"#   [{cp[0]:6.1f}, {cp[1]:6.1f}, {cp[2]:6.1f}]")
     lines.append(f"#")
-    lines.append(f"# Each token names a color at a capacity-weighted position on the")
-    lines.append(f"# palette curve. Colors are spaced to equalize constellation area,")
-    lines.append(f"# concentrating samples where the sRGB gamut tube is widest.")
-    lines.append(f"#")
-    lines.append(f"# To use these colors without the curve engine:")
-    lines.append(f"#   - CIELAB [L*, a*, b*] values are in the comment for each token")
-    lines.append(f"#   - sRGB [R, G, B] values (0-255) are also provided")
-    lines.append(f"#   - Arc-length s gives the position on the curve [0, {meta['arc_length']}]")
-    lines.append(f"#   - M is the constellation grid size at that position")
+    lines.append(f"# Token keys are CIELAB coordinates (L*_a*_b*). The key IS the color:")
+    lines.append(f"#   parse on '_' to get [L*, a*, b*] for the parametric curve pipeline.")
+    lines.append(f"# Inner values carry rendering metadata:")
+    lines.append(f"#   srgb — 8-bit CSS hex color for SVG fill (may have rounding collisions)")
+    lines.append(f"#   s    — arc-length position on palette curve (similarity metric)")
+    lines.append(f"#   M    — constellation grid size (capacity at this curve position)")
     lines.append(f"#")
 
-    # Tokens
+    # Tokens — CIELAB keys with sRGB inner value
     for tok in tokens:
-        lab = tok["lab"]
-        srgb = tok["srgb"]
-        lines.append(
-            f"# s={tok['arc_length']:8.4f}  "
-            f"L*={lab[0]:6.2f} a*={lab[1]:7.2f} b*={lab[2]:7.2f}  "
-            f"sRGB=({srgb[0]:3d},{srgb[1]:3d},{srgb[2]:3d})  "
-            f"M={tok['M']}"
-        )
-        lines.append(f"{tok['name']}:")
+        lines.append(f'"{tok["name"]}":')
         lines.append(f"  N: 1.0")
+        lines.append(f'  srgb: "{tok["srgb_hex"]}"')
+        lines.append(f"  s: {tok['s']}")
+        lines.append(f"  M: {tok['M']}")
 
     lines.append("")  # trailing newline
 
@@ -488,8 +532,10 @@ def main():
 
         meta = data["metadata"]
         print(f"  N={meta['N']}, epsilon={meta['epsilon']:.4f}, "
-              f"bits/cell={meta['bits_per_cell']}, "
-              f"M_min={meta['M_min']}, M_max={meta['M_max']}")
+              f"bits/cell={meta['bits_per_cell']:.2f} "
+              f"({meta['states_per_cell']} states), "
+              f"M_min={meta['M_min']}, M_max={meta['M_max']}, "
+              f"sRGB_dist={meta['srgb_dist_min']}")
 
         out_path = write_payload_yaml(name, data, output_dir=args.output_dir)
         print(f"  Wrote {out_path}")

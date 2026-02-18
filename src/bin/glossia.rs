@@ -427,9 +427,19 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} --from english --into latin < english_prose.txt", program_name);
     eprintln!("  {} --from english < prose.txt   (decode to original data)", program_name);
     eprintln!("  {} --meta \"translate from english into latin\" < prose.txt", program_name);
+    eprintln!();
+    eprintln!("Image rendering:");
+    eprintln!("  -o <file.svg|file.png>      Output image file (with -l image)");
+    eprintln!("  --render-image <file|->      Render existing text notation to image");
+    eprintln!("                              Output format determined by -o extension (.svg default)");
+    eprintln!();
+    eprintln!("  {} -l image --dialect voronoi --random 20 -o out.svg", program_name);
+    eprintln!("  {} -l image --dialect grid --random 16 -o grid.svg", program_name);
+    eprintln!("  {} -l image --dialect constellation --random 12 -o stars.svg", program_name);
+    eprintln!("  {} -l image --random 20 | {} --render-image - -o out.svg", program_name, program_name);
 }
 
-fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>), String> {
+fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>), String> {
     let args: Vec<String> = env::args().collect();
     let program_name = args[0].clone();
 
@@ -465,6 +475,8 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut meta_instruction: Option<String> = None;
     let mut pipeline_into: Option<String> = None;
     let mut pipeline_from: Option<String> = None;
+    let mut render_image: Option<String> = None;
+    let mut render_output: Option<String> = None;
     let mut i = 1;
     
     while i < args.len() {
@@ -685,6 +697,20 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 }
                 i += 2;
             }
+            "--render-image" => {
+                if i + 1 >= args.len() {
+                    return Err("--render-image requires a value (text notation file or '-' for stdin)".to_string());
+                }
+                render_image = Some(args[i + 1].clone());
+                i += 2;
+            }
+            "-o" | "--output" => {
+                if i + 1 >= args.len() {
+                    return Err("-o/--output requires a value (output file path)".to_string());
+                }
+                render_output = Some(args[i + 1].clone());
+                i += 2;
+            }
             arg if arg.starts_with("--") => {
                 return Err(format!("Unknown option: {}", arg));
             }
@@ -719,8 +745,9 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     }
     
     if random_count.is_none() && words.is_empty() && ascii_input.is_none() && !show_grammar && !decode_mode
-        && meta_instruction.is_none() && pipeline_into.is_none() && pipeline_from.is_none() {
-        return Err("No words provided. Use --random <N>, --from-ascii <text>, --decode <words>, --meta, --into, --from, or provide words as arguments.".to_string());
+        && meta_instruction.is_none() && pipeline_into.is_none() && pipeline_from.is_none()
+        && render_image.is_none() {
+        return Err("No words provided. Use --random <N>, --from-ascii <text>, --decode <words>, --meta, --into, --from, --render-image, or provide words as arguments.".to_string());
     }
 
     // Default length mode depends on grammar mode unless explicitly overridden:
@@ -734,7 +761,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         };
     }
     
-    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from))
+    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output))
 }
 
 /// Get the wordlist file path for a given language.
@@ -884,10 +911,55 @@ fn find_language_file_recursive(dir: &std::path::Path, language: &str, filename:
 }
 
 
+/// Render text notation to SVG and write to a file.
+///
+/// Extracts color tokens from the text (CIELAB or hex format),
+/// maps the dialect name to an SVG layout, and writes the SVG.
+fn render_text_to_svg(text: &str, output_path: &str, dialect_name: &str, seed: Option<u64>) {
+    use glossia::image_codec::render;
+    use glossia::image_codec::svg::{self, SvgConfig, Layout};
+
+    let hex_colors = render::extract_hex_colors(text);
+    if hex_colors.is_empty() {
+        eprintln!("No color tokens found in text notation");
+        std::process::exit(1);
+    }
+
+    let layout = match dialect_name {
+        "grid" | "patches" => Layout::Grid,
+        "constellation" => Layout::Constellation,
+        _ => Layout::Voronoi, // voronoi, mosaic, body, etc. default to Voronoi
+    };
+
+    let cols = match dialect_name {
+        "patches" => 4,
+        "grid" => 8,
+        _ => 8,
+    };
+
+    let config = SvgConfig {
+        layout,
+        seed: seed.unwrap_or(42),
+        cols,
+        ..Default::default()
+    };
+
+    let color_refs: Vec<&str> = hex_colors.iter().map(|s| s.as_str()).collect();
+    let svg_content = svg::render_svg(&color_refs, &config);
+
+    std::fs::write(output_path, &svg_content).unwrap_or_else(|e| {
+        eprintln!("Error writing {}: {}", output_path, e);
+        std::process::exit(1);
+    });
+
+    eprintln!("Rendered {} color cells as {:?} SVG to {}",
+        hex_colors.len(), layout, output_path);
+}
+
 // --- CLI usage ---
 fn main() {
     
-    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from) = match parse_args() {
+    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output) = match parse_args() {
         Ok(args) => args,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -953,6 +1025,54 @@ fn main() {
                 eprintln!("Pipeline error: {}", e);
                 std::process::exit(1);
             }
+        }
+        return;
+    }
+
+    // ── Render image mode ─────────────────────────────────────────────
+    // --render-image takes a file of text notation and renders it to an image.
+    // Output format is determined by file extension:
+    //   .svg  → SVG (Voronoi, Grid, or Constellation layout)
+    //   .png  → PNG grid (requires "native" feature)
+    if let Some(ref input_path) = render_image {
+        use glossia::image_codec::render;
+
+        let text = if input_path == "-" {
+            use std::io::Read;
+            let mut buffer = String::new();
+            std::io::stdin().read_to_string(&mut buffer).unwrap_or_else(|e| {
+                eprintln!("Error reading from stdin: {}", e);
+                std::process::exit(1);
+            });
+            buffer
+        } else {
+            std::fs::read_to_string(input_path).unwrap_or_else(|e| {
+                eprintln!("Error reading {}: {}", input_path, e);
+                std::process::exit(1);
+            })
+        };
+
+        let output_path = render_output.as_deref().unwrap_or("output.svg");
+
+        if output_path.ends_with(".svg") {
+            render_text_to_svg(&text, output_path, &dialect_name, seed);
+        } else if output_path.ends_with(".png") {
+            let n_palette = 64;
+            let cell_size = 32;
+            let cols = 8;
+            match render::render_text_to_png(&text, output_path, n_palette, cell_size, cols) {
+                Ok(()) => {
+                    let n = render::extract_hex_colors(&text).len();
+                    eprintln!("Rendered {} color cells to {}", n, output_path);
+                }
+                Err(e) => {
+                    eprintln!("Render error: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            eprintln!("Unknown output format: {}. Use .svg or .png extension.", output_path);
+            std::process::exit(1);
         }
         return;
     }
@@ -1713,6 +1833,43 @@ fn main() {
         }
     };
     
+    // ── Image rendering: if -o <file.svg|file.png> with image language ──
+    // When the image language is used with -o, render directly to an image
+    // file instead of printing text notation. The text notation is an
+    // intermediate representation — the final output is the image.
+    if let Some(ref output_path) = render_output {
+        if language == "image" {
+            if output_path.ends_with(".svg") {
+                render_text_to_svg(&text, output_path, &dialect_name, seed);
+                // Also print the text notation to stdout for piping/debugging
+                if verbose {
+                    eprintln!("Text notation:\n{}", &text);
+                }
+                return;
+            } else if output_path.ends_with(".png") {
+                use glossia::image_codec::render;
+                let n_palette = 128;
+                let cell_size = 32;
+                let cols = 8;
+                match render::render_text_to_png(&text, output_path, n_palette, cell_size, cols) {
+                    Ok(()) => {
+                        let n = render::extract_hex_colors(&text).len();
+                        eprintln!("Rendered {} color cells to {}", n, output_path);
+                    }
+                    Err(e) => {
+                        eprintln!("Render error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                if verbose {
+                    eprintln!("Text notation:\n{}", &text);
+                }
+                return;
+            }
+            // Non-image extension: fall through to normal text output
+        }
+    }
+
     // Word wrap the output to specified width
     if variations > 1 {
         for (i, vtext) in valid_variation_texts.iter().enumerate() {

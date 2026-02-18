@@ -2,7 +2,7 @@
 """
 Parametric curve encoding for visual Glossia.
 
-Encodes payloads into images by treating a color palette as a parametric curve
+Encodes payloads into an image by treating a color palette as a parametric curve
 in CIELAB color space. Each pixel carries two pieces of information:
 
   - Tangential position on the curve  -> identifies the payload word
@@ -669,11 +669,546 @@ class ConstellationMap:
 
 
 # ---------------------------------------------------------------------------
+# Capacity-weighted palette placement (non-uniform spacing)
+# ---------------------------------------------------------------------------
+
+def compute_capacity_curve(curve, frame, n_samples=200,
+                           n_angles=16, max_radius=60.0, step=0.5):
+    """Compute the cumulative capacity function C(s) along the palette curve.
+
+    The capacity density at arc-length s is r(s)^2, proportional to the
+    constellation area available in the normal plane at that point.
+    Integrating gives a monotonically increasing function C(s) that
+    measures accumulated gamut area from the curve start.
+
+    Dividing C into N equal segments places palette colors so that each
+    color commands equal gamut area, concentrating colors where the tube
+    is fattest and raising M_min across the palette.
+
+    The density r(s)^2 is independent of epsilon, so the capacity curve
+    can be computed once and reused across different epsilon values.
+
+    Args:
+        curve: PaletteCurve
+        frame: BishopFrame
+        n_samples: density of samples along the curve (more = finer placement)
+        n_angles: angular samples for tube radius computation
+        max_radius: maximum tube radius search bound (CIELAB)
+        step: radial step precision (CIELAB)
+
+    Returns:
+        s_dense: (n_samples,) arc-length sample points
+        radii: (n_samples,) tube radius at each sample point
+        C: (n_samples,) cumulative capacity (units: CIELAB^2 * arc-length)
+    """
+    s_dense = np.linspace(0, curve.arc_length, n_samples)
+    _, radii = compute_tube_radius(curve, frame, s_values=s_dense,
+                                    n_angles=n_angles, max_radius=max_radius,
+                                    step=step)
+
+    # Capacity density = r(s)^2  (proportional to constellation area M^2,
+    # since M = floor(2r/eps)+1 ~ 2r/eps, so M^2 ~ 4r^2/eps^2)
+    density = radii ** 2
+
+    # Cumulative via trapezoidal integration
+    ds = np.diff(s_dense)
+    avg_density = (density[:-1] + density[1:]) / 2
+    C = np.concatenate([[0], np.cumsum(avg_density * ds)])
+
+    return s_dense, radii, C
+
+
+def equal_capacity_positions(s_dense, C, N, mode='centroid'):
+    """Place N palette colors at equal-capacity divisions of the curve.
+
+    Inverts the cumulative capacity function C(s) at N equally-spaced
+    capacity values, so each color owns an equal share of the total
+    gamut area along the curve.
+
+    With uniform arc-length spacing, colors in thin-tube regions have
+    small constellations (low M_i) that bottleneck bit packing. This
+    function pushes colors toward fat-tube regions, raising M_min and
+    equalizing per-color capacity.
+
+    Two placement modes:
+      - 'centroid': color i at (i+0.5)/N through capacity (default).
+        No color lands at the curve endpoints, avoiding the thinnest
+        tube regions and raising M_min.
+      - 'boundary': color i at i/(N-1) through capacity.
+        First and last colors land at curve endpoints (s=0 and s=L).
+
+    Args:
+        s_dense: (M,) arc-length sample points
+        C: (M,) cumulative capacity values (from compute_capacity_curve)
+        N: number of palette colors to place
+        mode: 'centroid' (default) or 'boundary'
+
+    Returns:
+        s_palette: (N,) arc-length positions for palette colors
+    """
+    C_total = C[-1]
+
+    if mode == 'centroid':
+        # Color i at the centroid of its capacity segment — avoids
+        # pinning colors at thin-tube curve endpoints
+        target_C = np.array([(i + 0.5) * C_total / N for i in range(N)])
+    else:
+        # Boundary: C(s_i) = i * C_total / (N-1), endpoints included
+        target_C = np.linspace(0, C_total, N)
+
+    # Invert C(s) via linear interpolation
+    s_palette = np.interp(target_C, C, s_dense)
+
+    return s_palette
+
+
+def generate_payload_tokens(N):
+    """Generate N payload token names for the image codec.
+
+    Token names are positional indices (c00, c01, ...) into the palette
+    curve. The actual CIELAB color of each token depends on the curve,
+    spacing mode, and epsilon — not the token name. With adaptive
+    spacing, token c05 at N=16 maps to a different arc-length position
+    (and thus different color) than c05 at N=64.
+
+    Args:
+        N: number of palette colors
+
+    Returns:
+        list of token name strings
+    """
+    width = max(2, len(str(N - 1)))
+    return [f"c{i:0{width}d}" for i in range(N)]
+
+
+def min_srgb_distance(curve, s_palette):
+    """Compute minimum pairwise Euclidean distance in 8-bit sRGB space.
+
+    This is the bottleneck for camera-based decoding: two palette colors
+    that are close in sRGB cannot be distinguished from a photograph,
+    regardless of their CIELAB separation.
+
+    Args:
+        curve: PaletteCurve
+        s_palette: array of arc-length positions
+
+    Returns:
+        Minimum pairwise sRGB distance (Euclidean in [0-255]^3 space).
+        Returns inf for fewer than 2 colors.
+    """
+    N = len(s_palette)
+    if N < 2:
+        return float('inf')
+
+    labs = curve.eval(s_palette)
+    srgbs = lab_to_srgb(labs).astype(int)
+
+    min_d = float('inf')
+    for i in range(N):
+        for j in range(i + 1, N):
+            d = float(np.sqrt(np.sum((srgbs[i] - srgbs[j]) ** 2)))
+            if d < min_d:
+                min_d = d
+    return min_d
+
+
+# Default minimum sRGB distance for camera-decodable images.
+# At d=15, palette colors are distinguishable in phone photos under
+# normal lighting. This constraint caps N (e.g., viridis: N=16 instead
+# of N=128) but ensures the image works like a QR code — scannable
+# from a photo.
+MIN_SRGB_DISTANCE = 15.0
+
+
+def select_encoding_params(curve, frame,
+                           configs=None,
+                           n_capacity_samples=200,
+                           min_srgb_dist=MIN_SRGB_DISTANCE):
+    """Select the optimal (N, epsilon) for a palette curve.
+
+    The optimal config maximizes bits per cell (bpc), the curve's
+    intrinsic channel capacity:
+
+        bpc = log2(N * M_min^2)
+
+    N is not restricted to powers of 2 — mixed-radix encoding
+    extracts all N * M^2 distinguishable states per cell.  This is a
+    property of the curve geometry alone — message length and image
+    resolution don't affect the ranking.  For entropy-preserving
+    encoding, each cell should carry the maximum number of bits the
+    palette supports.  The caller computes n_cells from the message
+    size: n_cells = ceil(total_bits / bpc).
+
+    Among configs with equal bpc, prefers higher epsilon for noise
+    robustness.
+
+    The min_srgb_dist constraint ensures camera-decodable images:
+    every pair of palette colors must be at least this far apart in
+    8-bit sRGB Euclidean distance. This is the bottleneck for
+    photograph-based decode — CIELAB precision is irrelevant if the
+    8-bit sRGB rendering is ambiguous.
+
+    Args:
+        curve: PaletteCurve
+        frame: BishopFrame
+        configs: (config_table, header_epsilon) from derive_config_table().
+                 Derived if not provided.
+        n_capacity_samples: samples for capacity curve computation
+        min_srgb_dist: minimum pairwise sRGB distance (default 15.0).
+                       Set to 0 to disable (text-only decode).
+
+    Returns:
+        dict with keys:
+            N, epsilon, s_palette, bits_per_cell, states_per_cell,
+            M_min, M_max, word_bits, pos_bits, constellation_map, radii_at_palette,
+            tokens, configs, all_configs, srgb_dist_min
+        Returns None if no valid configuration found.
+    """
+    if configs is None:
+        configs = derive_config_table(curve, frame,
+                                       n_capacity_samples=n_capacity_samples)
+    config_table, header_eps = configs
+
+    s_dense, radii_dense, C = compute_capacity_curve(
+        curve, frame, n_samples=n_capacity_samples)
+
+    best = None
+    results = []
+
+    from itertools import groupby
+    for N, group in groupby(config_table, key=lambda c: c[0]):
+        if N < 2:
+            list(group)
+            continue
+
+        s_pal = equal_capacity_positions(s_dense, C, N)
+        radii_at_pal = np.interp(s_pal, s_dense, radii_dense)
+
+        # Check sRGB distance constraint before considering any epsilon.
+        # This is a property of N and the palette positions alone —
+        # it doesn't depend on epsilon or constellation parameters.
+        srgb_d = min_srgb_distance(curve, s_pal)
+        if srgb_d < min_srgb_dist:
+            # Skip all epsilons for this N — colors too close in sRGB
+            # for camera decode.
+            list(group)  # consume the group iterator
+            continue
+
+        for _, eps in group:
+            cmap = ConstellationMap(radii_at_pal, epsilon=eps)
+
+            if cmap.M_min < 2:
+                continue
+
+            # True capacity: log2(N * M_min^2) — works for any N,
+            # not just powers of 2.  Mixed-radix encoding extracts
+            # all states_per_cell = N * M_min^2 distinguishable values.
+            states_per_cell = N * cmap.M_min * cmap.M_min
+            bits_per_cell = float(np.log2(states_per_cell))
+
+            if bits_per_cell < 2:
+                continue
+
+            result = {
+                'N': N,
+                'epsilon': eps,
+                's_palette': s_pal,
+                'bits_per_cell': bits_per_cell,
+                'states_per_cell': states_per_cell,
+                'M_min': cmap.M_min,
+                'M_max': cmap.M_max,
+                'word_bits': float(np.log2(N)),
+                'pos_bits': float(2 * np.log2(cmap.M_min)),
+                'constellation_map': cmap,
+                'radii_at_palette': radii_at_pal,
+                'tokens': generate_payload_tokens(N),
+                'configs': configs,
+                'srgb_dist_min': srgb_d,
+            }
+            results.append(result)
+
+            if best is None or (bits_per_cell, eps) > (best['bits_per_cell'], best['epsilon']):
+                best = result
+
+    if best is not None:
+        best['all_configs'] = results
+
+    return best
+
+
+# ---------------------------------------------------------------------------
+# Self-describing header: first color encodes the radix
+# ---------------------------------------------------------------------------
+
+# The header color sits at a FIXED position on the curve (s=0, the fattest
+# tube region) so the decoder can always find it without knowing N.  It uses
+# a derived robust epsilon so decoding the header doesn't require knowing
+# the payload epsilon.
+#
+# The header's constellation position encodes an index into a config table
+# of (N_payload, epsilon_payload) pairs DERIVED from the curve geometry.
+# Both encoder and decoder compute the same table from the same curve, so
+# no hardcoded palette sizes or epsilon values are needed.
+#
+# Analogy: variable-length integer encoding declares its radix first.
+# Here, the first palette color declares the color radix (N) and the
+# constellation grid spacing (epsilon) for all subsequent colors.
+
+HEADER_S = 0.0  # Arc-length position: always curve start (fattest tube)
+
+
+def derive_config_table(curve, frame, n_capacity_samples=200,
+                        min_epsilon=2.0, N_max=128):
+    """Derive valid (N, epsilon) configurations from the curve geometry.
+
+    Instead of hardcoded palette sizes and epsilon values, this function
+    computes feasible configurations directly from the tube radius profile.
+
+    For each N from 2 to N_max, it places palette colors at equal-capacity
+    centroid positions and finds r_min (the minimum tube radius across
+    those positions).  For each target M_min (power of 2), it computes
+    the epsilon that achieves exactly that M_min at the tightest point:
+
+        epsilon = 2 * r_min / (M_target - 1)
+
+    N is not restricted to powers of 2.  Mixed-radix encoding allows
+    any N; the true capacity per cell is log2(N * M^2) bits.
+
+    The header epsilon is also derived: the largest epsilon at s=0 that
+    still provides enough constellation capacity to index the table.
+
+    Both encoder and decoder call this function on the same curve and
+    get identical results, so the config table is an implicit contract
+    — no hardcoded constants needed.
+
+    Args:
+        curve: PaletteCurve
+        frame: BishopFrame
+        n_capacity_samples: capacity curve density
+        min_epsilon: minimum epsilon (below ~2 CIELAB is subthreshold)
+        N_max: largest palette size to consider
+
+    Returns:
+        configs: list of (N, epsilon) tuples sorted by (N, epsilon)
+        header_epsilon: derived robust epsilon for header decoding
+    """
+    s_dense, radii_dense, C = compute_capacity_curve(
+        curve, frame, n_samples=n_capacity_samples)
+
+    # Target M_min values: powers of 2 for clean constellation grids.
+    # M=2 -> 4 positions, M=4 -> 16, M=8 -> 64, M=16 -> 256, M=32 -> 1024
+    M_TARGETS = [2, 4, 8, 16, 32]
+
+    configs = []
+    for N in range(2, N_max + 1):
+        # Place N colors at equal-capacity centroids
+        s_pal = equal_capacity_positions(s_dense, C, N)
+        r_at_pal = np.interp(s_pal, s_dense, radii_dense)
+        r_min = float(np.min(r_at_pal))
+
+        for M_target in M_TARGETS:
+            # epsilon that gives M_min = M_target at the tightest point:
+            # M = floor(2*r_min/eps) + 1 = M_target  =>  eps = 2*r_min/(M_target-1)
+            #
+            # Nudge eps down by one ULP to prevent floating-point truncation
+            # from rounding floor(2*r_min/eps) to M_target-2 instead of M_target-1.
+            eps = np.nextafter(2.0 * r_min / (M_target - 1), 0.0)
+
+            if eps < min_epsilon:
+                continue
+
+            # True capacity: log2(N * M_target^2) — no power-of-2 assumption
+            states = N * M_target * M_target
+            bpc = np.log2(states)
+            if bpc < 2:
+                continue
+
+            configs.append((N, eps))
+
+    # Derive header epsilon from s=0 tube radius and table size.
+    # Maximize epsilon (noise robustness) while keeping enough
+    # constellation capacity to index every config entry.
+    r_header = float(np.interp(HEADER_S, s_dense, radii_dense))
+    table_size = len(configs)
+    M_header_needed = max(int(np.ceil(np.sqrt(table_size))), 2)
+    header_epsilon = 2.0 * r_header / (M_header_needed - 1)
+
+    return configs, header_epsilon
+
+
+def encode_header(n_palette, epsilon, curve, frame, configs=None):
+    """Encode (N, epsilon) into the header color at s=0.
+
+    The header color sits at the fixed position HEADER_S on the palette
+    curve.  Its constellation displacement encodes the config index,
+    making the encoding self-describing.
+
+    Args:
+        n_palette: payload palette size
+        epsilon: payload constellation spacing
+        curve: PaletteCurve
+        frame: BishopFrame
+        configs: (config_table, header_epsilon) tuple from
+                 derive_config_table().  Derived if not provided.
+
+    Returns:
+        pixel_lab: (3,) CIELAB color for the header pixel
+    """
+    if configs is None:
+        configs = derive_config_table(curve, frame)
+    config_table, header_eps = configs
+
+    try:
+        idx = config_table.index((n_palette, epsilon))
+    except ValueError:
+        raise ValueError(
+            f"({n_palette}, {epsilon}) not in derived config table. "
+            f"Valid configs: {config_table}")
+
+    base = curve.eval(HEADER_S)
+    _, U1, U2 = frame.eval_frame(HEADER_S)
+
+    _, radii = compute_tube_radius(curve, frame,
+                                    s_values=np.array([HEADER_S]))
+    c = Constellation.from_radius(float(radii[0]), header_eps)
+
+    if idx >= c.capacity:
+        raise ValueError(
+            f"Header constellation too small ({c.capacity} positions) "
+            f"for config index {idx}")
+
+    alpha1, alpha2 = c.position_to_displacement(idx)
+    return base + alpha1 * U1 + alpha2 * U2
+
+
+def decode_header(pixel_lab, curve, frame, configs=None):
+    """Decode (N, epsilon) from the header color.
+
+    Args:
+        pixel_lab: (3,) CIELAB color (the header pixel)
+        curve: PaletteCurve
+        frame: BishopFrame
+        configs: (config_table, header_epsilon) tuple from
+                 derive_config_table().  Derived if not provided.
+
+    Returns:
+        n_palette: payload palette size
+        epsilon: payload constellation spacing
+    """
+    if configs is None:
+        configs = derive_config_table(curve, frame)
+    config_table, header_eps = configs
+
+    base = curve.eval(HEADER_S)
+    _, U1, U2 = frame.eval_frame(HEADER_S)
+
+    residual = np.asarray(pixel_lab) - base
+    alpha1 = float(np.dot(residual, U1))
+    alpha2 = float(np.dot(residual, U2))
+
+    _, radii = compute_tube_radius(curve, frame,
+                                    s_values=np.array([HEADER_S]))
+    c = Constellation.from_radius(float(radii[0]), header_eps)
+    idx = int(c.displacement_to_position(alpha1, alpha2))
+
+    if idx >= len(config_table):
+        raise ValueError(
+            f"Config index {idx} out of range (max {len(config_table)-1})")
+
+    return config_table[idx]
+
+
+def encode_self_describing(payload_words, curve, frame,
+                           n_palette, epsilon,
+                           configs=None):
+    """Encode payload with a self-describing header color.
+
+    The first color in the output declares the radix (N) and grid
+    spacing (epsilon).  The remaining colors carry the payload using
+    capacity-weighted adaptive spacing.
+
+    Args:
+        payload_words: list of ints, each in [0, n_palette-1]
+        curve: PaletteCurve
+        frame: BishopFrame
+        n_palette: number of payload palette colors
+        epsilon: constellation grid spacing for payload
+        configs: (config_table, header_epsilon) from derive_config_table().
+                 Derived if not provided.  Pass explicitly to avoid
+                 recomputing the capacity curve on every call.
+
+    Returns:
+        pixels_lab: (1 + n_payload, 3) array — header + payload colors
+        metadata: dict with encoding parameters
+    """
+    if configs is None:
+        configs = derive_config_table(curve, frame)
+    config_table, _ = configs
+
+    # Header pixel at fixed position
+    header_pixel = encode_header(n_palette, epsilon, curve, frame,
+                                 configs=configs)
+
+    # Payload colors using adaptive spacing
+    enc = build_encoder(n_palette=n_palette, spacing='adaptive',
+                        epsilon=epsilon)
+    payload_pixels, meta = encode(
+        payload_words, curve, frame, n_palette,
+        constellation_map=enc['constellation_map'],
+        s_palette=enc['s_palette'])
+
+    all_pixels = np.vstack([header_pixel.reshape(1, 3), payload_pixels])
+    meta['header_config'] = (n_palette, epsilon)
+    meta['header_config_index'] = config_table.index((n_palette, epsilon))
+    return all_pixels, meta
+
+
+def decode_self_describing(pixels_lab, curve, frame, configs=None):
+    """Decode a self-describing encoded pixel sequence.
+
+    Reads the header (first pixel) to learn N and epsilon, then
+    decodes the remaining pixels using the declared parameters.
+
+    Args:
+        pixels_lab: (1 + n_payload, 3) array of CIELAB colors
+        curve: PaletteCurve
+        frame: BishopFrame
+        configs: (config_table, header_epsilon) from derive_config_table().
+                 Derived if not provided.
+
+    Returns:
+        payload_words: list of ints, the recovered payload
+        n_palette: palette size declared by header
+        epsilon: grid spacing declared by header
+    """
+    pixels_lab = np.asarray(pixels_lab)
+
+    if configs is None:
+        configs = derive_config_table(curve, frame)
+
+    # Read header
+    n_palette, epsilon = decode_header(pixels_lab[0], curve, frame,
+                                       configs=configs)
+
+    # Build encoder with declared parameters
+    enc = build_encoder(n_palette=n_palette, spacing='adaptive',
+                        epsilon=epsilon)
+
+    # Decode payload (everything after the header)
+    payload = decode(
+        pixels_lab[1:], curve, frame, n_palette,
+        constellation_map=enc['constellation_map'],
+        s_palette=enc['s_palette'])
+
+    return payload, n_palette, epsilon
+
+
+# ---------------------------------------------------------------------------
 # Encode / Decode
 # ---------------------------------------------------------------------------
 
 def encode(payload_words, curve, frame, n_palette,
-           constellation_map=None):
+           constellation_map=None, s_palette=None):
     """Encode a payload word sequence into CIELAB pixel colors.
 
     Args:
@@ -681,7 +1216,10 @@ def encode(payload_words, curve, frame, n_palette,
         curve: PaletteCurve
         frame: BishopFrame
         n_palette: number of palette colors (N)
-        constellation_map: ConstellationMap (if None, computed)
+        constellation_map: ConstellationMap (if None, computed from s_palette)
+        s_palette: (N,) arc-length positions for palette colors. If None,
+                   uses uniform spacing. Pass non-uniform positions from
+                   equal_capacity_positions() for adaptive mode.
 
     Returns:
         pixels_lab: (M, 3) array of encoded CIELAB colors
@@ -690,12 +1228,13 @@ def encode(payload_words, curve, frame, n_palette,
     payload_words = np.asarray(payload_words, dtype=int)
     n_words = len(payload_words)
 
-    # Compute constellation map if not given
-    if constellation_map is None:
+    # Compute palette positions if not given (uniform spacing fallback)
+    if s_palette is None:
         s_palette = np.array([
             w * curve.arc_length / max(n_palette - 1, 1)
             for w in range(n_palette)
         ])
+    if constellation_map is None:
         _, radii = compute_tube_radius(curve, frame, s_values=s_palette)
         constellation_map = ConstellationMap(radii)
 
@@ -710,7 +1249,7 @@ def encode(payload_words, curve, frame, n_palette,
         w = int(w)
         c = constellation_map[w]
         # Arc-length parameter for this palette color
-        s_w = w * curve.arc_length / max(n_palette - 1, 1)
+        s_w = s_palette[w]
         base = curve.eval(s_w)
         _, U1, U2 = frame.eval_frame(s_w)
 
@@ -742,7 +1281,7 @@ def encode(payload_words, curve, frame, n_palette,
 
 
 def decode(pixels_lab, curve, frame, n_palette,
-           constellation_map=None):
+           constellation_map=None, s_palette=None):
     """Decode CIELAB pixel colors back to a payload word sequence.
 
     Args:
@@ -750,7 +1289,10 @@ def decode(pixels_lab, curve, frame, n_palette,
         curve: PaletteCurve
         frame: BishopFrame
         n_palette: number of palette colors (N)
-        constellation_map: ConstellationMap (if None, computed)
+        constellation_map: ConstellationMap (if None, computed from s_palette)
+        s_palette: (N,) arc-length positions for palette colors. If None,
+                   uses uniform spacing. Must match the positions used for
+                   encoding.
 
     Returns:
         payload_words: list of ints, the recovered payload sequence
@@ -758,11 +1300,13 @@ def decode(pixels_lab, curve, frame, n_palette,
     pixels_lab = np.asarray(pixels_lab, dtype=np.float64)
     n_pixels = len(pixels_lab)
 
-    if constellation_map is None:
+    # Compute palette positions if not given (uniform spacing fallback)
+    if s_palette is None:
         s_palette = np.array([
             w * curve.arc_length / max(n_palette - 1, 1)
             for w in range(n_palette)
         ])
+    if constellation_map is None:
         _, radii = compute_tube_radius(curve, frame, s_values=s_palette)
         constellation_map = ConstellationMap(radii)
 
@@ -775,12 +1319,12 @@ def decode(pixels_lab, curve, frame, n_palette,
         s_nearest = float(s_nearest[0])
         dist = float(dist[0])
 
-        # Identify palette word
-        w = round(s_nearest * max(n_palette - 1, 1) / curve.arc_length)
-        w = int(np.clip(w, 0, n_palette - 1))
+        # Identify nearest palette color (works for both uniform and
+        # non-uniform spacing — no linear formula assumption)
+        w = int(np.argmin(np.abs(s_palette - s_nearest)))
 
-        # Recompute base point at the snapped palette position
-        s_w = w * curve.arc_length / max(n_palette - 1, 1)
+        # Base point at the snapped palette position
+        s_w = s_palette[w]
         base = curve.eval(s_w)
         _, U1, U2 = frame.eval_frame(s_w)
 
@@ -807,7 +1351,7 @@ def decode(pixels_lab, curve, frame, n_palette,
 
 
 def verify_roundtrip(payload_words, curve, frame, n_palette,
-                     constellation_map=None, verbose=False):
+                     constellation_map=None, s_palette=None, verbose=False):
     """Verify that encode -> decode recovers the original payload.
 
     Returns:
@@ -815,11 +1359,11 @@ def verify_roundtrip(payload_words, curve, frame, n_palette,
     """
     pixels_lab, metadata = encode(
         payload_words, curve, frame, n_palette,
-        constellation_map=constellation_map
+        constellation_map=constellation_map, s_palette=s_palette
     )
     recovered = decode(
         pixels_lab, curve, frame, n_palette,
-        constellation_map=constellation_map
+        constellation_map=constellation_map, s_palette=s_palette
     )
 
     success = list(payload_words) == recovered
@@ -841,7 +1385,8 @@ def verify_roundtrip(payload_words, curve, frame, n_palette,
 
 def build_encoder(yaml_path=None, palette_name='viridis_approx',
                   control_points_lab=None, n_palette=64,
-                  n_curve_samples=2000, n_frames=500):
+                  n_curve_samples=2000, n_frames=500,
+                  spacing='uniform', epsilon=EPSILON):
     """Build all components needed for encoding/decoding.
 
     Args:
@@ -851,10 +1396,14 @@ def build_encoder(yaml_path=None, palette_name='viridis_approx',
         n_palette: number of palette colors
         n_curve_samples: curve sampling density
         n_frames: Bishop frame sampling density
+        spacing: 'uniform' (equal arc-length) or 'adaptive' (equal capacity).
+                 Adaptive mode integrates tube radius along the curve and
+                 places colors where gamut area is largest, raising M_min.
+        epsilon: constellation grid spacing in CIELAB units (default: 2.3 JND)
 
     Returns:
         dict with keys: curve, frame, n_palette, constellation_map,
-                        tube_radii, metadata
+                        s_palette, tube_radii, metadata
     """
     if control_points_lab is not None:
         curve = PaletteCurve.from_control_points(control_points_lab,
@@ -867,24 +1416,37 @@ def build_encoder(yaml_path=None, palette_name='viridis_approx',
 
     frame = BishopFrame(curve, n_frames=n_frames)
 
-    # Compute tube radius at each palette point
-    s_palette = np.array([
-        w * curve.arc_length / max(n_palette - 1, 1)
-        for w in range(n_palette)
-    ])
-    s_pts, radii = compute_tube_radius(curve, frame, s_values=s_palette)
-    constellation_map = ConstellationMap(radii)
+    # Place palette colors along the curve
+    if spacing == 'adaptive':
+        # Integrate tube radius to get cumulative capacity, then
+        # divide into N equal-capacity segments
+        s_dense, radii_dense, C = compute_capacity_curve(
+            curve, frame, n_samples=200)
+        s_palette = equal_capacity_positions(s_dense, C, n_palette)
+        # Interpolate radii at the placed positions
+        radii = np.interp(s_palette, s_dense, radii_dense)
+    else:
+        # Classic uniform arc-length spacing
+        s_palette = np.array([
+            w * curve.arc_length / max(n_palette - 1, 1)
+            for w in range(n_palette)
+        ])
+        _, radii = compute_tube_radius(curve, frame, s_values=s_palette)
+
+    constellation_map = ConstellationMap(radii, epsilon=epsilon)
 
     return {
         'curve': curve,
         'frame': frame,
         'n_palette': n_palette,
         'constellation_map': constellation_map,
-        'tube_radii': (s_pts, radii),
+        's_palette': s_palette,
+        'tube_radii': (s_palette, radii),
         'metadata': {
             'arc_length': curve.arc_length,
             'n_palette': n_palette,
-            'epsilon': EPSILON,
+            'epsilon': epsilon,
+            'spacing': spacing,
             'M_min': constellation_map.M_min,
             'M_max': constellation_map.M_max,
             'capacity_min': constellation_map.capacity_min,

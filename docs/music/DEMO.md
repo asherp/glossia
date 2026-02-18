@@ -207,7 +207,7 @@ echo "Secret message" | cargo run --bin glossia -- \
 ### With Image Encoding
 ```bash
 # Encode an image payload as music
-python3 languages/images/app.py encode small_image.png | \
+python3 languages/image/app.py encode small_image.png | \
   cargo run --bin glossia -- --from english --into music --dialect scored \
   > image_music.txt
 

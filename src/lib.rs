@@ -9,6 +9,7 @@ pub mod merkle;
 pub mod codec;
 pub mod pipeline;
 pub mod scale;
+pub mod image_codec;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

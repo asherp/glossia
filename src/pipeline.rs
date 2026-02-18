@@ -190,6 +190,7 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
         "nostr" => Some(("cs", "nip04")),
         "pgp" => Some(("cs", "pgp")),
         "primes" => Some(("math", "body")),
+        "image" => Some(("image", "voronoi")),
         _ => None,
     }
 }
@@ -201,6 +202,12 @@ fn meta_word_to_dialect(word: &str) -> Option<&str> {
         "subject" => Some("subject"),
         "prose" => Some("prose"),
         "spells" => Some("spells"),
+        "voronoi" => Some("voronoi"),
+        "grid" => Some("grid"),
+        "mosaic" => Some("mosaic"),
+        "constellation" => Some("constellation"),
+        "patches" => Some("patches"),
+        "raw" => Some("raw"),
         _ => None,
     }
 }
@@ -251,7 +258,8 @@ impl Pipeline {
         let meta_payload: HashSet<&str> = [
             "latin", "english", "hex", "base64", "base58", "ascii7", "bits",
             "bytes", "nostr", "pgp", "prose", "body", "subject", "spells",
-            "primes", "merkle",
+            "primes", "merkle", "image", "voronoi", "grid", "mosaic",
+            "constellation", "patches", "raw",
         ]
         .iter()
         .copied()
@@ -1352,5 +1360,52 @@ mod tests {
             "prose dialect should be preserved");
         assert_eq!(p.length_mode, Some(SentenceLengthMode::Compact),
             "compactly should set length_mode");
+    }
+
+    // ── Image language pipeline parsing ───────────────────────────────
+
+    #[test]
+    fn test_image_default_dialect_is_voronoi() {
+        let p = Pipeline::from_meta("encode into image").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "voronoi"),
+            "image should default to voronoi dialect");
+    }
+
+    #[test]
+    fn test_image_grid_dialect() {
+        let p = Pipeline::from_meta("encode into image grid").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "grid"),
+            "grid dialect modifier should override default voronoi");
+    }
+
+    #[test]
+    fn test_image_mosaic_dialect() {
+        let p = Pipeline::from_meta("encode into image mosaic").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "mosaic"));
+    }
+
+    #[test]
+    fn test_image_constellation_dialect() {
+        let p = Pipeline::from_meta("encode into image constellation").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "constellation"));
+    }
+
+    #[test]
+    fn test_image_raw_dialect() {
+        let p = Pipeline::from_meta("encode into image raw").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "raw"));
+    }
+
+    #[test]
+    fn test_image_patches_dialect() {
+        let p = Pipeline::from_meta("encode into image patches").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "patches"));
+    }
+
+    #[test]
+    fn test_image_transcode_from_english() {
+        let p = Pipeline::from_meta("translate from english into image voronoi").unwrap();
+        assert_eq!(p.source, Endpoint::language("english"));
+        assert_eq!(p.target, Endpoint::language_with_dialect("image", "voronoi"));
     }
 }

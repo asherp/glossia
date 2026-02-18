@@ -199,7 +199,11 @@ fn load_or_build_payload_cache(language: &str, wordlist: &str) -> Result<Arc<Pay
         }
     };
 
-    let yaml_data: HashMap<String, HashMap<String, f64>> = serde_yaml::from_str(&yaml_content)
+    // Parse with serde_yaml::Value to handle mixed types: f64 weights (N: 1.0)
+    // alongside string metadata (srgb: "#440255") and other non-POS fields.
+    // Only f64 values that parse as valid POS tags are used; everything else is ignored.
+    use serde_yaml::Value;
+    let yaml_data: HashMap<String, HashMap<String, Value>> = serde_yaml::from_str(&yaml_content)
         .map_err(|e| format!("Failed to parse YAML: {}", e))?;
 
     // Load language-specific POS tag mappings (small file; only used when building cache).
@@ -215,10 +219,13 @@ fn load_or_build_payload_cache(language: &str, wordlist: &str) -> Result<Arc<Pay
         }
 
         let mut pos_tags = Vec::new();
-        for (pos_str, weight) in pos_weights {
-            if weight > 0.0 {
-                if let Some(pos) = parse_pos_tag(&pos_str, &pos_mappings) {
-                    pos_tags.push(pos);
+        for (pos_str, value) in pos_weights {
+            // Only process numeric values (POS weights); skip strings and other types
+            if let Some(weight) = value.as_f64() {
+                if weight > 0.0 {
+                    if let Some(pos) = parse_pos_tag(&pos_str, &pos_mappings) {
+                        pos_tags.push(pos);
+                    }
                 }
             }
         }
@@ -323,7 +330,8 @@ pub fn build_pos_mapping_from_yaml(path: &str, pos_mappings: &HashMap<String, Po
 /// YAML structure: { word: { POS: weight, ... }, ... }
 /// Weights are normalized and POS tags are extracted.
 pub fn build_pos_mapping_from_yaml_content(yaml_content: &str, pos_mappings: &HashMap<String, Pos>) -> Result<HashMap<String, Vec<Pos>>, String> {
-    let yaml_data: HashMap<String, HashMap<String, f64>> = serde_yaml::from_str(yaml_content)
+    use serde_yaml::Value;
+    let yaml_data: HashMap<String, HashMap<String, Value>> = serde_yaml::from_str(yaml_content)
         .map_err(|e| format!("Failed to parse YAML: {}", e))?;
 
     let mut mapping = HashMap::new();
@@ -332,10 +340,12 @@ pub fn build_pos_mapping_from_yaml_content(yaml_content: &str, pos_mappings: &Ha
         let word_lower = word.to_lowercase();
         let mut pos_tags = Vec::new();
 
-        for (pos_str, weight) in pos_weights {
-            if weight > 0.0 {
-                if let Some(pos) = parse_pos_tag(&pos_str, pos_mappings) {
-                    pos_tags.push(pos);
+        for (pos_str, value) in pos_weights {
+            if let Some(weight) = value.as_f64() {
+                if weight > 0.0 {
+                    if let Some(pos) = parse_pos_tag(&pos_str, pos_mappings) {
+                        pos_tags.push(pos);
+                    }
                 }
             }
         }
@@ -423,7 +433,8 @@ pub fn load_payload_words_from_embedded(language: &str) -> Result<Vec<String>, S
 
 /// Load payload words from YAML content string (extracts keys).
 pub fn load_payload_words_from_yaml_content(yaml_content: &str) -> Result<Vec<String>, String> {
-    let yaml_data: HashMap<String, HashMap<String, f64>> = serde_yaml::from_str(yaml_content)
+    use serde_yaml::Value;
+    let yaml_data: HashMap<String, HashMap<String, Value>> = serde_yaml::from_str(yaml_content)
         .map_err(|e| format!("Failed to parse YAML: {}", e))?;
 
     let mut words: Vec<String> = yaml_data.keys().cloned().collect();
@@ -646,7 +657,8 @@ pub fn load_cover_word_pos_tags_for_wordlist(language: &str, wordlist: &str) -> 
         }
     };
 
-    let yaml_data: HashMap<String, HashMap<String, f64>> = serde_yaml::from_str(&yaml_content)
+    use serde_yaml::Value;
+    let yaml_data: HashMap<String, HashMap<String, Value>> = serde_yaml::from_str(&yaml_content)
         .unwrap_or_else(|e| {
             panic!("Error: Failed to parse cover.yaml as YAML: {}", e);
         });
@@ -658,7 +670,8 @@ pub fn load_cover_word_pos_tags_for_wordlist(language: &str, wordlist: &str) -> 
         let mut pos_tags = Vec::new();
 
         // Extract POS tags with non-zero weights
-        for (pos_str, weight) in pos_weights {
+        for (pos_str, value) in pos_weights {
+            let weight = value.as_f64().unwrap_or(0.0);
             if weight > 0.0 {
                 if let Some(pos) = parse_pos_tag(&pos_str, &pos_mappings) {
                     pos_tags.push(pos);

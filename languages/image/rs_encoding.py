@@ -6,13 +6,14 @@ Wraps the parametric encoder with RS codes so we can fairly compare
 against QR codes (which use RS internally).
 
 Architecture:
-    payload bytes -> RS encode -> bitstream -> pack into cells
-    cells -> unpack bitstream -> RS decode -> payload bytes
+    payload bytes -> RS encode -> big integer -> mixed-radix cells
+    cells -> big integer -> RS decode -> payload bytes
 
-Each Voronoi cell carries `bits_per_cell` bits:
-    - log2(N) bits for palette word index
-    - 2 * log2(M) bits for constellation position
-    Total: e.g. log2(16) + 2*log2(8) = 4 + 6 = 10 bits/cell
+Each Voronoi cell carries log2(N * M^2) bits via mixed-radix encoding.
+N is not restricted to powers of 2 — each cell encodes one of
+N * M_min^2 distinguishable states (word × constellation position).
+
+Example: N=12, M=8 -> 12*64 = 768 states -> 9.58 bits/cell
 
 QR code comparison:
     QR V2 (25x25) with ECC-L: 32 bytes in 625 modules (1 bit each)
@@ -94,11 +95,22 @@ class RSEncoder:
         self.frame = enc['frame']
         self.n_palette = enc['n_palette']
         self.constellation_map = enc['constellation_map']
+        # Palette arc-length positions (supports non-uniform spacing)
+        if 's_palette' in enc:
+            self.s_palette = enc['s_palette']
+        else:
+            self.s_palette = np.array([
+                w * self.curve.arc_length / max(self.n_palette - 1, 1)
+                for w in range(self.n_palette)
+            ])
 
-        # Bits per cell: use M_min for uniform bit packing
-        self.word_bits = int(np.log2(self.n_palette))
-        self.pos_bits = int(2 * np.log2(self.constellation_map.M_min))
-        self.bits_per_cell = self.word_bits + self.pos_bits
+        # Mixed-radix: total states per cell = N * M_min^2
+        # Works for any N (not just powers of 2)
+        self.states_per_cell = self.n_palette * self.constellation_map.M_min ** 2
+        self.bits_per_cell = float(np.log2(self.states_per_cell))
+        # Informational (for display/logging)
+        self.word_bits = float(np.log2(self.n_palette))
+        self.pos_bits = float(2 * np.log2(self.constellation_map.M_min))
 
         # RS codec
         self.ecc_ratio = ecc_ratio
@@ -138,42 +150,35 @@ class RSEncoder:
         self._last_rs_total_bytes = len(encoded_bytes)
         self._last_nsym = nsym
 
-        # Convert to bitstream
-        bits = []
-        for byte in encoded_bytes:
-            for bit in range(7, -1, -1):
-                bits.append((byte >> bit) & 1)
+        # Mixed-radix encoding: bytes -> big integer -> cells
+        # Each cell encodes a value in [0, states_per_cell) where
+        # states_per_cell = N * M_min^2.  This works for any N.
+        value = int.from_bytes(encoded_bytes, byteorder='big')
+        total_bits = len(encoded_bytes) * 8
 
-        # Pack bits into cells
+        # Number of cells: ceil(total_bits / log2(states_per_cell))
+        n_cells = int(np.ceil(total_bits / self.bits_per_cell))
+
+        # Decompose into mixed-radix digits (least significant first)
+        M_sq = self.constellation_map.M_min ** 2
         cells = []  # list of (word_index, constellation_position)
-        for i in range(0, len(bits), self.bits_per_cell):
-            chunk = bits[i:i + self.bits_per_cell]
-            # Pad last chunk with zeros if needed
-            while len(chunk) < self.bits_per_cell:
-                chunk.append(0)
+        for _ in range(n_cells):
+            cell_val = int(value % self.states_per_cell)
+            value //= self.states_per_cell
 
-            # First word_bits -> word index
-            word_idx = 0
-            for b in chunk[:self.word_bits]:
-                word_idx = (word_idx << 1) | b
+            word_idx = cell_val % self.n_palette
+            pos_idx = cell_val // self.n_palette
 
-            # Remaining pos_bits -> constellation position
-            pos_idx = 0
-            for b in chunk[self.word_bits:]:
-                pos_idx = (pos_idx << 1) | b
-
-            # Clamp
-            word_idx = min(word_idx, self.n_palette - 1)
+            # Clamp pos to actual capacity (should be within M_min^2)
             c = self.constellation_map[word_idx]
             pos_idx = min(pos_idx, c.capacity - 1)
 
             cells.append((word_idx, pos_idx))
 
         # Encode cells into CIELAB colors
-        n_cells = len(cells)
         pixels_lab = np.zeros((n_cells, 3))
         for i, (w, j) in enumerate(cells):
-            s_w = w * self.curve.arc_length / max(self.n_palette - 1, 1)
+            s_w = self.s_palette[w]
             base = self.curve.eval(s_w)
             _, U1, U2 = self.frame.eval_frame(s_w)
             c = self.constellation_map[w]
@@ -186,6 +191,7 @@ class RSEncoder:
             'rs_total_bytes': len(encoded_bytes),
             'total_bits': len(encoded_bytes) * 8,
             'n_cells': n_cells,
+            'states_per_cell': self.states_per_cell,
             'bits_per_cell': self.bits_per_cell,
             'max_correctable_bytes': nsym // 2,
             'max_correctable_pct': 100.0 * (nsym // 2) / len(encoded_bytes),
@@ -222,7 +228,7 @@ class RSEncoder:
             best_residual = np.inf
 
             for w in range(self.n_palette):
-                s_w = w * self.curve.arc_length / max(self.n_palette - 1, 1)
+                s_w = self.s_palette[w]
                 base = self.curve.eval(s_w)
                 _, U1, U2 = self.frame.eval_frame(s_w)
                 diff = pixel - base
@@ -246,18 +252,14 @@ class RSEncoder:
 
             cells.append((best_w, best_j))
 
-        # Unpack cells to bitstream
-        bits = []
-        for w, j in cells:
-            # Word index -> word_bits
-            for bit in range(self.word_bits - 1, -1, -1):
-                bits.append((w >> bit) & 1)
-            # Position -> pos_bits
-            for bit in range(self.pos_bits - 1, -1, -1):
-                bits.append((j >> bit) & 1)
+        # Mixed-radix decode: cells -> big integer -> bytes
+        # Reconstruct the big integer from cell values (reverse order
+        # because encode decomposes least-significant-first)
+        value = 0
+        for w, j in reversed(cells):
+            cell_val = j * self.n_palette + w
+            value = value * self.states_per_cell + cell_val
 
-        # Convert bitstream to bytes, truncating to exactly the RS codeword
-        # length (the last cell may have padding bits beyond the codeword)
         rs_total = self._last_rs_total_bytes
         nsym = self._last_nsym
         if rs_total is None or nsym is None:
@@ -265,19 +267,8 @@ class RSEncoder:
                 "Must call encode_bytes() before decode_bytes() "
                 "to establish RS parameters")
 
-        raw_bytes = bytearray()
-        for i in range(0, rs_total * 8, 8):
-            byte = 0
-            for bit in range(8):
-                idx = i + bit
-                if idx < len(bits):
-                    byte = (byte << 1) | bits[idx]
-                else:
-                    byte = byte << 1
-            raw_bytes.append(byte)
-
-        assert len(raw_bytes) == rs_total, \
-            f"Expected {rs_total} bytes, got {len(raw_bytes)}"
+        # Convert big integer back to bytes
+        raw_bytes = value.to_bytes(rs_total, byteorder='big')
 
         # RS decode with the exact same nsym used during encode
         codec = RSCodec(nsym)
@@ -347,10 +338,12 @@ class RSEncoder:
 
     @classmethod
     def from_palette(cls, yaml_path, palette='viridis_approx',
-                     n_palette=16, nsym=None, ecc_ratio=0.5):
+                     n_palette=16, nsym=None, ecc_ratio=0.5,
+                     spacing='uniform', epsilon=EPSILON):
         """Build an RSEncoder from a palette YAML file."""
         enc = build_encoder(yaml_path, palette,
-                            n_palette=n_palette)
+                            n_palette=n_palette,
+                            spacing=spacing, epsilon=epsilon)
         return cls(enc, nsym=nsym, ecc_ratio=ecc_ratio)
 
 
@@ -376,7 +369,7 @@ def noise_comparison(rse, payload_bytes, sigmas, n_trials=50,
         best_w = 0
         best_dist = np.inf
         for w in range(rse.n_palette):
-            s_w = w * rse.curve.arc_length / max(rse.n_palette - 1, 1)
+            s_w = rse.s_palette[w]
             base = rse.curve.eval(s_w)
             d = np.linalg.norm(pixel - base)
             if d < best_dist:
@@ -405,7 +398,8 @@ def noise_comparison(rse, payload_bytes, sigmas, n_trials=50,
             raw_decoded = decode(
                 perturbed, rse.curve, rse.frame,
                 rse.n_palette,
-                constellation_map=rse.constellation_map
+                constellation_map=rse.constellation_map,
+                s_palette=rse.s_palette
             )
             correct = sum(1 for a, b in zip(raw_words, raw_decoded) if a == b)
             raw_word_accs.append(100.0 * correct / len(raw_words))
