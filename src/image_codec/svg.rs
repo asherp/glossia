@@ -4,7 +4,12 @@
 /// renders them as SVG using different layout strategies (dialects).
 /// No external dependencies — SVG is just string building.
 
-use super::voronoi::{generate_seeds, lloyd_relax, voronoi_cells};
+use super::voronoi::{
+    generate_seeds, generate_circular_seeds,
+    lloyd_relax, lloyd_relax_circular,
+    lloyd_relax_color_aware, lloyd_relax_circular_color_aware,
+    color_distance_matrix, voronoi_cells,
+};
 
 /// Layout style for SVG generation.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,6 +45,12 @@ pub struct SvgConfig {
     pub stroke_width: f64,
     /// Whether to use circular clipping (Voronoi only).
     pub circular: bool,
+    /// Color-aware repulsion strength for Lloyd relaxation (0.0 = off).
+    ///
+    /// When > 0, similar-colored cells repel each other during relaxation,
+    /// spreading visually similar colors across the image for better contrast.
+    /// Typical value: 0.3 (~30% of characteristic cell spacing).
+    pub color_repulsion: f64,
 }
 
 impl Default for SvgConfig {
@@ -55,6 +66,7 @@ impl Default for SvgConfig {
             stroke: "#14142a".to_string(),
             stroke_width: 1.5,
             circular: false,
+            color_repulsion: 0.0,
         }
     }
 }
@@ -74,8 +86,29 @@ pub fn render_svg(colors: &[&str], config: &SvgConfig) -> String {
 /// Voronoi cell layout.
 fn render_voronoi(colors: &[&str], config: &SvgConfig) -> String {
     let n = colors.len();
-    let mut seeds = generate_seeds(n, config.width, config.height, config.seed);
-    lloyd_relax(&mut seeds, config.width, config.height, config.relax_iters);
+    let mut seeds = if config.circular {
+        generate_circular_seeds(n, config.width, config.height, config.seed)
+    } else {
+        generate_seeds(n, config.width, config.height, config.seed)
+    };
+    if config.color_repulsion > 0.0 {
+        let dists = color_distance_matrix(colors);
+        if config.circular {
+            lloyd_relax_circular_color_aware(
+                &mut seeds, config.width, config.height,
+                config.relax_iters, &dists, config.color_repulsion,
+            );
+        } else {
+            lloyd_relax_color_aware(
+                &mut seeds, config.width, config.height,
+                config.relax_iters, &dists, config.color_repulsion,
+            );
+        }
+    } else if config.circular {
+        lloyd_relax_circular(&mut seeds, config.width, config.height, config.relax_iters);
+    } else {
+        lloyd_relax(&mut seeds, config.width, config.height, config.relax_iters);
+    }
     let cells = voronoi_cells(&seeds, config.width, config.height);
 
     let mut svg = String::with_capacity(n * 200 + 500);
@@ -302,5 +335,23 @@ mod tests {
         let a = render_svg(&colors, &config);
         let b = render_svg(&colors, &config);
         assert_eq!(a, b, "Same inputs should produce identical SVG");
+    }
+
+    #[test]
+    fn test_render_voronoi_color_repulsion() {
+        let colors = vec!["#ff0000", "#ff0000", "#00ff00", "#0000ff"];
+        let config = SvgConfig {
+            width: 100.0,
+            height: 100.0,
+            color_repulsion: 0.3,
+            ..Default::default()
+        };
+        let svg = render_svg(&colors, &config);
+        assert!(svg.starts_with("<svg"));
+        assert!(svg.contains("</svg>"));
+        assert!(svg.contains("#ff0000"));
+        assert!(svg.contains("<polygon"));
+        // Should have 4 polygon cells
+        assert_eq!(svg.matches("<polygon").count(), 4);
     }
 }

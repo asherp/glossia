@@ -124,6 +124,10 @@ rounded:
   Modal: 1.0
   refinement: rounded
 
+disk:
+  Modal: 1.0
+  refinement: disk
+
 # == Border/connection markers (To -- cell decoration) ================
 
 border:

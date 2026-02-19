@@ -928,7 +928,7 @@ fn render_text_to_svg(text: &str, output_path: &str, dialect_name: &str, seed: O
     let layout = match dialect_name {
         "grid" | "patches" => Layout::Grid,
         "constellation" => Layout::Constellation,
-        _ => Layout::Voronoi, // voronoi, mosaic, body, etc. default to Voronoi
+        _ => Layout::Voronoi, // voronoi, mosaic, etc.
     };
 
     let cols = match dialect_name {
@@ -937,10 +937,15 @@ fn render_text_to_svg(text: &str, output_path: &str, dialect_name: &str, seed: O
         _ => 8,
     };
 
+    // "disk" is a Modal cover word in the text notation that triggers circular clipping.
+    let disk = text.split_whitespace().any(|w| w == "disk");
+
     let config = SvgConfig {
         layout,
         seed: seed.unwrap_or(42),
         cols,
+        circular: disk,
+        color_repulsion: 0.3,
         ..Default::default()
     };
 

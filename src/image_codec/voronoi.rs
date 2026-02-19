@@ -184,6 +184,70 @@ pub fn voronoi_cells(seeds: &[Point], width: f64, height: f64) -> Vec<Polygon> {
     cells
 }
 
+/// Generate N seed points inside a circular boundary.
+///
+/// Uses sqrt(r) polar sampling for uniform area density within the disk,
+/// then adds angular jitter for variety. The circle is centered in the
+/// canvas with radius = min(width, height)/2 - 2.
+pub fn generate_circular_seeds(n: usize, width: f64, height: f64, seed: u64) -> Vec<Point> {
+    let cx = width / 2.0;
+    let cy = height / 2.0;
+    let radius = width.min(height) / 2.0 - 2.0;
+
+    // Simple LCG for reproducibility
+    let mut rng_state = seed.wrapping_add(1);
+    let mut next_f64 = || -> f64 {
+        rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        (rng_state >> 33) as f64 / (1u64 << 31) as f64
+    };
+
+    let mut points = Vec::with_capacity(n);
+    for _ in 0..n {
+        // Uniform disk sampling: r = R * sqrt(U), theta = 2*pi*V
+        let r = radius * next_f64().sqrt();
+        let theta = 2.0 * std::f64::consts::PI * next_f64();
+        let x = cx + r * theta.cos();
+        let y = cy + r * theta.sin();
+        points.push(Point::new(x, y));
+    }
+
+    points
+}
+
+/// Lloyd relaxation constrained to a circular boundary.
+///
+/// Like `lloyd_relax`, but after computing Voronoi centroids, projects
+/// any points that drift outside the disk back onto its boundary.
+pub fn lloyd_relax_circular(
+    seeds: &mut [Point],
+    width: f64,
+    height: f64,
+    iterations: usize,
+) {
+    let cx = width / 2.0;
+    let cy = height / 2.0;
+    let radius = width.min(height) / 2.0 - 2.0;
+
+    for _ in 0..iterations {
+        let cells = voronoi_cells(seeds, width, height);
+        for (i, cell) in cells.iter().enumerate() {
+            if cell.vertices.len() >= 3 {
+                let c = cell.centroid();
+                let dx = c.x - cx;
+                let dy = c.y - cy;
+                let dist = (dx * dx + dy * dy).sqrt();
+                if dist > radius {
+                    // Project back onto disk boundary
+                    let scale = radius / dist;
+                    seeds[i] = Point::new(cx + dx * scale, cy + dy * scale);
+                } else {
+                    seeds[i] = c;
+                }
+            }
+        }
+    }
+}
+
 /// Generate N seed points using a simple LCG-based PRNG.
 ///
 /// Distributes points with jittered grid initialization for reasonable
@@ -239,6 +303,185 @@ pub fn lloyd_relax(
                     c.y.clamp(1.0, height - 1.0),
                 );
             }
+        }
+    }
+}
+
+/// Parse a CSS hex color string to (r, g, b) in [0, 255].
+///
+/// Accepts "#RRGGBB" or "RRGGBB" (case-insensitive).
+fn parse_hex(hex: &str) -> (f64, f64, f64) {
+    let h = hex.strip_prefix('#').unwrap_or(hex);
+    let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0) as f64;
+    let g = u8::from_str_radix(&h[2..4], 16).unwrap_or(0) as f64;
+    let b = u8::from_str_radix(&h[4..6], 16).unwrap_or(0) as f64;
+    (r, g, b)
+}
+
+/// Pre-compute a flattened N×N pairwise sRGB Euclidean distance matrix,
+/// normalized to [0, 1] (0 = identical, 1 = max distance √(255²×3) ≈ 441.67).
+pub fn color_distance_matrix(hex_colors: &[&str]) -> Vec<f64> {
+    let max_dist = (255.0_f64 * 255.0 * 3.0).sqrt(); // ≈ 441.67
+    let n = hex_colors.len();
+    let rgb: Vec<(f64, f64, f64)> = hex_colors.iter().map(|c| parse_hex(c)).collect();
+    let mut dists = vec![0.0_f64; n * n];
+    for i in 0..n {
+        for j in (i + 1)..n {
+            let dr = rgb[i].0 - rgb[j].0;
+            let dg = rgb[i].1 - rgb[j].1;
+            let db = rgb[i].2 - rgb[j].2;
+            let d = (dr * dr + dg * dg + db * db).sqrt() / max_dist;
+            dists[i * n + j] = d;
+            dists[j * n + i] = d;
+        }
+    }
+    dists
+}
+
+/// Lloyd relaxation with color-aware repulsive forcing.
+///
+/// Each iteration:
+/// 1. Compute Voronoi centroids (standard Lloyd step).
+/// 2. For each seed pair (i, j), add a repulsive displacement when their
+///    assigned colors are similar (nearby in sRGB).
+/// 3. Update position = centroid + strength × Σ(repulsions), clamped to canvas.
+///
+/// `color_dists` is the flattened N×N matrix from `color_distance_matrix`.
+/// `strength` controls repulsion magnitude (0.3 = ~30% of characteristic spacing).
+pub fn lloyd_relax_color_aware(
+    seeds: &mut [Point],
+    width: f64,
+    height: f64,
+    iterations: usize,
+    color_dists: &[f64],
+    strength: f64,
+) {
+    let n = seeds.len();
+    if n == 0 || strength == 0.0 {
+        lloyd_relax(seeds, width, height, iterations);
+        return;
+    }
+    let char_spacing = (width * height / n as f64).sqrt();
+
+    for _ in 0..iterations {
+        let cells = voronoi_cells(seeds, width, height);
+        let mut new_positions: Vec<Point> = Vec::with_capacity(n);
+
+        for (i, cell) in cells.iter().enumerate() {
+            let centroid = if cell.vertices.len() >= 3 {
+                let c = cell.centroid();
+                Point::new(c.x.clamp(1.0, width - 1.0), c.y.clamp(1.0, height - 1.0))
+            } else {
+                seeds[i]
+            };
+
+            // Accumulate repulsive displacement from similar-colored neighbors
+            let mut rx = 0.0;
+            let mut ry = 0.0;
+            for j in 0..n {
+                if i == j {
+                    continue;
+                }
+                let similarity = 1.0 - color_dists[i * n + j];
+                if similarity < 0.01 {
+                    continue;
+                }
+                let dx = seeds[i].x - seeds[j].x;
+                let dy = seeds[i].y - seeds[j].y;
+                let spatial_dist = (dx * dx + dy * dy).sqrt();
+                if spatial_dist < 1e-6 {
+                    continue;
+                }
+                // 1/r falloff, normalized by characteristic spacing
+                let force_mag = similarity * char_spacing / spatial_dist;
+                rx += force_mag * dx / spatial_dist;
+                ry += force_mag * dy / spatial_dist;
+            }
+
+            new_positions.push(Point::new(
+                (centroid.x + strength * rx).clamp(1.0, width - 1.0),
+                (centroid.y + strength * ry).clamp(1.0, height - 1.0),
+            ));
+        }
+
+        for (i, p) in new_positions.into_iter().enumerate() {
+            seeds[i] = p;
+        }
+    }
+}
+
+/// Lloyd relaxation with color-aware repulsion, constrained to a circular boundary.
+///
+/// Same logic as `lloyd_relax_color_aware`, but projects seeds that drift
+/// outside the disk back onto its boundary.
+pub fn lloyd_relax_circular_color_aware(
+    seeds: &mut [Point],
+    width: f64,
+    height: f64,
+    iterations: usize,
+    color_dists: &[f64],
+    strength: f64,
+) {
+    let n = seeds.len();
+    if n == 0 || strength == 0.0 {
+        lloyd_relax_circular(seeds, width, height, iterations);
+        return;
+    }
+    let cx = width / 2.0;
+    let cy = height / 2.0;
+    let radius = width.min(height) / 2.0 - 2.0;
+    let char_spacing = (width * height / n as f64).sqrt();
+
+    for _ in 0..iterations {
+        let cells = voronoi_cells(seeds, width, height);
+        let mut new_positions: Vec<Point> = Vec::with_capacity(n);
+
+        for (i, cell) in cells.iter().enumerate() {
+            let centroid = if cell.vertices.len() >= 3 {
+                cell.centroid()
+            } else {
+                seeds[i]
+            };
+
+            // Accumulate repulsive displacement
+            let mut rx = 0.0;
+            let mut ry = 0.0;
+            for j in 0..n {
+                if i == j {
+                    continue;
+                }
+                let similarity = 1.0 - color_dists[i * n + j];
+                if similarity < 0.01 {
+                    continue;
+                }
+                let dx = seeds[i].x - seeds[j].x;
+                let dy = seeds[i].y - seeds[j].y;
+                let spatial_dist = (dx * dx + dy * dy).sqrt();
+                if spatial_dist < 1e-6 {
+                    continue;
+                }
+                let force_mag = similarity * char_spacing / spatial_dist;
+                rx += force_mag * dx / spatial_dist;
+                ry += force_mag * dy / spatial_dist;
+            }
+
+            let px = centroid.x + strength * rx;
+            let py = centroid.y + strength * ry;
+
+            // Project to disk boundary if outside
+            let ddx = px - cx;
+            let ddy = py - cy;
+            let dist = (ddx * ddx + ddy * ddy).sqrt();
+            if dist > radius {
+                let scale = radius / dist;
+                new_positions.push(Point::new(cx + ddx * scale, cy + ddy * scale));
+            } else {
+                new_positions.push(Point::new(px, py));
+            }
+        }
+
+        for (i, p) in new_positions.into_iter().enumerate() {
+            seeds[i] = p;
         }
     }
 }
@@ -344,6 +587,118 @@ mod tests {
         for (i, p) in seeds.iter().enumerate() {
             assert!(p.x >= 0.0 && p.x <= 400.0, "Seed {} x={} out of bounds", i, p.x);
             assert!(p.y >= 0.0 && p.y <= 400.0, "Seed {} y={} out of bounds", i, p.y);
+        }
+    }
+
+    // ── Color-aware relaxation tests ──
+
+    #[test]
+    fn test_color_distance_matrix_basic() {
+        let colors = vec!["#000000", "#ffffff", "#000000"];
+        let dists = color_distance_matrix(&colors);
+        let n = 3;
+        // Diagonal = 0
+        for i in 0..n {
+            assert_eq!(dists[i * n + i], 0.0, "Diagonal should be 0");
+        }
+        // Symmetry
+        for i in 0..n {
+            for j in 0..n {
+                assert_eq!(dists[i * n + j], dists[j * n + i], "Matrix should be symmetric");
+            }
+        }
+        // Black-white = 1.0 (max distance)
+        assert!((dists[0 * n + 1] - 1.0).abs() < 1e-10,
+            "Black-white distance should be 1.0, got {}", dists[0 * n + 1]);
+        // Identical colors = 0.0
+        assert_eq!(dists[0 * n + 2], 0.0, "Identical colors should have distance 0");
+    }
+
+    #[test]
+    fn test_lloyd_color_aware_zero_strength() {
+        // strength=0 should produce identical results to plain lloyd_relax
+        let mut seeds_a = generate_seeds(9, 100.0, 100.0, 42);
+        let mut seeds_b = seeds_a.clone();
+        let colors = vec!["#ff0000", "#00ff00", "#0000ff",
+                          "#ff0000", "#00ff00", "#0000ff",
+                          "#ff0000", "#00ff00", "#0000ff"];
+        let dists = color_distance_matrix(&colors);
+
+        lloyd_relax(&mut seeds_a, 100.0, 100.0, 5);
+        lloyd_relax_color_aware(&mut seeds_b, 100.0, 100.0, 5, &dists, 0.0);
+
+        for (a, b) in seeds_a.iter().zip(seeds_b.iter()) {
+            assert!((a.x - b.x).abs() < 1e-10, "x mismatch: {} vs {}", a.x, b.x);
+            assert!((a.y - b.y).abs() < 1e-10, "y mismatch: {} vs {}", a.y, b.y);
+        }
+    }
+
+    #[test]
+    fn test_color_aware_separates_similar() {
+        // Give some seeds identical colors — after color-aware relaxation,
+        // the identical-color seeds should be farther apart on average
+        // than under plain Lloyd.
+        let n = 8;
+        // Colors: 4 red, 4 blue — identical within groups
+        let colors = vec!["#ff0000", "#ff0000", "#ff0000", "#ff0000",
+                          "#0000ff", "#0000ff", "#0000ff", "#0000ff"];
+        let color_refs: Vec<&str> = colors.iter().map(|s| *s).collect();
+        let dists = color_distance_matrix(&color_refs);
+
+        let initial = generate_seeds(n, 200.0, 200.0, 123);
+
+        // Plain Lloyd
+        let mut seeds_plain = initial.clone();
+        lloyd_relax(&mut seeds_plain, 200.0, 200.0, 10);
+
+        // Color-aware Lloyd
+        let mut seeds_color = initial.clone();
+        lloyd_relax_color_aware(&mut seeds_color, 200.0, 200.0, 10, &dists, 0.5);
+
+        // Compute mean pairwise distance among same-color seeds (indices 0-3)
+        let same_color_dist = |seeds: &[Point]| -> f64 {
+            let mut total = 0.0;
+            let mut count = 0;
+            for i in 0..4 {
+                for j in (i + 1)..4 {
+                    total += seeds[i].dist_sq(&seeds[j]).sqrt();
+                    count += 1;
+                }
+            }
+            total / count as f64
+        };
+
+        let plain_sep = same_color_dist(&seeds_plain);
+        let color_sep = same_color_dist(&seeds_color);
+        assert!(color_sep > plain_sep,
+            "Color-aware relaxation should push similar colors apart: \
+             color-aware={:.2}, plain={:.2}", color_sep, plain_sep);
+    }
+
+    #[test]
+    fn test_lloyd_color_aware_circular_bounds() {
+        let n = 8;
+        let w = 200.0;
+        let h = 200.0;
+        let colors = vec!["#ff0000", "#ff0000", "#00ff00", "#00ff00",
+                          "#0000ff", "#0000ff", "#ffff00", "#ffff00"];
+        let color_refs: Vec<&str> = colors.iter().map(|s| *s).collect();
+        let dists = color_distance_matrix(&color_refs);
+
+        let mut seeds = generate_circular_seeds(n, w, h, 42);
+        lloyd_relax_circular_color_aware(&mut seeds, w, h, 10, &dists, 0.3);
+
+        let cx = w / 2.0;
+        let cy = h / 2.0;
+        let radius = w.min(h) / 2.0 - 2.0;
+
+        for (i, p) in seeds.iter().enumerate() {
+            let dx = p.x - cx;
+            let dy = p.y - cy;
+            let dist = (dx * dx + dy * dy).sqrt();
+            assert!(dist <= radius + 0.1,
+                "Seed {} at ({:.1},{:.1}) is outside disk (dist={:.1}, radius={:.1})",
+                i, p.x, p.y, dist, radius);
         }
     }
 }
