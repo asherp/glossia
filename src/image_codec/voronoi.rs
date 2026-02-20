@@ -486,6 +486,111 @@ pub fn lloyd_relax_circular_color_aware(
     }
 }
 
+/// Permute color-to-seed assignment to minimize same-color adjacency.
+///
+/// After Lloyd relaxation produces well-spaced seeds, this function uses
+/// simulated annealing to find a permutation of color assignments that
+/// minimizes the number of same-color neighboring cells.
+///
+/// Returns a permutation vector `perm` where `perm[i]` is the index into
+/// the original `colors` array that should be used for seed `i`.
+pub fn scatter_colors(
+    seeds: &[Point],
+    colors: &[&str],
+    seed: u64,
+    iterations: usize,
+) -> Vec<usize> {
+    let n = seeds.len();
+    if n <= 1 {
+        return (0..n).collect();
+    }
+
+    // k-nearest neighbors (k=6, brute force -- n is small)
+    let k = 6.min(n - 1);
+    let mut neighbors: Vec<Vec<usize>> = Vec::with_capacity(n);
+    for i in 0..n {
+        let mut dists: Vec<(usize, f64)> = (0..n)
+            .filter(|&j| j != i)
+            .map(|j| (j, seeds[i].dist_sq(&seeds[j])))
+            .collect();
+        dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+        neighbors.push(dists.iter().take(k).map(|&(j, _)| j).collect());
+    }
+
+    // Cost: count directed same-color neighbor pairs
+    let cost = |perm: &[usize]| -> usize {
+        let mut c = 0;
+        for i in 0..n {
+            for &j in &neighbors[i] {
+                if colors[perm[i]] == colors[perm[j]] {
+                    c += 1;
+                }
+            }
+        }
+        c
+    };
+
+    // Simple xorshift64 RNG
+    let mut rng_state = seed.wrapping_add(0xdeadbeef);
+    if rng_state == 0 {
+        rng_state = 1;
+    }
+    let mut next_u64 = || -> u64 {
+        rng_state ^= rng_state << 13;
+        rng_state ^= rng_state >> 7;
+        rng_state ^= rng_state << 17;
+        rng_state
+    };
+
+    // Initialize identity permutation
+    let mut perm: Vec<usize> = (0..n).collect();
+    let mut current_cost = cost(&perm);
+    let mut best_perm = perm.clone();
+    let mut best_cost = current_cost;
+
+    if current_cost == 0 {
+        return best_perm;
+    }
+
+    for iter in 0..iterations {
+        // Pick two random indices
+        let a = (next_u64() % n as u64) as usize;
+        let b = (next_u64() % n as u64) as usize;
+        if a == b || colors[perm[a]] == colors[perm[b]] {
+            continue; // same index or same color -- swap is no-op
+        }
+
+        // Swap and recompute cost
+        perm.swap(a, b);
+        let new_cost = cost(&perm);
+
+        // Simulated annealing acceptance
+        let temp = 1.0 - (iter as f64 / iterations as f64); // linear cooling
+        if new_cost <= current_cost {
+            current_cost = new_cost;
+        } else {
+            let delta = (new_cost - current_cost) as f64;
+            let accept_prob = (-delta / (temp + 1e-10)).exp();
+            let r = (next_u64() >> 33) as f64 / (1u64 << 31) as f64;
+            if r < accept_prob {
+                current_cost = new_cost;
+            } else {
+                perm.swap(a, b); // revert
+            }
+        }
+
+        if current_cost < best_cost {
+            best_cost = current_cost;
+            best_perm = perm.clone();
+            if best_cost == 0 {
+                break;
+            }
+        }
+    }
+
+    best_perm
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -700,5 +805,69 @@ mod tests {
                 "Seed {} at ({:.1},{:.1}) is outside disk (dist={:.1}, radius={:.1})",
                 i, p.x, p.y, dist, radius);
         }
+    }
+
+    // ── Color scatter tests ──
+
+    #[test]
+    fn test_scatter_colors_eliminates_adjacency() {
+        // 16 seeds with 8 color pairs (2 each). With k=6 neighbors out of 15,
+        // same-color peers are sparse enough for SA to reach 0.
+        let n = 16;
+        let colors = vec![
+            "#ff0000", "#ff0000",
+            "#00ff00", "#00ff00",
+            "#0000ff", "#0000ff",
+            "#ffff00", "#ffff00",
+            "#ff00ff", "#ff00ff",
+            "#00ffff", "#00ffff",
+            "#ff8800", "#ff8800",
+            "#8800ff", "#8800ff",
+        ];
+        let color_refs: Vec<&str> = colors.iter().map(|s| *s).collect();
+
+        let mut seeds = generate_seeds(n, 400.0, 400.0, 123);
+        lloyd_relax(&mut seeds, 400.0, 400.0, 10);
+
+        let perm = scatter_colors(&seeds, &color_refs, 42, 8000);
+
+        // Build k=6 neighbor lists and count same-color pairs
+        let k = 6.min(n - 1);
+        let mut same_color_pairs = 0;
+        for i in 0..n {
+            let mut dists: Vec<(usize, f64)> = (0..n)
+                .filter(|&j| j != i)
+                .map(|j| (j, seeds[i].dist_sq(&seeds[j])))
+                .collect();
+            dists.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap());
+            for &(j, _) in dists.iter().take(k) {
+                if color_refs[perm[i]] == color_refs[perm[j]] {
+                    same_color_pairs += 1;
+                }
+            }
+        }
+
+        assert_eq!(same_color_pairs, 0,
+            "Scatter should eliminate same-color neighbor pairs, got {}", same_color_pairs);
+    }
+
+    #[test]
+    fn test_scatter_colors_is_permutation() {
+        let n = 8;
+        let colors = vec!["#ff0000", "#ff0000", "#00ff00", "#00ff00",
+                          "#0000ff", "#0000ff", "#ffff00", "#ffff00"];
+        let color_refs: Vec<&str> = colors.iter().map(|s| *s).collect();
+
+        let mut seeds = generate_seeds(n, 200.0, 200.0, 42);
+        lloyd_relax(&mut seeds, 200.0, 200.0, 10);
+
+        let perm = scatter_colors(&seeds, &color_refs, 42, 4000);
+
+        // Verify it's a valid permutation
+        assert_eq!(perm.len(), n);
+        let mut sorted = perm.clone();
+        sorted.sort();
+        assert_eq!(sorted, (0..n).collect::<Vec<_>>(),
+            "scatter_colors must return a valid permutation");
     }
 }

@@ -7,8 +7,7 @@
 use super::voronoi::{
     generate_seeds, generate_circular_seeds,
     lloyd_relax, lloyd_relax_circular,
-    lloyd_relax_color_aware, lloyd_relax_circular_color_aware,
-    color_distance_matrix, voronoi_cells,
+    scatter_colors, voronoi_cells,
 };
 
 /// Layout style for SVG generation.
@@ -45,12 +44,11 @@ pub struct SvgConfig {
     pub stroke_width: f64,
     /// Whether to use circular clipping (Voronoi only).
     pub circular: bool,
-    /// Color-aware repulsion strength for Lloyd relaxation (0.0 = off).
+    /// Whether to permute color assignments to minimize same-color adjacency.
     ///
-    /// When > 0, similar-colored cells repel each other during relaxation,
-    /// spreading visually similar colors across the image for better contrast.
-    /// Typical value: 0.3 (~30% of characteristic cell spacing).
-    pub color_repulsion: f64,
+    /// When true, after Lloyd relaxation a simulated-annealing pass swaps
+    /// color assignments so that no two neighboring cells share a color.
+    pub color_scatter: bool,
 }
 
 impl Default for SvgConfig {
@@ -66,7 +64,7 @@ impl Default for SvgConfig {
             stroke: "#14142a".to_string(),
             stroke_width: 1.5,
             circular: false,
-            color_repulsion: 0.0,
+            color_scatter: true,
         }
     }
 }
@@ -91,24 +89,21 @@ fn render_voronoi(colors: &[&str], config: &SvgConfig) -> String {
     } else {
         generate_seeds(n, config.width, config.height, config.seed)
     };
-    if config.color_repulsion > 0.0 {
-        let dists = color_distance_matrix(colors);
-        if config.circular {
-            lloyd_relax_circular_color_aware(
-                &mut seeds, config.width, config.height,
-                config.relax_iters, &dists, config.color_repulsion,
-            );
-        } else {
-            lloyd_relax_color_aware(
-                &mut seeds, config.width, config.height,
-                config.relax_iters, &dists, config.color_repulsion,
-            );
-        }
-    } else if config.circular {
+    // Plain Lloyd relaxation (or circular)
+    if config.circular {
         lloyd_relax_circular(&mut seeds, config.width, config.height, config.relax_iters);
     } else {
         lloyd_relax(&mut seeds, config.width, config.height, config.relax_iters);
     }
+
+    // Scatter colors to minimize same-color adjacency
+    let color_order: Vec<&str> = if config.color_scatter {
+        let perm = scatter_colors(&seeds, colors, config.seed, 8000);
+        perm.iter().map(|&i| colors[i]).collect()
+    } else {
+        colors.to_vec()
+    };
+
     let cells = voronoi_cells(&seeds, config.width, config.height);
 
     let mut svg = String::with_capacity(n * 200 + 500);
@@ -157,7 +152,7 @@ fn render_voronoi(colors: &[&str], config: &SvgConfig) -> String {
              stroke=\"{stroke}\" stroke-width=\"{sw}\" \
              stroke-linejoin=\"round\"/>\n",
             pts = cell.svg_points(),
-            color = colors[i],
+            color = color_order[i],
             stroke = config.stroke,
             sw = config.stroke_width,
         ));
@@ -338,12 +333,12 @@ mod tests {
     }
 
     #[test]
-    fn test_render_voronoi_color_repulsion() {
+    fn test_render_voronoi_color_scatter() {
         let colors = vec!["#ff0000", "#ff0000", "#00ff00", "#0000ff"];
         let config = SvgConfig {
             width: 100.0,
             height: 100.0,
-            color_repulsion: 0.3,
+            color_scatter: true,
             ..Default::default()
         };
         let svg = render_svg(&colors, &config);

@@ -945,7 +945,7 @@ fn render_text_to_svg(text: &str, output_path: &str, dialect_name: &str, seed: O
         seed: seed.unwrap_or(42),
         cols,
         circular: disk,
-        color_repulsion: 0.3,
+        color_scatter: true,
         ..Default::default()
     };
 
