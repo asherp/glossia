@@ -26,11 +26,19 @@ pub fn wordlist_filenames(language: &str, wordlist: &str) -> (String, String) {
             let payload = format!("payload_{}.yaml", other);
             let cover = format!("cover_{}.yaml", other);
             let cover_key = format!("{}/{}", language, cover);
+            // Check embedded YAML first (release builds have all languages)
             if get_embedded_yaml(&cover_key).is_some() {
-                (payload, cover)
-            } else {
-                (payload, "cover.yaml".into())
+                return (payload, cover);
             }
+            // In debug builds, non-English languages aren't embedded.
+            // Fall back to filesystem check for the cover file.
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                if find_language_file(language, &cover).is_some() {
+                    return (payload, cover);
+                }
+            }
+            (payload, "cover.yaml".into())
         }
     }
 }

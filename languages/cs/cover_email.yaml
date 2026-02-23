@@ -1,0 +1,253 @@
+# Email Cover Words for CS Payloads
+#
+# Structural tokens for email message formatting.
+# All use function-word POS tags (Aux, Prefix, Cop, Modal, To, Dot, Conj)
+# so they are excluded from payload embedding.
+#
+# Refinement tags allow the grammar to deterministically place
+# the correct token (e.g. Aux[subject] always selects "Subject:").
+#
+# These tokens model the anatomy of an RFC 5322 / MIME email:
+#   - Header field labels (Aux)
+#   - MIME Content-Type declarations (Prefix)
+#   - Content-Transfer-Encoding (Cop)
+#   - MIME infrastructure (Modal)
+#   - Header field values / placeholders (To)
+#   - MIME boundaries (Dot)
+#   - HTML body placeholder (Cop)
+#
+# All tokens contain characters outside the base64 alphabet
+# (:, -, space, =, ", ;, ., newline) so the CS decoder correctly
+# identifies them as cover, not payload.
+
+# ── Header field labels (Aux) ─────────────────────────────────────
+# Stable (sender-set) headers
+
+"Subject:":
+  Aux: 1.0
+  refinement: subject
+
+"From:":
+  Aux: 1.0
+  refinement: from
+
+"To:":
+  Aux: 1.0
+  refinement: to
+
+"Date:":
+  Aux: 1.0
+  refinement: date
+
+"Cc:":
+  Aux: 1.0
+  refinement: cc
+
+"Reply-To:":
+  Aux: 1.0
+  refinement: reply-to
+
+# Server-added (transport layer) headers
+
+"Return-Path:":
+  Aux: 1.0
+  refinement: return-path
+
+"Received:":
+  Aux: 1.0
+  refinement: received
+
+"Message-ID:":
+  Aux: 1.0
+  refinement: message-id
+
+"DKIM-Signature:":
+  Aux: 1.0
+  refinement: dkim
+
+"X-Mailer:":
+  Aux: 1.0
+  refinement: x-mailer
+
+# ── MIME type declarations (Prefix) ───────────────────────────────
+# Full Content-Type header lines with refinement tags.
+
+# Text types
+"Content-Type: text/plain; charset=\"UTF-8\"":
+  Prefix: 1.0
+  refinement: text-plain
+
+"Content-Type: text/html; charset=\"UTF-8\"":
+  Prefix: 1.0
+  refinement: text-html
+
+"Content-Type: text/calendar; method=REQUEST":
+  Prefix: 1.0
+  refinement: text-calendar
+
+# Multipart containers
+"Content-Type: multipart/alternative; boundary=\"glossia-alt\"":
+  Prefix: 1.0
+  refinement: multipart-alt
+
+"Content-Type: multipart/mixed; boundary=\"glossia\"":
+  Prefix: 1.0
+  refinement: multipart-mixed
+
+"Content-Type: multipart/related; boundary=\"glossia-rel\"":
+  Prefix: 1.0
+  refinement: multipart-rel
+
+"Content-Type: multipart/signed":
+  Prefix: 1.0
+  refinement: multipart-signed
+
+"Content-Type: multipart/encrypted":
+  Prefix: 1.0
+  refinement: multipart-encrypted
+
+# Attachment types
+"Content-Type: application/octet-stream":
+  Prefix: 1.0
+  refinement: app-octet
+
+"Content-Type: application/pdf":
+  Prefix: 1.0
+  refinement: app-pdf
+
+"Content-Type: application/json":
+  Prefix: 1.0
+  refinement: app-json
+
+"Content-Type: application/zip":
+  Prefix: 1.0
+  refinement: app-zip
+
+"Content-Type: image/jpeg":
+  Prefix: 1.0
+  refinement: image-jpeg
+
+"Content-Type: image/png":
+  Prefix: 1.0
+  refinement: image-png
+
+"Content-Type: image/gif":
+  Prefix: 1.0
+  refinement: image-gif
+
+"Content-Type: audio/mpeg":
+  Prefix: 1.0
+  refinement: audio-mpeg
+
+# Crypto types
+"Content-Type: application/pgp-encrypted":
+  Prefix: 1.0
+  refinement: pgp-encrypted
+
+"Content-Type: application/pgp-signature":
+  Prefix: 1.0
+  refinement: pgp-signature
+
+"Content-Type: application/pkcs7-mime":
+  Prefix: 1.0
+  refinement: pkcs7-mime
+
+# ── Content-Transfer-Encoding (Cop) ──────────────────────────────
+
+"Content-Transfer-Encoding: quoted-printable":
+  Cop: 1.0
+  refinement: cte-qp
+
+"Content-Transfer-Encoding: base64":
+  Cop: 1.0
+  refinement: cte-base64
+
+"Content-Transfer-Encoding: 7bit":
+  Cop: 1.0
+  refinement: cte-7bit
+
+"Content-Transfer-Encoding: 8bit":
+  Cop: 1.0
+  refinement: cte-8bit
+
+# ── MIME infrastructure (Modal) ───────────────────────────────────
+
+"MIME-Version: 1.0":
+  Modal: 1.0
+  refinement: mime-version
+
+"Content-Disposition: attachment":
+  Modal: 1.0
+  refinement: disp-attach
+
+"Content-Disposition: inline":
+  Modal: 1.0
+  refinement: disp-inline
+
+# ── Header field values / placeholders (To) ───────────────────────
+# Placeholder values for parametric header fields.
+# Tools like nostr-mail replace these with real values at the
+# application layer.
+
+"<sender@glossia.local>":
+  To: 1.0
+  refinement: from-val
+
+"<recipient@glossia.local>":
+  To: 1.0
+  refinement: to-val
+
+"<placeholder@glossia.local>":
+  To: 1.0
+  refinement: addr-val
+
+"Thu, 01 Jan 2026 00:00:00 +0000":
+  To: 1.0
+  refinement: date-val
+
+"<msgid@glossia.local>":
+  To: 1.0
+  refinement: msgid-val
+
+"from glossia (localhost [127.0.0.1])":
+  To: 1.0
+  refinement: trace-val
+
+# ── HTML body placeholder (Cop) ───────────────────────────────────
+# HTML content is cover (structural duplicate of text/plain payload).
+
+"<html><body></body></html>":
+  Cop: 1.0
+  refinement: html-body
+
+# ── MIME boundaries (Dot) ─────────────────────────────────────────
+
+"--glossia":
+  Dot: 1.0
+  refinement: boundary
+
+"--glossia--":
+  Dot: 1.0
+  refinement: boundary-end
+
+"--glossia-alt":
+  Dot: 1.0
+  refinement: boundary-alt
+
+"--glossia-alt--":
+  Dot: 1.0
+  refinement: boundary-alt-end
+
+"--glossia-rel":
+  Dot: 1.0
+  refinement: boundary-rel
+
+"--glossia-rel--":
+  Dot: 1.0
+  refinement: boundary-rel-end
+
+# ── Line separator (Conj) ────────────────────────────────────────
+# Must be declared here — cover files replace, not merge.
+
+"\n":
+  Conj: 1.0

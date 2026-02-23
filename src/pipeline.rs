@@ -250,6 +250,22 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
         "nsec" => Some(("crypto/nostr", "sec")),
         "lightning" | "ln" => Some(("crypto/ln", "main")),
         "cashu" => Some(("crypto/cashu", "a")),
+        "email" => Some(("cs", "email")),
+        _ => None,
+    }
+}
+
+/// Meta payload words that are palette (wordlist) modifiers for the image language.
+fn meta_word_to_palette(word: &str) -> Option<&str> {
+    match word {
+        "viridis" => Some("viridis"),
+        "plasma" => Some("plasma"),
+        "inferno" => Some("inferno"),
+        "magma" => Some("magma"),
+        "cividis" => Some("cividis"),
+        "turbo" => Some("turbo"),
+        "mako" => Some("mako"),
+        "rocket" => Some("rocket"),
         _ => None,
     }
 }
@@ -267,6 +283,8 @@ fn meta_word_to_dialect(word: &str) -> Option<&str> {
         "constellation" => Some("constellation"),
         "patches" => Some("patches"),
         "raw" => Some("raw"),
+        "email_alt" => Some("email_alt"),
+        "email_mime" => Some("email_mime"),
         _ => None,
     }
 }
@@ -321,6 +339,10 @@ impl Pipeline {
             "constellation", "patches", "raw",
             // Crypto language keywords
             "bitcoin", "btc", "npub", "nsec", "lightning", "ln", "cashu",
+            // Email dialect keywords
+            "email", "email_alt", "email_mime",
+            // Image palette names (wordlist modifiers)
+            "viridis", "plasma", "inferno", "magma", "cividis", "turbo", "mako", "rocket",
         ]
         .iter()
         .copied()
@@ -339,6 +361,7 @@ impl Pipeline {
         let mut source: Option<Endpoint> = None;
         let mut target: Option<Endpoint> = None;
         let mut pending_dialect: Option<String> = None;
+        let mut pending_wordlist: Option<String> = None;
         let mut unscoped_endpoints: Vec<Endpoint> = Vec::new();
         // Track whether source/target were set via explicit prepositions.
         let mut source_explicit = false;
@@ -401,6 +424,12 @@ impl Pipeline {
                 continue;
             }
 
+            // Palette (wordlist) modifier — save it to apply to the next image endpoint.
+            if let Some(palette) = meta_word_to_palette(lower) {
+                pending_wordlist = Some(palette.to_string());
+                continue;
+            }
+
             // Dialect modifier — save it to apply to the next endpoint.
             if let Some(dialect) = meta_word_to_dialect(lower) {
                 pending_dialect = Some(dialect.to_string());
@@ -413,7 +442,9 @@ impl Pipeline {
             } else if let Some((lang, default_dialect)) = meta_word_to_language(lower) {
                 let dialect = pending_dialect.take()
                     .unwrap_or_else(|| default_dialect.to_string());
-                Endpoint::language_with_dialect(lang, &dialect)
+                let wordlist = pending_wordlist.take()
+                    .unwrap_or_else(|| "default".to_string());
+                Endpoint::language_full(lang, &wordlist, &dialect)
             } else {
                 // Unrecognized meta payload word — skip.
                 continue;
@@ -440,11 +471,19 @@ impl Pipeline {
             if let Some(dialect) = pending_dialect.take() {
                 apply_dialect_modifier(&mut source, &mut target, &mut unscoped_endpoints, &dialect);
             }
+            // Apply trailing wordlist (palette) modifier to the most recently set endpoint.
+            if let Some(wl) = pending_wordlist.take() {
+                apply_wordlist_modifier(&mut source, &mut target, &mut unscoped_endpoints, &wl);
+            }
         }
 
         // Apply any remaining pending dialect.
         if let Some(dialect) = pending_dialect {
             apply_dialect_modifier(&mut source, &mut target, &mut unscoped_endpoints, &dialect);
+        }
+        // Apply any remaining pending wordlist.
+        if let Some(wl) = pending_wordlist {
+            apply_wordlist_modifier(&mut source, &mut target, &mut unscoped_endpoints, &wl);
         }
 
         // Fill in source/target gaps from unscoped endpoints.
@@ -906,6 +945,24 @@ fn apply_dialect_modifier(
     }
 }
 
+fn apply_wordlist_modifier(
+    source: &mut Option<Endpoint>,
+    target: &mut Option<Endpoint>,
+    unscoped: &mut Vec<Endpoint>,
+    wordlist: &str,
+) {
+    let ep = if target.is_some() {
+        target.as_mut()
+    } else if source.is_some() {
+        source.as_mut()
+    } else {
+        unscoped.last_mut()
+    };
+    if let Some(Endpoint::Language { wordlist: ref mut w, .. }) = ep {
+        *w = wordlist.to_string();
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // Reusable encode/decode helpers
 // ═══════════════════════════════════════════════════════════════════════
@@ -964,6 +1021,11 @@ pub fn encode_into_language(
         .map_err(|e| PipelineError::EncodeError(e))?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
+    // Check if this language uses bitpacking (power-of-2 wordlists) or base-N conversion.
+    let grammar = Grammar::from_language_dialect(language, dialect)
+        .map_err(|e| PipelineError::EncodeError(format!("Failed to load grammar: {}", e)))?;
+    let uses_bitpacking = grammar.uses_bitpacking();
+
     // 2. Input string → binary → payload words.
     let (encoded_words, data_mode) = if let Some(mode) = forced_data_mode {
         // Explicit mode: pre-decode the input string to raw bytes.
@@ -974,12 +1036,22 @@ pub fn encode_into_language(
                 .ok_or_else(|| PipelineError::EncodeError("invalid base64 input".into()))?,
             DataMode::Ascii7 | DataMode::Bytes8 => input.as_bytes().to_vec(),
         };
-        codec::encode_with_mode(&data, &payload_tree, mode)
-            .map(|words| (words, mode))
+        if uses_bitpacking {
+            codec::encode_with_mode(&data, &payload_tree, mode)
+                .map(|words| (words, mode))
+                .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?
+        } else {
+            let words = codec::encode_base_n(&data, &payload_tree)
+                .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
+            (words, mode)
+        }
+    } else if uses_bitpacking {
+        // Power-of-2 wordlist: use bitpacking codec.
+        codec::encode_str_with_mode(input, &payload_tree)
             .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?
     } else {
-        // Auto-detect: codec::encode_str_with_mode handles hex/base64/ascii/bytes.
-        codec::encode_str_with_mode(input, &payload_tree)
+        // Non-power-of-2: use base-N conversion (like base58, base64 charset).
+        codec::encode_str_base_n(input, &payload_tree)
             .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?
     };
 
@@ -1000,8 +1072,11 @@ pub fn encode_into_language(
 
     // 4. Build Lexicon (cover words).
     //    cover_override selects an alternate cover file (e.g., "html" → cover_html.yaml).
+    //    If no override, use the dialect config's cover_wordlist (e.g., "email" for email dialect).
     let wordlist_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
-    let cover_wl = cover_override.unwrap_or(wordlist);
+    let dialect_config = crate::grammar::DialectConfig::from_language_dialect(language, dialect)
+        .map_err(|e| PipelineError::EncodeError(format!("Dialect config error: {}", e)))?;
+    let cover_wl = cover_override.unwrap_or_else(|| dialect_config.cover_wordlist());
     let (cover_by_pos, refined_cover) =
         load_cover_words_by_pos_for_wordlist(&wordlist_set, language, cover_wl);
 
@@ -1126,8 +1201,20 @@ pub fn decode_from_language(
     }
 
     // 4. Payload words → binary → data string.
-    codec::decode_str(&extracted, &payload_tree)
-        .map_err(|e| PipelineError::DecodeError(format!("{}", e)))
+    let uses_bitpacking = grammar.uses_bitpacking();
+    if uses_bitpacking {
+        codec::decode_str(&extracted, &payload_tree)
+            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))
+    } else {
+        // Base-N decoding: decode to bytes, then render as best-effort string.
+        let bytes = codec::decode_base_n(&extracted, &payload_tree)
+            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+        // Try UTF-8, fall back to hex.
+        match String::from_utf8(bytes.clone()) {
+            Ok(s) => Ok(s),
+            Err(_) => Ok(codec::hex_encode(&bytes)),
+        }
+    }
 }
 
 /// Decode language prose, returning both the decoded text and extracted payload words.
@@ -1192,8 +1279,18 @@ pub fn decode_from_language_rich(
     }
 
     // 4. Payload words → binary → data string.
-    let decoded = codec::decode_str(&extracted, &payload_tree)
-        .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+    let uses_bitpacking = grammar.uses_bitpacking();
+    let decoded = if uses_bitpacking {
+        codec::decode_str(&extracted, &payload_tree)
+            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?
+    } else {
+        let bytes = codec::decode_base_n(&extracted, &payload_tree)
+            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+        match String::from_utf8(bytes.clone()) {
+            Ok(s) => s,
+            Err(_) => codec::hex_encode(&bytes),
+        }
+    };
 
     Ok((decoded, extracted))
 }
@@ -1688,6 +1785,34 @@ mod tests {
         let p = Pipeline::from_meta("translate from english into image voronoi").unwrap();
         assert_eq!(p.source, Endpoint::language("english"));
         assert_eq!(p.target, Endpoint::language_with_dialect("image", "voronoi"));
+    }
+
+    // ── Image palette (wordlist) selection ──────────────────────────
+
+    #[test]
+    fn test_image_palette_plasma_voronoi() {
+        let p = Pipeline::from_meta("encode into image plasma voronoi").unwrap();
+        assert_eq!(p.target, Endpoint::language_full("image", "plasma", "voronoi"));
+    }
+
+    #[test]
+    fn test_image_palette_rocket_grid() {
+        let p = Pipeline::from_meta("encode into image rocket grid").unwrap();
+        assert_eq!(p.target, Endpoint::language_full("image", "rocket", "grid"));
+    }
+
+    #[test]
+    fn test_image_palette_without_dialect() {
+        let p = Pipeline::from_meta("encode into image magma").unwrap();
+        assert_eq!(p.target, Endpoint::language_full("image", "magma", "voronoi"),
+            "palette without dialect should default to voronoi");
+    }
+
+    #[test]
+    fn test_image_palette_order_dialect_first() {
+        // "voronoi plasma" — dialect before palette
+        let p = Pipeline::from_meta("encode into image voronoi plasma").unwrap();
+        assert_eq!(p.target, Endpoint::language_full("image", "plasma", "voronoi"));
     }
 
     // ── Crypto language pipeline parsing ─────────────────────────────

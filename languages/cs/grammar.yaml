@@ -28,6 +28,10 @@
 #   sig        → plain   (base58, plain signature armor)
 #   sig_pgp    → PGP     (base58, PGP signature armor)
 #   sig_nostr  → NOSTR   (base58, Nostr Schnorr signature armor)
+#   email      → simple text/plain email with envelope headers
+#   email_alt  → multipart/alternative (text + html)
+#   email_mime → multipart/mixed with attachment
+#   email_raw  → content only, no email structure
 #
 # Type inventory:
 #   e = entity (payload character)
@@ -282,5 +286,216 @@ grammar:
           lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "Conj Dot Aux[end] Prefix[nostr] Modal[sig] Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    # ── Email dialects ────────────────────────────────────────────
+    #
+    # Email message structure — models RFC 5322 / MIME anatomy.
+    # Cover words from cover_email.yaml provide header labels, MIME
+    # types, boundaries, and placeholder values.
+    # Payload uses base64 alphabet (same as standard CS).
+    #
+    # Output structures:
+    #   email      → simple text/plain with envelope headers
+    #   email_alt  → multipart/alternative (text + html)
+    #   email_mime → multipart/mixed with attachment
+    #   email_raw  → content only, no email structure
+
+    email:
+      # Simple text/plain email with envelope headers.
+      # Output:
+      #   From: <sender@glossia.local>
+      #   To: <recipient@glossia.local>
+      #   Date: Thu, 01 Jan 2026 00:00:00 +0000
+      #   Subject: <content>
+      #   Content-Type: text/plain; charset="UTF-8"
+      #
+      #   <content>
+      payload_wordlist: "base64"
+      cover_wordlist: "email"
+      payload_line_width: null
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "ENVELOPE_HEADERS SUBJECT_LINE PLAIN_PREAMBLE BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        # ── Email structure rules ─────────────────────────────────
+        # These are inherited by email_alt, email_mime, email_raw
+        # via parent: email. All use structural passthrough lambda.
+
+        SUBJECT_BODY:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "N SUBJECT_BODY"
+              weight: 0.85
+              lambda: "λn:(e->t). n"
+
+        ENVELOPE_HEADERS:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            # Minimal: stable sender-set headers only
+            - production: "Aux[from] To[from-val] Conj Aux[to] To[to-val] Conj Aux[date] To[date-val] Conj"
+              weight: 0.7
+              lambda: "λn:(e->t). n"
+            # With transport trace (what a received email looks like)
+            - production: "Aux[return-path] To[addr-val] Conj Aux[received] To[trace-val] Conj Aux[date] To[date-val] Conj Aux[from] To[from-val] Conj Aux[to] To[to-val] Conj Aux[message-id] To[msgid-val] Conj"
+              weight: 0.3
+              lambda: "λn:(e->t). n"
+
+        SUBJECT_LINE:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Aux[subject] SUBJECT_BODY Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        PLAIN_PREAMBLE:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Prefix[text-plain] Conj Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_PREAMBLE:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Modal[mime-version] Conj Prefix[multipart-mixed] Conj Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_ALT_PREAMBLE:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Modal[mime-version] Conj Prefix[multipart-alt] Conj Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_TEXT_PART:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot[boundary] Conj Prefix[text-plain] Conj Conj BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_HTML_PART:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot[boundary] Conj Prefix[text-html] Conj Conj Cop[html-body]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_ATTACH:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot[boundary] Conj Prefix[app-octet] Conj Cop[cte-base64] Conj Modal[disp-attach] Conj Conj BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_CLOSE:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot[boundary-end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    email_alt:
+      # Multipart/alternative (text + html).
+      # Models the common Gmail-style message with text/plain and
+      # text/html alternatives. HTML part is cover (structural duplicate).
+      # Output:
+      #   <envelope headers>
+      #   Subject: <content>
+      #   MIME-Version: 1.0
+      #   Content-Type: multipart/alternative; boundary="glossia-alt"
+      #
+      #   --glossia-alt
+      #   Content-Type: text/plain; charset="UTF-8"
+      #
+      #   <content>
+      #
+      #   --glossia-alt
+      #   Content-Type: text/html; charset="UTF-8"
+      #
+      #   <html><body></body></html>
+      #
+      #   --glossia-alt--
+      parent: email
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "ENVELOPE_HEADERS SUBJECT_LINE MIME_ALT_PREAMBLE MIME_TEXT_PART MIME_HTML_PART MIME_CLOSE"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        # email_alt uses --glossia-alt boundaries
+        MIME_TEXT_PART:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot[boundary-alt] Conj Prefix[text-plain] Conj Conj BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_HTML_PART:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot[boundary-alt] Conj Prefix[text-html] Conj Conj Cop[html-body]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        MIME_CLOSE:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot[boundary-alt-end]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    email_mime:
+      # Multipart/mixed with attachment.
+      # Text/plain part carries body payload, attachment part carries overflow.
+      # Output:
+      #   <envelope headers>
+      #   Subject: <content>
+      #   MIME-Version: 1.0
+      #   Content-Type: multipart/mixed; boundary="glossia"
+      #
+      #   --glossia
+      #   Content-Type: text/plain; charset="UTF-8"
+      #
+      #   <content>
+      #
+      #   --glossia
+      #   Content-Type: application/octet-stream
+      #   Content-Transfer-Encoding: base64
+      #   Content-Disposition: attachment
+      #
+      #   <content>
+      #
+      #   --glossia--
+      parent: email
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "ENVELOPE_HEADERS SUBJECT_LINE MIME_PREAMBLE MIME_TEXT_PART MIME_ATTACH MIME_CLOSE"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    email_raw:
+      # Content only — no email structure, no line wrapping.
+      # Used for testing or when only the encoded body is needed.
+      parent: email
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "BODY"
               weight: 1.0
               lambda: "λn:(e->t). n"

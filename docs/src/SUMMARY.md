@@ -12,5 +12,6 @@
 - [Language Support](./language-support.md)
 - [Tools](./tools.md)
 - [Image Codec](./image-codec.md)
+- [Email Dialect](./email-dialect.md)
 - [Project Structure](./project-structure.md)
 - [Whitepaper](./whitepaper.md)
