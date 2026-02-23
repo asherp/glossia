@@ -967,55 +967,29 @@ fn apply_wordlist_modifier(
 // Reusable encode/decode helpers
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Encode raw data into language prose.
+/// Resolve "default" wordlist to the actual wordlist name for a language.
+fn resolve_wordlist_name<'a>(language: &str, wordlist: &'a str) -> &'a str {
+    if wordlist == "default" {
+        let dw = default_wordlist(language);
+        if dw == "default" { wordlist } else { dw }
+    } else {
+        wordlist
+    }
+}
+
+/// Shared first stage: input string → binary → POS-tagged payload tokens.
 ///
-/// The data string is first converted to binary (via the codec layer,
-/// which auto-detects hex/base64/ascii/bytes), then the binary is
-/// encoded into payload words, which are embedded into grammatical prose.
+/// Resolves the wordlist, loads payload words, encodes input to payload words
+/// via the codec layer, and POS-tags each word.
 ///
-/// `cover_override` optionally selects an alternate cover wordlist (e.g.,
-/// `Some("html")` loads `cover_html.yaml` instead of the default cover).
-///
-/// Returns `(generated_text, payload_word_set, encoded_word_list, data_mode)`.
-pub fn encode_into_language(
+/// Returns `(payload_toks, encoded_words, data_mode, payload_word_set)`.
+fn prepare_payload(
     input: &str,
     language: &str,
     wordlist: &str,
     dialect: &str,
     forced_data_mode: Option<DataMode>,
-    seed: u64,
-    verbose: bool,
-    cover_override: Option<&str>,
-    length_mode: Option<SentenceLengthMode>,
-    k_min_override: Option<usize>,
-    k_max_override: Option<usize>,
-) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
-    // Auto-detect subject prefix from input (Re: / Fwd:).
-    // When dialect is "subject", check if input starts with a known prefix,
-    // strip it, and route to the appropriate dialect variant (subject_re / subject_fwd).
-    // This mirrors how CS grammar routes to pgp/nip04 based on explicit dialect choice,
-    // but here the "choice" is inferred from the input content.
-    let (input, dialect) = if dialect == "subject" {
-        let trimmed = input.trim_start();
-        if trimmed.to_lowercase().starts_with("re:") {
-            (&trimmed[3..].trim_start() as &str, "subject_re")
-        } else if trimmed.to_lowercase().starts_with("fwd:") {
-            (&trimmed[4..].trim_start() as &str, "subject_fwd")
-        } else {
-            (input, dialect)
-        }
-    } else {
-        (input, dialect)
-    };
-
-    // Resolve "default" wordlist to actual name (e.g., "bip39" for English).
-    let wordlist = if wordlist == "default" {
-        let dw = default_wordlist(language);
-        if dw == "default" { wordlist } else { dw }
-    } else {
-        wordlist
-    };
-
+) -> Result<(Vec<PayloadTok>, Vec<String>, DataMode, HashSet<String>), PipelineError> {
     // 1. Load payload wordlist.
     let payload_words = load_payload_words_for_wordlist(language, wordlist)
         .map_err(|e| PipelineError::EncodeError(e))?;
@@ -1070,46 +1044,65 @@ pub fn encode_into_language(
         })
         .collect();
 
-    // 4. Build Lexicon (cover words).
-    //    cover_override selects an alternate cover file (e.g., "html" → cover_html.yaml).
-    //    If no override, use the dialect config's cover_wordlist (e.g., "email" for email dialect).
     let wordlist_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
+
+    Ok((payload_toks, encoded_words, data_mode, wordlist_set))
+}
+
+/// Per-zone second stage: embed a slice of payload tokens into grammatical prose.
+///
+/// Loads the dialect config, cover words, builds a Lexicon, determines sentence
+/// parameters from the grammar, and generates text for the given token range.
+fn generate_prose_for_zone(
+    payload_toks: &[PayloadTok],
+    word_range: std::ops::Range<usize>,
+    language: &str,
+    _wordlist: &str,
+    dialect: &str,
+    payload_word_set: &HashSet<String>,
+    seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+) -> Result<(String, HashSet<String>), PipelineError> {
+    // 1. Build Lexicon (cover words).
     let dialect_config = crate::grammar::DialectConfig::from_language_dialect(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Dialect config error: {}", e)))?;
     let cover_wl = cover_override.unwrap_or_else(|| dialect_config.cover_wordlist());
     let (cover_by_pos, refined_cover) =
-        load_cover_words_by_pos_for_wordlist(&wordlist_set, language, cover_wl);
+        load_cover_words_by_pos_for_wordlist(payload_word_set, language, cover_wl);
 
-    let mut lex = Lexicon::new(wordlist_set.clone(), wordlist_set);
+    let mut lex = Lexicon::new(payload_word_set.clone(), payload_word_set.clone());
     for (pos, words) in cover_by_pos {
         lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     lex = lex.with_refined_cover(refined_cover);
 
-    // 5. Grammar-derived sentence parameters.
+    // 2. Grammar-derived sentence parameters.
     let grammar = Grammar::from_language_dialect(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
 
+    let zone_toks = &payload_toks[word_range];
     let min_k = grammar.min_sentence_length().unwrap_or(5);
     let concat_payload = grammar.payload_separator().is_empty();
     let (k_min, k_max) = if concat_payload {
-        let k = min_k + payload_toks.len().saturating_sub(1);
+        let k = min_k + zone_toks.len().saturating_sub(1);
         (k, k)
     } else {
-        // Use overrides if provided, otherwise defaults
         let default_k_min = 5;
         let default_k_max = 12;
         (k_min_override.unwrap_or(default_k_min), k_max_override.unwrap_or(default_k_max))
     };
 
-    // 6. Generate text.
+    // 3. Generate text.
     let mut rng = StdRng::seed_from_u64(seed);
     let mode = if dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
         GenerationMode::Body
     };
-    // Use provided length_mode, or default based on generation mode
     let length_mode = length_mode.unwrap_or_else(|| match mode {
         GenerationMode::Subject => SentenceLengthMode::Compact,
         GenerationMode::Body => SentenceLengthMode::Natural,
@@ -1118,7 +1111,7 @@ pub fn encode_into_language(
     let (text, payload_set) = generate_text_with_original_payload(
         &mut rng,
         &lex,
-        &payload_toks,
+        zone_toks,
         None,
         verbose,
         mode,
@@ -1130,7 +1123,285 @@ pub fn encode_into_language(
         " ",
     );
 
+    Ok((text, payload_set))
+}
+
+/// Check if a dialect is a prose-in-email composition dialect.
+///
+/// These dialects use two-pass pipeline composition: prose content (English/Latin)
+/// is generated separately for subject and body zones, then assembled into an
+/// email template.
+fn is_prose_email_dialect(dialect: &str) -> bool {
+    matches!(dialect, "email" | "email_alt" | "email_mime")
+}
+
+/// Determine how many payload words go into the subject line.
+///
+/// The subject gets up to 6 words (enough for a natural-sounding phrase).
+/// If the total is 6 or fewer, all words go in the subject (no body).
+fn compute_subject_word_count(total: usize) -> usize {
+    if total <= 6 { total } else { 6 }
+}
+
+/// Assemble an email from subject and body prose using hardcoded templates.
+///
+/// Templates mirror the CS email dialect structure but with prose content
+/// instead of base64 gibberish. Header values (From, To, Date) use fixed
+/// placeholders that contain no BIP39 words.
+fn assemble_email(dialect: &str, subject: &str, body: &str) -> String {
+    match dialect {
+        "email_alt" => format!(
+            "From: <sender@glossia.local>\r\n\
+             To: <recipient@glossia.local>\r\n\
+             Date: Thu, 01 Jan 2026 00:00:00 +0000\r\n\
+             Subject: {subject}\r\n\
+             MIME-Version: 1.0\r\n\
+             Content-Type: multipart/alternative; boundary=\"glossia-alt\"\r\n\
+             \r\n\
+             --glossia-alt\r\n\
+             Content-Type: text/plain; charset=\"UTF-8\"\r\n\
+             \r\n\
+             {body}\r\n\
+             \r\n\
+             --glossia-alt\r\n\
+             Content-Type: text/html; charset=\"UTF-8\"\r\n\
+             \r\n\
+             <html><body></body></html>\r\n\
+             \r\n\
+             --glossia-alt--"
+        ),
+        "email_mime" => format!(
+            "From: <sender@glossia.local>\r\n\
+             To: <recipient@glossia.local>\r\n\
+             Date: Thu, 01 Jan 2026 00:00:00 +0000\r\n\
+             Subject: {subject}\r\n\
+             MIME-Version: 1.0\r\n\
+             Content-Type: multipart/mixed; boundary=\"glossia\"\r\n\
+             \r\n\
+             --glossia\r\n\
+             Content-Type: text/plain; charset=\"UTF-8\"\r\n\
+             \r\n\
+             {body}\r\n\
+             \r\n\
+             --glossia\r\n\
+             Content-Type: application/octet-stream\r\n\
+             Content-Disposition: attachment; filename=\"payload.bin\"\r\n\
+             \r\n\
+             \r\n\
+             --glossia--"
+        ),
+        // "email" (text/plain) is the default
+        _ => format!(
+            "From: <sender@glossia.local>\r\n\
+             To: <recipient@glossia.local>\r\n\
+             Date: Thu, 01 Jan 2026 00:00:00 +0000\r\n\
+             Subject: {subject}\r\n\
+             Content-Type: text/plain; charset=\"UTF-8\"\r\n\
+             \r\n\
+             {body}"
+        ),
+    }
+}
+
+/// Compose prose content inside an email structure (two-pass pipeline).
+///
+/// This is the entry point for `english/bip39/email`, `latin/default/email`, etc.
+/// It encodes the input into payload words once, splits them between subject and
+/// body zones, generates prose for each zone using the content language's grammar,
+/// and assembles the result into an email template.
+fn compose_email(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    forced_data_mode: Option<DataMode>,
+    seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
+    // Stage 1: shared — bytes → POS-tagged payload tokens.
+    // Use "body" dialect for bitpacking check since the content language (English/Latin)
+    // has its bitpacking setting on the body dialect, not the email template.
+    let (payload_toks, encoded_words, data_mode, wordlist_set) =
+        prepare_payload(input, language, wordlist, "body", forced_data_mode)?;
+
+    let total = payload_toks.len();
+    let subject_count = compute_subject_word_count(total);
+
+    // Stage 2a: generate subject prose.
+    let (subject_text, subject_set) = generate_prose_for_zone(
+        &payload_toks,
+        0..subject_count,
+        language,
+        wordlist,
+        "subject",
+        &wordlist_set,
+        seed,
+        verbose,
+        cover_override,
+        Some(SentenceLengthMode::Compact),
+        k_min_override,
+        k_max_override,
+    )?;
+
+    // Stage 2b: generate body prose (remaining words).
+    let (body_text, body_set) = if subject_count < total {
+        generate_prose_for_zone(
+            &payload_toks,
+            subject_count..total,
+            language,
+            wordlist,
+            "body",
+            &wordlist_set,
+            seed.wrapping_add(1),
+            verbose,
+            cover_override,
+            length_mode,
+            k_min_override,
+            k_max_override,
+        )?
+    } else {
+        (String::new(), HashSet::new())
+    };
+
+    // Stage 3: assemble email.
+    let email = assemble_email(dialect, &subject_text, &body_text);
+
+    // Merge payload sets from both zones.
+    let mut payload_set = subject_set;
+    payload_set.extend(body_set);
+
+    Ok((email, payload_set, encoded_words, data_mode))
+}
+
+/// Encode raw data into language prose.
+///
+/// The data string is first converted to binary (via the codec layer,
+/// which auto-detects hex/base64/ascii/bytes), then the binary is
+/// encoded into payload words, which are embedded into grammatical prose.
+///
+/// `cover_override` optionally selects an alternate cover wordlist (e.g.,
+/// `Some("html")` loads `cover_html.yaml` instead of the default cover).
+///
+/// Returns `(generated_text, payload_word_set, encoded_word_list, data_mode)`.
+pub fn encode_into_language(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    forced_data_mode: Option<DataMode>,
+    seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
+    // Resolve "default" wordlist to actual name (e.g., "bip39" for English).
+    let wordlist = resolve_wordlist_name(language, wordlist);
+
+    // Prose-in-email composition: route to two-pass pipeline.
+    // cs/base64/email uses the existing CS grammar path (unchanged).
+    if is_prose_email_dialect(dialect) && language != "cs" {
+        return compose_email(
+            input, language, wordlist, dialect, forced_data_mode,
+            seed, verbose, cover_override, length_mode,
+            k_min_override, k_max_override,
+        );
+    }
+
+    // Auto-detect subject prefix from input (Re: / Fwd:).
+    // When dialect is "subject", check if input starts with a known prefix,
+    // strip it, and route to the appropriate dialect variant (subject_re / subject_fwd).
+    // This mirrors how CS grammar routes to pgp/nip04 based on explicit dialect choice,
+    // but here the "choice" is inferred from the input content.
+    let (input, dialect) = if dialect == "subject" {
+        let trimmed = input.trim_start();
+        if trimmed.to_lowercase().starts_with("re:") {
+            (&trimmed[3..].trim_start() as &str, "subject_re")
+        } else if trimmed.to_lowercase().starts_with("fwd:") {
+            (&trimmed[4..].trim_start() as &str, "subject_fwd")
+        } else {
+            (input, dialect)
+        }
+    } else {
+        (input, dialect)
+    };
+
+    // Stage 1: shared — input → payload tokens.
+    let (payload_toks, encoded_words, data_mode, wordlist_set) =
+        prepare_payload(input, language, wordlist, dialect, forced_data_mode)?;
+
+    // Stage 2: full payload → prose.
+    let (text, payload_set) = generate_prose_for_zone(
+        &payload_toks,
+        0..payload_toks.len(),
+        language,
+        wordlist,
+        dialect,
+        &wordlist_set,
+        seed,
+        verbose,
+        cover_override,
+        length_mode,
+        k_min_override,
+        k_max_override,
+    )?;
+
     Ok((text, payload_set, encoded_words, data_mode))
+}
+
+/// Strip RFC 5322 header label names from text to prevent header/payload collisions.
+///
+/// When prose-in-email content is decoded, the email header labels (like "Subject:")
+/// get trimmed to bare words (e.g., "subject") which may collide with payload words.
+/// This function detects email headers and replaces each header line with just its
+/// value, preserving any payload words embedded in header values (e.g., the Subject line).
+///
+/// Activation heuristic: the text must start with a recognized RFC 5322 header
+/// (From:, To:, Date:, Received:). Regular prose never matches this pattern.
+fn strip_email_header_labels(text: &str) -> String {
+    let first_line = text.lines().next().unwrap_or("");
+    let first_lower = first_line.to_lowercase();
+    // Only activate for text that looks like an email (starts with a standard header).
+    if !first_lower.starts_with("from:")
+        && !first_lower.starts_with("to:")
+        && !first_lower.starts_with("date:")
+        && !first_lower.starts_with("received:")
+    {
+        return text.to_string();
+    }
+
+    let mut result = String::new();
+    let mut in_headers = true;
+
+    for line in text.lines() {
+        if in_headers {
+            if line.trim().is_empty() {
+                // Blank line separates headers from body.
+                in_headers = false;
+                result.push('\n');
+            } else if line.starts_with(' ') || line.starts_with('\t') {
+                // Folded header continuation — keep value as-is.
+                result.push_str(line.trim_start());
+                result.push('\n');
+            } else if let Some(colon_pos) = line.find(':') {
+                // Header line: strip the label, keep the value.
+                let value = line[colon_pos + 1..].trim_start();
+                if !value.is_empty() {
+                    result.push_str(value);
+                    result.push('\n');
+                }
+            }
+        } else {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+    result
 }
 
 /// Decode language prose back to the original data string.
@@ -1144,6 +1415,11 @@ pub fn decode_from_language(
     wordlist: &str,
     verbose: bool,
 ) -> Result<String, PipelineError> {
+    // Strip email header labels if the input looks like an RFC 5322 message.
+    // This prevents header names like "Subject" from colliding with payload words.
+    let text = strip_email_header_labels(text);
+    let text = text.as_str();
+
     // Resolve "default" wordlist to actual name (e.g., "bip39" for English).
     let wordlist = if wordlist == "default" {
         let dw = default_wordlist(language);
@@ -1224,6 +1500,10 @@ pub fn decode_from_language_rich(
     wordlist: &str,
     verbose: bool,
 ) -> Result<(String, Vec<String>), PipelineError> {
+    // Strip email header labels if the input looks like an RFC 5322 message.
+    let text = strip_email_header_labels(text);
+    let text = text.as_str();
+
     // Resolve "default" wordlist to actual name.
     let wordlist = if wordlist == "default" {
         let dw = default_wordlist(language);
