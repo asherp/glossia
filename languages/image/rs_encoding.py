@@ -106,11 +106,19 @@ class RSEncoder:
 
         # Mixed-radix: total states per cell = N * M_min^2
         # Works for any N (not just powers of 2)
-        self.states_per_cell = self.n_palette * self.constellation_map.M_min ** 2
+        self._M_min = self.constellation_map.M_min
+        self.states_per_cell = self.n_palette * self._M_min ** 2
         self.bits_per_cell = float(np.log2(self.states_per_cell))
         # Informational (for display/logging)
         self.word_bits = float(np.log2(self.n_palette))
-        self.pos_bits = float(2 * np.log2(self.constellation_map.M_min))
+        self.pos_bits = float(2 * np.log2(self._M_min))
+
+        # Uniform constellation: all words use M_min so that pos_idx
+        # always maps to the centered M_min x M_min subgrid. This avoids
+        # the problem where pos_idx < M_min^2 maps to edge columns of
+        # a larger M[w] grid, potentially leaving the sRGB gamut.
+        self._uniform_constellation = Constellation(self._M_min,
+                                                     self.constellation_map.epsilon)
 
         # RS codec
         self.ecc_ratio = ecc_ratio
@@ -169,20 +177,21 @@ class RSEncoder:
             word_idx = cell_val % self.n_palette
             pos_idx = cell_val // self.n_palette
 
-            # Clamp pos to actual capacity (should be within M_min^2)
-            c = self.constellation_map[word_idx]
-            pos_idx = min(pos_idx, c.capacity - 1)
+            # Clamp pos to M_min^2 capacity
+            pos_idx = min(pos_idx, self._uniform_constellation.capacity - 1)
 
             cells.append((word_idx, pos_idx))
 
-        # Encode cells into CIELAB colors
+        # Encode cells into CIELAB colors.
+        # Use the uniform M_min constellation for ALL words so that
+        # pos_idx always maps to the centered M_min x M_min subgrid.
+        uc = self._uniform_constellation
         pixels_lab = np.zeros((n_cells, 3))
         for i, (w, j) in enumerate(cells):
             s_w = self.s_palette[w]
             base = self.curve.eval(s_w)
             _, U1, U2 = self.frame.eval_frame(s_w)
-            c = self.constellation_map[w]
-            alpha1, alpha2 = c.position_to_displacement(j)
+            alpha1, alpha2 = uc.position_to_displacement(j)
             pixels_lab[i] = base + alpha1 * U1 + alpha2 * U2
 
         meta = {
@@ -217,9 +226,9 @@ class RSEncoder:
         # Decode each cell to (word_index, constellation_position)
         # Use joint (word, position) search: for each palette word, compute
         # the pixel's constellation position and residual distance, then pick
-        # the (word, position) with minimum residual. This is necessary because
-        # large constellation displacements can push a pixel closer to an
-        # adjacent palette color's base than to its own.
+        # the (word, position) with minimum residual. Uses the uniform M_min
+        # constellation (same as encoder) so pos_idx maps correctly.
+        uc = self._uniform_constellation
         cells = []
         for i in range(n_cells):
             pixel = pixels_lab[i]
@@ -235,13 +244,12 @@ class RSEncoder:
                 alpha1 = float(np.dot(diff, U1))
                 alpha2 = float(np.dot(diff, U2))
 
-                # Snap to nearest grid point using per-color constellation
-                c = self.constellation_map[w]
-                j = c.displacement_to_position(alpha1, alpha2)
+                # Snap to nearest grid point using uniform constellation
+                j = uc.displacement_to_position(alpha1, alpha2)
                 j = int(j)
 
                 # Reconstruct the snapped point and measure residual
-                a1_snap, a2_snap = c.position_to_displacement(j)
+                a1_snap, a2_snap = uc.position_to_displacement(j)
                 reconstructed = base + a1_snap * U1 + a2_snap * U2
                 residual = np.linalg.norm(pixel - reconstructed)
 

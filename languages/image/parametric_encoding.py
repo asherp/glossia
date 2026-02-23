@@ -119,12 +119,18 @@ def lab_to_srgb(lab):
     return np.clip(np.round(srgb * 255.0), 0, 255).astype(np.uint8)
 
 
-def lab_in_srgb_gamut(lab, tolerance=0.5):
+def lab_in_srgb_gamut(lab, tolerance=0.001):
     """Check if a CIELAB color maps to a valid sRGB color.
+
+    Checks that the linear sRGB values are within [0, 1], with a small
+    tolerance for numerical noise. Colors outside this range get clipped
+    when converted to uint8, causing potentially large CIELAB round-trip
+    errors.
 
     Args:
         lab: (..., 3) array of [L*, a*, b*]
-        tolerance: allowed overshoot in sRGB [0, 255] before declaring out-of-gamut
+        tolerance: allowed overshoot in linear sRGB [0, 1]
+            (default: 0.001, ~0.26 of a uint8 step)
 
     Returns:
         boolean array, True if in gamut
@@ -138,8 +144,7 @@ def lab_in_srgb_gamut(lab, tolerance=0.5):
     xyz_n = _lab_f_inv(f)
     xyz = xyz_n * np.array([D65_XN, D65_YN, D65_ZN])
     linear = xyz @ _XYZ_TO_SRGB.T
-    srgb = _srgb_gamma_compress(np.clip(linear, 0, None)) * 255.0
-    return np.all((srgb >= -tolerance) & (srgb <= 255.0 + tolerance), axis=-1)
+    return np.all((linear >= -tolerance) & (linear <= 1.0 + tolerance), axis=-1)
 
 
 # ---------------------------------------------------------------------------
@@ -538,6 +543,11 @@ class Constellation:
     def from_radius(cls, radius, epsilon):
         """Create constellation from tube radius and step size.
 
+        The grid is MxM with spacing epsilon. The farthest grid point
+        (corner) is at distance (M-1)/2 * sqrt(2) * epsilon from center.
+        To stay within the tube radius, we inscribe the square grid inside
+        the circle: M <= sqrt(2) * radius / epsilon + 1.
+
         Args:
             radius: tube radius in CIELAB units
             epsilon: minimum step between constellation points
@@ -545,7 +555,7 @@ class Constellation:
         Returns:
             Constellation instance
         """
-        M = int(2 * radius / epsilon) + 1
+        M = int(np.sqrt(2) * radius / epsilon) + 1
         M = max(M, 1)
         return cls(M, epsilon)
 
@@ -958,7 +968,8 @@ HEADER_S = 0.0  # Arc-length position: always curve start (fattest tube)
 
 
 def derive_config_table(curve, frame, n_capacity_samples=200,
-                        min_epsilon=2.0, N_max=128):
+                        min_epsilon=2.0, N_max=128,
+                        min_srgb_dist=MIN_SRGB_DISTANCE):
     """Derive valid (N, epsilon) configurations from the curve geometry.
 
     Instead of hardcoded palette sizes and epsilon values, this function
@@ -974,6 +985,15 @@ def derive_config_table(curve, frame, n_capacity_samples=200,
     N is not restricted to powers of 2.  Mixed-radix encoding allows
     any N; the true capacity per cell is log2(N * M^2) bits.
 
+    Camera-decodability filter: only configs where all N palette colors
+    are at least min_srgb_dist apart in 8-bit sRGB are included.  This
+    dramatically reduces the table (viridis: 401 -> ~50 entries).
+
+    Sorting: configs are sorted by bits-per-cell descending, then epsilon
+    descending.  Combined with center-out grid mapping in encode_header /
+    decode_header, this ensures the optimal config (index 0) gets zero
+    constellation displacement, keeping it robust to sRGB quantization.
+
     The header epsilon is also derived: the largest epsilon at s=0 that
     still provides enough constellation capacity to index the table.
 
@@ -987,9 +1007,11 @@ def derive_config_table(curve, frame, n_capacity_samples=200,
         n_capacity_samples: capacity curve density
         min_epsilon: minimum epsilon (below ~2 CIELAB is subthreshold)
         N_max: largest palette size to consider
+        min_srgb_dist: minimum pairwise sRGB distance for camera decode.
+                       Set to 0 to disable filtering.
 
     Returns:
-        configs: list of (N, epsilon) tuples sorted by (N, epsilon)
+        configs: list of (N, epsilon) tuples sorted by bpc descending
         header_epsilon: derived robust epsilon for header decoding
     """
     s_dense, radii_dense, C = compute_capacity_curve(
@@ -999,12 +1021,22 @@ def derive_config_table(curve, frame, n_capacity_samples=200,
     # M=2 -> 4 positions, M=4 -> 16, M=8 -> 64, M=16 -> 256, M=32 -> 1024
     M_TARGETS = [2, 4, 8, 16, 32]
 
-    configs = []
+    # Cache sRGB distance per N (expensive to compute)
+    srgb_dist_cache = {}
+
+    configs_with_bpc = []  # (bpc, eps, N, eps_val)
     for N in range(2, N_max + 1):
         # Place N colors at equal-capacity centroids
         s_pal = equal_capacity_positions(s_dense, C, N)
         r_at_pal = np.interp(s_pal, s_dense, radii_dense)
         r_min = float(np.min(r_at_pal))
+
+        # Camera-decodability: check sRGB distance once per N
+        if min_srgb_dist > 0:
+            if N not in srgb_dist_cache:
+                srgb_dist_cache[N] = min_srgb_distance(curve, s_pal)
+            if srgb_dist_cache[N] < min_srgb_dist:
+                continue
 
         for M_target in M_TARGETS:
             # epsilon that gives M_min = M_target at the tightest point:
@@ -1023,7 +1055,13 @@ def derive_config_table(curve, frame, n_capacity_samples=200,
             if bpc < 2:
                 continue
 
-            configs.append((N, eps))
+            configs_with_bpc.append((bpc, eps, N, eps))
+
+    # Sort by bpc descending, then eps descending (best configs first).
+    # With center-out grid ordering in encode/decode_header, this ensures
+    # the optimal config gets index 0 (grid center, zero displacement).
+    configs_with_bpc.sort(key=lambda x: (-x[0], -x[1]))
+    configs = [(entry[2], entry[3]) for entry in configs_with_bpc]
 
     # Derive header epsilon from s=0 tube radius and table size.
     # Maximize epsilon (noise robustness) while keeping enough
@@ -1036,12 +1074,41 @@ def derive_config_table(curve, frame, n_capacity_samples=200,
     return configs, header_epsilon
 
 
+def _center_out_order(M):
+    """Build a center-out spiral mapping for an M x M constellation grid.
+
+    Returns two arrays:
+        idx_to_pos[i] -> raster position j (a*M + b) for the i-th center-out slot
+        pos_to_idx[j] -> center-out index for raster position j
+
+    Index 0 maps to the grid center (smallest displacement), index 1 to the
+    next closest position, etc.  This ensures that low config-table indices
+    produce small displacements, keeping header colors within sRGB gamut.
+    """
+    center = (M - 1) / 2.0
+    positions = []
+    for a in range(M):
+        for b in range(M):
+            dist_sq = (a - center) ** 2 + (b - center) ** 2
+            positions.append((dist_sq, a, b))
+    # Sort by distance from center (stable sort preserves raster order for ties)
+    positions.sort(key=lambda x: (x[0], x[1], x[2]))
+    idx_to_pos = np.array([a * M + b for _, a, b in positions], dtype=int)
+    pos_to_idx = np.zeros(M * M, dtype=int)
+    for i, j in enumerate(idx_to_pos):
+        pos_to_idx[j] = i
+    return idx_to_pos, pos_to_idx
+
+
 def encode_header(n_palette, epsilon, curve, frame, configs=None):
     """Encode (N, epsilon) into the header color at s=0.
 
     The header color sits at the fixed position HEADER_S on the palette
     curve.  Its constellation displacement encodes the config index,
     making the encoding self-describing.
+
+    Uses center-out grid ordering so that low config indices (the most
+    common configs) produce small displacements that stay within sRGB gamut.
 
     Args:
         n_palette: payload palette size
@@ -1077,7 +1144,10 @@ def encode_header(n_palette, epsilon, curve, frame, configs=None):
             f"Header constellation too small ({c.capacity} positions) "
             f"for config index {idx}")
 
-    alpha1, alpha2 = c.position_to_displacement(idx)
+    # Map config index to center-out grid position
+    idx_to_pos, _ = _center_out_order(c.M)
+    grid_pos = int(idx_to_pos[idx])
+    alpha1, alpha2 = c.position_to_displacement(grid_pos)
     return base + alpha1 * U1 + alpha2 * U2
 
 
@@ -1109,7 +1179,11 @@ def decode_header(pixel_lab, curve, frame, configs=None):
     _, radii = compute_tube_radius(curve, frame,
                                     s_values=np.array([HEADER_S]))
     c = Constellation.from_radius(float(radii[0]), header_eps)
-    idx = int(c.displacement_to_position(alpha1, alpha2))
+    grid_pos = int(c.displacement_to_position(alpha1, alpha2))
+
+    # Reverse the center-out mapping to get config index
+    _, pos_to_idx = _center_out_order(c.M)
+    idx = int(pos_to_idx[grid_pos])
 
     if idx >= len(config_table):
         raise ValueError(

@@ -99,6 +99,33 @@ $$\text{bpc} = \log_2 N + 2 \log_2 M_{\min}$$
 
 For entropy-preserving encoding, each cell should carry the maximum number of bits the palette supports. This is the curve's **intrinsic channel capacity** — a property of the geometry, independent of message length or image resolution. The caller computes the number of cells from the message: $n_{\text{cells}} = \lceil \text{total\_bits} / \text{bpc} \rceil$.
 
+### Cross-palette entropy conservation
+
+For a fixed payload (e.g. a 32-byte Nostr pubkey at 50% RS ECC = 384 bits), the product $\text{bpc} \times n_{\text{cells}} \approx \text{total\_bits}$ is constant across all palettes. This is the **entropy conservation invariant**: different curves encode the same data with different visual densities, but the total information is preserved.
+
+The invariant holds because $n_{\text{cells}} = \lceil \text{total\_bits} / \text{bpc} \rceil$, so fewer bits per cell means more cells (modulo ceiling). What is **not** constant is $\log_2 N \times n_{\text{cells}}$, because each cell carries both word bits and position bits:
+
+$$\text{bpc} = \underbrace{\log_2 N}_{\text{word bits}} + \underbrace{2 \log_2 M_{\min}}_{\text{position bits}}$$
+
+When $N$ decreases, the palette colors are more widely spaced on the curve, leaving more tube radius per color. The optimizer exploits this by allowing a finer constellation grid ($M_{\min}$ increases), partially or fully compensating for the lost word bits. The two terms trade off:
+
+| Palette | $N$ | $M_{\min}$ | word bits | pos bits | bpc | cells (32B) | $\text{bpc} \times \text{cells}$ |
+|:--|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| cividis | 4 | 32 | 2.0 | 10.0 | 12.0 | 32 | 384 |
+| inferno | 7 | 32 | 2.8 | 10.0 | 12.8 | 30 | 384 |
+| magma | 8 | 32 | 3.0 | 10.0 | 13.0 | 30 | 390 |
+| mako | 12 | 16 | 3.6 | 8.0 | 11.6 | 34 | 394 |
+| plasma | 8 | 16 | 3.0 | 8.0 | 11.0 | 35 | 385 |
+| rocket | 7 | 32 | 2.8 | 10.0 | 12.8 | 30 | 384 |
+| turbo | 8 | 32 | 3.0 | 10.0 | 13.0 | 30 | 390 |
+| viridis | 13 | 16 | 3.7 | 8.0 | 11.7 | 33 | 386 |
+
+The residual variation (384--394) is purely from ceiling rounding.
+
+Note that $N$ (palette size) is **not** the number of Voronoi cells. Multiple cells can share the same palette color — the constellation position distinguishes them. The number of cells is determined solely by $\lceil \text{total\_bits} / \text{bpc} \rceil$.
+
+The tradeoff is not monotone because different curves have different tube-radius profiles: cividis is short (arc length 143) but uniformly fat, so it supports $M_{\min} = 32$ even at $N = 4$. Viridis is longer (arc length 220) with thin spots near the bright end, capping $M_{\min}$ at 16 despite having more room for palette colors.
+
 ### Derived config table
 
 Instead of hardcoded (N, $\varepsilon$) pairs, `derive_config_table()` computes all feasible configurations from the curve geometry:
@@ -461,14 +488,16 @@ The app simulates four perturbation channels, all native to CIELAB:
 
 4. **Channel capacity is intrinsic**: the optimal (N, $\varepsilon$) config — and therefore bpc — is a property of the palette curve geometry alone. Message length determines the number of cells ($\lceil\text{total\_bits}/\text{bpc}\rceil$), not the encoding density. This is the entropy-preserving constraint: each cell carries the maximum bits the palette supports.
 
-5. **Self-describing header is deterministic**: both encoder and decoder derive the same config table from the same curve, so the header index unambiguously identifies (N, $\varepsilon$) without out-of-band metadata.
+5. **Entropy conservation across palettes**: for a fixed payload, $\text{bpc} \times n_{\text{cells}} \approx \text{total\_bits}$ regardless of palette curve. Different curves produce different (N, $M_{\min}$) splits, but the total information per image is constant. The word bits ($\log_2 N$) and position bits ($2 \log_2 M_{\min}$) trade off: fewer palette colors → wider spacing → finer constellation grids. The $\log_2 N \times n_{\text{cells}}$ product is **not** constant — only the full $\text{bpc} \times n_{\text{cells}}$ product is.
 
-6. **Persistence gap = palette spacing**: the Rips filtration's largest gap in death times equals $L/(N-1)$, the arc-length spacing between adjacent palette colors. This is a geometric invariant of the encoding, independent of the specific payload.
+6. **Self-describing header is deterministic**: both encoder and decoder derive the same config table from the same curve, so the header index unambiguously identifies (N, $\varepsilon$) without out-of-band metadata.
 
-7. **Spatial averaging multiplies noise tolerance by $\sqrt{P}$**: a cell with $P$ pixels has effective noise $\sigma/\sqrt{P}$, giving $\sigma_{95,\text{eff}} = (\varepsilon/5.6) \cdot \sqrt{P}$.
+7. **Persistence gap = palette spacing**: the Rips filtration's largest gap in death times equals $L/(N-1)$, the arc-length spacing between adjacent palette colors. This is a geometric invariant of the encoding, independent of the specific payload.
 
-8. **Rendering is arbitrary**: information lives in the multiset of colors, not spatial layout. The topological decoders formalize this via the Vietoris-Rips complex on color space.
+8. **Spatial averaging multiplies noise tolerance by $\sqrt{P}$**: a cell with $P$ pixels has effective noise $\sigma/\sqrt{P}$, giving $\sigma_{95,\text{eff}} = (\varepsilon/5.6) \cdot \sqrt{P}$.
 
-9. **Calibration cells are steganographic**: calibration cells (bare palette base colors) are visually indistinguishable from payload cells (palette + constellation displacement). No fiducials or markers are needed. The decoder identifies them by distance to palette base points after inverse camera transform -- a color-space-only operation.
+9. **Rendering is arbitrary**: information lives in the multiset of colors, not spatial layout. The topological decoders formalize this via the Vietoris-Rips complex on color space.
 
-10. **Camera transform is low-dimensional**: the 4-parameter affine model ($\Delta L$, $s$, $\Delta a$, $\Delta b$) captures the dominant systematic errors (exposure, white balance, saturation). Grid search over this space is tractable ($\sim 50$K evaluations) and identifies both the palette and the correction simultaneously.
+10. **Calibration cells are steganographic**: calibration cells (bare palette base colors) are visually indistinguishable from payload cells (palette + constellation displacement). No fiducials or markers are needed. The decoder identifies them by distance to palette base points after inverse camera transform -- a color-space-only operation.
+
+11. **Camera transform is low-dimensional**: the 4-parameter affine model ($\Delta L$, $s$, $\Delta a$, $\Delta b$) captures the dominant systematic errors (exposure, white balance, saturation). Grid search over this space is tractable ($\sim 50$K evaluations) and identifies both the palette and the correction simultaneously.
