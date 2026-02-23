@@ -1,0 +1,8 @@
+# Bitcoin Cover Words — Protocol Prefixes
+
+"bc1":
+  Prefix: 1.0
+  refinement: main
+"tb1":
+  Prefix: 1.0
+  refinement: test

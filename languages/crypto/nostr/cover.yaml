@@ -1,0 +1,11 @@
+# Nostr Cover Words — Protocol Prefixes
+
+"npub1":
+  Prefix: 1.0
+  refinement: pub
+"nsec1":
+  Prefix: 1.0
+  refinement: sec
+"note1":
+  Prefix: 1.0
+  refinement: note

@@ -1,0 +1,53 @@
+# Nostr Key/Note Grammar — Character-Level Encoding
+#
+# Bech32 dialects for npub, nsec, and note identifiers.
+
+grammar:
+  name: "Nostr Grammar"
+  bitpacking: false
+  payload_separator: ""
+  dot_is_punctuation: false
+  payload_line_width: null
+
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+  rules:
+    sentence:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "BODY"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+    BODY:
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "N"
+          weight: 0.1
+          lambda: "λn:(e->t). n"
+        - production: "N BODY"
+          weight: 0.9
+          lambda: "λn:(e->t). n"
+
+  dialects:
+    pub:
+      payload_wordlist: "bech32"
+      rules:
+        sentence:
+          cfg_productions:
+            - production: "Prefix[pub] BODY"
+    sec:
+      payload_wordlist: "bech32"
+      rules:
+        sentence:
+          cfg_productions:
+            - production: "Prefix[sec] BODY"
+    note:
+      payload_wordlist: "bech32"
+      rules:
+        sentence:
+          cfg_productions:
+            - production: "Prefix[note] BODY"

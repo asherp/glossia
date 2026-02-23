@@ -163,6 +163,60 @@ pub struct Pipeline {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// Crypto Format Detection
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Detect if input is a known cryptocurrency format.
+/// Returns `(language, dialect, data_part_after_prefix)` — the prefix is stripped
+/// so only the data portion needs to be encoded with the dialect's alphabet.
+fn detect_crypto_format(input: &str) -> Option<(&str, &str, &str)> {
+    let lower = input.to_lowercase();
+    // Bech32 formats: HRP + "1" separator + data
+    if lower.starts_with("bc1")   { return Some(("crypto/btc",   "main", &input[3..])); }
+    if lower.starts_with("tb1")   { return Some(("crypto/btc",   "test", &input[3..])); }
+    if lower.starts_with("npub1") { return Some(("crypto/nostr", "pub",  &input[5..])); }
+    if lower.starts_with("nsec1") { return Some(("crypto/nostr", "sec",  &input[5..])); }
+    if lower.starts_with("note1") { return Some(("crypto/nostr", "note", &input[5..])); }
+    if lower.starts_with("lnbc")  { return Some(("crypto/ln",    "main", &input[4..])); }
+    if lower.starts_with("lntb")  { return Some(("crypto/ln",    "test", &input[4..])); }
+    // Cashu tokens (case-sensitive prefixes)
+    if input.starts_with("cashuA") { return Some(("crypto/cashu", "a", &input[6..])); }
+    if input.starts_with("cashuB") { return Some(("crypto/cashu", "b", &input[6..])); }
+    None
+}
+
+/// Map a crypto sub-language to its primary payload type.
+/// All dialects within a sub-language share the same alphabet,
+/// except btc/legacy which uses base58 (handled as a dialect override).
+fn crypto_payload_type(language: &str, dialect: &str) -> &'static str {
+    // BTC legacy is the one exception: base58 instead of bech32.
+    if language == "crypto/btc" && dialect == "legacy" {
+        return "base58";
+    }
+    match language {
+        "crypto/btc" | "crypto/nostr" | "crypto/ln" => "bech32",
+        "crypto/cashu" => "base64url",
+        _ => "bech32",
+    }
+}
+
+/// Map a crypto (language, dialect) pair to its prefix string.
+fn crypto_dialect_prefix(language: &str, dialect: &str) -> &'static str {
+    match (language, dialect) {
+        ("crypto/btc",   "main") => "bc1",
+        ("crypto/btc",   "test") => "tb1",
+        ("crypto/nostr", "pub")  => "npub1",
+        ("crypto/nostr", "sec")  => "nsec1",
+        ("crypto/nostr", "note") => "note1",
+        ("crypto/ln",    "main") => "lnbc",
+        ("crypto/ln",    "test") => "lntb",
+        ("crypto/cashu", "a")    => "cashuA",
+        ("crypto/cashu", "b")    => "cashuB",
+        _ => "",
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // Meta Sentence Parsing
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -191,6 +245,11 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
         "pgp" => Some(("cs", "pgp")),
         "primes" => Some(("math", "body")),
         "image" => Some(("image", "voronoi")),
+        "bitcoin" | "btc" => Some(("crypto/btc", "main")),
+        "npub" => Some(("crypto/nostr", "pub")),
+        "nsec" => Some(("crypto/nostr", "sec")),
+        "lightning" | "ln" => Some(("crypto/ln", "main")),
+        "cashu" => Some(("crypto/cashu", "a")),
         _ => None,
     }
 }
@@ -260,6 +319,8 @@ impl Pipeline {
             "bytes", "nostr", "pgp", "prose", "body", "subject", "spells",
             "primes", "merkle", "image", "voronoi", "grid", "mosaic",
             "constellation", "patches", "raw",
+            // Crypto language keywords
+            "bitcoin", "btc", "npub", "nsec", "lightning", "ln", "cashu",
         ]
         .iter()
         .copied()
@@ -542,6 +603,22 @@ impl Pipeline {
                 // into prose. Don't mistake payload words in the input for
                 // Glossia prose — go straight to format detection.
                 if matches!(&self.target, Endpoint::Language { .. }) {
+                    // Check for crypto format first — if detected, treat source
+                    // as crypto Language. This turns the pipeline into a transcode
+                    // (crypto → target) which uses the crypto alphabet's native
+                    // bits-per-char (e.g., 5 for bech32) instead of ASCII7's 6.57.
+                    if !matches!(&self.target, Endpoint::Language { language, .. } if language.starts_with("crypto/")) {
+                        if let Some((language, dialect, _)) = detect_crypto_format(input) {
+                            if self.verbose {
+                                eprintln!("Source auto-detected as {}/{}", language, dialect);
+                            }
+                            return Ok(Endpoint::Language {
+                                language: language.to_string(),
+                                wordlist: crypto_payload_type(language, dialect).to_string(),
+                                dialect: dialect.to_string(),
+                            });
+                        }
+                    }
                     let (mode, _) = codec::detect_mode(input);
                     if self.verbose {
                         eprintln!("Source auto-detected as format: {} (target is Language)", mode);
@@ -603,6 +680,11 @@ impl Pipeline {
             )),
         };
 
+        // Crypto encoding: bytes → chars → prefix + concatenated chars.
+        if language.starts_with("crypto/") {
+            return encode_crypto(input, language, dialect, self.verbose);
+        }
+
         let (text, _, _, _) = encode_into_language(
             input, language, wordlist, dialect, None, self.seed, self.verbose,
             self.cover_override(),
@@ -623,6 +705,27 @@ impl Pipeline {
                 "encode target must be a Language".to_string(),
             )),
         };
+
+        // Crypto encoding: return rich result with minimal stats.
+        if language.starts_with("crypto/") {
+            let text = encode_crypto(input, language, dialect, self.verbose)?;
+            let prefix = crypto_dialect_prefix(language, dialect);
+            let data_chars: Vec<String> = text[prefix.len()..].chars()
+                .map(|c: char| c.to_string())
+                .collect();
+            let payload_count = data_chars.len();
+            return Ok(PipelineResult {
+                output: text,
+                payload_words: data_chars,
+                data_mode: None,
+                stats: Some(PipelineStats {
+                    payload_count,
+                    cover_count: if prefix.is_empty() { 0 } else { 1 },
+                    total_words: payload_count + if prefix.is_empty() { 0 } else { 1 },
+                    ratio: 1.0,
+                }),
+            });
+        }
 
         let (text, _payload_set, encoded_words, data_mode) = encode_into_language(
             input, language, wordlist, dialect, None, self.seed, self.verbose,
@@ -656,14 +759,19 @@ impl Pipeline {
 
     /// Decode: language prose → extract payload words → binary → data string.
     fn do_decode(&self, input: &str, source: &Endpoint) -> Result<String, PipelineError> {
-        let (language, wordlist) = match source {
-            Endpoint::Language { language, wordlist, .. } => {
-                (language.as_str(), wordlist.as_str())
+        let (language, wordlist, dialect) = match source {
+            Endpoint::Language { language, wordlist, dialect } => {
+                (language.as_str(), wordlist.as_str(), dialect.as_str())
             }
             _ => return Err(PipelineError::InvalidPipeline(
                 "decode source must be a Language".to_string(),
             )),
         };
+
+        // Crypto addresses are single tokens — strip prefix, extract chars directly.
+        if language.starts_with("crypto/") {
+            return decode_crypto(input, language, dialect, self.verbose);
+        }
 
         decode_from_language(input, language, wordlist, self.verbose)
     }
@@ -723,14 +831,33 @@ impl Pipeline {
 
     /// Decode with rich results: returns decoded text and extracted payload words.
     fn do_decode_rich(&self, input: &str, source: &Endpoint) -> Result<PipelineResult, PipelineError> {
-        let (language, wordlist) = match source {
-            Endpoint::Language { language, wordlist, .. } => {
-                (language.as_str(), wordlist.as_str())
+        let (language, wordlist, dialect) = match source {
+            Endpoint::Language { language, wordlist, dialect } => {
+                (language.as_str(), wordlist.as_str(), dialect.as_str())
             }
             _ => return Err(PipelineError::InvalidPipeline(
                 "decode source must be a Language".to_string(),
             )),
         };
+
+        // Crypto decoding: strip prefix, extract chars, decode.
+        if language.starts_with("crypto/") {
+            let decoded = decode_crypto(input, language, dialect, self.verbose)?;
+            let data_part = if let Some((_, _, data)) = detect_crypto_format(input) {
+                data
+            } else {
+                input
+            };
+            let extracted: Vec<String> = data_part.chars()
+                .map(|c| c.to_lowercase().to_string())
+                .collect();
+            return Ok(PipelineResult {
+                output: decoded,
+                payload_words: extracted,
+                data_mode: None,
+                stats: None,
+            });
+        }
 
         let (decoded, extracted) = decode_from_language_rich(input, language, wordlist, self.verbose)?;
 
@@ -1072,6 +1199,160 @@ pub fn decode_from_language_rich(
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// Crypto encode/decode helpers
+// ═══════════════════════════════════════════════════════════════════════
+
+/// The bech32 character set (index → char).
+const BECH32_CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+/// Map a bech32 character to its 5-bit value.
+fn bech32_char_to_value(c: char) -> Option<u8> {
+    let lower = c.to_ascii_lowercase() as u8;
+    BECH32_CHARSET.iter().position(|&b| b == lower).map(|i| i as u8)
+}
+
+/// Map a 5-bit value to a bech32 character.
+fn bech32_value_to_char(v: u8) -> Option<char> {
+    BECH32_CHARSET.get(v as usize).map(|&b| b as char)
+}
+
+/// Pack a slice of 5-bit values into a byte vector.
+/// Format: [count_byte] [packed_data_bytes...]
+/// The count byte stores the number of 5-bit symbols so the round-trip
+/// can reproduce the exact character count (handles non-byte-aligned data).
+fn pack_5bit_values(values: &[u8]) -> Vec<u8> {
+    let total_bits = values.len() * 5;
+    let num_data_bytes = (total_bits + 7) / 8;
+    let mut packed = vec![0u8; 1 + num_data_bytes];
+    packed[0] = values.len() as u8;
+
+    let mut bit_pos = 0usize;
+    for &v in values {
+        for bit_offset in (0..5).rev() {
+            let byte_idx = 1 + bit_pos / 8;
+            let bit_idx = 7 - (bit_pos % 8);
+            if (v >> bit_offset) & 1 == 1 {
+                packed[byte_idx] |= 1 << bit_idx;
+            }
+            bit_pos += 1;
+        }
+    }
+    packed
+}
+
+/// Unpack a byte vector (from pack_5bit_values) into 5-bit values.
+fn unpack_5bit_values(packed: &[u8]) -> Result<Vec<u8>, PipelineError> {
+    if packed.is_empty() {
+        return Err(PipelineError::EncodeError("empty packed data".into()));
+    }
+    let num_chars = packed[0] as usize;
+    let data = &packed[1..];
+
+    let mut values = Vec::with_capacity(num_chars);
+    let mut bit_pos = 0usize;
+    for _ in 0..num_chars {
+        let mut value: u8 = 0;
+        for bit_offset in (0..5).rev() {
+            let byte_idx = bit_pos / 8;
+            let bit_idx = 7 - (bit_pos % 8);
+            if byte_idx < data.len() && (data[byte_idx] >> bit_idx) & 1 == 1 {
+                value |= 1 << bit_offset;
+            }
+            bit_pos += 1;
+        }
+        values.push(value);
+    }
+    Ok(values)
+}
+
+/// Decode a cryptocurrency address/token to a hex data string.
+///
+/// For bech32 dialects: strips prefix, converts 5-bit bech32 chars to packed
+/// bytes (with a length prefix for exact round-trip), returns hex.
+/// For base58/base64url: strips prefix and returns the data as-is.
+fn decode_crypto(
+    input: &str,
+    language: &str,
+    dialect: &str,
+    verbose: bool,
+) -> Result<String, PipelineError> {
+    // Strip prefix to get data portion.
+    let data_part = if let Some((_, _, data)) = detect_crypto_format(input) {
+        data
+    } else {
+        input
+    };
+
+    if data_part.is_empty() {
+        return Err(PipelineError::DecodeError(
+            "empty data portion after prefix removal".to_string(),
+        ));
+    }
+
+    let wl = crypto_payload_type(language, dialect);
+
+    if verbose {
+        eprintln!("Crypto decode: {} data chars from {}/{}", data_part.len(), language, dialect);
+    }
+
+    match wl {
+        "bech32" => {
+            // Bech32: convert characters → 5-bit values → packed bytes → hex.
+            let values: Vec<u8> = data_part.to_lowercase().chars()
+                .map(|c| bech32_char_to_value(c)
+                    .ok_or_else(|| PipelineError::DecodeError(
+                        format!("invalid bech32 char: {}", c))))
+                .collect::<Result<_, _>>()?;
+            let packed = pack_5bit_values(&values);
+            Ok(packed.iter().map(|b| format!("{:02x}", b)).collect())
+        }
+        "base58" | "base64url" => {
+            // Treat as ASCII string — the codec auto-detects on the encode side.
+            Ok(data_part.to_string())
+        }
+        _ => Ok(data_part.to_string()),
+    }
+}
+
+/// Encode a data string into a cryptocurrency address/token.
+///
+/// For bech32 dialects: hex → bytes → unpack 5-bit values → bech32 chars → prefix.
+/// For base58/base64url: prefix + data string.
+fn encode_crypto(
+    input: &str,
+    language: &str,
+    dialect: &str,
+    verbose: bool,
+) -> Result<String, PipelineError> {
+    let wl = crypto_payload_type(language, dialect);
+    let prefix = crypto_dialect_prefix(language, dialect);
+
+    if verbose {
+        eprintln!("Crypto encode: input {} chars into {}/{}", input.len(), language, dialect);
+    }
+
+    match wl {
+        "bech32" => {
+            // Hex → bytes → unpack 5-bit values → bech32 characters.
+            let packed = codec::hex_decode(input)
+                .ok_or_else(|| PipelineError::EncodeError(
+                    "crypto encode: expected hex input for bech32 dialect".into()))?;
+            let values = unpack_5bit_values(&packed)?;
+            let chars: String = values.iter()
+                .map(|&v| bech32_value_to_char(v)
+                    .ok_or_else(|| PipelineError::EncodeError(
+                        format!("invalid bech32 5-bit value: {}", v))))
+                .collect::<Result<_, _>>()?;
+            Ok(format!("{}{}", prefix, chars))
+        }
+        "base58" | "base64url" => {
+            Ok(format!("{}{}", prefix, input))
+        }
+        _ => Ok(format!("{}{}", prefix, input)),
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // Tests
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -1407,5 +1688,123 @@ mod tests {
         let p = Pipeline::from_meta("translate from english into image voronoi").unwrap();
         assert_eq!(p.source, Endpoint::language("english"));
         assert_eq!(p.target, Endpoint::language_with_dialect("image", "voronoi"));
+    }
+
+    // ── Crypto language pipeline parsing ─────────────────────────────
+
+    #[test]
+    fn test_btc_routes_to_crypto_btc_main() {
+        let p = Pipeline::from_meta("encode into btc").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/btc", "main"),
+            "btc should route to crypto/btc language with main dialect");
+    }
+
+    #[test]
+    fn test_bitcoin_routes_to_crypto_btc_main() {
+        let p = Pipeline::from_meta("encode into bitcoin").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/btc", "main"));
+    }
+
+    #[test]
+    fn test_npub_routes_to_crypto_nostr_pub() {
+        let p = Pipeline::from_meta("encode into npub").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/nostr", "pub"));
+    }
+
+    #[test]
+    fn test_lightning_routes_to_crypto_ln_main() {
+        let p = Pipeline::from_meta("encode into lightning").unwrap();
+        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/ln", "main"));
+    }
+
+    #[test]
+    fn test_crypto_detect_btc_main() {
+        assert_eq!(
+            detect_crypto_format("bc129zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"),
+            Some(("crypto/btc", "main", "29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"))
+        );
+    }
+
+    #[test]
+    fn test_crypto_detect_npub() {
+        let npub = "npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsutdnz";
+        assert_eq!(
+            detect_crypto_format(npub).map(|(lang, _, _)| lang),
+            Some("crypto/nostr")
+        );
+    }
+
+    #[test]
+    fn test_crypto_detect_sha256_no_longer_matched() {
+        // SHA-256 detection has been removed — 64-char hex is no longer auto-detected.
+        let hash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        assert!(detect_crypto_format(hash).is_none());
+    }
+
+    #[test]
+    fn test_crypto_payload_type_mapping() {
+        assert_eq!(crypto_payload_type("crypto/btc", "main"), "bech32");
+        assert_eq!(crypto_payload_type("crypto/nostr", "pub"), "bech32");
+        assert_eq!(crypto_payload_type("crypto/btc", "legacy"), "base58");
+        assert_eq!(crypto_payload_type("crypto/cashu", "a"), "base64url");
+        assert_eq!(crypto_payload_type("crypto/ln", "main"), "bech32");
+    }
+
+    #[test]
+    fn test_crypto_dialect_prefix_mapping() {
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "main"), "bc1");
+        assert_eq!(crypto_dialect_prefix("crypto/nostr", "pub"), "npub1");
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "legacy"), "");
+        assert_eq!(crypto_dialect_prefix("crypto/cashu", "a"), "cashuA");
+    }
+
+    #[test]
+    fn test_crypto_auto_detect_btc_into_english() {
+        // When encoding a Bitcoin address into English, the pipeline should
+        // auto-detect crypto format and create a transcode (crypto/btc → english).
+        let p = Pipeline::from_meta("encode into english").unwrap();
+        let input = "bc129zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz";
+        let source = p.resolve_source(input).unwrap();
+        assert!(matches!(source, Endpoint::Language { ref language, ref dialect, .. }
+            if language == "crypto/btc" && dialect == "main"),
+            "Bitcoin address should auto-detect as crypto/btc/main, got {:?}", source);
+    }
+
+    // ── Crypto round-trip tests ─────────────────────────────────────
+
+    #[test]
+    fn test_crypto_btc_address_round_trip() {
+        // Bitcoin address → packed hex → Bitcoin address
+        let btc_address = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+        let hex_data = decode_crypto(btc_address, "crypto/btc", "main", false).unwrap();
+        let re_encoded = encode_crypto(&hex_data, "crypto/btc", "main", false).unwrap();
+        assert_eq!(re_encoded, btc_address.to_lowercase(),
+            "Bech32 decode → encode should recover original address");
+    }
+
+    #[test]
+    fn test_crypto_npub_round_trip() {
+        // Nostr npub → packed hex → npub
+        let npub = "npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsutdnz";
+        let hex_data = decode_crypto(npub, "crypto/nostr", "pub", false).unwrap();
+        let re_encoded = encode_crypto(&hex_data, "crypto/nostr", "pub", false).unwrap();
+        assert_eq!(re_encoded, npub.to_lowercase());
+    }
+
+    #[test]
+    fn test_crypto_bech32_packing() {
+        // Verify 5-bit packing is correct
+        let values = vec![0, 14, 20, 15, 7, 13, 26, 0]; // qw508d6q
+        let packed = pack_5bit_values(&values);
+        let unpacked = unpack_5bit_values(&packed).unwrap();
+        assert_eq!(values, unpacked, "Pack/unpack should be identity");
+    }
+
+    #[test]
+    fn test_crypto_btc_address_decode_strips_prefix() {
+        let btc = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+        let hex_data = decode_crypto(btc, "crypto/btc", "main", false).unwrap();
+        // The packed hex should start with count byte, not 'bc1' characters
+        assert!(!hex_data.starts_with("bc"), "Prefix should be stripped");
     }
 }

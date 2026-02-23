@@ -1,0 +1,8 @@
+# Lightning Cover Words — Protocol Prefixes
+
+"lnbc":
+  Prefix: 1.0
+  refinement: main
+"lntb":
+  Prefix: 1.0
+  refinement: test

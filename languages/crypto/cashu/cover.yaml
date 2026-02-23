@@ -1,0 +1,8 @@
+# Cashu Cover Words — Protocol Prefixes
+
+"cashuA":
+  Prefix: 1.0
+  refinement: a
+"cashuB":
+  Prefix: 1.0
+  refinement: b

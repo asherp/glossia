@@ -1,0 +1,71 @@
+# Bech32 Payload Wordlist
+#
+# The 32 bech32 characters as literal single-character "words".
+# Alphabet: qpzry9x8gf2tvdw0s3jn54khce6mua7l
+#
+# 32 symbols -> 5 bits per symbol
+#
+"q":
+  N: 1.0
+"p":
+  N: 1.0
+"z":
+  N: 1.0
+"r":
+  N: 1.0
+"y":
+  N: 1.0
+"9":
+  N: 1.0
+"x":
+  N: 1.0
+"8":
+  N: 1.0
+"g":
+  N: 1.0
+"f":
+  N: 1.0
+"2":
+  N: 1.0
+"t":
+  N: 1.0
+"v":
+  N: 1.0
+"d":
+  N: 1.0
+"w":
+  N: 1.0
+"0":
+  N: 1.0
+"s":
+  N: 1.0
+"3":
+  N: 1.0
+"j":
+  N: 1.0
+"n":
+  N: 1.0
+"5":
+  N: 1.0
+"4":
+  N: 1.0
+"k":
+  N: 1.0
+"h":
+  N: 1.0
+"c":
+  N: 1.0
+"e":
+  N: 1.0
+"6":
+  N: 1.0
+"m":
+  N: 1.0
+"u":
+  N: 1.0
+"a":
+  N: 1.0
+"7":
+  N: 1.0
+"l":
+  N: 1.0
