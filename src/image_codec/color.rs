@@ -207,6 +207,10 @@ pub fn lab_to_srgb(lab: &Lab) -> Srgb {
 }
 
 /// Check if a CIELAB color maps to a valid sRGB color.
+///
+/// Checks linear sRGB values directly (not gamma-compressed). The old
+/// implementation clipped negative linear values via `.max(0.0)` before
+/// gamma compression, hiding out-of-gamut colors with clamped channels.
 pub fn lab_in_srgb_gamut(lab: &Lab, tolerance: f64) -> bool {
     let fy = (lab.l + 16.0) / 116.0;
     let fx = lab.a / 500.0 + fy;
@@ -216,13 +220,7 @@ pub fn lab_in_srgb_gamut(lab: &Lab, tolerance: f64) -> bool {
     let xyz = [xyz_n[0] * D65_XN, xyz_n[1] * D65_YN, xyz_n[2] * D65_ZN];
     let linear = mat3_mul(&XYZ_TO_SRGB, &xyz);
 
-    let srgb = [
-        gamma_compress(linear[0].max(0.0)) * 255.0,
-        gamma_compress(linear[1].max(0.0)) * 255.0,
-        gamma_compress(linear[2].max(0.0)) * 255.0,
-    ];
-
-    srgb.iter().all(|&v| v >= -tolerance && v <= 255.0 + tolerance)
+    linear.iter().all(|&v| v >= -tolerance && v <= 1.0 + tolerance)
 }
 
 #[cfg(test)]
@@ -264,10 +262,13 @@ mod tests {
 
     #[test]
     fn test_gamut_check() {
-        // Mid-gray should be in gamut
-        assert!(lab_in_srgb_gamut(&Lab::new(50.0, 0.0, 0.0), 0.5));
-        // Extreme values should be out of gamut
-        assert!(!lab_in_srgb_gamut(&Lab::new(50.0, 120.0, 120.0), 0.5));
+        // Mid-gray should be in gamut (tolerance in linear sRGB [0,1] space)
+        assert!(lab_in_srgb_gamut(&Lab::new(50.0, 0.0, 0.0), 0.01));
+        // Extreme values should be out of gamut with tight tolerance
+        assert!(!lab_in_srgb_gamut(&Lab::new(50.0, 120.0, 120.0), 0.01));
+        // Negative linear values should be detected (previously hidden by .max(0.0))
+        // Lab(50, -80, 80) has a blue channel that goes deeply negative in linear sRGB
+        assert!(!lab_in_srgb_gamut(&Lab::new(50.0, -80.0, 80.0), 0.01));
     }
 
     #[test]

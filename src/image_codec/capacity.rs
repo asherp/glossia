@@ -40,7 +40,7 @@ pub fn compute_tube_radius(
                 let mid = (lo + hi) / 2.0;
                 let test_pt = base.add(&direction.scale(mid));
                 let lab = Lab::from_vec3(&test_pt);
-                if lab_in_srgb_gamut(&lab, 0.5) {
+                if lab_in_srgb_gamut(&lab, 0.001) {
                     lo = mid;
                 } else {
                     hi = mid;
@@ -167,7 +167,7 @@ pub fn derive_config_table(
         for &m_target in &m_targets {
             // epsilon that gives M_min = M_target at the tightest point
             // Nudge eps down by one ULP to prevent floating-point truncation
-            let eps_raw = 2.0 * r_min / (m_target - 1) as f64;
+            let eps_raw = 2.0_f64.sqrt() * r_min / (m_target - 1) as f64;
             let eps = f64::from_bits(eps_raw.to_bits().wrapping_sub(1));
 
             if eps < min_epsilon {
@@ -190,7 +190,7 @@ pub fn derive_config_table(
     let r_header = interp(HEADER_S, &s_dense, &radii_dense);
     let table_size = configs.len();
     let m_header_needed = ((table_size as f64).sqrt().ceil() as usize).max(2);
-    let header_epsilon = 2.0 * r_header / (m_header_needed - 1) as f64;
+    let header_epsilon = 2.0_f64.sqrt() * r_header / (m_header_needed - 1) as f64;
 
     (configs, header_epsilon)
 }
@@ -336,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn test_tube_radius_positive() {
+    fn test_tube_radius_nonnegative() {
         let (curve, frame) = viridis_curve_and_frame();
         let s_vals: Vec<f64> = (0..10)
             .map(|i| i as f64 * curve.arc_length / 9.0)
@@ -344,8 +344,12 @@ mod tests {
         let radii = compute_tube_radius(&curve, &frame, &s_vals, 16, 60.0, 0.5);
 
         for (i, &r) in radii.iter().enumerate() {
-            assert!(r > 0.0, "Tube radius at index {} should be positive, got {}", i, r);
+            assert!(r >= 0.0, "Tube radius at index {} should be non-negative, got {}", i, r);
         }
+        // Most interior points should have positive radius
+        let positive_count = radii.iter().filter(|&&r| r > 0.0).count();
+        assert!(positive_count >= radii.len() / 2,
+            "At least half of tube radii should be positive, got {}/{}", positive_count, radii.len());
     }
 
     #[test]

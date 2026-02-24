@@ -791,6 +791,360 @@ fn encode_characters_inner(
     Ok(response.to_string())
 }
 
+/// Render text notation (containing color tokens) as an SVG string.
+///
+/// Mirrors the CLI `render_text_to_svg` logic: extracts hex colors from the
+/// text notation, maps the dialect name to a layout, and returns SVG markup.
+///
+/// `dialect` selects the layout: "voronoi" (default), "grid", "constellation", "patches".
+/// `circular` enables circular (disk) clipping on the canvas.
+///
+/// Returns the raw SVG string on success, or JSON `{"error":"..."}` on failure.
+#[wasm_bindgen]
+pub fn render_image_svg(text: &str, dialect: &str, width: f64, height: f64, seed: u64, circular: bool) -> String {
+    match render_image_svg_inner(text, dialect, width, height, seed, circular) {
+        Ok(svg) => svg,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn render_image_svg_inner(
+    text: &str,
+    dialect: &str,
+    width: f64,
+    height: f64,
+    seed: u64,
+    circular: bool,
+) -> Result<String, String> {
+    use crate::image_codec::render;
+    use crate::image_codec::svg::{self, SvgConfig, Layout};
+
+    let hex_colors = render::extract_hex_colors(text);
+    if hex_colors.is_empty() {
+        return Err("No color tokens found in text notation".to_string());
+    }
+
+    let layout = match dialect {
+        "grid" | "patches" => Layout::Grid,
+        "constellation" => Layout::Constellation,
+        _ => Layout::Voronoi,
+    };
+
+    let cols = match dialect {
+        "patches" => 4,
+        "grid" => 8,
+        _ => 8,
+    };
+
+    let config = SvgConfig {
+        width,
+        height,
+        layout,
+        seed,
+        cols,
+        circular,
+        color_scatter: true,
+        ..Default::default()
+    };
+
+    let color_refs: Vec<&str> = hex_colors.iter().map(|s| s.as_str()).collect();
+    Ok(svg::render_svg(&color_refs, &config))
+}
+
+/// Decode an image from extracted hex colors back to original data.
+///
+/// Takes a JSON array of CSS hex colors (e.g., `["#440255", "#2a788e", ...]`)
+/// extracted from SVG fill attributes, plus the palette name (e.g., "viridis").
+///
+/// Each hex color is matched to the nearest CIELAB payload word in the palette
+/// wordlist. The matched words are then decoded back to the original payload.
+///
+/// Returns JSON: `{ "decoded_text": "...", "payload_words": [...],
+///   "color_words": [...], "n_colors": N, "bits_per_color": B }`
+/// or `{ "error": "..." }` on failure.
+#[wasm_bindgen]
+pub fn decode_image_from_colors(hex_colors_json: &str, palette: &str) -> String {
+    match decode_image_from_colors_inner(hex_colors_json, palette) {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn decode_image_from_colors_inner(
+    hex_colors_json: &str,
+    palette: &str,
+) -> Result<String, String> {
+    use crate::image_codec::color::{srgb_to_lab, Srgb, Lab};
+
+    // 1. Parse hex colors from JSON array
+    let hex_colors: Vec<String> = serde_json::from_str(hex_colors_json)
+        .map_err(|e| format!("Invalid hex colors JSON: {}", e))?;
+
+    if hex_colors.is_empty() {
+        return Err("No colors provided".to_string());
+    }
+
+    // 2. Load payload wordlist for image/palette
+    let payload_words = load_payload_words_for_wordlist("image", palette)?;
+    if payload_words.is_empty() {
+        return Err(format!("Empty payload wordlist for image/{}", palette));
+    }
+
+    // 3. Parse each payload word as CIELAB coordinates
+    let palette_labs: Vec<(String, Lab)> = payload_words.iter().filter_map(|word| {
+        let parts: Vec<&str> = word.split('_').collect();
+        if parts.len() != 3 { return None; }
+        let l: f64 = parts[0].parse().ok()?;
+        let a: f64 = parts[1].parse().ok()?;
+        let b: f64 = parts[2].parse().ok()?;
+        Some((word.clone(), Lab { l, a, b }))
+    }).collect();
+
+    if palette_labs.is_empty() {
+        return Err("No valid CIELAB tokens in payload wordlist".to_string());
+    }
+
+    // 4. For each hex color, convert to Lab and find nearest palette word
+    let mut matched_words: Vec<String> = Vec::with_capacity(hex_colors.len());
+    for hex in &hex_colors {
+        let h = hex.trim_start_matches('#');
+        if h.len() != 6 {
+            return Err(format!("Invalid hex color: {}", hex));
+        }
+        let r = u8::from_str_radix(&h[0..2], 16).map_err(|_| format!("Bad hex: {}", hex))?;
+        let g = u8::from_str_radix(&h[2..4], 16).map_err(|_| format!("Bad hex: {}", hex))?;
+        let b = u8::from_str_radix(&h[4..6], 16).map_err(|_| format!("Bad hex: {}", hex))?;
+
+        let lab = srgb_to_lab(&Srgb { r, g, b });
+
+        // Find nearest palette center (minimum deltaE in Lab space)
+        let nearest = palette_labs.iter()
+            .min_by(|(_, a), (_, b)| {
+                let da = (lab.l - a.l).powi(2) + (lab.a - a.a).powi(2) + (lab.b - a.b).powi(2);
+                let db = (lab.l - b.l).powi(2) + (lab.a - b.a).powi(2) + (lab.b - b.b).powi(2);
+                da.partial_cmp(&db).unwrap()
+            })
+            .map(|(word, _)| word.clone())
+            .unwrap();
+
+        matched_words.push(nearest);
+    }
+
+    // 5. Build text notation from matched words (space-separated CIELAB tokens)
+    let text_notation = matched_words.join(" ");
+
+    // 6. Decode using base-N conversion (image palettes always use base-N,
+    //    regardless of whether the wordlist size is a power of 2)
+    let payload_tree = crate::merkle::WordlistTree::new(payload_words.clone());
+    let bytes = codec::decode_base_n(&matched_words, &payload_tree)
+        .map_err(|e| format!("Decoding error: {}", e))?;
+    let decoded_text = match String::from_utf8(bytes.clone()) {
+        Ok(s) => s,
+        Err(_) => codec::hex_encode(&bytes),
+    };
+
+    // 7. Compute bits per color
+    let n_colors = palette_labs.len();
+    let bits_per_color = (n_colors as f64).log2();
+
+    let response = serde_json::json!({
+        "decoded_text": decoded_text,
+        "payload_words": matched_words,
+        "text_notation": text_notation,
+        "n_colors": n_colors,
+        "bits_per_color": bits_per_color,
+    });
+
+    Ok(response.to_string())
+}
+
+/// Encode a hex payload into a banner SVG.
+///
+/// Creates a Voronoi banner with RS error correction encoding the payload
+/// bytes. The SVG contains self-describing header + payload cells.
+///
+/// Args:
+///   - `payload_hex`: hex-encoded payload bytes (e.g., "deadbeef...")
+///   - `width`, `height`: banner dimensions
+///   - `seed`: random seed for Voronoi layout
+///
+/// Returns SVG string on success, or JSON `{"error":"..."}` on failure.
+#[wasm_bindgen]
+pub fn encode_image_banner(payload_hex: &str, width: f64, height: f64, seed: u64) -> String {
+    match encode_image_banner_inner(payload_hex, width, height, seed) {
+        Ok(svg) => svg,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn encode_image_banner_inner(
+    payload_hex: &str,
+    width: f64,
+    height: f64,
+    seed: u64,
+) -> Result<String, String> {
+    use crate::image_codec::render::viridis_approx_curve;
+    use crate::image_codec::frame::BishopFrame;
+    use crate::image_codec::capacity::{derive_config_table, select_encoding_params};
+    use crate::image_codec::banner::encode_banner;
+    use crate::image_codec::color::lab_to_srgb;
+
+    // Parse hex payload
+    let payload = parse_hex_bytes(payload_hex)?;
+
+    // Build curve and frame
+    let curve = viridis_approx_curve();
+    let frame = BishopFrame::new(&curve, 500);
+
+    // Select optimal encoding params
+    let params = select_encoding_params(&curve, &frame, 50)
+        .ok_or_else(|| "No valid encoding configuration found".to_string())?;
+
+    let nsym = 16; // Default RS parity bytes
+
+    // Encode banner
+    let encoded = encode_banner(
+        &payload, &curve, &frame,
+        params.n, params.epsilon, nsym,
+        width as usize, height as usize, seed, 10,
+    )?;
+
+    // Render as SVG
+    let svg = render_banner_svg_from_encoded(&encoded, width, height);
+
+    Ok(svg)
+}
+
+/// Render a BannerEncoded as SVG string (WASM-compatible, no image crate needed).
+fn render_banner_svg_from_encoded(
+    encoded: &crate::image_codec::banner::BannerEncoded,
+    width: f64,
+    height: f64,
+) -> String {
+    use crate::image_codec::voronoi::{voronoi_cells, Point};
+    use crate::image_codec::color::lab_to_srgb;
+
+    let n = encoded.seeds.len();
+
+    // Build sRGB color per seed
+    let mut seed_colors = vec![crate::image_codec::color::Srgb::new(10, 10, 25); n];
+    for (cell_idx, &seed_idx) in encoded.cell_to_seed.iter().enumerate() {
+        if cell_idx < encoded.cells_srgb.len() && seed_idx < n {
+            seed_colors[seed_idx] = encoded.cells_srgb[cell_idx];
+        }
+    }
+
+    // Generate Voronoi cells
+    let cells = voronoi_cells(&encoded.seeds, width, height);
+
+    let mut lines = Vec::new();
+    lines.push(format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {} {}\" width=\"{}\" height=\"{}\">",
+        width, height, width, height
+    ));
+    lines.push(format!(
+        "<rect width=\"{}\" height=\"{}\" fill=\"#0a0a19\"/>",
+        width, height
+    ));
+
+    for (i, cell) in cells.iter().enumerate() {
+        let c = &seed_colors[i];
+        let points_str = cell.svg_points();
+        lines.push(format!(
+            "<polygon points=\"{}\" fill=\"rgb({},{},{})\" stroke=\"#0a0a19\" stroke-width=\"2\"/>",
+            points_str, c.r, c.g, c.b
+        ));
+    }
+
+    lines.push("</svg>".to_string());
+    lines.join("\n")
+}
+
+/// Decode a banner from hex colors extracted from SVG cells.
+///
+/// Takes a JSON array of hex color strings (one per Voronoi cell, in scan order)
+/// and decodes the embedded payload bytes.
+///
+/// Returns JSON: `{ "payload_hex": "...", "n_palette": N, "epsilon": E, "success": true }`
+/// or `{ "error": "..." }` on failure.
+#[wasm_bindgen]
+pub fn decode_image_banner(hex_colors_json: &str, nsym: usize) -> String {
+    match decode_image_banner_inner(hex_colors_json, nsym) {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn decode_image_banner_inner(
+    hex_colors_json: &str,
+    nsym: usize,
+) -> Result<String, String> {
+    use crate::image_codec::render::viridis_approx_curve;
+    use crate::image_codec::frame::BishopFrame;
+    use crate::image_codec::capacity::derive_config_table;
+    use crate::image_codec::codec::decode_header;
+    use crate::image_codec::rs_encoding::RSEncoder;
+    use crate::image_codec::color::{srgb_to_lab, Srgb, Lab};
+
+    // Parse hex colors from JSON
+    let hex_colors: Vec<String> = serde_json::from_str(hex_colors_json)
+        .map_err(|e| format!("Invalid JSON: {}", e))?;
+
+    if hex_colors.is_empty() {
+        return Err("No colors provided".to_string());
+    }
+
+    // Convert to Lab
+    let labs: Vec<Lab> = hex_colors.iter().map(|hex| {
+        let h = hex.trim_start_matches('#');
+        let r = u8::from_str_radix(&h[0..2], 16).unwrap_or(0);
+        let g = u8::from_str_radix(&h[2..4], 16).unwrap_or(0);
+        let b = u8::from_str_radix(&h[4..6], 16).unwrap_or(0);
+        srgb_to_lab(&Srgb::new(r, g, b))
+    }).collect();
+
+    // Build curve and decode header
+    let curve = viridis_approx_curve();
+    let frame = BishopFrame::new(&curve, 500);
+    let (configs, header_eps) = derive_config_table(&curve, &frame, 50);
+
+    let config = decode_header(&labs[0], &curve, &frame, &configs, header_eps)?;
+    let n_palette = config.n;
+    let epsilon = config.epsilon;
+
+    // Decode payload cells (skip header)
+    let payload_labs = &labs[1..];
+    let rse = RSEncoder::from_curve(&curve, &frame, n_palette, epsilon, Some(nsym), 0.5);
+
+    let n_payload = payload_labs.len();
+    let rs_total = (n_payload as f64 * rse.bits_per_cell / 8.0).floor() as usize;
+    if rs_total <= nsym {
+        return Err("Too few cells for RS decode".to_string());
+    }
+
+    let (recovered, dec_meta) = rse.decode_bytes_with_params(payload_labs, Some(rs_total), Some(nsym))?;
+
+    if dec_meta.success {
+        let hex_str: String = recovered.iter().map(|b| format!("{:02x}", b)).collect();
+        let response = serde_json::json!({
+            "payload_hex": hex_str,
+            "n_palette": n_palette,
+            "epsilon": epsilon,
+            "success": true,
+            "errors_corrected": dec_meta.errors_corrected,
+            "cells_decoded": dec_meta.cells_decoded,
+        });
+        Ok(response.to_string())
+    } else {
+        Ok(serde_json::json!({
+            "success": false,
+            "error": dec_meta.error_message.unwrap_or_else(|| "RS decode failed".to_string()),
+            "n_palette": n_palette,
+            "epsilon": epsilon,
+        }).to_string())
+    }
+}
+
 fn encode_random_words_inner(
     count: usize,
     language: &str,
@@ -896,4 +1250,17 @@ fn encode_random_words_inner(
     });
 
     Ok(response.to_string())
+}
+
+/// Parse a hex string to bytes (no external dependency).
+fn parse_hex_bytes(hex: &str) -> Result<Vec<u8>, String> {
+    let hex = hex.trim().trim_start_matches("0x").trim_start_matches("0X");
+    if hex.len() % 2 != 0 {
+        return Err("Hex string must have even length".to_string());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16)
+            .map_err(|_| format!("Invalid hex at position {}: '{}'", i, &hex[i..i + 2])))
+        .collect()
 }

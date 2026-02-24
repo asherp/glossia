@@ -961,9 +961,202 @@ fn render_text_to_svg(text: &str, output_path: &str, dialect_name: &str, seed: O
         hex_colors.len(), layout, output_path);
 }
 
+// ── Image banner subcommand ─────────────────────────────────────────
+// glossia image encode --payload-hex <hex> --output banner.png
+// glossia image decode --input banner.png [--expected-hex <hex>]
+fn run_image_subcommand(args: &[String]) -> Result<(), String> {
+    use glossia::image_codec::render::viridis_approx_curve;
+    use glossia::image_codec::frame::BishopFrame;
+    use glossia::image_codec::capacity::select_encoding_params;
+    use glossia::image_codec::banner;
+    use glossia::image_codec::color::Srgb;
+
+    if args.is_empty() {
+        return Err("Usage: glossia image encode|decode [options]".to_string());
+    }
+
+    match args[0].as_str() {
+        "encode" => {
+            let mut payload_hex: Option<String> = None;
+            let mut output: Option<String> = None;
+            let mut width = 1500usize;
+            let mut height = 500usize;
+            let mut nsym = 16usize;
+            let mut seed = 42u64;
+
+            let mut i = 1;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--payload-hex" => {
+                        i += 1;
+                        payload_hex = Some(args.get(i).cloned()
+                            .ok_or("--payload-hex requires a value")?);
+                    }
+                    "--output" | "-o" => {
+                        i += 1;
+                        output = Some(args.get(i).cloned()
+                            .ok_or("--output requires a value")?);
+                    }
+                    "--width" => {
+                        i += 1;
+                        width = args.get(i).and_then(|s| s.parse().ok())
+                            .ok_or("--width requires a number")?;
+                    }
+                    "--height" => {
+                        i += 1;
+                        height = args.get(i).and_then(|s| s.parse().ok())
+                            .ok_or("--height requires a number")?;
+                    }
+                    "--nsym" => {
+                        i += 1;
+                        nsym = args.get(i).and_then(|s| s.parse().ok())
+                            .ok_or("--nsym requires a number")?;
+                    }
+                    "--seed" => {
+                        i += 1;
+                        seed = args.get(i).and_then(|s| s.parse().ok())
+                            .ok_or("--seed requires a number")?;
+                    }
+                    other => return Err(format!("Unknown option: {}", other)),
+                }
+                i += 1;
+            }
+
+            let hex = payload_hex.ok_or("--payload-hex is required")?;
+            let output_path = output.ok_or("--output is required")?;
+
+            // Parse hex
+            let payload = parse_hex_payload(&hex)?;
+
+            // Build curve
+            let curve = viridis_approx_curve();
+            let frame = BishopFrame::new(&curve, 500);
+
+            // Select encoding params
+            let params = select_encoding_params(&curve, &frame, 50)
+                .ok_or("No valid encoding configuration found")?;
+
+            eprintln!("Encoding {} bytes (N={}, epsilon={:.4}, nsym={})",
+                payload.len(), params.n, params.epsilon, nsym);
+
+            // Encode banner
+            let encoded = banner::encode_banner(
+                &payload, &curve, &frame,
+                params.n, params.epsilon, nsym,
+                width, height, seed, 10,
+            )?;
+
+            eprintln!("  Cells: {} payload + 1 header = {}",
+                encoded.meta.n_payload_cells, encoded.meta.n_total_cells);
+            eprintln!("  Bits/cell: {:.2}", encoded.meta.bits_per_cell);
+            eprintln!("  RS: {} parity bytes (corrects up to {} byte errors)",
+                encoded.meta.rs_parity_bytes, encoded.meta.max_correctable_bytes);
+
+            // Render to PNG
+            banner::render_banner_png(
+                &encoded, &output_path, 2.5, Srgb::new(10, 10, 25),
+            )?;
+
+            eprintln!("  Saved: {}", output_path);
+            Ok(())
+        }
+        "decode" => {
+            let mut input: Option<String> = None;
+            let mut expected_hex: Option<String> = None;
+            let mut nsym = 16usize;
+            let mut seed = 42u64;
+
+            let mut i = 1;
+            while i < args.len() {
+                match args[i].as_str() {
+                    "--input" | "-i" => {
+                        i += 1;
+                        input = Some(args.get(i).cloned()
+                            .ok_or("--input requires a value")?);
+                    }
+                    "--expected-hex" => {
+                        i += 1;
+                        expected_hex = Some(args.get(i).cloned()
+                            .ok_or("--expected-hex requires a value")?);
+                    }
+                    "--nsym" => {
+                        i += 1;
+                        nsym = args.get(i).and_then(|s| s.parse().ok())
+                            .ok_or("--nsym requires a number")?;
+                    }
+                    "--seed" => {
+                        i += 1;
+                        seed = args.get(i).and_then(|s| s.parse().ok())
+                            .ok_or("--seed requires a number")?;
+                    }
+                    other => return Err(format!("Unknown option: {}", other)),
+                }
+                i += 1;
+            }
+
+            let input_path = input.ok_or("--input is required")?;
+
+            let curve = viridis_approx_curve();
+            let frame = BishopFrame::new(&curve, 500);
+
+            eprintln!("Decoding {}...", input_path);
+            let (recovered, meta) = banner::decode_banner_png(
+                &input_path, &curve, &frame, nsym, seed, 10,
+            )?;
+
+            eprintln!("  N={}, epsilon={:.4}", meta.n_palette, meta.epsilon);
+            eprintln!("  Cells decoded: {}", meta.n_cells);
+            eprintln!("  Success: {}", meta.success);
+
+            if meta.success {
+                eprintln!("  Errors corrected: {}", meta.errors_corrected);
+                let hex_str: String = recovered.iter().map(|b| format!("{:02x}", b)).collect();
+                println!("{}", hex_str);
+
+                if let Some(expected) = expected_hex {
+                    let expected_bytes = parse_hex_payload(&expected)?;
+                    if recovered == expected_bytes {
+                        eprintln!("  Verification: PASS");
+                    } else {
+                        eprintln!("  Verification: FAIL");
+                        eprintln!("  Expected: {}", expected);
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                eprintln!("  Error: {}", meta.error_message.unwrap_or_default());
+                std::process::exit(1);
+            }
+            Ok(())
+        }
+        other => Err(format!("Unknown image subcommand: {}. Use 'encode' or 'decode'.", other)),
+    }
+}
+
+fn parse_hex_payload(hex: &str) -> Result<Vec<u8>, String> {
+    let hex = hex.trim().trim_start_matches("0x").trim_start_matches("0X");
+    if hex.len() % 2 != 0 {
+        return Err("Hex string must have even length".to_string());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16)
+            .map_err(|_| format!("Invalid hex at position {}", i)))
+        .collect()
+}
+
 // --- CLI usage ---
 fn main() {
-    
+    // Check for "image" subcommand early, before complex arg parsing
+    let args: Vec<String> = env::args().collect();
+    if args.len() >= 2 && args[1] == "image" {
+        if let Err(e) = run_image_subcommand(&args[2..]) {
+            eprintln!("Error: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output) = match parse_args() {
         Ok(args) => args,
         Err(e) => {

@@ -20,8 +20,12 @@ impl Constellation {
     }
 
     /// Create constellation from tube radius and step size.
+    ///
+    /// Uses inscribed square formula: the M×M grid corners extend to
+    /// sqrt(2) × axis_distance, so we use sqrt(2)*r/ε to keep all
+    /// grid points within the tube radius.
     pub fn from_radius(radius: f64, epsilon: f64) -> Self {
-        let m = ((2.0 * radius / epsilon) as usize + 1).max(1);
+        let m = ((2.0_f64.sqrt() * radius / epsilon) as usize + 1).max(1);
         Self::new(m, epsilon)
     }
 
@@ -64,6 +68,30 @@ impl Constellation {
         let (a, b) = self.displacement_to_grid(alpha1, alpha2);
         self.grid_to_position(a, b)
     }
+}
+
+/// Generate center-out ordering for an M×M grid.
+///
+/// Returns a permutation mapping logical index -> grid position.
+/// Index 0 maps to the center position (most noise-robust), and
+/// subsequent indices spiral outward.
+pub fn center_out_order(m: usize) -> Vec<usize> {
+    let n = m * m;
+    let center = (m as f64 - 1.0) / 2.0;
+
+    // Build (distance_from_center, row-major position) pairs
+    let mut positions: Vec<(f64, usize)> = (0..n).map(|j| {
+        let a = (j / m) as f64;
+        let b = (j % m) as f64;
+        let dist = (a - center).powi(2) + (b - center).powi(2);
+        (dist, j)
+    }).collect();
+
+    // Sort by distance from center (ties broken by row-major order)
+    positions.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().then(a.1.cmp(&b.1)));
+
+    // The result maps logical index i -> grid position positions[i].1
+    positions.iter().map(|(_, pos)| *pos).collect()
 }
 
 /// Per-color constellations keyed by palette index.
@@ -131,9 +159,9 @@ mod tests {
     #[test]
     fn test_constellation_from_radius() {
         let c = Constellation::from_radius(10.0, EPSILON);
-        // M = floor(2*10/2.3) + 1 = floor(8.69) + 1 = 8 + 1 = 9
-        assert_eq!(c.m, 9, "M should be 9 for radius=10, epsilon=2.3");
-        assert_eq!(c.capacity, 81);
+        // M = floor(sqrt(2)*10/2.3) + 1 = floor(6.148) + 1 = 6 + 1 = 7
+        assert_eq!(c.m, 7, "M should be 7 for radius=10, epsilon=2.3 (inscribed square)");
+        assert_eq!(c.capacity, 49);
     }
 
     #[test]
@@ -143,6 +171,37 @@ mod tests {
         let (alpha1, alpha2) = c.grid_to_displacement(2, 2);
         assert!(alpha1.abs() < 1e-10 && alpha2.abs() < 1e-10,
             "Center should have zero displacement");
+    }
+
+    #[test]
+    fn test_center_out_order() {
+        // For a 3x3 grid, center is position 4 (row 1, col 1)
+        let order = center_out_order(3);
+        assert_eq!(order.len(), 9);
+        // First element should be the center position
+        assert_eq!(order[0], 4, "Center-out should start at grid center (1,1) = position 4");
+        // All positions should be unique
+        let mut sorted = order.clone();
+        sorted.sort();
+        assert_eq!(sorted, (0..9).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_center_out_order_m1() {
+        let order = center_out_order(1);
+        assert_eq!(order, vec![0]);
+    }
+
+    #[test]
+    fn test_center_out_roundtrip() {
+        // Verify that encode(idx) -> grid_pos -> decode -> idx is identity
+        for m in [3, 5, 8] {
+            let order = center_out_order(m);
+            for (idx, &grid_pos) in order.iter().enumerate() {
+                let recovered = order.iter().position(|&p| p == grid_pos).unwrap();
+                assert_eq!(recovered, idx, "Center-out roundtrip failed for M={}, idx={}", m, idx);
+            }
+        }
     }
 
     #[test]

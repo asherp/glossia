@@ -56,6 +56,7 @@ moniker = "0.5"  # For lambda calculus variable binding
 bincode = "1.3"
 num-bigint = "0.4"
 num-traits = "0.2"
+reed-solomon = "0.2"
 
 # Native-only deps (WASM-incompatible)
 nlprule = { version = "0.6", optional = true }

@@ -5,6 +5,8 @@ pub mod frame;
 pub mod constellation;
 pub mod capacity;
 pub mod codec;
+pub mod rs_encoding;
+pub mod banner;
 pub mod render;
 pub mod voronoi;
 pub mod svg;

@@ -97,11 +97,11 @@ fn render_voronoi(colors: &[&str], config: &SvgConfig) -> String {
     }
 
     // Scatter colors to minimize same-color adjacency
-    let color_order: Vec<&str> = if config.color_scatter {
+    let (color_order, original_idx): (Vec<&str>, Vec<usize>) = if config.color_scatter {
         let perm = scatter_colors(&seeds, colors, config.seed, 8000);
-        perm.iter().map(|&i| colors[i]).collect()
+        (perm.iter().map(|&i| colors[i]).collect(), perm)
     } else {
-        colors.to_vec()
+        (colors.to_vec(), (0..n).collect())
     };
 
     let cells = voronoi_cells(&seeds, config.width, config.height);
@@ -150,11 +150,12 @@ fn render_voronoi(colors: &[&str], config: &SvgConfig) -> String {
         svg.push_str(&format!(
             "<polygon points=\"{pts}\" fill=\"{color}\" \
              stroke=\"{stroke}\" stroke-width=\"{sw}\" \
-             stroke-linejoin=\"round\"/>\n",
+             stroke-linejoin=\"round\" data-idx=\"{idx}\"/>\n",
             pts = cell.svg_points(),
             color = color_order[i],
             stroke = config.stroke,
             sw = config.stroke_width,
+            idx = original_idx[i],
         ));
     }
 
@@ -201,7 +202,7 @@ fn render_grid(colors: &[&str], config: &SvgConfig) -> String {
             "<rect x=\"{x:.1}\" y=\"{y:.1}\" \
              width=\"{w:.1}\" height=\"{h:.1}\" \
              fill=\"{color}\" \
-             stroke=\"{stroke}\" stroke-width=\"{sw}\"/>\n",
+             stroke=\"{stroke}\" stroke-width=\"{sw}\" data-idx=\"{idx}\"/>\n",
             x = x + inset,
             y = y + inset,
             w = cell_w - config.stroke_width,
@@ -209,6 +210,7 @@ fn render_grid(colors: &[&str], config: &SvgConfig) -> String {
             color = color,
             stroke = config.stroke,
             sw = config.stroke_width,
+            idx = i,
         ));
     }
 
@@ -247,11 +249,12 @@ fn render_constellation(colors: &[&str], config: &SvgConfig) -> String {
             break;
         }
         svg.push_str(&format!(
-            "<circle cx=\"{x:.1}\" cy=\"{y:.1}\" r=\"{r:.1}\" fill=\"{color}\"/>\n",
+            "<circle cx=\"{x:.1}\" cy=\"{y:.1}\" r=\"{r:.1}\" fill=\"{color}\" data-idx=\"{idx}\"/>\n",
             x = seeds[i].x,
             y = seeds[i].y,
             r = dot_r,
             color = color,
+            idx = i,
         ));
     }
 

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use super::color::Lab;
 use super::curve::PaletteCurve;
 use super::frame::BishopFrame;
-use super::constellation::{Constellation, ConstellationMap};
+use super::constellation::{Constellation, ConstellationMap, center_out_order};
 use super::capacity::{
     compute_tube_radius, compute_capacity_curve, equal_capacity_positions,
     interp_radii, ConfigEntry, HEADER_S,
@@ -115,6 +115,9 @@ pub fn decode(
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Encode (N, epsilon) into the header color at s=0.
+///
+/// Uses center-out ordering so config index 0 maps to the grid center
+/// (most noise-robust position).
 pub fn encode_header(
     n_palette: usize,
     epsilon: f64,
@@ -139,12 +142,17 @@ pub fn encode_header(
         ));
     }
 
-    let (alpha1, alpha2) = c.position_to_displacement(idx);
+    // Center-out mapping: config index -> grid position via spiral order
+    let order = center_out_order(c.m);
+    let grid_pos = if idx < order.len() { order[idx] } else { idx };
+    let (alpha1, alpha2) = c.position_to_displacement(grid_pos);
     let pixel = base.add(&u1.scale(alpha1)).add(&u2.scale(alpha2));
     Ok(Lab::from_vec3(&pixel))
 }
 
 /// Decode (N, epsilon) from the header color.
+///
+/// Reverses center-out ordering to recover the config index.
 pub fn decode_header(
     pixel: &Lab,
     curve: &PaletteCurve,
@@ -161,7 +169,12 @@ pub fn decode_header(
 
     let radii = compute_tube_radius(curve, frame, &[HEADER_S], 16, 60.0, 0.5);
     let c = Constellation::from_radius(radii[0], header_epsilon);
-    let idx = c.displacement_to_position(alpha1, alpha2);
+    let grid_pos = c.displacement_to_position(alpha1, alpha2);
+
+    // Reverse center-out mapping: grid position -> config index
+    let order = center_out_order(c.m);
+    let idx = order.iter().position(|&p| p == grid_pos)
+        .unwrap_or(grid_pos);
 
     if idx >= configs.len() {
         return Err(format!("Config index {} out of range (max {})", idx, configs.len() - 1));
