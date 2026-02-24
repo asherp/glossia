@@ -34,7 +34,7 @@ use crate::generator::data::{
 };
 use crate::generator::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
 use crate::generator::core::generate_text_with_original_payload;
-use crate::grammar::Grammar;
+use crate::grammar::{Grammar, DialectConfig};
 use crate::merkle::WordlistTree;
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -518,6 +518,11 @@ impl Pipeline {
             }
         };
 
+        // Resolve dialect-declared wordlists: if a dialect declares
+        // payload_wordlist (e.g., spells → "hp"), upgrade "default" to that.
+        let source = resolve_dialect_wordlist(source);
+        let target = resolve_dialect_wordlist(target);
+
         Ok(Pipeline {
             source,
             target,
@@ -960,6 +965,27 @@ fn apply_wordlist_modifier(
     };
     if let Some(Endpoint::Language { wordlist: ref mut w, .. }) = ep {
         *w = wordlist.to_string();
+    }
+}
+
+/// If the endpoint is a Language with `wordlist == "default"`, consult DialectConfig
+/// to see if the dialect declares a non-default payload_wordlist (e.g., spells → "hp").
+fn resolve_dialect_wordlist(ep: Endpoint) -> Endpoint {
+    match ep {
+        Endpoint::Language { ref language, ref wordlist, ref dialect } if wordlist == "default" => {
+            if let Ok(config) = DialectConfig::from_language_dialect(language, dialect) {
+                let declared = config.payload_wordlist();
+                if declared != "default" {
+                    return Endpoint::Language {
+                        language: language.clone(),
+                        wordlist: declared.to_string(),
+                        dialect: dialect.clone(),
+                    };
+                }
+            }
+            ep
+        }
+        other => other,
     }
 }
 
@@ -1778,6 +1804,14 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_spells_resolves_hp_wordlist() {
+        // "encode into latin spells" should resolve payload_wordlist: "hp" from grammar.yaml
+        let p = Pipeline::from_meta("encode into latin spells").unwrap();
+        assert_eq!(p.target, Endpoint::language_full("latin", "hp", "spells"),
+            "spells dialect should resolve payload_wordlist to 'hp' from grammar.yaml");
+    }
+
+    #[test]
     fn test_parse_single_word_is_target() {
         // Just "latin" → source=Auto, target=latin
         let p = Pipeline::from_meta("latin").unwrap();
@@ -1907,7 +1941,7 @@ mod tests {
     fn test_parse_html_flag() {
         let p = Pipeline::from_meta("encode into pgp html").unwrap();
         assert!(p.html, "html flag should be true");
-        assert_eq!(p.target, Endpoint::language_with_dialect("cs", "pgp"));
+        assert_eq!(p.target, Endpoint::language_full("cs", "base58", "pgp"));
     }
 
     #[test]
@@ -1915,7 +1949,7 @@ mod tests {
         // "html" can appear before or after the language word
         let p = Pipeline::from_meta("encode into html pgp").unwrap();
         assert!(p.html, "html flag should be true regardless of order");
-        assert_eq!(p.target, Endpoint::language_with_dialect("cs", "pgp"));
+        assert_eq!(p.target, Endpoint::language_full("cs", "base58", "pgp"));
     }
 
     #[test]
@@ -1941,15 +1975,15 @@ mod tests {
     #[test]
     fn test_pgp_routes_to_cs_pgp_dialect() {
         let p = Pipeline::from_meta("encode into pgp").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("cs", "pgp"),
-            "pgp should route to cs language with pgp dialect, not body");
+        assert_eq!(p.target, Endpoint::language_full("cs", "base58", "pgp"),
+            "pgp should route to cs language with pgp dialect and base58 wordlist");
     }
 
     #[test]
     fn test_nostr_routes_to_cs_nip04_dialect() {
         let p = Pipeline::from_meta("encode into nostr").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("cs", "nip04"),
-            "nostr should route to cs language with nip04 dialect");
+        assert_eq!(p.target, Endpoint::language_full("cs", "base58", "nip04"),
+            "nostr should route to cs language with nip04 dialect and base58 wordlist");
     }
 
     // ── Adverb modifiers ────────────────────────────────────────────
@@ -2025,46 +2059,46 @@ mod tests {
     #[test]
     fn test_image_default_dialect_is_voronoi() {
         let p = Pipeline::from_meta("encode into image").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "voronoi"),
-            "image should default to voronoi dialect");
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "voronoi"),
+            "image should default to voronoi dialect with viridis wordlist");
     }
 
     #[test]
     fn test_image_grid_dialect() {
         let p = Pipeline::from_meta("encode into image grid").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "grid"),
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "grid"),
             "grid dialect modifier should override default voronoi");
     }
 
     #[test]
     fn test_image_mosaic_dialect() {
         let p = Pipeline::from_meta("encode into image mosaic").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "mosaic"));
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "mosaic"));
     }
 
     #[test]
     fn test_image_constellation_dialect() {
         let p = Pipeline::from_meta("encode into image constellation").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "constellation"));
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "constellation"));
     }
 
     #[test]
     fn test_image_raw_dialect() {
         let p = Pipeline::from_meta("encode into image raw").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "raw"));
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "raw"));
     }
 
     #[test]
     fn test_image_patches_dialect() {
         let p = Pipeline::from_meta("encode into image patches").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "patches"));
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "patches"));
     }
 
     #[test]
     fn test_image_transcode_from_english() {
         let p = Pipeline::from_meta("translate from english into image voronoi").unwrap();
         assert_eq!(p.source, Endpoint::language("english"));
-        assert_eq!(p.target, Endpoint::language_with_dialect("image", "voronoi"));
+        assert_eq!(p.target, Endpoint::language_full("image", "viridis", "voronoi"));
     }
 
     // ── Image palette (wordlist) selection ──────────────────────────
