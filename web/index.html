@@ -1504,7 +1504,7 @@ iQIzBAABCAAdFiEE...xK9Q==
             <button class="btn-sm" onclick="randomWords(24)" title="Generate 24 random BIP39 words">BIP39 (24)</button>
             <button class="btn-sm" onclick="randomHex()" title="Generate random hex string">Hex</button>
             <button class="btn-sm" onclick="randomBase64()" title="Generate random base64 string">Base64</button>
-            <button class="btn-sm" onclick="randomBitcoinKey()" title="Generate random Bitcoin pubkey (bc1...)">Bitcoin Key</button>
+            <button class="btn-sm" onclick="randomBitcoinKey()" title="Generate random Bitcoin address (bc1...)">BTC Address</button>
             <button class="btn-sm" onclick="randomNostrKey()" title="Generate random Nostr pubkey (npub...)">Nostr Key</button>
           </div>
           <div id="input-error" class="error-msg hidden" style="padding:0;"></div>
@@ -1887,6 +1887,7 @@ let lastStats = {};
 let lastDataMode = null;
 let lastSource = null;
 let lastTarget = null;
+let lastResolvedSource = null;
 let lastIsImageOutput = false;
 let lastImageDialect = '';
 let showCoverWords = true;
@@ -2349,7 +2350,7 @@ function doTranscode() {
     // Update panel labels from pipeline source/target
     const inputLabel = document.getElementById('input-dialect-label');
     const outputLabel = document.getElementById('output-dialect-label');
-    inputLabel.textContent = 'Input: ' + (result.source || 'auto');
+    inputLabel.textContent = 'Input: ' + friendlySourceName(result.resolved_source || result.source || 'auto');
     outputLabel.textContent = 'Output: ' + (result.target || 'auto');
 
     // Store result for cover word toggle — convert newlines to <br> for HTML rendering
@@ -2359,6 +2360,7 @@ function doTranscode() {
     lastDataMode = result.data_mode || null;
     lastSource = result.source || null;
     lastTarget = result.target || null;
+    lastResolvedSource = result.resolved_source || null;
 
     // Detect image output from target endpoint (e.g. "image/plasma/voronoi")
     const target = result.target || '';
@@ -2684,7 +2686,27 @@ document.getElementById('swap-btn').addEventListener('click', () => {
   const preview = document.getElementById('input-image-preview');
 
   const instruction = metaInput.value.trim();
-  const reversed = reverseMetaInstruction(instruction);
+  // If the encode step auto-detected a structured source (e.g. BIP39 mnemonic
+  // as english/bip39/raw, or a bc1q address as crypto/btc/bip173), construct a
+  // transcode back to the original format instead of a plain decode.
+  // When swapping back from such a transcode, restore the "encode into" form.
+  let reversed;
+  const lower = instruction.toLowerCase().trim();
+  const isResolvedLanguage = lastResolvedSource && lastResolvedSource.includes('/');
+  if (isResolvedLanguage && lower.startsWith('encode into ')) {
+    const targetLang = instruction.substring('encode into '.length);
+    reversed = 'translate from ' + targetLang + ' into ' + lastResolvedSource;
+  } else if (lower.match(/^translate\s+from\s+(.+?)\s+into\s+(\S+\/\S+)$/)) {
+    // Reverse of a resolved-source transcode: restore "encode into <source-lang>"
+    const m = lower.match(/^translate\s+from\s+(.+?)\s+into\s+(\S+\/\S+)$/);
+    if (m) {
+      reversed = 'encode into ' + m[1];
+    } else {
+      reversed = reverseMetaInstruction(instruction);
+    }
+  } else {
+    reversed = reverseMetaInstruction(instruction);
+  }
   metaInput.value = reversed;
 
   // For image output, move the SVG into the left panel preview and extract colors for decode
@@ -2726,11 +2748,36 @@ document.getElementById('swap-btn').addEventListener('click', () => {
   lastDataMode = null;
   lastSource = null;
   lastTarget = null;
+  lastResolvedSource = null;
   lastIsImageOutput = false;
   lastImageDialect = '';
 
   autoRunNow();
 });
+
+function friendlySourceName(source) {
+  if (!source || source === 'auto') return 'auto';
+  const map = {
+    'crypto/btc/bech32/bip173': 'btc address (bc1q)',
+    'crypto/btc/bech32/bip173-test': 'btc testnet (tb1q)',
+    'crypto/btc/bech32/bip350': 'btc taproot (bc1p)',
+    'crypto/btc/bech32/bip350-test': 'btc taproot testnet (tb1p)',
+    'crypto/nostr/bech32/pub': 'nostr pubkey (npub)',
+    'crypto/nostr/bech32/sec': 'nostr secret (nsec)',
+    'crypto/nostr/bech32/note': 'nostr note',
+    'crypto/ln/bech32/main': 'lightning invoice',
+    'crypto/ln/bech32/test': 'lightning testnet',
+    'crypto/cashu/base64url/a': 'cashu token',
+    'crypto/cashu/base64url/b': 'cashu token v2',
+  };
+  if (map[source]) return map[source];
+  // english/bip39/raw → "bip39 mnemonic"
+  if (source.endsWith('/raw')) {
+    const parts = source.split('/');
+    return parts[1] + ' mnemonic';
+  }
+  return source;
+}
 
 function reverseMetaInstruction(instruction) {
   const lower = instruction.toLowerCase().trim();
@@ -2769,8 +2816,9 @@ function targetWordlist() {
 
 window.randomWords = function(count) {
   if (!ready) return;
-  const lang = parseTargetLanguage();
-  const wl = targetWordlist();
+  // BIP39 always uses the English BIP39 wordlist regardless of selected dialect
+  const lang = 'english';
+  const wl = 'bip39';
   const seed = Date.now();
   const errEl = document.getElementById('input-error');
   errEl.classList.add('hidden');
