@@ -65,7 +65,7 @@ def filter_glossia_pos(pos_tags):
             filtered.add(GLOSSIA_POS_MAP[pos])
     return filtered
 
-def generate_cover_words(lemmata_file, payload_file=None, max_per_pos=None, min_frequency=1, min_length=None, max_length=None):
+def generate_cover_words(lemmata_file, payload_file=None, max_per_pos=None, min_frequency=1, min_length=None, max_length=None, drop_single_letter_nouns=False):
     """Generate cover words from CLTK lemmata data."""
     
     # Load payload words to exclude
@@ -97,7 +97,13 @@ def generate_cover_words(lemmata_file, payload_file=None, max_per_pos=None, min_
             continue
         if max_length and len(word) > max_length:
             continue
-        
+
+        # Drop single-letter words whose only POS is N (bare alphabet letters)
+        if drop_single_letter_nouns and len(word) == 1:
+            glossia_pos_check = filter_glossia_pos(pos_tags)
+            if glossia_pos_check == {'N'}:
+                continue
+
         # Filter to Glossia-supported POS tags
         glossia_pos = filter_glossia_pos(pos_tags)
         if not glossia_pos:
@@ -152,7 +158,9 @@ def main():
                         help='Minimum word length')
     parser.add_argument('--max-length', type=int,
                         help='Maximum word length')
-    
+    parser.add_argument('--drop-single-letter-nouns', action='store_true',
+                        help='Drop single-letter words whose only POS is N')
+
     args = parser.parse_args()
     
     # Generate cover words
@@ -162,7 +170,8 @@ def main():
         args.max_per_pos,
         args.min_frequency,
         args.min_length,
-        args.max_length
+        args.max_length,
+        args.drop_single_letter_nouns
     )
     
     # Write YAML output
