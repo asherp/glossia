@@ -1,7 +1,10 @@
 # Bitcoin Address Grammar — Character-Level Encoding
 #
-# Bech32 dialects (main, test) use Prefix + BODY structure.
-# Legacy dialect uses body-only format with base58 alphabet.
+# BIP-named dialects with payload_language: "cs" to resolve
+# bech32/base58 wordlists from the cs/ canonical location.
+#
+# Bech32 dialects: bip173 (SegWit v0), bip350 (Taproot)
+# Legacy dialects: p2pkh (base58)
 
 grammar:
   name: "Bitcoin Address Grammar"
@@ -34,17 +37,37 @@ grammar:
           lambda: "λn:(e->t). n"
 
   dialects:
-    main:
+    bip173:
       payload_wordlist: "bech32"
+      payload_language: "cs"
       rules:
         sentence:
           cfg_productions:
-            - production: "Prefix[main] BODY"
-    test:
+            - production: "Prefix[bip173] BODY"
+    bip173-test:
       payload_wordlist: "bech32"
+      payload_language: "cs"
       rules:
         sentence:
           cfg_productions:
-            - production: "Prefix[test] BODY"
-    legacy:
+            - production: "Prefix[bip173-test] BODY"
+    bip350:
+      payload_wordlist: "bech32"
+      payload_language: "cs"
+      rules:
+        sentence:
+          cfg_productions:
+            - production: "Prefix[bip350] BODY"
+    bip350-test:
+      payload_wordlist: "bech32"
+      payload_language: "cs"
+      rules:
+        sentence:
+          cfg_productions:
+            - production: "Prefix[bip350-test] BODY"
+    p2pkh:
       payload_wordlist: "base58"
+      payload_language: "cs"
+    p2pkh-test:
+      payload_wordlist: "base58"
+      payload_language: "cs"

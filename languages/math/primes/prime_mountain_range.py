@@ -723,6 +723,152 @@ def run_tests():
 
 
 # ---------------------------------------------------------------------------
+# Comparison
+# ---------------------------------------------------------------------------
+
+def run_comparison():
+    """Compare PMR prime-finding with traditional approaches."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from merkelize_primes import merkleize_primes
+
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+    def fmt_time(t):
+        """Format a time duration in human-readable form."""
+        if t < 1e-6:
+            return f"{t*1e9:.0f} ns"
+        elif t < 1e-3:
+            return f"{t*1e6:.1f} us"
+        elif t < 1:
+            return f"{t*1e3:.2f} ms"
+        else:
+            return f"{t:.3f} s"
+
+    def print_table(headers, rows):
+        """Print a formatted table."""
+        widths = [max(len(str(h)), max((len(str(r[i])) for r in rows), default=0)) + 2
+                  for i, h in enumerate(headers)]
+        print(f"  {''.join(str(h).ljust(w) for h, w in zip(headers, widths))}")
+        print(f"  {''.join('-' * w for w in widths)}")
+        for row in rows:
+            print(f"  {''.join(str(c).ljust(w) for c, w in zip(row, widths))}")
+
+    def first_n_primes(n):
+        """Get first n primes via sieve."""
+        bound = max(n * 15, 100)
+        primes = sieve_primes(bound)
+        while len(primes) < n:
+            bound *= 2
+            primes = sieve_primes(bound)
+        return primes[:n]
+
+    # -------------------------------------------------------------------
+    # Comparison 1: Extract next prime from parsed PMR vs trial division
+    # -------------------------------------------------------------------
+    print(f"\n{BOLD}Comparison 1: Extract p_{{N+1}} from parsed PMR vs trial division{RESET}")
+    print("  PMR: sort serialized sequence, take element at index N")
+    print("  Traditional: trial-divide candidates after p_N\n")
+
+    rows = []
+    for N in [100, 1000, 10000]:
+        leaves = first_n_primes(N)
+        pmr = PrimeMountainRange.from_leaves(leaves)
+        seq = pmr.serialize()
+
+        iters = max(1, 10000 // N)
+
+        t0 = time.perf_counter()
+        for _ in range(iters):
+            next_pmr = sorted(seq)[N]
+        t1 = time.perf_counter()
+        time_pmr = (t1 - t0) / iters
+
+        p_N = leaves[-1]
+        t0 = time.perf_counter()
+        for _ in range(iters):
+            next_td = generate_n_primes_after(p_N, 1)[0]
+        t1 = time.perf_counter()
+        time_td = (t1 - t0) / iters
+
+        assert next_pmr == next_td, f"N={N}: PMR={next_pmr} != TD={next_td}"
+
+        speedup = time_td / time_pmr if time_pmr > 0 else float('inf')
+        rows.append([N, f"p_{N+1}={next_pmr}", fmt_time(time_pmr),
+                     fmt_time(time_td), f"{speedup:.1f}x"])
+
+    print_table(["N", "Result", "PMR (sort)", "Trial div", "Speedup"], rows)
+
+    # -------------------------------------------------------------------
+    # Comparison 2: Batch prime generation (sieve vs trial division)
+    # -------------------------------------------------------------------
+    print(f"\n{BOLD}Comparison 2: Batch prime generation (sieve vs trial division){RESET}")
+    print("  PMR sieve: Sieve of Eratosthenes up to bound")
+    print("  Traditional: trial division for each candidate\n")
+
+    rows = []
+    for N in [1000, 10000, 100000]:
+        bound = int(N * (math.log(N) + math.log(math.log(N)))) + 100
+
+        # Sieve
+        t0 = time.perf_counter()
+        sieve_result = sieve_primes(bound)
+        t1 = time.perf_counter()
+        while len(sieve_result) < N:
+            bound *= 2
+            t0 = time.perf_counter()
+            sieve_result = sieve_primes(bound)
+            t1 = time.perf_counter()
+        time_sieve = t1 - t0
+
+        # Trial division up to same bound
+        t0 = time.perf_counter()
+        td_result = generate_primes_up_to_inclusive(bound)
+        t1 = time.perf_counter()
+        time_td = t1 - t0
+
+        speedup = time_td / time_sieve if time_sieve > 0 else float('inf')
+        rows.append([N, bound, fmt_time(time_sieve), fmt_time(time_td),
+                     f"{speedup:.1f}x"])
+
+    print_table(["N", "Bound", "Sieve", "Trial div", "Speedup"], rows)
+
+    # -------------------------------------------------------------------
+    # Comparison 3: Incremental append (PMR vs full Merkle rebuild)
+    # -------------------------------------------------------------------
+    print(f"\n{BOLD}Comparison 3: Incremental append (PMR vs full Merkle rebuild){RESET}")
+    print("  PMR: append() x N (O(1) amortized cursor advance)")
+    print("  Traditional: merkleize_primes(leaves[:k]) for k = 1..N\n")
+
+    rows = []
+    for N in [100, 500, 1000]:
+        leaves = first_n_primes(N)
+
+        # PMR incremental append
+        t0 = time.perf_counter()
+        pmr = PrimeMountainRange()
+        for p in leaves:
+            pmr.append(p)
+        t1 = time.perf_counter()
+        time_pmr = t1 - t0
+
+        # Full rebuild at each step
+        t0 = time.perf_counter()
+        for k in range(1, N + 1):
+            merkleize_primes(leaves[:k])
+        t1 = time.perf_counter()
+        time_rebuild = t1 - t0
+
+        speedup = time_rebuild / time_pmr if time_pmr > 0 else float('inf')
+        rows.append([N, fmt_time(time_pmr), fmt_time(time_rebuild),
+                     f"{speedup:.1f}x"])
+
+    print_table(["N", "PMR append", "Full rebuild x N", "Speedup"], rows)
+
+    print()
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -805,6 +951,11 @@ Examples:
         t1 = time.time()
         print(f"  Parsed in {t1-t0:.4f}s (N={parsed_N})")
 
+        sys.exit(0)
+
+    # --compare
+    if args.compare:
+        run_comparison()
         sys.exit(0)
 
     # --parse
@@ -980,12 +1131,6 @@ Examples:
         print(f"\n{MERKLE_COLOR}+ Self-verified{RESET_COLOR}")
     else:
         print(f"\n\033[91m- Self-verification FAILED: {msg}{RESET_COLOR}", file=sys.stderr)
-
-    # Compare hint
-    if args.compare and pmr.n_leaves > 0 and popcount(pmr.n_leaves) == 1:
-        print(f"\nTo compare with old merkleizer:")
-        leaf_str = ','.join(str(p) for p in leaves)
-        print(f"  python merkelize_primes.py \"{leaf_str}\" -v")
 
 
 if __name__ == "__main__":

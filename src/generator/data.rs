@@ -193,8 +193,30 @@ fn load_or_build_payload_cache(language: &str, wordlist: &str) -> Result<Arc<Pay
     }
 
     // Build from YAML (single parse for both wordlist + POS mapping).
+    // Try embedded YAML for this language first, then fall back to cs/ (shared character-level
+    // wordlists like bech32, base58), then filesystem.
     let yaml_content = if let Some(embedded) = get_embedded_yaml(&format!("{}/{}", language, payload_filename)) {
         embedded.to_string()
+    } else if language != "cs" {
+        if let Some(embedded) = get_embedded_yaml(&format!("cs/{}", payload_filename)) {
+            embedded.to_string()
+        } else {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                // Try filesystem: first in this language's dir, then in cs/
+                if let Some(ref p) = payload_path {
+                    std::fs::read_to_string(p).map_err(|e| format!("Failed to read YAML file '{}': {}", p.display(), e))?
+                } else if let Some(cs_path) = find_language_file("cs", &payload_filename) {
+                    std::fs::read_to_string(&cs_path).map_err(|e| format!("Failed to read YAML file '{}': {}", cs_path, e))?
+                } else {
+                    return Err(format!("No payload YAML for language '{}', wordlist '{}' (also tried cs/)", language, wordlist));
+                }
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                return Err(format!("No embedded YAML for language '{}', wordlist '{}'", language, wordlist));
+            }
+        }
     } else {
         #[cfg(not(target_arch = "wasm32"))]
         {

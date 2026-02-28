@@ -132,6 +132,9 @@ pub struct PipelineResult {
     pub payload_words: Vec<String>,
     pub data_mode: Option<DataMode>,
     pub stats: Option<PipelineStats>,
+    /// The resolved source endpoint (after auto-detection).
+    /// Useful for constructing the reverse pipeline instruction.
+    pub resolved_source: Option<Endpoint>,
 }
 
 /// Statistics about an encode/transcode operation.
@@ -171,9 +174,12 @@ pub struct Pipeline {
 /// so only the data portion needs to be encoded with the dialect's alphabet.
 fn detect_crypto_format(input: &str) -> Option<(&str, &str, &str)> {
     let lower = input.to_lowercase();
-    // Bech32 formats: HRP + "1" separator + data
-    if lower.starts_with("bc1")   { return Some(("crypto/btc",   "main", &input[3..])); }
-    if lower.starts_with("tb1")   { return Some(("crypto/btc",   "test", &input[3..])); }
+    // Bech32 formats: HRP + "1" separator + witness-version + data
+    // Longer prefixes first to discriminate SegWit v0 (bc1q) from Taproot (bc1p).
+    if lower.starts_with("bc1q")  { return Some(("crypto/btc",   "bip173",      &input[4..])); }
+    if lower.starts_with("bc1p")  { return Some(("crypto/btc",   "bip350",      &input[4..])); }
+    if lower.starts_with("tb1q")  { return Some(("crypto/btc",   "bip173-test", &input[4..])); }
+    if lower.starts_with("tb1p")  { return Some(("crypto/btc",   "bip350-test", &input[4..])); }
     if lower.starts_with("npub1") { return Some(("crypto/nostr", "pub",  &input[5..])); }
     if lower.starts_with("nsec1") { return Some(("crypto/nostr", "sec",  &input[5..])); }
     if lower.starts_with("note1") { return Some(("crypto/nostr", "note", &input[5..])); }
@@ -189,8 +195,8 @@ fn detect_crypto_format(input: &str) -> Option<(&str, &str, &str)> {
 /// All dialects within a sub-language share the same alphabet,
 /// except btc/legacy which uses base58 (handled as a dialect override).
 fn crypto_payload_type(language: &str, dialect: &str) -> &'static str {
-    // BTC legacy is the one exception: base58 instead of bech32.
-    if language == "crypto/btc" && dialect == "legacy" {
+    // BTC P2PKH uses base58 instead of bech32.
+    if language == "crypto/btc" && (dialect == "p2pkh" || dialect == "p2pkh-test") {
         return "base58";
     }
     match language {
@@ -203,8 +209,12 @@ fn crypto_payload_type(language: &str, dialect: &str) -> &'static str {
 /// Map a crypto (language, dialect) pair to its prefix string.
 fn crypto_dialect_prefix(language: &str, dialect: &str) -> &'static str {
     match (language, dialect) {
-        ("crypto/btc",   "main") => "bc1",
-        ("crypto/btc",   "test") => "tb1",
+        ("crypto/btc",   "bip173")      => "bc1q",
+        ("crypto/btc",   "bip173-test") => "tb1q",
+        ("crypto/btc",   "bip350")      => "bc1p",
+        ("crypto/btc",   "bip350-test") => "tb1p",
+        ("crypto/btc",   "p2pkh")       => "",
+        ("crypto/btc",   "p2pkh-test")  => "",
         ("crypto/nostr", "pub")  => "npub1",
         ("crypto/nostr", "sec")  => "nsec1",
         ("crypto/nostr", "note") => "note1",
@@ -245,7 +255,7 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
         "pgp" => Some(("cs", "pgp")),
         "primes" => Some(("math", "body")),
         "image" => Some(("image", "voronoi")),
-        "bitcoin" | "btc" => Some(("crypto/btc", "main")),
+        "bitcoin" | "btc" => Some(("crypto/btc", "bip173")),
         "npub" => Some(("crypto/nostr", "pub")),
         "nsec" => Some(("crypto/nostr", "sec")),
         "lightning" | "ln" => Some(("crypto/ln", "main")),
@@ -415,6 +425,45 @@ impl Pipeline {
                         variations = Some(100);
                     }
                     _ => {}
+                }
+                continue;
+            }
+
+            // Slash-separated endpoint spec (e.g. "english/bip39/raw",
+            // "crypto/btc/bech32/bip173").
+            if token.contains('/') {
+                let parts: Vec<&str> = token.split('/').collect();
+                let endpoint = match parts.len() {
+                    // "english/bip39/body"
+                    3 => Endpoint::language_full(parts[0], parts[1], parts[2]),
+                    // "crypto/btc/bech32/bip173" — 2-part language name
+                    4 => Endpoint::Language {
+                        language: format!("{}/{}", parts[0], parts[1]),
+                        wordlist: parts[2].to_string(),
+                        dialect: parts[3].to_string(),
+                    },
+                    // "english/bip39"
+                    2 => Endpoint::Language {
+                        language: parts[0].to_string(),
+                        wordlist: parts[1].to_string(),
+                        dialect: "body".to_string(),
+                    },
+                    _ => continue,
+                };
+                match current_role {
+                    Some(Role::Source) => {
+                        source = Some(endpoint);
+                        source_explicit = true;
+                        current_role = None;
+                    }
+                    Some(Role::Target) => {
+                        target = Some(endpoint);
+                        target_explicit = true;
+                        current_role = None;
+                    }
+                    None => {
+                        unscoped_endpoints.push(endpoint);
+                    }
                 }
                 continue;
             }
@@ -644,8 +693,8 @@ impl Pipeline {
         match &self.source {
             Endpoint::Auto => {
                 // If target is a Language, the user wants to encode raw data
-                // into prose. Don't mistake payload words in the input for
-                // Glossia prose — go straight to format detection.
+                // into prose. Check for crypto formats and high-confidence
+                // wordlist matches first, then fall back to format detection.
                 if matches!(&self.target, Endpoint::Language { .. }) {
                     // Check for crypto format first — if detected, treat source
                     // as crypto Language. This turns the pipeline into a transcode
@@ -663,6 +712,41 @@ impl Pipeline {
                             });
                         }
                     }
+
+                    // Check if input looks like words from a small, specialized
+                    // payload wordlist (e.g. BIP39 mnemonic). Require:
+                    //  - high hit rate (≥0.8): nearly all words match
+                    //  - small wordlist (≤8192): filters out general-purpose
+                    //    wordlists like lemmas/ngram that match normal text
+                    let words: Vec<String> = input
+                        .split_whitespace()
+                        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+                        .filter(|w| !w.is_empty())
+                        .collect();
+
+                    if !words.is_empty() {
+                        let matches = detect_dialect(&words);
+                        if let Some(best) = matches.first() {
+                            if best.hit_rate >= 0.8 && best.wordlist_size <= 8192 {
+                                if self.verbose {
+                                    eprintln!(
+                                        "Source auto-detected as {}/{} ({:.0}% hit rate, {} words, target is Language)",
+                                        best.language, best.wordlist, best.hit_rate * 100.0, best.wordlist_size
+                                    );
+                                }
+                                // Use "raw" dialect to signal that the input is
+                                // raw payload words (e.g. BIP39 mnemonic), not
+                                // Glossia prose with a header + cover words.
+                                return Ok(Endpoint::Language {
+                                    language: best.language.clone(),
+                                    wordlist: best.wordlist.clone(),
+                                    dialect: "raw".to_string(),
+                                });
+                            }
+                        }
+                    }
+
+                    // Not a known wordlist — treat as raw data format.
                     let (mode, _) = codec::detect_mode(input);
                     if self.verbose {
                         eprintln!("Source auto-detected as format: {} (target is Language)", mode);
@@ -729,6 +813,25 @@ impl Pipeline {
             return encode_crypto(input, language, dialect, self.verbose);
         }
 
+        // Raw encoding: base-N encode into bare payload words (no header, no cover).
+        if dialect == "raw" {
+            let wordlist_name = if wordlist == "default" {
+                let dw = crate::generator::default_wordlist(language);
+                if dw == "default" { wordlist } else { dw }
+            } else {
+                wordlist
+            };
+            let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
+                .map_err(|e| PipelineError::EncodeError(e))?;
+            let payload_tree = WordlistTree::new(payload_words);
+
+            let (_, data) = codec::detect_mode(input);
+            let words = codec::encode_base_n(&data, &payload_tree)
+                .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
+
+            return Ok(words.join(" "));
+        }
+
         let (text, _, _, _) = encode_into_language(
             input, language, wordlist, dialect, None, self.seed, self.verbose,
             self.cover_override(),
@@ -750,6 +853,39 @@ impl Pipeline {
             )),
         };
 
+        // Raw encoding: base-N encode into bare payload words (no header, no cover).
+        // This is the inverse of "raw" decode — used to reconstruct a BIP39 mnemonic.
+        if dialect == "raw" {
+            let wordlist_name = if wordlist == "default" {
+                let dw = crate::generator::default_wordlist(language);
+                if dw == "default" { wordlist } else { dw }
+            } else {
+                wordlist
+            };
+            let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
+                .map_err(|e| PipelineError::EncodeError(e))?;
+            let payload_tree = WordlistTree::new(payload_words);
+
+            let (_, data) = codec::detect_mode(input);
+            let words = codec::encode_base_n(&data, &payload_tree)
+                .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
+
+            let output = words.join(" ");
+            let payload_count = words.len();
+            return Ok(PipelineResult {
+                output,
+                payload_words: words,
+                data_mode: None,
+                stats: Some(PipelineStats {
+                    payload_count,
+                    cover_count: 0,
+                    total_words: payload_count,
+                    ratio: 1.0,
+                }),
+                resolved_source: None,
+            });
+        }
+
         // Crypto encoding: return rich result with minimal stats.
         if language.starts_with("crypto/") {
             let text = encode_crypto(input, language, dialect, self.verbose)?;
@@ -768,6 +904,7 @@ impl Pipeline {
                     total_words: payload_count + if prefix.is_empty() { 0 } else { 1 },
                     ratio: 1.0,
                 }),
+                resolved_source: None,
             });
         }
 
@@ -798,6 +935,7 @@ impl Pipeline {
                 total_words,
                 ratio,
             }),
+            resolved_source: None,
         })
     }
 
@@ -815,6 +953,40 @@ impl Pipeline {
         // Crypto addresses are single tokens — strip prefix, extract chars directly.
         if language.starts_with("crypto/") {
             return decode_crypto(input, language, dialect, self.verbose);
+        }
+
+        // "raw" dialect: input is raw payload words (e.g. BIP39 mnemonic) without
+        // Glossia header or cover words. Decode directly via base-N.
+        if dialect == "raw" {
+            let wordlist_name = if wordlist == "default" {
+                let dw = crate::generator::default_wordlist(language);
+                if dw == "default" { wordlist } else { dw }
+            } else {
+                wordlist
+            };
+            let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
+                .map_err(|e| PipelineError::DecodeError(e))?;
+            let payload_tree = WordlistTree::new(payload_words);
+
+            let words: Vec<String> = input
+                .split_whitespace()
+                .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+                .filter(|w| !w.is_empty() && payload_tree.contains(w))
+                .collect();
+
+            if words.is_empty() {
+                return Err(PipelineError::DecodeError(
+                    "no payload words found in input".to_string(),
+                ));
+            }
+
+            if self.verbose {
+                eprintln!("Raw decode: {} payload words via base-N", words.len());
+            }
+
+            let bytes = codec::decode_base_n(&words, &payload_tree)
+                .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+            return Ok(codec::hex_encode(&bytes));
         }
 
         decode_from_language(input, language, wordlist, self.verbose)
@@ -848,7 +1020,7 @@ impl Pipeline {
         let source = self.resolve_source(input)?;
         let target = &self.target;
 
-        match (&source, target) {
+        let mut result = match (&source, target) {
             // Encode: raw data → language prose
             (Endpoint::Format(_) | Endpoint::Auto, Endpoint::Language { .. }) => {
                 self.do_encode_rich(input, target)
@@ -870,7 +1042,12 @@ impl Pipeline {
                 "unsupported pipeline: {} -> {}",
                 source, target
             ))),
-        }
+        }?;
+
+        // Attach the resolved source so callers (e.g. the UI) can construct
+        // the reverse pipeline instruction accurately.
+        result.resolved_source = Some(source);
+        Ok(result)
     }
 
     /// Decode with rich results: returns decoded text and extracted payload words.
@@ -900,6 +1077,7 @@ impl Pipeline {
                 payload_words: extracted,
                 data_mode: None,
                 stats: None,
+                resolved_source: None,
             });
         }
 
@@ -910,6 +1088,7 @@ impl Pipeline {
             payload_words: extracted,
             data_mode: None,
             stats: None,
+            resolved_source: None,
         })
     }
 
@@ -1921,6 +2100,34 @@ mod tests {
     }
 
     #[test]
+    fn test_btc_encode_decode_rich_round_trip() {
+        // Encode a bc1 address into English prose, then transcode back via execute_rich.
+        let btc_addr = "bc1q29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz";
+
+        // Step 1: Encode bc1q → English prose (using execute_rich, same as WASM)
+        let encode_pipeline = Pipeline::from_meta("encode into english naturally")
+            .unwrap()
+            .with_seed(42);
+        let encode_result = encode_pipeline.execute_rich(btc_addr).unwrap();
+        let prose = &encode_result.output;
+        assert!(!prose.is_empty());
+
+        // Verify resolved_source is crypto/btc
+        let resolved = encode_result.resolved_source.as_ref().unwrap();
+        assert!(format!("{}", resolved).starts_with("crypto/btc"),
+            "resolved_source should be crypto/btc, got: {}", resolved);
+
+        // Step 2: Transcode English prose → bc1q address (via execute_rich)
+        let decode_pipeline = Pipeline::from_meta(
+            "translate from english naturally into crypto/btc/bech32/bip173"
+        ).unwrap().with_seed(42);
+        let decode_result = decode_pipeline.execute_rich(prose).unwrap();
+
+        assert_eq!(decode_result.output, btc_addr,
+            "Round-trip should recover original bc1q address");
+    }
+
+    #[test]
     fn test_meta_parse_encode_into_english() {
         // Verify parsing works even if we can't execute (wordlist may not be embedded in debug).
         let p = Pipeline::from_meta("encode into english").unwrap();
@@ -2132,16 +2339,16 @@ mod tests {
     // ── Crypto language pipeline parsing ─────────────────────────────
 
     #[test]
-    fn test_btc_routes_to_crypto_btc_main() {
+    fn test_btc_routes_to_crypto_btc_bip173() {
         let p = Pipeline::from_meta("encode into btc").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/btc", "main"),
-            "btc should route to crypto/btc language with main dialect");
+        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/btc", "bip173"),
+            "btc should route to crypto/btc language with bip173 dialect");
     }
 
     #[test]
-    fn test_bitcoin_routes_to_crypto_btc_main() {
+    fn test_bitcoin_routes_to_crypto_btc_bip173() {
         let p = Pipeline::from_meta("encode into bitcoin").unwrap();
-        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/btc", "main"));
+        assert_eq!(p.target, Endpoint::language_with_dialect("crypto/btc", "bip173"));
     }
 
     #[test]
@@ -2157,10 +2364,20 @@ mod tests {
     }
 
     #[test]
-    fn test_crypto_detect_btc_main() {
+    fn test_crypto_detect_btc_bip173() {
+        // bc1q prefix → bip173 (SegWit v0), data starts after 4-char prefix
         assert_eq!(
-            detect_crypto_format("bc129zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"),
-            Some(("crypto/btc", "main", "29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"))
+            detect_crypto_format("bc1q29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"),
+            Some(("crypto/btc", "bip173", "29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"))
+        );
+    }
+
+    #[test]
+    fn test_crypto_detect_btc_bip350() {
+        // bc1p prefix → bip350 (Taproot)
+        assert_eq!(
+            detect_crypto_format("bc1p29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"),
+            Some(("crypto/btc", "bip350", "29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz"))
         );
     }
 
@@ -2182,18 +2399,23 @@ mod tests {
 
     #[test]
     fn test_crypto_payload_type_mapping() {
-        assert_eq!(crypto_payload_type("crypto/btc", "main"), "bech32");
+        assert_eq!(crypto_payload_type("crypto/btc", "bip173"), "bech32");
+        assert_eq!(crypto_payload_type("crypto/btc", "bip350"), "bech32");
         assert_eq!(crypto_payload_type("crypto/nostr", "pub"), "bech32");
-        assert_eq!(crypto_payload_type("crypto/btc", "legacy"), "base58");
+        assert_eq!(crypto_payload_type("crypto/btc", "p2pkh"), "base58");
+        assert_eq!(crypto_payload_type("crypto/btc", "p2pkh-test"), "base58");
         assert_eq!(crypto_payload_type("crypto/cashu", "a"), "base64url");
         assert_eq!(crypto_payload_type("crypto/ln", "main"), "bech32");
     }
 
     #[test]
     fn test_crypto_dialect_prefix_mapping() {
-        assert_eq!(crypto_dialect_prefix("crypto/btc", "main"), "bc1");
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "bip173"), "bc1q");
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "bip173-test"), "tb1q");
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "bip350"), "bc1p");
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "bip350-test"), "tb1p");
+        assert_eq!(crypto_dialect_prefix("crypto/btc", "p2pkh"), "");
         assert_eq!(crypto_dialect_prefix("crypto/nostr", "pub"), "npub1");
-        assert_eq!(crypto_dialect_prefix("crypto/btc", "legacy"), "");
         assert_eq!(crypto_dialect_prefix("crypto/cashu", "a"), "cashuA");
     }
 
@@ -2202,11 +2424,11 @@ mod tests {
         // When encoding a Bitcoin address into English, the pipeline should
         // auto-detect crypto format and create a transcode (crypto/btc → english).
         let p = Pipeline::from_meta("encode into english").unwrap();
-        let input = "bc129zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz";
+        let input = "bc1q29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz";
         let source = p.resolve_source(input).unwrap();
         assert!(matches!(source, Endpoint::Language { ref language, ref dialect, .. }
-            if language == "crypto/btc" && dialect == "main"),
-            "Bitcoin address should auto-detect as crypto/btc/main, got {:?}", source);
+            if language == "crypto/btc" && dialect == "bip173"),
+            "Bitcoin address should auto-detect as crypto/btc/bip173, got {:?}", source);
     }
 
     // ── Crypto round-trip tests ─────────────────────────────────────
@@ -2215,8 +2437,8 @@ mod tests {
     fn test_crypto_btc_address_round_trip() {
         // Bitcoin address → packed hex → Bitcoin address
         let btc_address = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
-        let hex_data = decode_crypto(btc_address, "crypto/btc", "main", false).unwrap();
-        let re_encoded = encode_crypto(&hex_data, "crypto/btc", "main", false).unwrap();
+        let hex_data = decode_crypto(btc_address, "crypto/btc", "bip173", false).unwrap();
+        let re_encoded = encode_crypto(&hex_data, "crypto/btc", "bip173", false).unwrap();
         assert_eq!(re_encoded, btc_address.to_lowercase(),
             "Bech32 decode → encode should recover original address");
     }
@@ -2242,8 +2464,8 @@ mod tests {
     #[test]
     fn test_crypto_btc_address_decode_strips_prefix() {
         let btc = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
-        let hex_data = decode_crypto(btc, "crypto/btc", "main", false).unwrap();
-        // The packed hex should start with count byte, not 'bc1' characters
+        let hex_data = decode_crypto(btc, "crypto/btc", "bip173", false).unwrap();
+        // The packed hex should start with count byte, not 'bc1q' characters
         assert!(!hex_data.starts_with("bc"), "Prefix should be stripped");
     }
 }

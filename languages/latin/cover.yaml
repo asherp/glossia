@@ -6,7 +6,7 @@
 # Maximum words per POS: 100
 # Maximum length: 12
 # Minimum frequency: 1
-# Total cover words: 512
+# Total cover words: 504
 #
 a:
   Prep: 1.0
@@ -32,15 +32,9 @@ at:
   Conj: 1.0
 au:
   N: 1.0
-b:
-  N: 1.0
 bu:
   N: 1.0
-c:
-  N: 1.0
 cn:
-  N: 1.0
-d:
   N: 1.0
 de:
   Prep: 1.0
@@ -87,12 +81,8 @@ io:
   N: 1.0
 ir:
   N: 1.0
-l:
-  N: 1.0
 lo:
   Conj: 1.0
-m:
-  N: 1.0
 ma:
   N: 1.0
 mu:
@@ -105,8 +95,6 @@ ni:
   Conj: 1.0
 'no':
   V: 1.0
-o:
-  N: 1.0
 ob:
   Prep: 1.0
 oh:
@@ -122,8 +110,6 @@ po:
 q:
   Conj: 1.0
 ra:
-  N: 1.0
-s:
   N: 1.0
 si:
   Conj: 1.0
@@ -1025,8 +1011,6 @@ sursuorsum:
   Adv: 1.0
 susovorsum:
   Adv: 1.0
-t:
-  N: 1.0
 ut:
   Conj: 0.6
   To: 0.4

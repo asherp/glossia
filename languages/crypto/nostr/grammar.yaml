@@ -1,6 +1,7 @@
 # Nostr Key/Note Grammar — Character-Level Encoding
 #
 # Bech32 dialects for npub, nsec, and note identifiers.
+# payload_language: "cs" resolves bech32 wordlist from cs/.
 
 grammar:
   name: "Nostr Grammar"
@@ -35,18 +36,21 @@ grammar:
   dialects:
     pub:
       payload_wordlist: "bech32"
+      payload_language: "cs"
       rules:
         sentence:
           cfg_productions:
             - production: "Prefix[pub] BODY"
     sec:
       payload_wordlist: "bech32"
+      payload_language: "cs"
       rules:
         sentence:
           cfg_productions:
             - production: "Prefix[sec] BODY"
     note:
       payload_wordlist: "bech32"
+      payload_language: "cs"
       rules:
         sentence:
           cfg_productions:

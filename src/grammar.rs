@@ -103,6 +103,11 @@ pub struct DialectConfig {
     /// Cover wordlist profile.
     /// Resolved via `wordlist_filenames()` to `cover_{name}.yaml` (or `cover.yaml` for "default").
     cover_wl: String,
+    /// Optional override for the language used to resolve payload wordlist files.
+    /// When set (e.g., `"cs"`), payload files are loaded from that language's directory
+    /// instead of the current language. This enables sharing character-level wordlists
+    /// (bech32, base58) across crypto sub-languages without duplication.
+    payload_language: Option<String>,
     /// Optional scale definition (intervals + root) for scale-derived dialects.
     /// When present, the payload wordlist is derived at runtime from the base
     /// chromatic payload filtered by the scale's interval pattern.
@@ -121,7 +126,7 @@ impl DialectConfig {
     /// `load_payload_words_for_wordlist()` calls find them transparently.
     pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar = Grammar::from_language_dialect(language, dialect)?;
-        let (mut payload_wl, cover_wl) = Self::parse_wordlist_refs(language, dialect);
+        let (mut payload_wl, payload_language, cover_wl) = Self::parse_wordlist_refs(language, dialect);
         let scale = Self::parse_scale_ref(language, dialect);
 
         // If this dialect has a scale definition, derive the payload wordlist
@@ -147,6 +152,7 @@ impl DialectConfig {
             dialect: dialect.to_string(),
             payload_wl,
             cover_wl,
+            payload_language,
             scale,
         })
     }
@@ -174,6 +180,12 @@ impl DialectConfig {
     /// Cover wordlist profile name (e.g., "default").
     pub fn cover_wordlist(&self) -> &str {
         &self.cover_wl
+    }
+
+    /// The language used to resolve payload wordlist files.
+    /// Returns `payload_language` if set, otherwise falls back to `self.language`.
+    pub fn payload_language(&self) -> &str {
+        self.payload_language.as_deref().unwrap_or(&self.language)
     }
 
     /// Get the refinement tag for N (payload note) slots, if any.
@@ -210,8 +222,10 @@ impl DialectConfig {
 
     /// Resolve payload and cover filenames for this dialect.
     /// Returns `(payload_filename, cover_filename)` — e.g., `("payload_hp.yaml", "cover.yaml")`.
+    /// Uses `payload_language` (if set) to resolve payload files from a different language.
     pub fn wordlist_filenames(&self) -> (String, String) {
-        crate::generator::data::wordlist_filenames(&self.language, &self.payload_wl)
+        let lang = self.payload_language.as_deref().unwrap_or(&self.language);
+        crate::generator::data::wordlist_filenames(lang, &self.payload_wl)
     }
 
     /// List all dialect names defined in a language's grammar.yaml.
@@ -254,12 +268,12 @@ impl DialectConfig {
         dialects
     }
 
-    /// Parse `payload_wordlist` and `cover_wordlist` from the grammar.yaml dialect section.
-    /// Returns ("default", "default") when the dialect or its wordlist fields are absent.
-    fn parse_wordlist_refs(language: &str, dialect: &str) -> (String, String) {
+    /// Parse `payload_wordlist`, `payload_language`, and `cover_wordlist` from the grammar.yaml dialect section.
+    /// Returns ("default", None, "default") when the dialect or its wordlist fields are absent.
+    fn parse_wordlist_refs(language: &str, dialect: &str) -> (String, Option<String>, String) {
         // "body" dialect uses base rules (no dialect override section), so defaults apply
         if dialect == "body" {
-            return ("default".to_string(), "default".to_string());
+            return ("default".to_string(), None, "default".to_string());
         }
 
         // Try embedded grammar.yaml first, then hardcoded fallbacks
@@ -271,9 +285,9 @@ impl DialectConfig {
             _ => None,
         });
 
-        // Helper: extract payload/cover wordlist refs from a dialect YAML node,
+        // Helper: extract payload/cover/payload_language wordlist refs from a dialect YAML node,
         // falling back to parent dialect if the node has a `parent:` field.
-        fn extract_wordlist_refs(dialects: &serde_yaml::Value, dialect: &str) -> Option<(String, String)> {
+        fn extract_wordlist_refs(dialects: &serde_yaml::Value, dialect: &str) -> Option<(String, Option<String>, String)> {
             let dialect_data = dialects.get(dialect)?;
 
             // Check for parent inheritance
@@ -281,18 +295,22 @@ impl DialectConfig {
                 .and_then(|p| p.as_str())
                 .and_then(|parent| extract_wordlist_refs(dialects, parent));
 
-            let (default_payload, default_cover) = parent_refs
-                .unwrap_or_else(|| ("default".to_string(), "default".to_string()));
+            let (default_payload, default_payload_lang, default_cover) = parent_refs
+                .unwrap_or_else(|| ("default".to_string(), None, "default".to_string()));
 
             let payload = dialect_data.get("payload_wordlist")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or(default_payload);
+            let payload_lang = dialect_data.get("payload_language")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .or(default_payload_lang);
             let cover = dialect_data.get("cover_wordlist")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or(default_cover);
-            Some((payload, cover))
+            Some((payload, payload_lang, cover))
         }
 
         if let Some(content) = yaml_content {
@@ -324,7 +342,7 @@ impl DialectConfig {
             }
         }
 
-        ("default".to_string(), "default".to_string())
+        ("default".to_string(), None, "default".to_string())
     }
 
     /// Parse a `scale:` definition from a dialect in grammar.yaml.

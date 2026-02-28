@@ -527,6 +527,10 @@ fn transcode_inner(input: &str, meta_instruction: &str, seed: u64) -> Result<Str
         });
     }
 
+    if let Some(ref resolved) = result.resolved_source {
+        response["resolved_source"] = serde_json::json!(format!("{}", resolved));
+    }
+
     Ok(response.to_string())
 }
 

@@ -1,8 +1,20 @@
 # Bitcoin Cover Words — Protocol Prefixes
+#
+# BIP-specific prefixes with witness-version character:
+# - bc1q: SegWit v0 mainnet (BIP173)
+# - tb1q: SegWit v0 testnet (BIP173)
+# - bc1p: Taproot mainnet (BIP350)
+# - tb1p: Taproot testnet (BIP350)
 
-"bc1":
+"bc1q":
   Prefix: 1.0
-  refinement: main
-"tb1":
+  refinement: bip173
+"tb1q":
   Prefix: 1.0
-  refinement: test
+  refinement: bip173-test
+"bc1p":
+  Prefix: 1.0
+  refinement: bip350
+"tb1p":
+  Prefix: 1.0
+  refinement: bip350-test
