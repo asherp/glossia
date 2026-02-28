@@ -1430,7 +1430,12 @@ fn main() {
                 })
                 .collect()
         } else {
-            raw_tokens
+            // Standard whitespace-delimited: strip punctuation and filter to payload words only.
+            // Cover words must be removed before the codec sees the sequence.
+            raw_tokens.iter()
+                .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+                .filter(|w| !w.is_empty() && tree.contains(w))
+                .collect()
         };
 
         // Calculate input bits from payload word count
@@ -1447,17 +1452,22 @@ fn main() {
         // Check if this language uses bitpacking or base-N decoding
         let uses_bitpacking = grammar.as_ref()
             .map(|g| g.uses_bitpacking())
-            .unwrap_or(true);
+            .unwrap_or(false);  // Default to base-N (mirrors grammar.rs default)
 
         let decode_result = if uses_bitpacking {
             glossia::codec::decode_with_mode(&input_words, &tree)
         } else {
-            // Base-N decoding: decode to bytes, then detect mode
+            // Base-N decoding: decode to bytes, then detect mode by inspection.
+            // Try UTF-8 first; if the bytes aren't valid UTF-8 (e.g., hex input like
+            // "deadbeef" decodes to [0xde,0xad,0xbe,0xef]), fall back to hex encoding.
             glossia::codec::decode_base_n(&input_words, &tree)
                 .map(|bytes| {
-                    // For base-N, we assume Bytes8 mode (UTF-8 text)
-                    // TODO: store mode in header for base-N encodings
-                    (glossia::DataMode::Bytes8, bytes)
+                    let mode = if std::str::from_utf8(&bytes).is_ok() {
+                        glossia::DataMode::Ascii7  // valid UTF-8: print as text
+                    } else {
+                        glossia::DataMode::Hex     // binary: re-encode as hex string
+                    };
+                    (mode, bytes)
                 })
         };
 

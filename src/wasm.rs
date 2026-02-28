@@ -63,18 +63,27 @@ fn encode_inner(
         (input, grammar_dialect)
     };
 
-    // 1. Load payload wordlist and build WordlistTree
+    // 1. Load grammar first so we can branch on uses_bitpacking()
+    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+        .map_err(|e| format!("Grammar error: {}", e))?;
+
+    // 2. Load payload wordlist and build WordlistTree
     let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
-    // 2. Encode input string to payload words via codec (auto-detects hex/base64/ascii)
-    let (encoded_words, data_mode) = codec::encode_str_with_mode(input, &payload_tree)
-        .map_err(|e| format!("Encoding error: {}", e))?;
+    // 3. Encode input string to payload words via appropriate codec
+    let (encoded_words, data_mode) = if grammar.uses_bitpacking() {
+        codec::encode_str_with_mode(input, &payload_tree)
+            .map_err(|e| format!("Encoding error: {}", e))?
+    } else {
+        codec::encode_str_base_n(input, &payload_tree)
+            .map_err(|e| format!("Encoding error: {}", e))?
+    };
 
-    // 3. Build POS mapping for payload words
+    // 4. Build POS mapping for payload words
     let pos_mapping = build_pos_mapping_for_wordlist(language, wordlist)?;
 
-    // 4. Build PayloadTok vec with POS tags
+    // 5. Build PayloadTok vec with POS tags
     let payload_toks: Vec<PayloadTok> = encoded_words
         .iter()
         .map(|word| {
@@ -86,7 +95,7 @@ fn encode_inner(
         })
         .collect();
 
-    // 5. Build Lexicon from cover words
+    // 6. Build Lexicon from cover words
     let wordlist_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
     let (cover_by_pos, refined_cover) =
         load_cover_words_by_pos_for_wordlist(&wordlist_set, language, wordlist);
@@ -96,10 +105,6 @@ fn encode_inner(
         lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     lex = lex.with_refined_cover(refined_cover);
-
-    // 6. Load grammar and compute dynamic k_min/k_max
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
-        .map_err(|e| format!("Grammar error: {}", e))?;
 
     // Derive k_min/k_max from the grammar's structure and payload size.
     // Concatenated-payload grammars (payload_separator="") encode all payload
@@ -225,12 +230,18 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
         .to_string());
     }
 
-    // 3. Decode payload words back to original string (mode-aware: handles hex/base64/ascii)
-    let decoded_text = codec::decode_str(
-        &extracted,
-        &payload_tree,
-    )
-    .map_err(|e| format!("Decoding error: {}", e))?;
+    // 4. Decode payload words back to original string via appropriate codec
+    let decoded_text = if grammar.uses_bitpacking() {
+        codec::decode_str(&extracted, &payload_tree)
+            .map_err(|e| format!("Decoding error: {}", e))?
+    } else {
+        let bytes = codec::decode_base_n(&extracted, &payload_tree)
+            .map_err(|e| format!("Decoding error: {}", e))?;
+        match String::from_utf8(bytes.clone()) {
+            Ok(s) => s,
+            Err(_) => codec::hex_encode(&bytes),
+        }
+    };
 
     let response = serde_json::json!({
         "payload_words": extracted,

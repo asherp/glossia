@@ -46,6 +46,7 @@ pub use merkle::{WordlistTree, merkleize, parse_merkleized, verify_merkleized};
 // Re-export codec functions and types
 pub use codec::{
     encode, decode, encode_with_mode, decode_with_mode, encode_str, encode_str_with_mode, decode_str,
+    encode_base_n, decode_base_n, encode_str_base_n,
     detect_mode, DataMode, DecodeError,
     hex_encode, hex_decode, base64_encode, base64_decode,
 };

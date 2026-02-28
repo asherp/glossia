@@ -45,7 +45,7 @@ pub struct Grammar {
     pub(crate) max_k: Option<usize>,
     /// Whether this grammar requires power-of-2 wordlists (bitpacking) or
     /// supports arbitrary-size wordlists (base-N conversion).
-    /// Default: true (bitpacking enabled for backward compatibility).
+    /// Default: false (base-N is the universal codec; set bitpacking: true to opt in).
     pub(crate) bitpacking: Option<bool>,
 }
 
@@ -437,7 +437,7 @@ impl Grammar {
     /// Check if this grammar uses bitpacking (requires power-of-2 wordlists).
     /// Returns false for grammars that use base-N conversion (like pentatonic, base58).
     pub fn uses_bitpacking(&self) -> bool {
-        self.bitpacking.unwrap_or(true)  // Default to true for backward compatibility
+        self.bitpacking.unwrap_or(false)  // Default to false: base-N is the universal codec
     }
 
     /// Load grammar from grammar.yaml (type-driven)
