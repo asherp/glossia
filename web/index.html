@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Glossia - A Composable Algebra of Encoders</title>
+<title>Glossia - A Lossless Linguistic Codec</title>
 <meta name="description" content="Glossia encodes binary data into natural language, ASCII armor, note sequences, and color palettes — all composed through natural-language pipeline specifications and unified by formal grammar theory.">
 
 <style>
@@ -56,12 +56,26 @@ body {
   justify-content: space-between;
   margin-bottom: 1.25rem;
 }
+.top-bar-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 .top-bar h1 {
   font-family: var(--font-mono);
   font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--accent);
+  line-height: 1.2;
+}
+.top-bar .tagline {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  opacity: 0.75;
 }
 .theme-toggle {
   background: var(--surface);
@@ -1174,6 +1188,7 @@ footer a:hover { text-decoration: underline; }
   .control-group label { font-size: 0.6rem; }
   select, input { font-size: 0.8rem; padding: 0.35rem 0.5rem; }
   .top-bar h1 { font-size: 1.3rem; }
+  .top-bar .tagline { font-size: 0.8rem; }
   .cta-section .buttons { flex-direction: column; align-items: center; }
   .cta-section .btn-primary,
   .cta-section .btn-secondary { width: 100%; max-width: 300px; }
@@ -1200,7 +1215,10 @@ footer a:hover { text-decoration: underline; }
 <div class="container">
   <!-- Top bar: title + theme toggle -->
   <div class="top-bar">
-    <h1>GLOSSIA</h1>
+    <div class="top-bar-title">
+      <h1>GLOSSIA:</h1>
+      <span class="tagline">a lossless linguistic codec</span>
+    </div>
     <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9790;</button>
   </div>
 
@@ -1214,10 +1232,10 @@ footer a:hover { text-decoration: underline; }
          1. HERO (Revised)
          ═══════════════════════════════════════════════════════════ -->
     <section class="hero animate-in">
-      <h2>A Composable Algebra of Encoders</h2>
+      <h2>One Grammar, Many Modalities</h2>
       <p class="subtitle">
-        Glossia encodes binary data into natural language, ASCII armor, note sequences, and color palettes
-        — all composed through natural-language pipeline specifications and unified by formal grammar theory.
+        Prose, ASCII armor, note sequences, color palettes
+        — mix and match modalities through pipeline composition, all unified by formal grammar theory.
       </p>
 
       <!-- Cycling triptych: same hex input, three modalities -->
