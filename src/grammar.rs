@@ -678,7 +678,7 @@ impl Grammar {
         if let Ok(doc) = doc {
             if let Some(grammar) = doc.get("grammar") {
                 // Grammar-level defaults
-                let payload_sep = grammar.get("payload_separator")
+                let mut payload_sep = grammar.get("payload_separator")
                     .and_then(|v| v.as_str())
                     .unwrap_or(" ")
                     .to_string();
@@ -699,6 +699,12 @@ impl Grammar {
                     if let Some(dialect_data) = grammar.get("dialects")
                         .and_then(|d| d.get(dialect))
                     {
+                        // payload_separator override
+                        if let Some(sep) = dialect_data.get("payload_separator")
+                            .and_then(|v| v.as_str())
+                        {
+                            payload_sep = sep.to_string();
+                        }
                         // payload_line_width: null in YAML → override to None (no wrapping)
                         if dialect_data.get("payload_line_width").is_some() {
                             payload_line_width = dialect_data.get("payload_line_width")
@@ -1558,6 +1564,22 @@ mod tests {
         assert!(grammar.grammar_uses_pos(Pos::N), "CS grammar should use N");
         assert!(grammar.grammar_uses_pos(Pos::Dot), "CS grammar should use Dot");
         assert!(grammar.grammar_uses_pos(Pos::Aux), "CS grammar should use Aux");
+    }
+
+    #[test]
+    fn test_payload_separator_dialect_override() {
+        // CS grammar-level default is "" (concatenated).
+        // A dialect with payload_separator: " " should override to space-separated.
+        let base = Grammar::from_language_dialect("cs", "body")
+            .expect("Failed to load CS body grammar");
+        assert_eq!(base.payload_separator(), "",
+            "CS body should use grammar-level default (concatenated)");
+
+        // seal_nostr inherits "" from CS grammar (no override)
+        let seal = Grammar::from_language_dialect("cs", "seal_nostr")
+            .expect("Failed to load CS seal_nostr grammar");
+        assert_eq!(seal.payload_separator(), "",
+            "seal_nostr should inherit concatenated separator from CS grammar");
     }
 
     #[test]
