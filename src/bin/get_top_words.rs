@@ -93,7 +93,10 @@ fn normalize_pos(pos_str: &str) -> HashSet<String> {
 /// v3 format: word_POS\tyear,match_count,volume_count\tyear,match_count,volume_count\t...
 /// Also supports older format: word\tyear\tmatch_count\tpage_count\tvolume_count
 /// Returns (word, pos_tags, vec_of_(year, match_count))
-fn parse_ngram_line(line: &str) -> Option<(String, HashSet<String>, Vec<(i32, i64)>)> {
+///
+/// If `no_proper_nouns` is true, entries whose word part starts with an uppercase
+/// letter are skipped (returns None).
+fn parse_ngram_line(line: &str, no_proper_nouns: bool) -> Option<(String, HashSet<String>, Vec<(i32, i64)>)> {
     let parts: Vec<&str> = line.trim().split('\t').collect();
     if parts.len() < 2 {
         return None;
@@ -118,6 +121,10 @@ fn parse_ngram_line(line: &str) -> Option<(String, HashSet<String>, Vec<(i32, i6
         raw_token
     };
     if word_part.is_empty() || !word_part.chars().all(|c| c.is_ascii_alphabetic()) {
+        return None;
+    }
+    // Skip entries whose word part starts with uppercase (proper nouns).
+    if no_proper_nouns && word_part.starts_with(|c: char| c.is_ascii_uppercase()) {
         return None;
     }
 
@@ -166,6 +173,7 @@ fn process_ngram_file(
     file_path: &PathBuf,
     min_year: Option<i32>,
     max_year: Option<i32>,
+    no_proper_nouns: bool,
 ) -> anyhow::Result<HashMap<String, WordData>> {
     let mut word_data: HashMap<String, WordData> = HashMap::new();
     
@@ -191,7 +199,7 @@ fn process_ngram_file(
     let mut year_filtered_count: u64 = 0;
     for line_result in reader.lines() {
         let line = line_result?;
-        if let Some((word, pos_tags, year_counts)) = parse_ngram_line(&line) {
+        if let Some((word, pos_tags, year_counts)) = parse_ngram_line(&line, no_proper_nouns) {
             if word.chars().all(|c| c.is_ascii_alphabetic()) {
                 // Sum frequencies across year entries, applying year filter
                 let mut total_freq: i64 = 0;
@@ -485,6 +493,20 @@ struct Args {
     /// as nouns (grades, vitamins, variables, etc.).
     #[arg(long = "drop-single-letter-nouns")]
     drop_single_letter_nouns: bool,
+
+    /// Exclude proper nouns by skipping Ngram entries whose word part starts
+    /// with an uppercase letter. Common words still accumulate frequency from
+    /// their lowercase occurrences; true proper nouns (which never appear
+    /// lowercased) are effectively removed.
+    #[arg(long = "no-proper-nouns")]
+    no_proper_nouns: bool,
+
+    /// Path to a dictionary file (one word per line). Only words present in the
+    /// dictionary (case-insensitive) are kept. Proper nouns (lines starting with
+    /// an uppercase letter) are skipped. Use /usr/share/dict/words for the system
+    /// dictionary.
+    #[arg(long = "dictionary")]
+    dictionary: Option<PathBuf>,
 
     /// Save parsed surface forms to a bincode cache file (skips lemmatization/output).
     /// Use this to cache the expensive Ngram parse for reuse.
@@ -794,10 +816,11 @@ fn main() -> anyhow::Result<()> {
         }
         let min_year = args.min_year;
         let max_year = args.max_year;
+        let no_proper_nouns = args.no_proper_nouns;
         let results: Vec<anyhow::Result<HashMap<String, WordData>>> = ngram_files
             .par_iter()
             .filter(|f| f.as_path().exists())
-            .map(|f| process_ngram_file(f, min_year, max_year))
+            .map(|f| process_ngram_file(f, min_year, max_year, no_proper_nouns))
             .collect();
         for result in results {
             let file_data = result?;
@@ -953,6 +976,23 @@ fn main() -> anyhow::Result<()> {
         surface_form_counts = Some(counts);
     }
     
+    // Optional dictionary filter: keep only words present in the dictionary.
+    // Lines starting with an uppercase letter are skipped (proper nouns).
+    if let Some(dict_path) = &args.dictionary {
+        let file = File::open(dict_path)
+            .map_err(|e| anyhow::anyhow!("Cannot open dictionary {:?}: {}", dict_path, e))?;
+        let reader = BufReader::new(file);
+        let dict_words: HashSet<String> = reader.lines()
+            .filter_map(|line| line.ok())
+            .filter(|line| !line.is_empty() && line.starts_with(|c: char| c.is_ascii_lowercase()))
+            .map(|line| line.trim().to_lowercase())
+            .collect();
+        eprintln!("Dictionary: loaded {} words from {:?}", dict_words.len(), dict_path);
+        let before = word_data.len();
+        word_data.retain(|w, _| dict_words.contains(w));
+        eprintln!("Dictionary filter: {} → {} words", before, word_data.len());
+    }
+
     // Load excluded words from YAML file(s)
     let mut excluded_words: HashSet<String> = HashSet::new();
     if let Some(exclude_files) = &args.exclude_yaml {
