@@ -27,7 +27,8 @@
 #   ascii7   → plain   (printable ASCII, 95 chars, plain message armor)
 #   sig        → plain   (base58, plain signature armor)
 #   sig_pgp    → PGP     (base58, PGP signature armor)
-#   sig_nostr  → NOSTR   (base58, Nostr Schnorr signature armor)
+#   sig_nostr  → NOSTR   (base16, Nostr Schnorr signature armor)
+#   seal_nostr → NOSTR   (npub, Nostr seal armor for bech32 pubkeys)
 #   email      → simple text/plain email with envelope headers
 #   email_alt  → multipart/alternative (text + html)
 #   email_mime → multipart/mixed with attachment
@@ -286,6 +287,44 @@ grammar:
           lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "Conj Dot Aux[end] Prefix[nostr] Modal[sig] Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    seal_nostr:
+      # Nostr seal armor (bech32 npub).
+      # Output: ----- BEGIN NOSTR SEAL -----\nnpub1<bech32 payload>\n----- END NOSTR SEAL -----
+      # The npub1 prefix is a cover word (Prefix[npub]); payload is the
+      # bech32 data after the prefix.  Decoded output = bech32 data only;
+      # the caller restores the npub1 prefix (same as crypto/nostr).
+      payload_wordlist: "bech32"
+      cover_wordlist: "default"
+      payload_line_width: null
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "HEADER SEAL_PREFIX BODY FOOTER"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nostr] Modal[seal] Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        SEAL_PREFIX:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Prefix[npub]"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Prefix[nostr] Modal[seal] Dot"
               weight: 1.0
               lambda: "λn:(e->t). n"
 

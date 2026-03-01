@@ -11,6 +11,7 @@
 #   Encrypted:  ----- BEGIN PGP ENCRYPTED MESSAGE -----\n<payload>\n----- END PGP ENCRYPTED MESSAGE -----
 #   Plain:      ----- BEGIN MESSAGE -----\n<payload>\n----- END MESSAGE -----
 #   Signature:  ----- BEGIN NOSTR SIGNATURE -----\n<payload>\n----- END NOSTR SIGNATURE -----
+#   Seal:       ----- BEGIN NOSTR SEAL -----\n<payload>\n----- END NOSTR SEAL -----
 
 "-----":
   Dot: 1.0
@@ -47,6 +48,14 @@ NOSTR:
 SIGNATURE:
   Modal: 1.0
   refinement: sig
+
+SEAL:
+  Modal: 1.0
+  refinement: seal
+
+"npub1":
+  Prefix: 1.0
+  refinement: npub
 
 PGP:
   Prefix: 1.0

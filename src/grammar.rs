@@ -1855,6 +1855,35 @@ mod tests {
     }
 
     #[test]
+    fn test_cs_seal_nostr_grammar_loads() {
+        let grammar = Grammar::from_language_dialect("cs", "seal_nostr")
+            .expect("Failed to load CS seal_nostr grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "Seal Nostr should use Prefix (NOSTR)");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "Seal Nostr should use Modal (SEAL)");
+        assert!(!grammar.grammar_uses_pos(Pos::Cop), "Seal Nostr should not use Cop (ENCRYPTED)");
+        assert!(!grammar.grammar_uses_pos(Pos::To), "Seal Nostr should not use To (MESSAGE)");
+    }
+
+    #[test]
+    fn test_cs_seal_nostr_produces_sequences() {
+        let grammar = Grammar::from_language_dialect("cs", "seal_nostr")
+            .expect("Failed to load CS seal_nostr grammar");
+        // HEADER(6) + SEAL_PREFIX(1) + BODY(1+) + FOOTER(6) = minimum 14
+        let seqs_14 = grammar.enumerate_sequences_with_probability("S", 14);
+        assert!(!seqs_14.is_empty(),
+            "Nostr seal should produce k=14 sequences (6 header + 1 prefix + 1 body + 6 footer)");
+    }
+
+    #[test]
+    fn test_dialect_config_cs_seal_nostr_bech32() {
+        let config = DialectConfig::from_language_dialect("cs", "seal_nostr")
+            .expect("Failed to load CS seal_nostr dialect config");
+        assert_eq!(config.payload_wordlist(), "bech32",
+            "CS seal_nostr should use payload_bech32.yaml");
+        assert_eq!(config.cover_wordlist(), "default");
+    }
+
+    #[test]
     fn test_dialect_config_available_dialects_cs_includes_sig() {
         let dialects = DialectConfig::available_dialects("cs");
         assert!(dialects.contains(&"sig".to_string()),
@@ -1863,6 +1892,8 @@ mod tests {
             "CS should include sig_pgp dialect");
         assert!(dialects.contains(&"sig_nostr".to_string()),
             "CS should include sig_nostr dialect");
+        assert!(dialects.contains(&"seal_nostr".to_string()),
+            "CS should include seal_nostr dialect");
     }
 
     #[test]

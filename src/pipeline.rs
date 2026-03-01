@@ -293,6 +293,8 @@ fn meta_word_to_dialect(word: &str) -> Option<&str> {
         "constellation" => Some("constellation"),
         "patches" => Some("patches"),
         "raw" => Some("raw"),
+        "sig" => Some("sig_nostr"),
+        "seal" => Some("seal_nostr"),
         "email_alt" => Some("email_alt"),
         "email_mime" => Some("email_mime"),
         _ => None,
@@ -344,7 +346,7 @@ impl Pipeline {
         // Meta payload words for classification.
         let meta_payload: HashSet<&str> = [
             "latin", "english", "hex", "base64", "base58", "ascii7", "bits",
-            "bytes", "nostr", "pgp", "prose", "body", "subject", "spells",
+            "bytes", "nostr", "pgp", "prose", "body", "subject", "spells", "sig", "seal",
             "primes", "merkle", "image", "voronoi", "grid", "mosaic",
             "constellation", "patches", "raw",
             // Crypto language keywords
