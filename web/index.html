@@ -1279,7 +1279,7 @@ footer a:hover { text-decoration: underline; }
       <div class="modality-card" data-accent="green">
         <h4>Cryptographic Signatures</h4>
         <div class="card-output" id="mod-crypto-output" style="font-size:0.7rem; word-break:break-all;">Loading...</div>
-        <div class="card-sublabels">NIP-04, NIP-44, PGP, Nostr sig</div>
+        <div class="card-sublabels">NIP-04, NIP-44, PGP, Nostr sig, BIP39 sig</div>
         <div class="card-stats"><span>58</span> chars (base58), <span>5.86</span> bits/char</div>
       </div>
       <div class="modality-card" data-accent="blue">
@@ -1462,8 +1462,9 @@ iQIzBAABCAAdFiEE...xK9Q==
         <button class="btn-sm preset-btn" data-meta="encode into pgp" title="PGP encrypted message armor">PGP Message</button>
         <button class="btn-sm preset-btn" data-meta="encode into nostr nip04" title="NIP-04 encrypted message">NIP-04</button>
         <button class="btn-sm preset-btn" data-meta="encode into nostr nip44" title="NIP-44 encrypted message">NIP-44</button>
-        <button class="btn-sm preset-btn" data-meta="encode into nostr sig" title="Nostr signature">Nostr Sig</button>
-        <button class="btn-sm preset-btn" data-meta="encode into pgp sig" title="PGP signature armor">PGP Sig</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_nostr" title="Nostr signature">Nostr Sig</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_bip39" title="Nostr signature (BIP39 words)">Nostr Sig (BIP39)</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_pgp" title="PGP signature armor">PGP Sig</button>
         <button class="btn-sm preset-btn" data-meta="encode into ascii7" title="Plain ASCII message">ASCII7</button>
         <button class="btn-sm preset-btn" data-meta="encode into cs raw" title="Raw encoding, no armor">Raw</button>
       </div>
@@ -2149,14 +2150,15 @@ function buildMetaForDialect(language, dialect) {
   if (language === 'cs') {
     // Crypto signature dialects
     const csMap = {
-      'nip04': 'encode into nostr nip04',
-      'nip44': 'encode into nostr nip44',
-      'pgp': 'encode into pgp',
-      'sig': 'encode into cs sig',
-      'sig_pgp': 'encode into pgp sig',
-      'sig_nostr': 'encode into nostr sig',
-      'ascii7': 'encode into ascii7',
-      'raw': 'encode into cs raw',
+      'nip04': 'encode into cs/default/nip04',
+      'nip44': 'encode into cs/default/nip44',
+      'pgp': 'encode into cs/default/pgp',
+      'sig': 'encode into cs/default/sig',
+      'sig_pgp': 'encode into cs/default/sig_pgp',
+      'sig_nostr': 'encode into cs/default/sig_nostr',
+      'sig_bip39': 'encode into cs/default/sig_bip39',
+      'ascii7': 'encode into cs/default/ascii7',
+      'raw': 'encode into cs/default/raw',
     };
     return csMap[dialect] || 'encode into ' + language + ' ' + dialect;
   }
