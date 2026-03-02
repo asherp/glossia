@@ -179,6 +179,46 @@ grammar:
               weight: 1.0
               lambda: "λn:(e->t). n"
 
+    nip04_bip39:
+      # NIP-04 encrypted message armor with BIP39 mnemonic words as payload.
+      # Output: ----- BEGIN NIP-04 ENCRYPTED MESSAGE -----\n<bip39 words>\n----- END NIP-04 ENCRYPTED MESSAGE -----
+      payload_wordlist: "bip39"
+      payload_language: "english"
+      payload_separator: " "
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nip04] Cop To Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Prefix[nip04] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
+    nip44_bip39:
+      # NIP-44 encrypted message armor with BIP39 mnemonic words as payload.
+      # Output: ----- BEGIN NIP-44 ENCRYPTED MESSAGE -----\n<bip39 words>\n----- END NIP-44 ENCRYPTED MESSAGE -----
+      payload_wordlist: "bip39"
+      payload_language: "english"
+      payload_separator: " "
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nip44] Cop To Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Prefix[nip44] Cop To Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
     pgp:
       payload_wordlist: "base58"
       cover_wordlist: "default"

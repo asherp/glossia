@@ -1460,8 +1460,10 @@ iQIzBAABCAAdFiEE...xK9Q==
       </div>
       <div class="preset-tab-content" data-tab="crypto">
         <button class="btn-sm preset-btn" data-meta="encode into pgp" title="PGP encrypted message armor">PGP Message</button>
-        <button class="btn-sm preset-btn" data-meta="encode into nostr nip04" title="NIP-04 encrypted message">NIP-04</button>
-        <button class="btn-sm preset-btn" data-meta="encode into nostr nip44" title="NIP-44 encrypted message">NIP-44</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip04" title="NIP-04 encrypted message">NIP-04</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip44" title="NIP-44 encrypted message">NIP-44</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip04_bip39" title="NIP-04 encrypted (BIP39 words)">NIP-04 (BIP39)</button>
+        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip44_bip39" title="NIP-44 encrypted (BIP39 words)">NIP-44 (BIP39)</button>
         <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_nostr" title="Nostr signature">Nostr Sig</button>
         <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_bip39" title="Nostr signature (BIP39 words)">Nostr Sig (BIP39)</button>
         <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_pgp" title="PGP signature armor">PGP Sig</button>
@@ -2152,6 +2154,8 @@ function buildMetaForDialect(language, dialect) {
     const csMap = {
       'nip04': 'encode into cs/default/nip04',
       'nip44': 'encode into cs/default/nip44',
+      'nip04_bip39': 'encode into cs/default/nip04_bip39',
+      'nip44_bip39': 'encode into cs/default/nip44_bip39',
       'pgp': 'encode into cs/default/pgp',
       'sig': 'encode into cs/default/sig',
       'sig_pgp': 'encode into cs/default/sig_pgp',

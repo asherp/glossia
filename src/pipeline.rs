@@ -298,6 +298,8 @@ fn meta_word_to_dialect(word: &str) -> Option<&str> {
         "sig" => Some("sig_nostr"),
         "seal" => Some("seal_nostr"),
         "sig_bip39" => Some("sig_bip39"),
+        "nip04_bip39" => Some("nip04_bip39"),
+        "nip44_bip39" => Some("nip44_bip39"),
         "email_alt" => Some("email_alt"),
         "email_mime" => Some("email_mime"),
         _ => None,
