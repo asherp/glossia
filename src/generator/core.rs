@@ -25,8 +25,10 @@ fn join_words_with_payload_grammar(
     let sep = grammar.payload_separator();
     let line_width = grammar.payload_line_width();
 
-    // Fast path: default separator — just join with space
-    if sep == " " {
+    // Fast path: default separator and punctuation-style Dot — just join with space.
+    // CS-style grammars (dot_is_punctuation=false) need the slow path for
+    // cover/payload transitions and structural newlines.
+    if sep == " " && grammar.dot_is_punctuation() {
         return words.join(" ");
     }
 
@@ -58,7 +60,11 @@ fn join_words_with_payload_grammar(
                 };
                 // Apply line wrapping if configured
                 if let Some(width) = line_width {
-                    let wrapped = wrap_payload(&payload_text, width);
+                    let wrapped = if sep == " " {
+                        wrap_words(&payload_text, width)
+                    } else {
+                        wrap_payload(&payload_text, width)
+                    };
                     // Only add a newline before payload if result doesn't already end with a break
                     if !result.is_empty() && !ends_with_break(&result) {
                         result.push('\n');
@@ -94,7 +100,11 @@ fn join_words_with_payload_grammar(
             payload_run.trim_start_matches(sep).to_string()
         };
         if let Some(width) = line_width {
-            let wrapped = wrap_payload(&payload_text, width);
+            let wrapped = if sep == " " {
+                wrap_words(&payload_text, width)
+            } else {
+                wrap_payload(&payload_text, width)
+            };
             if !result.is_empty() && !ends_with_break(&result) {
                 result.push('\n');
             }
@@ -121,6 +131,29 @@ fn wrap_payload(payload: &str, width: usize) -> String {
             result.push('\n');
         }
         result.push(ch);
+    }
+    result
+}
+
+/// Wrap word-separated payload text at the given width, breaking at word boundaries.
+fn wrap_words(text: &str, width: usize) -> String {
+    if width == 0 || text.len() <= width {
+        return text.to_string();
+    }
+    let mut result = String::new();
+    let mut line_len = 0;
+    for word in text.split(' ') {
+        if word.is_empty() { continue; }
+        if line_len > 0 && line_len + 1 + word.len() > width {
+            result.push('\n');
+            line_len = 0;
+        }
+        if line_len > 0 {
+            result.push(' ');
+            line_len += 1;
+        }
+        result.push_str(word);
+        line_len += word.len();
     }
     result
 }
@@ -1756,5 +1789,24 @@ mod tests {
         assert_eq!(wrap_payload("ab", 3), "ab");
         assert_eq!(wrap_payload("abcdefghi", 3), "abc\ndef\nghi");
         assert_eq!(wrap_payload("", 3), "");
+    }
+
+    #[test]
+    fn test_wrap_words() {
+        // Basic word wrapping
+        assert_eq!(wrap_words("abandon ability able about above", 20),
+                   "abandon ability able\nabout above");
+        // Short text — no wrapping needed
+        assert_eq!(wrap_words("hello world", 76), "hello world");
+        // Width 0 — no wrapping
+        assert_eq!(wrap_words("hello world", 0), "hello world");
+        // Empty input
+        assert_eq!(wrap_words("", 10), "");
+        // Single word longer than width — still emitted (no mid-word break)
+        assert_eq!(wrap_words("superlongword short", 5), "superlongword\nshort");
+        // Exact fit
+        assert_eq!(wrap_words("abc def", 7), "abc def");
+        // One over — wraps
+        assert_eq!(wrap_words("abc defg", 7), "abc\ndefg");
     }
 }

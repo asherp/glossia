@@ -20,7 +20,7 @@
 //! - `glossia --decode -l english`              → `decode from english`
 //! - `glossia --meta "translate from english into latin"` → transcode
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use rand::SeedableRng;
@@ -36,6 +36,7 @@ use crate::generator::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengt
 use crate::generator::core::generate_text_with_original_payload;
 use crate::grammar::{Grammar, DialectConfig};
 use crate::merkle::WordlistTree;
+use crate::types::Pos;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Types
@@ -261,6 +262,7 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
         "lightning" | "ln" => Some(("crypto/ln", "main")),
         "cashu" => Some(("crypto/cashu", "a")),
         "email" => Some(("cs", "email")),
+        "bip39" => Some(("cs", "sig_bip39")),
         _ => None,
     }
 }
@@ -295,6 +297,7 @@ fn meta_word_to_dialect(word: &str) -> Option<&str> {
         "raw" => Some("raw"),
         "sig" => Some("sig_nostr"),
         "seal" => Some("seal_nostr"),
+        "sig_bip39" => Some("sig_bip39"),
         "email_alt" => Some("email_alt"),
         "email_mime" => Some("email_mime"),
         _ => None,
@@ -589,6 +592,10 @@ impl Pipeline {
 
     /// Construct from explicit parameters (backward compat with CLI flags).
     pub fn from_params(source: Endpoint, target: Endpoint) -> Self {
+        // Resolve dialect-declared wordlists (same as from_meta).
+        let source = resolve_dialect_wordlist(source);
+        let target = resolve_dialect_wordlist(target);
+
         Pipeline {
             source,
             target,
@@ -991,7 +998,13 @@ impl Pipeline {
             return Ok(codec::hex_encode(&bytes));
         }
 
-        decode_from_language(input, language, wordlist, self.verbose)
+        // Resolve payload_language: if the dialect declares a different language
+        // for payload files, pass it so decode loads the correct wordlist.
+        let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+            .map(|c| c.payload_language().to_string())
+            .unwrap_or_else(|_| language.to_string());
+
+        decode_from_language_with_payload_lang(input, language, &payload_lang, wordlist, self.verbose, dialect)
     }
 
     /// Transcode: source prose → binary → target prose.
@@ -1083,7 +1096,13 @@ impl Pipeline {
             });
         }
 
-        let (decoded, extracted) = decode_from_language_rich(input, language, wordlist, self.verbose)?;
+        // Resolve payload_language for cross-language payload (e.g., sig_bip39).
+        let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+            .map(|c| c.payload_language().to_string())
+            .unwrap_or_else(|_| language.to_string());
+
+        let (decoded, extracted) = decode_from_language_rich_with_payload_lang(
+            input, language, &payload_lang, wordlist, self.verbose, dialect)?;
 
         Ok(PipelineResult {
             output: decoded,
@@ -1197,8 +1216,15 @@ fn prepare_payload(
     dialect: &str,
     forced_data_mode: Option<DataMode>,
 ) -> Result<(Vec<PayloadTok>, Vec<String>, DataMode, HashSet<String>), PipelineError> {
+    // Resolve payload_language: if the dialect declares a different language for
+    // payload files (e.g., sig_bip39 uses English BIP39 words inside CS grammar),
+    // load from that language's directory instead.
+    let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+        .map(|c| c.payload_language().to_string())
+        .unwrap_or_else(|_| language.to_string());
+
     // 1. Load payload wordlist.
-    let payload_words = load_payload_words_for_wordlist(language, wordlist)
+    let payload_words = load_payload_words_for_wordlist(&payload_lang, wordlist)
         .map_err(|e| PipelineError::EncodeError(e))?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
@@ -1237,16 +1263,29 @@ fn prepare_payload(
     };
 
     // 3. POS-tag each payload word.
-    let pos_mapping = build_pos_mapping_for_wordlist(language, wordlist)
-        .map_err(|e| PipelineError::EncodeError(e))?;
+    // For CS grammars (dot_is_punctuation=false), all payload slots are N.
+    // When cross-language payload is used (e.g., BIP39 words in CS grammar),
+    // override all POS tags to N to ensure correct slot matching.
+    let is_cs_grammar = !grammar.dot_is_punctuation();
+    let pos_mapping = if is_cs_grammar {
+        // CS grammar: all payload words are nouns (entity predicates).
+        HashMap::new()  // empty mapping → all words get default [N] below
+    } else {
+        build_pos_mapping_for_wordlist(&payload_lang, wordlist)
+            .map_err(|e| PipelineError::EncodeError(e))?
+    };
 
     let payload_toks: Vec<PayloadTok> = encoded_words
         .iter()
         .map(|word| {
-            let allowed = pos_mapping
-                .get(&word.to_lowercase())
-                .cloned()
-                .unwrap_or_default();
+            let allowed = if is_cs_grammar {
+                vec![Pos::N]
+            } else {
+                pos_mapping
+                    .get(&word.to_lowercase())
+                    .cloned()
+                    .unwrap_or_default()
+            };
             PayloadTok::new(word.clone(), &allowed)
         })
         .collect();
@@ -1274,27 +1313,52 @@ fn generate_prose_for_zone(
     k_min_override: Option<usize>,
     k_max_override: Option<usize>,
 ) -> Result<(String, HashSet<String>), PipelineError> {
-    // 1. Build Lexicon (cover words).
+    // 1. Load grammar and dialect config.
     let dialect_config = crate::grammar::DialectConfig::from_language_dialect(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Dialect config error: {}", e)))?;
-    let cover_wl = cover_override.unwrap_or_else(|| dialect_config.cover_wordlist());
-    let (cover_by_pos, refined_cover) =
-        load_cover_words_by_pos_for_wordlist(payload_word_set, language, cover_wl);
+    let grammar = Grammar::from_language_dialect(language, dialect)
+        .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
 
-    let mut lex = Lexicon::new(payload_word_set.clone(), payload_word_set.clone());
+    // 2. Build Lexicon (cover words).
+    let cover_wl = cover_override.unwrap_or_else(|| dialect_config.cover_wordlist());
+    // For CS grammars with cross-language payload (e.g., sig_bip39 uses English BIP39
+    // words in CS armor), skip the payload/cover overlap filter. CS cover words are
+    // structural (uppercase, function-word POS) and won't be confused with payload.
+    let skip_filter = !grammar.dot_is_punctuation()
+        && dialect_config.payload_language() != language;
+    if verbose {
+        eprintln!("Cover filter: dot_is_punct={}, payload_lang={}, grammar_lang={}, skip_filter={}",
+            grammar.dot_is_punctuation(), dialect_config.payload_language(), language, skip_filter);
+    }
+    if verbose && skip_filter {
+        eprintln!("Cover filter: using empty filter set (cross-language payload)");
+    }
+    let cover_filter_set = if skip_filter {
+        HashSet::new()
+    } else {
+        payload_word_set.clone()
+    };
+    let (cover_by_pos, refined_cover) =
+        load_cover_words_by_pos_for_wordlist(&cover_filter_set, language, cover_wl);
+
+    // Use cover_filter_set for the Lexicon's internal payload filter too.
+    // When skip_filter is true (cross-language payload), this is empty so that
+    // cover words like BEGIN/END are not rejected by pick_cover/pick_cover_refined.
+    let mut lex = Lexicon::new(cover_filter_set.clone(), cover_filter_set.clone());
     for (pos, words) in cover_by_pos {
         lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     lex = lex.with_refined_cover(refined_cover);
 
-    // 2. Grammar-derived sentence parameters.
-    let grammar = Grammar::from_language_dialect(language, dialect)
-        .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
+    // 3. Grammar-derived sentence parameters.
 
     let zone_toks = &payload_toks[word_range];
     let min_k = grammar.min_sentence_length().unwrap_or(5);
-    let concat_payload = grammar.payload_separator().is_empty();
-    let (k_min, k_max) = if concat_payload {
+    // CS-style grammars (dot_is_punctuation=false) need exact k sizing because the
+    // sentence structure is deterministic (HEADER BODY FOOTER with fixed cover slots).
+    // Human-language grammars (dot_is_punctuation=true) use a configurable range.
+    let is_cs_grammar = !grammar.dot_is_punctuation();
+    let (k_min, k_max) = if is_cs_grammar {
         let k = min_k + zone_toks.len().saturating_sub(1);
         (k, k)
     } else {
@@ -1622,6 +1686,22 @@ pub fn decode_from_language(
     wordlist: &str,
     verbose: bool,
 ) -> Result<String, PipelineError> {
+    decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body")
+}
+
+/// Internal decode with separate grammar language and payload language.
+///
+/// `grammar_lang` determines which grammar.yaml to load (for payload_separator, bitpacking).
+/// `grammar_dialect` determines which dialect to load (for dialect-specific overrides).
+/// `payload_lang` determines which directory to load payload wordlist files from.
+fn decode_from_language_with_payload_lang(
+    text: &str,
+    grammar_lang: &str,
+    payload_lang: &str,
+    wordlist: &str,
+    verbose: bool,
+    grammar_dialect: &str,
+) -> Result<String, PipelineError> {
     // Strip email header labels if the input looks like an RFC 5322 message.
     // This prevents header names like "Subject" from colliding with payload words.
     let text = strip_email_header_labels(text);
@@ -1629,21 +1709,36 @@ pub fn decode_from_language(
 
     // Resolve "default" wordlist to actual name (e.g., "bip39" for English).
     let wordlist = if wordlist == "default" {
-        let dw = default_wordlist(language);
+        let dw = default_wordlist(payload_lang);
         if dw == "default" { wordlist } else { dw }
     } else {
         wordlist
     };
 
     // 1. Load payload wordlist.
-    let payload_words = load_payload_words_for_wordlist(language, wordlist)
+    let payload_words = load_payload_words_for_wordlist(payload_lang, wordlist)
         .map_err(|e| PipelineError::DecodeError(e))?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
     // 2. Grammar tells us how payload words are separated.
-    let grammar = Grammar::from_language_dialect(language, "body")
+    let grammar = Grammar::from_language_dialect(grammar_lang, grammar_dialect)
         .map_err(|e| PipelineError::DecodeError(format!("Grammar error: {}", e)))?;
     let payload_separator = grammar.payload_separator();
+
+    // For CS-style grammars with word-level payload (e.g., sig_bip39), strip
+    // ASCII armor header/footer lines before extracting payload. These lines
+    // (starting with "-----") contain structural words like "BEGIN"/"END" that
+    // may collide with payload words.
+    let text = if !grammar.dot_is_punctuation() && !payload_separator.is_empty() {
+        let stripped: String = text.lines()
+            .filter(|line| !line.trim_start().starts_with("-----"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::borrow::Cow::Owned(stripped)
+    } else {
+        std::borrow::Cow::Borrowed(text)
+    };
+    let text: &str = &text;
 
     // 3. Extract payload words from prose.
     let extracted: Vec<String> = if payload_separator.is_empty() {
@@ -1707,27 +1802,51 @@ pub fn decode_from_language_rich(
     wordlist: &str,
     verbose: bool,
 ) -> Result<(String, Vec<String>), PipelineError> {
+    decode_from_language_rich_with_payload_lang(text, language, language, wordlist, verbose, "body")
+}
+
+/// Internal rich decode with separate grammar language and payload language.
+fn decode_from_language_rich_with_payload_lang(
+    text: &str,
+    grammar_lang: &str,
+    payload_lang: &str,
+    wordlist: &str,
+    verbose: bool,
+    grammar_dialect: &str,
+) -> Result<(String, Vec<String>), PipelineError> {
     // Strip email header labels if the input looks like an RFC 5322 message.
     let text = strip_email_header_labels(text);
     let text = text.as_str();
 
     // Resolve "default" wordlist to actual name.
     let wordlist = if wordlist == "default" {
-        let dw = default_wordlist(language);
+        let dw = default_wordlist(payload_lang);
         if dw == "default" { wordlist } else { dw }
     } else {
         wordlist
     };
 
     // 1. Load payload wordlist.
-    let payload_words = load_payload_words_for_wordlist(language, wordlist)
+    let payload_words = load_payload_words_for_wordlist(payload_lang, wordlist)
         .map_err(|e| PipelineError::DecodeError(e))?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
     // 2. Grammar tells us how payload words are separated.
-    let grammar = Grammar::from_language_dialect(language, "body")
+    let grammar = Grammar::from_language_dialect(grammar_lang, grammar_dialect)
         .map_err(|e| PipelineError::DecodeError(format!("Grammar error: {}", e)))?;
     let payload_separator = grammar.payload_separator();
+
+    // For CS-style grammars with word-level payload, strip ASCII armor lines.
+    let text = if !grammar.dot_is_punctuation() && !payload_separator.is_empty() {
+        let stripped: String = text.lines()
+            .filter(|line| !line.trim_start().starts_with("-----"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        std::borrow::Cow::Owned(stripped)
+    } else {
+        std::borrow::Cow::Borrowed(text)
+    };
+    let text: &str = &text;
 
     // 3. Extract payload words from prose.
     let extracted: Vec<String> = if payload_separator.is_empty() {
