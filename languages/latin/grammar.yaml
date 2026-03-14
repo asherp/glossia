@@ -20,6 +20,7 @@
 
 grammar:
   name: "Latin Grammar"
+  codec: bitpack
 
   # Type system for Latin grammatical categories
   # Maps POS tags to semantic types (Montague Grammar style)
@@ -329,6 +330,14 @@ grammar:
               weight: 0.05
               # Adverb + verb: modifier on imperative
               lambda: "λv:(e->(e->t)). λadv:((e->t)->(e->t)). adv(v)"
+
+    # BIP39 transcode: encode a BIP39 seed phrase into Latin prose.
+    # Uses base_n (rebase) instead of bitpack to avoid padding word overhead.
+    # 12 BIP39 words (2^11) → 9 Latin words (2^15) instead of 10 with bitpack.
+    bip39:
+      codec: base_n
+      payload_wordlist: "default"
+      cover_wordlist: "default"
 
     payload_only:
       payload_wordlist: "default"

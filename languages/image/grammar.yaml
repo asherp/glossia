@@ -37,11 +37,7 @@
 
 grammar:
   name: "Image Grammar"
-
-  # Image language supports multiple palette sizes (16, 32, 64, 96 colors)
-  # with varying capacities. Disable bitpacking to allow non-power-of-two
-  # palette sizes for custom palettes.
-  bitpacking: false
+  codec: base_n
 
   # Colors are space-separated tokens (not concatenated like CS base58).
   payload_separator: " "

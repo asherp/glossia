@@ -10,6 +10,7 @@
 
 grammar:
   name: "Merkle Tree Grammar"
+  codec: base_n
   
   # Constraints for word selection
   constraints:

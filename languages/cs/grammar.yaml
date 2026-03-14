@@ -40,10 +40,7 @@
 
 grammar:
   name: "CS Grammar"
-
-  # CS payloads are character-level alphabets (base58, base16, etc.) that use
-  # format conversion, not bit-packing.  Wordlist sizes need not be powers of two.
-  bitpacking: false
+  codec: base_n
 
   # Payload grammar: how payload words are formatted in the output.
   # "" = concatenate without spaces (base58 characters form a single string).

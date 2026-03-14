@@ -1327,13 +1327,13 @@ footer a:hover { text-decoration: underline; }
         </div>
         <div class="compression-side">
           <div class="side-label">Latin</div>
-          <div class="side-stats"><span id="compress-latin-count">-</span> payload words &times; <span>16</span> bits/word</div>
+          <div class="side-stats"><span id="compress-latin-count">-</span> payload words &times; <span>15</span> bits/word</div>
           <div class="side-output" id="compress-latin">Loading...</div>
         </div>
       </div>
       <div class="compression-explanation">
         <strong>Same data, fewer words.</strong> BIP39 draws from 2,048 words (2<sup>11</sup>).
-        Latin draws from 65,536 (2<sup>16</sup>) — each word carries 45% more entropy.
+        Latin draws from 32,768 (2<sup>15</sup>) — each word carries 36% more entropy.
         <br>
         <span class="compression-tryit" onclick="loadCompressionDemo()">Try encoding into Latin &rarr;</span>
       </div>
@@ -1456,6 +1456,7 @@ iQIzBAABCAAdFiEE...xK9Q==
         <button class="btn-sm preset-btn" data-meta="encode into english subject" title="Email subject line format">Subject</button>
         <button class="btn-sm preset-btn" data-meta="encode into english prose" title="Literary prose format">Prose</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin compactly" title="Latin prose encoding">Latin</button>
+        <button class="btn-sm preset-btn" data-meta="encode into latin bip39" title="BIP39 seed phrase as Latin (base-N, fewer words)">Latin BIP39</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin spells" title="Harry Potter spell format">Spells</button>
       </div>
       <div class="preset-tab-content" data-tab="crypto">
@@ -2064,7 +2065,7 @@ function generateCompressionFlow() {
 
   // Encode same hex into Latin
   try {
-    const latResult = JSON.parse(wasmTranscode(hex, 'encode into latin compactly', BigInt(42)));
+    const latResult = JSON.parse(wasmTranscode(hex, 'encode into latin bip39', BigInt(42)));
     const latEl = document.getElementById('compress-latin');
     if (!latResult.error && latResult.payload_words && latResult.payload_words.length > 0) {
       const pw = latResult.payload_words;
@@ -2167,6 +2168,7 @@ function buildMetaForDialect(language, dialect) {
     return csMap[dialect] || 'encode into ' + language + ' ' + dialect;
   }
   if (dialect === 'spells') return 'encode into latin spells';
+  if (dialect === 'bip39') return 'encode into ' + language + ' bip39';
   if (dialect === 'subject') return 'encode into ' + language + ' subject';
   if (dialect === 'prose') return 'encode into ' + language + ' prose';
   if (dialect === 'payload_only') return 'encode into ' + language;
@@ -2260,7 +2262,7 @@ window.loadCompressionDemo = function() {
   } else {
     document.getElementById('input-area').value = HERO_HEX;
   }
-  document.getElementById('meta-input').value = 'transcode from english into latin compactly';
+  document.getElementById('meta-input').value = 'transcode from english into latin bip39';
   // Turn off cover words so the demo shows payload-only comparison
   if (showCoverWords) {
     showCoverWords = false;

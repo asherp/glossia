@@ -298,30 +298,15 @@ fn parse_endpoint(s: &str, wordlist_override: &str) -> glossia::Endpoint {
     }
 }
 
-/// Encode ASCII text to wordlist words using bit-packing.
-/// If wordlist has 2048 words (11 bits), we can pack bytes efficiently:
-/// - 1 word = 11 bits
-/// - 1 ASCII byte = 8 bits
-/// - So we can pack 1 byte per word (with 3 bits unused) or pack multiple bytes across words
-/// For simplicity and to maximize efficiency, we pack bytes across words:
-/// - 11 bits per word means we can pack 1 byte + 3 bits from next byte
-/// - This gives us ~1.375 bytes per word on average
-fn encode_ascii_to_words(ascii_text: &str, language: &str, wordlist: &str) -> Result<(Vec<String>, glossia::DataMode), String> {
+/// Encode text to wordlist words using base-N conversion.
+fn encode_ascii_to_words(ascii_text: &str, language: &str, wordlist: &str, dialect: &str) -> Result<(Vec<String>, glossia::DataMode), String> {
     let all_words = glossia::generator::load_payload_words_for_wordlist(language, wordlist)?;
     let tree = glossia::WordlistTree::new(all_words);
 
-    // Check if this language uses bitpacking or base-N conversion
-    // Load grammar to check bitpacking flag (use "body" as default dialect for check)
-    let grammar = glossia::Grammar::from_language_dialect(language, "body")
-        .map_err(|e| format!("Failed to load grammar: {}", e))?;
-
-    if grammar.uses_bitpacking() {
-        // Power-of-2 wordlist: use bitpacking codec
-        glossia::codec::encode_str_with_mode(ascii_text, &tree).map_err(|e| e.to_string())
-    } else {
-        // Non-power-of-2: use base-N conversion
-        glossia::codec::encode_str_base_n(ascii_text, &tree).map_err(|e| e.to_string())
-    }
+    let codec = glossia::grammar::Grammar::from_language_dialect(language, dialect)
+        .map(|g| g.codec().to_string())
+        .unwrap_or_else(|_| "bitpack".to_string());
+    glossia::codec::encode_str_base_n(ascii_text, &tree, &codec).map_err(|e| e.to_string())
 }
 
 /// Calculate input bits based on data mode and input text
@@ -347,13 +332,27 @@ fn calculate_input_bits(input_text: &str, mode: glossia::DataMode) -> usize {
     }
 }
 
-/// Calculate output bits based on wordlist size and word count
-fn calculate_output_bits(word_count: usize, wordlist_size: usize) -> Option<usize> {
+/// Calculate output data bits based on wordlist size and word count.
+///
+/// For power-of-2 wordlists (bitpack mode), the first word is a padding word,
+/// so data bits = (word_count - 1) * bits_per_word (minus padding, but we
+/// report the gross bits here since the padding word is metadata).
+///
+/// The `codec` parameter controls whether bitpack accounting applies:
+/// - `"bitpack"`: first word is padding metadata, rest are data words
+/// - `"base_n"`: all words are data words (base-N encoding)
+fn calculate_output_bits(word_count: usize, wordlist_size: usize, codec: &str) -> Option<usize> {
     if wordlist_size == 0 || !wordlist_size.is_power_of_two() {
         return None;
     }
     let bits_per_word = wordlist_size.trailing_zeros() as usize;
-    Some(word_count * bits_per_word)
+    if codec == "bitpack" && wordlist_size > 1 && word_count > 0 {
+        // Bitpack mode: first word is padding metadata, rest are data words
+        let data_words = word_count.saturating_sub(1);
+        Some(data_words * bits_per_word)
+    } else {
+        Some(word_count * bits_per_word)
+    }
 }
 
 
@@ -1440,36 +1439,33 @@ fn main() {
 
         // Calculate input bits from payload word count
         let wordlist_size = all_words.len();
+        let codec_str = grammar.as_ref()
+            .map(|g| g.codec().to_string())
+            .unwrap_or_else(|_| "bitpack".to_string());
         if verbose {
             eprintln!("Decoding {} words", input_words.len());
-            if let Some(input_bits) = calculate_output_bits(input_words.len(), wordlist_size) {
+            if let Some(input_bits) = calculate_output_bits(input_words.len(), wordlist_size, &codec_str) {
                 let bits_per_word = wordlist_size.trailing_zeros();
-                eprintln!("Input bits: {} ({} words × {} bits/word)",
-                         input_bits, input_words.len(), bits_per_word);
+                if codec_str == "bitpack" && wordlist_size > 1 && wordlist_size.is_power_of_two() && input_words.len() > 0 {
+                    eprintln!("Input bits: {} ({} data words × {} bits/word, +1 padding word)",
+                             input_bits, input_words.len() - 1, bits_per_word);
+                } else {
+                    eprintln!("Input bits: {} ({} words × {} bits/word)",
+                             input_bits, input_words.len(), bits_per_word);
+                }
             }
         }
 
-        // Check if this language uses bitpacking or base-N decoding
-        let uses_bitpacking = grammar.as_ref()
-            .map(|g| g.uses_bitpacking())
-            .unwrap_or(false);  // Default to base-N (mirrors grammar.rs default)
-
-        let decode_result = if uses_bitpacking {
-            glossia::codec::decode_with_mode(&input_words, &tree)
-        } else {
-            // Base-N decoding: decode to bytes, then detect mode by inspection.
-            // Try UTF-8 first; if the bytes aren't valid UTF-8 (e.g., hex input like
-            // "deadbeef" decodes to [0xde,0xad,0xbe,0xef]), fall back to hex encoding.
-            glossia::codec::decode_base_n(&input_words, &tree)
-                .map(|bytes| {
-                    let mode = if std::str::from_utf8(&bytes).is_ok() {
-                        glossia::DataMode::Ascii7  // valid UTF-8: print as text
-                    } else {
-                        glossia::DataMode::Hex     // binary: re-encode as hex string
-                    };
-                    (mode, bytes)
-                })
-        };
+        // Codec-controlled decoding: decode to bytes, then detect mode by inspection.
+        let decode_result = glossia::codec::decode_base_n(&input_words, &tree, &codec_str)
+            .map(|bytes| {
+                let mode = if std::str::from_utf8(&bytes).is_ok() {
+                    glossia::DataMode::Ascii7  // valid UTF-8: print as text
+                } else {
+                    glossia::DataMode::Hex     // binary: re-encode as hex string
+                };
+                (mode, bytes)
+            });
 
         match decode_result {
             Ok((mode, bytes)) => {
@@ -1612,7 +1608,7 @@ fn main() {
     // If ASCII input provided, encode it to words
     if let Some(ascii_text) = ascii_input {
         input_text = Some(ascii_text.clone());
-        words = match encode_ascii_to_words(&ascii_text, &language, &wordlist) {
+        words = match encode_ascii_to_words(&ascii_text, &language, &wordlist, dialect_config.dialect()) {
             Ok((encoded_words, mode)) => {
                 data_mode = Some(mode);
                 if verbose {
@@ -2162,10 +2158,18 @@ fn main() {
 
         // Report output bits based on payload word count and wordlist size
         let wordlist_size = wordlist_words.len();
-        if let Some(output_bits) = calculate_output_bits(payload_word_count, wordlist_size) {
+        let encode_codec = Grammar::from_language_dialect(&language, "body")
+            .map(|g| g.codec().to_string())
+            .unwrap_or_else(|_| "bitpack".to_string());
+        if let Some(output_bits) = calculate_output_bits(payload_word_count, wordlist_size, &encode_codec) {
             let bits_per_word = wordlist_size.trailing_zeros();
-            eprintln!("  Output bits: {} ({} words × {} bits/word)",
-                     output_bits, payload_word_count, bits_per_word);
+            if encode_codec == "bitpack" && wordlist_size > 1 && wordlist_size.is_power_of_two() && payload_word_count > 0 {
+                eprintln!("  Output bits: {} ({} data words × {} bits/word, +1 padding word)",
+                         output_bits, payload_word_count - 1, bits_per_word);
+            } else {
+                eprintln!("  Output bits: {} ({} words × {} bits/word)",
+                         output_bits, payload_word_count, bits_per_word);
+            }
         }
 
         eprintln!("  Sentences: {}", sentence_count);
@@ -3218,7 +3222,7 @@ mod tests {
     #[test]
     fn test_meta_payload_words_load() {
         let words = load_payload_words("meta").unwrap();
-        assert_eq!(words.len(), 17, "Meta should have exactly 17 payload words (bitpacking: false)");
+        assert_eq!(words.len(), 17, "Meta should have exactly 17 payload words");
         // Spot-check some dialect identifiers
         assert!(words.contains(&"latin".to_string()), "Should contain 'latin'");
         assert!(words.contains(&"english".to_string()), "Should contain 'english'");

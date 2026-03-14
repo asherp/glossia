@@ -417,28 +417,46 @@ def extract_word_pos_from_lemmata(lemmata_data):
         normalized = normalized.encode('ascii', 'ignore').decode('ascii')
         return normalized
 
+    def is_proper_noun(entry, raw_lemma):
+        """Detect proper nouns via capitalization or npr. marker."""
+        if not raw_lemma:
+            return False
+        # Collatinus capitalizes proper nouns in the lemma field
+        if raw_lemma[0].isupper():
+            return True
+        # Also check for explicit npr. (nomen proprium) marker in lexicon
+        if isinstance(entry, dict):
+            lexicon = entry.get('lexicon', '')
+            if lexicon and 'npr' in lexicon.lower():
+                return True
+        return False
+
     for entry in lemmata_data:
         # Handle different entry formats
-        lemma = None
+        raw_lemma = None
         pos_info = None
         frequency = 0
-        
+
         if isinstance(entry, str):
             # Simple string entry
-            lemma = normalize_lemma(entry)
+            raw_lemma = entry
         elif isinstance(entry, dict):
-            lemma = entry.get('lemma') or entry.get('word') or entry.get('form')
+            raw_lemma = entry.get('lemma') or entry.get('word') or entry.get('form')
             pos_info = entry.get('pos') or entry.get('part_of_speech') or entry.get('morphology')
-            
+
             # Extract frequency from lexicon field (CLTK Collatinus format)
             lexicon = entry.get('lexicon', '')
             if lexicon:
                 frequency = extract_frequency_from_lexicon(lexicon)
-        
-        if not lemma:
+
+        if not raw_lemma:
             continue
-        
-        lemma = normalize_lemma(lemma)
+
+        # Skip proper nouns (capitalized lemmas in Collatinus data)
+        if is_proper_noun(entry, raw_lemma):
+            continue
+
+        lemma = normalize_lemma(raw_lemma)
 
         # Skip if empty or contains non-alphabetic characters
         if not lemma or not lemma.isalpha():

@@ -15,6 +15,7 @@
 
 grammar:
   name: "English Grammar"
+  codec: bitpack
 
   # Type system for English grammatical categories
   # Maps POS tags to semantic types (Montague Grammar style)

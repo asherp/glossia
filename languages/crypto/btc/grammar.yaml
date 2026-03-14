@@ -8,7 +8,7 @@
 
 grammar:
   name: "Bitcoin Address Grammar"
-  bitpacking: false
+  codec: base_n
   payload_separator: ""
   dot_is_punctuation: false
   payload_line_width: null

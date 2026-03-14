@@ -300,6 +300,7 @@ fn meta_word_to_dialect(word: &str) -> Option<&str> {
         "sig_bip39" => Some("sig_bip39"),
         "nip04_bip39" => Some("nip04_bip39"),
         "nip44_bip39" => Some("nip44_bip39"),
+        "bip39" => Some("bip39"),
         "email_alt" => Some("email_alt"),
         "email_mime" => Some("email_mime"),
         _ => None,
@@ -351,7 +352,7 @@ impl Pipeline {
         // Meta payload words for classification.
         let meta_payload: HashSet<&str> = [
             "latin", "english", "hex", "base64", "base58", "ascii7", "bits",
-            "bytes", "nostr", "pgp", "prose", "body", "subject", "spells", "sig", "seal",
+            "bytes", "nostr", "pgp", "prose", "body", "subject", "spells", "bip39", "sig", "seal",
             "primes", "merkle", "image", "voronoi", "grid", "mosaic",
             "constellation", "patches", "raw",
             // Crypto language keywords
@@ -836,8 +837,11 @@ impl Pipeline {
                 .map_err(|e| PipelineError::EncodeError(e))?;
             let payload_tree = WordlistTree::new(payload_words);
 
+            let codec = Grammar::from_language_dialect(language, "body")
+                .map(|g| g.codec().to_string())
+                .unwrap_or_else(|_| "bitpack".to_string());
             let (_, data) = codec::detect_mode(input);
-            let words = codec::encode_base_n(&data, &payload_tree)
+            let words = codec::encode_base_n(&data, &payload_tree, &codec)
                 .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
 
             return Ok(words.join(" "));
@@ -877,8 +881,11 @@ impl Pipeline {
                 .map_err(|e| PipelineError::EncodeError(e))?;
             let payload_tree = WordlistTree::new(payload_words);
 
+            let codec = Grammar::from_language_dialect(language, "body")
+                .map(|g| g.codec().to_string())
+                .unwrap_or_else(|_| "bitpack".to_string());
             let (_, data) = codec::detect_mode(input);
-            let words = codec::encode_base_n(&data, &payload_tree)
+            let words = codec::encode_base_n(&data, &payload_tree, &codec)
                 .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
 
             let output = words.join(" ");
@@ -995,7 +1002,8 @@ impl Pipeline {
                 eprintln!("Raw decode: {} payload words via base-N", words.len());
             }
 
-            let bytes = codec::decode_base_n(&words, &payload_tree)
+            // Raw mnemonics have no bitpack header — always use base_n.
+            let bytes = codec::decode_base_n(&words, &payload_tree, "base_n")
                 .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
             return Ok(codec::hex_encode(&bytes));
         }
@@ -1230,12 +1238,10 @@ fn prepare_payload(
         .map_err(|e| PipelineError::EncodeError(e))?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
-    // Check if this language uses bitpacking (power-of-2 wordlists) or base-N conversion.
     let grammar = Grammar::from_language_dialect(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Failed to load grammar: {}", e)))?;
-    let uses_bitpacking = grammar.uses_bitpacking();
 
-    // 2. Input string → binary → payload words.
+    // 2. Input string → binary → payload words (base-N conversion).
     let (encoded_words, data_mode) = if let Some(mode) = forced_data_mode {
         // Explicit mode: pre-decode the input string to raw bytes.
         let data = match mode {
@@ -1245,22 +1251,11 @@ fn prepare_payload(
                 .ok_or_else(|| PipelineError::EncodeError("invalid base64 input".into()))?,
             DataMode::Ascii7 | DataMode::Bytes8 => input.as_bytes().to_vec(),
         };
-        if uses_bitpacking {
-            codec::encode_with_mode(&data, &payload_tree, mode)
-                .map(|words| (words, mode))
-                .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?
-        } else {
-            let words = codec::encode_base_n(&data, &payload_tree)
-                .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
-            (words, mode)
-        }
-    } else if uses_bitpacking {
-        // Power-of-2 wordlist: use bitpacking codec.
-        codec::encode_str_with_mode(input, &payload_tree)
-            .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?
+        let words = codec::encode_base_n(&data, &payload_tree, grammar.codec())
+            .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
+        (words, mode)
     } else {
-        // Non-power-of-2: use base-N conversion (like base58, base64 charset).
-        codec::encode_str_base_n(input, &payload_tree)
+        codec::encode_str_base_n(input, &payload_tree, grammar.codec())
             .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?
     };
 
@@ -1496,8 +1491,6 @@ fn compose_email(
     k_max_override: Option<usize>,
 ) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
     // Stage 1: shared — bytes → POS-tagged payload tokens.
-    // Use "body" dialect for bitpacking check since the content language (English/Latin)
-    // has its bitpacking setting on the body dialect, not the email template.
     let (payload_toks, encoded_words, data_mode, wordlist_set) =
         prepare_payload(input, language, wordlist, "body", forced_data_mode)?;
 
@@ -1680,8 +1673,6 @@ fn strip_email_header_labels(text: &str) -> String {
 /// Decode language prose back to the original data string.
 ///
 /// Prose → extract payload words (filter out cover words) → binary → string.
-/// The codec layer handles mode detection (hex/base64/ascii/bytes) from the
-/// header word.
 pub fn decode_from_language(
     text: &str,
     language: &str,
@@ -1693,7 +1684,7 @@ pub fn decode_from_language(
 
 /// Internal decode with separate grammar language and payload language.
 ///
-/// `grammar_lang` determines which grammar.yaml to load (for payload_separator, bitpacking).
+/// `grammar_lang` determines which grammar.yaml to load (for payload_separator).
 /// `grammar_dialect` determines which dialect to load (for dialect-specific overrides).
 /// `payload_lang` determines which directory to load payload wordlist files from.
 fn decode_from_language_with_payload_lang(
@@ -1780,20 +1771,12 @@ fn decode_from_language_with_payload_lang(
         eprintln!("Extracted {} payload words", extracted.len());
     }
 
-    // 4. Payload words → binary → data string.
-    let uses_bitpacking = grammar.uses_bitpacking();
-    if uses_bitpacking {
-        codec::decode_str(&extracted, &payload_tree)
-            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))
-    } else {
-        // Base-N decoding: decode to bytes, then render as best-effort string.
-        let bytes = codec::decode_base_n(&extracted, &payload_tree)
-            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-        // Try UTF-8, fall back to hex.
-        match String::from_utf8(bytes.clone()) {
-            Ok(s) => Ok(s),
-            Err(_) => Ok(codec::hex_encode(&bytes)),
-        }
+    // 4. Payload words → binary → data string (base-N decoding).
+    let bytes = codec::decode_base_n(&extracted, &payload_tree, grammar.codec())
+        .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+    match String::from_utf8(bytes.clone()) {
+        Ok(s) => Ok(s),
+        Err(_) => Ok(codec::hex_encode(&bytes)),
     }
 }
 
@@ -1886,18 +1869,12 @@ fn decode_from_language_rich_with_payload_lang(
         eprintln!("Extracted {} payload words", extracted.len());
     }
 
-    // 4. Payload words → binary → data string.
-    let uses_bitpacking = grammar.uses_bitpacking();
-    let decoded = if uses_bitpacking {
-        codec::decode_str(&extracted, &payload_tree)
-            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?
-    } else {
-        let bytes = codec::decode_base_n(&extracted, &payload_tree)
-            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-        match String::from_utf8(bytes.clone()) {
-            Ok(s) => s,
-            Err(_) => codec::hex_encode(&bytes),
-        }
+    // 4. Payload words → binary → data string (base-N decoding).
+    let bytes = codec::decode_base_n(&extracted, &payload_tree, grammar.codec())
+        .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+    let decoded = match String::from_utf8(bytes.clone()) {
+        Ok(s) => s,
+        Err(_) => codec::hex_encode(&bytes),
     };
 
     Ok((decoded, extracted))

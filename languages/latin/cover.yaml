@@ -4,30 +4,22 @@
 # These words fill grammar slots and must NOT be in the payload wordlist
 #
 # Excluded payload words from: languages/latin/payload.yaml
-# Maximum length: 12
+# Maximum length: 8
 # Maximum words per POS: 100
-# Total cover words: 256
+# Total cover words: 128
 #
 # POS Tag Distribution:
-#   Adj: 26
-#   Adv: 9
+#   Adv: 21
 #   Aux: 2
 #   Conj: 13
 #   Cop: 7
-#   Dot: 1
-#   Intj: 79
+#   Intj: 74
 #   Modal: 6
-#   N: 100
 #   Prep: 11
 #   Pron: 3
-#   V: 2
 #
-.:
-  Dot: 1.0
 ab:
   Prep: 1.0
-abracadabra:
-  Intj: 1.0
 ac:
   Conj: 1.0
 ad:
@@ -59,12 +51,14 @@ ave:
   Intj: 1.0
 bee:
   Intj: 1.0
-butubatta:
-  Intj: 1.0
+bn:
+  Adv: 1.0
 chaere:
   Intj: 1.0
 cocococo:
   Intj: 1.0
+cp:
+  Adv: 1.0
 cu:
   Prep: 1.0
 de:
@@ -75,6 +69,8 @@ debet:
   Modal: 1.0
 e:
   Prep: 1.0
+ea:
+  Adv: 1.0
 ecastor:
   Intj: 1.0
 ecca:
@@ -107,6 +103,7 @@ en:
   Intj: 1.0
   Prep: 1.0
 eo:
+  Adv: 1.0
   Pron: 1.0
 erat:
   Cop: 1.0
@@ -117,6 +114,7 @@ esset:
 est:
   Cop: 1.0
 et:
+  Adv: 1.0
   Conj: 1.0
 eu:
   Intj: 1.0
@@ -176,20 +174,20 @@ io:
   Intj: 1.0
 is:
   Pron: 1.0
-maranatha:
-  Intj: 1.0
 mecastor:
   Intj: 1.0
 mehercle:
   Intj: 1.0
-mehercule:
-  Intj: 1.0
+n:
+  Adv: 1.0
 ne:
+  Adv: 1.0
   Conj: 1.0
   Intj: 1.0
 nenu:
   Adv: 1.0
 ni:
+  Adv: 1.0
   Conj: 1.0
 noenu:
   Adv: 1.0
@@ -200,6 +198,7 @@ non:
 nq:
   Conj: 1.0
 o:
+  Adv: 1.0
   Intj: 1.0
 ob:
   Prep: 1.0
@@ -225,12 +224,16 @@ prox:
   Intj: 1.0
 qa:
   Conj: 1.0
+qn:
+  Adv: 1.0
 quippe:
   Adv: 1.0
 quippini:
   Adv: 1.0
 ruct:
   Intj: 1.0
+s:
+  Adv: 1.0
 salve:
   Intj: 1.0
 scaccus:
@@ -247,8 +250,6 @@ st:
   Intj: 1.0
 sunt:
   Cop: 1.0
-taratantara:
-  Intj: 1.0
 tatae:
   Intj: 1.0
 tax:
@@ -260,6 +261,7 @@ tuxtax:
 u:
   Conj: 1.0
 ut:
+  Adv: 1.0
   Conj: 1.0
 v:
   Conj: 1.0
@@ -275,265 +277,9 @@ viden:
   Intj: 1.0
 vult:
   Modal: 1.0
-xapuriensis:
-  Adj: 1.0
-xeniolum:
-  N: 1.0
-xenium:
-  N: 1.0
-xenodochus:
-  N: 1.0
-xenon:
-  N: 1.0
-xeranticus:
-  Adj: 1.0
-xeromyrrha:
-  N: 1.0
-xerophagia:
-  N: 1.0
-xerophilus:
-  Adj: 1.0
-xerxes:
-  N: 1.0
-xiphias:
-  N: 1.0
-xiphion:
-  N: 1.0
-xiphoideus:
-  Adj: 1.0
-xizangensis:
-  Adj: 1.0
-xylinum:
-  N: 1.0
-xylocassia:
-  N: 1.0
-xylon:
-  N: 1.0
-xylophytum:
-  N: 1.0
-xystarches:
-  N: 1.0
-xysticus:
-  N: 1.0
-xystra:
-  N: 1.0
-xystus:
-  N: 1.0
-yaeyamensis:
-  Adj: 1.0
-yanayacuus:
-  Adj: 1.0
-ydiota:
-  N: 1.0
-yemenensis:
-  Adj: 1.0
-yessoensis:
-  Adj: 1.0
-ymber:
-  N: 1.0
-ypnalis:
-  N: 1.0
-ypsilon:
-  N: 1.0
-ytterbium:
-  N: 1.0
-yttrium:
-  N: 1.0
-yucatanensis:
-  Adj: 1.0
-yukonensis:
-  Adj: 1.0
-yunnanensis:
-  Adj: 1.0
-yunnanus:
-  Adj: 1.0
-zaberna:
-  N: 1.0
-zabolus:
-  N: 1.0
-zabulus:
-  N: 1.0
-zacon:
-  N: 1.0
-zaconus:
-  N: 1.0
-zaeta:
-  N: 1.0
-zamia:
-  N: 1.0
-zamorensis:
-  Adj: 1.0
-zanca:
-  N: 1.0
-zancha:
-  N: 1.0
-zanga:
-  N: 1.0
-zanthenes:
-  N: 1.0
-zaplutus:
-  Adj: 1.0
-zarda:
-  N: 1.0
-zathene:
-  N: 1.0
-zea:
-  N: 1.0
-zebra:
-  N: 1.0
-zebratus:
-  Adj: 1.0
-zedoarium:
-  N: 1.0
 zelanter:
   Adv: 1.0
-zelator:
-  N: 1.0
-zelatrix:
-  N: 1.0
-zelivira:
-  N: 1.0
-zelo:
-  V: 1.0
-zelosus:
-  Adj: 1.0
-zelotes:
-  N: 1.0
-zelotypa:
-  N: 1.0
-zelotypia:
-  N: 1.0
-zelus:
-  N: 1.0
-zema:
-  N: 1.0
-zephirum:
-  N: 1.0
-zephirus:
-  N: 1.0
-zephyrius:
-  Adj: 1.0
-zephyrus:
-  N: 1.0
-zeros:
-  N: 1.0
-zerum:
-  N: 1.0
-zeta:
-  N: 1.0
-zetarius:
-  N: 1.0
-zeugites:
-  N: 1.0
-zeugma:
-  N: 1.0
-zeus:
-  N: 1.0
-zeylanicus:
-  Adj: 1.0
-zibethus:
-  N: 1.0
-ziebus:
-  N: 1.0
-zimpiberi:
-  N: 1.0
-zincum:
-  N: 1.0
-zingiber:
-  N: 1.0
-zingiberi:
-  N: 1.0
-ziniperus:
-  N: 1.0
-zinzala:
-  N: 1.0
-zinzilulo:
-  V: 1.0
-zirbus:
-  N: 1.0
-zirconium:
-  N: 1.0
-zizania:
-  N: 1.0
-zizanium:
-  N: 1.0
-ziziphum:
-  N: 1.0
-ziziphus:
-  N: 1.0
-zizyphum:
-  N: 1.0
-zizyphus:
-  N: 1.0
-zmaragdinus:
-  Adj: 1.0
-zmaragdus:
-  N: 1.0
-zmaris:
-  N: 1.0
-zmecticus:
-  Adj: 1.0
-zmegma:
-  N: 1.0
-zmilampis:
-  N: 1.0
-zmilax:
-  N: 1.0
-zmintha:
-  N: 1.0
-zmyrna:
-  N: 1.0
-zmyrus:
-  N: 1.0
-zona:
-  N: 1.0
-zonalis:
-  Adj: 1.0
 zonatim:
   Adv: 1.0
-zonatus:
-  Adj: 1.0
-zonula:
-  N: 1.0
-zoognosia:
-  N: 1.0
-zoologia:
-  N: 1.0
-zoologicus:
-  Adj: 1.0
-zoophagus:
-  Adj: 1.0
-zoophorus:
-  N: 1.0
-zootrophion:
-  N: 1.0
-zopissa:
-  N: 1.0
-zopyron:
-  N: 1.0
-zoster:
-  N: 1.0
 zosum:
   Adv: 1.0
-zotheca:
-  N: 1.0
-zothecula:
-  N: 1.0
-zuccarum:
-  N: 1.0
-zuma:
-  N: 1.0
-zupania:
-  N: 1.0
-zura:
-  N: 1.0
-zygia:
-  N: 1.0
-zygis:
-  N: 1.0
-zygomaticus:
-  Adj: 1.0
-zygostates:
-  N: 1.0
-zythum:
-  N: 1.0

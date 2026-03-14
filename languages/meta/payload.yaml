@@ -9,7 +9,7 @@
 #   Pron = the dialect as a data reference (standalone)
 #
 # Statistics:
-#   Total words: 18 (bitpacking: false — no power-of-two constraint)
+#   Total words: 18 (no power-of-two constraint)
 #
 # The 18 identifiers cover:
 #   Natural languages:  latin, english

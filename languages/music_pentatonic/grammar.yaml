@@ -31,10 +31,7 @@
 
 grammar:
   name: "Music Pentatonic Grammar"
-
-  # Pentatonic payloads use a non-power-of-two wordlist (45 notes).
-  # No bitpacking — use format conversion like CS dialects.
-  bitpacking: false
+  codec: base_n
 
   # Notes are space-separated tokens (not concatenated like CS base58).
   payload_separator: " "

@@ -43,10 +43,10 @@ pub struct Grammar {
     /// explosion during `precompute_sequences_with_probability`. If absent,
     /// the caller's default k_max applies.
     pub(crate) max_k: Option<usize>,
-    /// Whether this grammar requires power-of-2 wordlists (bitpacking) or
-    /// supports arbitrary-size wordlists (base-N conversion).
-    /// Default: false (base-N is the universal codec; set bitpacking: true to opt in).
-    pub(crate) bitpacking: Option<bool>,
+    /// Codec selection: "bitpack" for power-of-2 uniform distribution,
+    /// "base_n" for big-integer base-N encoding.
+    /// Declared in grammar.yaml; defaults to "bitpack" for backward compat.
+    pub(crate) codec: String,
 }
 
 /// A POS sequence with its probability according to the grammar
@@ -434,10 +434,9 @@ impl Grammar {
         self.max_k
     }
 
-    /// Check if this grammar uses bitpacking (requires power-of-2 wordlists).
-    /// Returns false for grammars that use base-N conversion (like pentatonic, base58).
-    pub fn uses_bitpacking(&self) -> bool {
-        self.bitpacking.unwrap_or(false)  // Default to false: base-N is the universal codec
+    /// Codec selection: "bitpack" or "base_n".
+    pub fn codec(&self) -> &str {
+        &self.codec
     }
 
     /// Load grammar from grammar.yaml (type-driven)
@@ -670,10 +669,9 @@ impl Grammar {
         Ok((symbols, refinements))
     }
     
-    /// Extract payload_separator, dot_is_punctuation, payload_line_width, and max_k from grammar YAML.
+    /// Extract payload_separator, dot_is_punctuation, payload_line_width, max_k, and codec from grammar YAML.
     /// Dialect-level overrides take precedence over grammar-level defaults.
-    /// Returns (payload_separator, dot_is_punctuation, payload_line_width, max_k, bitpacking).
-    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>, Option<usize>, Option<bool>) {
+    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>, Option<usize>, String) {
         let doc: Result<serde_yaml::Value, _> = serde_yaml::from_str(yaml_content);
         if let Ok(doc) = doc {
             if let Some(grammar) = doc.get("grammar") {
@@ -691,9 +689,13 @@ impl Grammar {
                 let max_k = grammar.get("max_k")
                     .and_then(|v| v.as_u64())
                     .map(|v| v as usize);
-                let bitpacking = grammar.get("bitpacking")
-                    .and_then(|v| v.as_bool());
-
+                let mut codec = grammar.get("codec")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or_else(|| {
+                        eprintln!("Warning: grammar.yaml missing 'codec' field, defaulting to 'bitpack'");
+                        "bitpack"
+                    })
+                    .to_string();
                 // Dialect-level overrides (if dialect != "body")
                 if dialect != "body" {
                     if let Some(dialect_data) = grammar.get("dialects")
@@ -711,13 +713,19 @@ impl Grammar {
                                 .and_then(|v| v.as_u64())
                                 .map(|v| v as usize);
                         }
+                        // codec override
+                        if let Some(c) = dialect_data.get("codec")
+                            .and_then(|v| v.as_str())
+                        {
+                            codec = c.to_string();
+                        }
                     }
                 }
 
-                return (payload_sep, dot_is_punct, payload_line_width, max_k, bitpacking);
+                return (payload_sep, dot_is_punct, payload_line_width, max_k, codec);
             }
         }
-        (" ".to_string(), true, None, None, None)
+        (" ".to_string(), true, None, None, "bitpack".to_string())
     }
 
     /// Load grammar from language and dialect (YAML-only)
@@ -734,7 +742,7 @@ impl Grammar {
             match LanguageConfig::from_yaml(yaml_content) {
                 Ok(language_config) => {
                     let rules = Self::build_rules_from_cfg_productions(yaml_content, dialect)?;
-                    let (payload_separator, dot_is_punctuation, payload_line_width, max_k, bitpacking) =
+                    let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec) =
                         Self::parse_payload_format(yaml_content, dialect);
                     return Ok(Grammar {
                         rules,
@@ -744,8 +752,8 @@ impl Grammar {
                         dot_is_punctuation,
                         payload_line_width,
                         max_k,
-                        bitpacking,
-                    });
+                        codec,
+                        });
                 }
                 Err(e) => {
                     eprintln!("Warning: Failed to load embedded grammar.yaml: {}", e);
@@ -767,7 +775,7 @@ impl Grammar {
                 let grammar_yaml = std::fs::read_to_string(&path)?;
                 let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
                 let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
-                let (payload_separator, dot_is_punctuation, payload_line_width, max_k, bitpacking) =
+                let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec) =
                     Self::parse_payload_format(&grammar_yaml, dialect);
                 return Ok(Grammar {
                     rules,
@@ -777,7 +785,7 @@ impl Grammar {
                     dot_is_punctuation,
                     payload_line_width,
                     max_k,
-                    bitpacking,
+                    codec,
                 });
             }
         }
@@ -791,7 +799,7 @@ impl Grammar {
     pub fn from_file(grammar_path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar_yaml = std::fs::read_to_string(grammar_path)?;
         let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, "body")?;
-        let (payload_separator, dot_is_punctuation, payload_line_width, max_k, bitpacking) =
+        let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec) =
             Self::parse_payload_format(&grammar_yaml, "body");
         Ok(Grammar {
             rules,
@@ -801,7 +809,7 @@ impl Grammar {
             dot_is_punctuation,
             payload_line_width,
             max_k,
-            bitpacking,
+            codec,
         })
     }
 

@@ -63,7 +63,7 @@ fn encode_inner(
         (input, grammar_dialect)
     };
 
-    // 1. Load grammar first so we can branch on uses_bitpacking()
+    // 1. Load grammar
     let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
@@ -71,14 +71,9 @@ fn encode_inner(
     let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
-    // 3. Encode input string to payload words via appropriate codec
-    let (encoded_words, data_mode) = if grammar.uses_bitpacking() {
-        codec::encode_str_with_mode(input, &payload_tree)
-            .map_err(|e| format!("Encoding error: {}", e))?
-    } else {
-        codec::encode_str_base_n(input, &payload_tree)
-            .map_err(|e| format!("Encoding error: {}", e))?
-    };
+    // 3. Encode input string to payload words via codec (grammar-controlled)
+    let (encoded_words, data_mode) = codec::encode_str_base_n(input, &payload_tree, grammar.codec())
+        .map_err(|e| format!("Encoding error: {}", e))?;
 
     // 4. Build POS mapping for payload words
     let pos_mapping = build_pos_mapping_for_wordlist(language, wordlist)?;
@@ -230,17 +225,12 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
         .to_string());
     }
 
-    // 4. Decode payload words back to original string via appropriate codec
-    let decoded_text = if grammar.uses_bitpacking() {
-        codec::decode_str(&extracted, &payload_tree)
-            .map_err(|e| format!("Decoding error: {}", e))?
-    } else {
-        let bytes = codec::decode_base_n(&extracted, &payload_tree)
-            .map_err(|e| format!("Decoding error: {}", e))?;
-        match String::from_utf8(bytes.clone()) {
-            Ok(s) => s,
-            Err(_) => codec::hex_encode(&bytes),
-        }
+    // 4. Decode payload words back to original string via codec (grammar-controlled)
+    let bytes = codec::decode_base_n(&extracted, &payload_tree, grammar.codec())
+        .map_err(|e| format!("Decoding error: {}", e))?;
+    let decoded_text = match String::from_utf8(bytes.clone()) {
+        Ok(s) => s,
+        Err(_) => codec::hex_encode(&bytes),
     };
 
     let response = serde_json::json!({
@@ -949,10 +939,9 @@ fn decode_image_from_colors_inner(
     // 5. Build text notation from matched words (space-separated CIELAB tokens)
     let text_notation = matched_words.join(" ");
 
-    // 6. Decode using base-N conversion (image palettes always use base-N,
-    //    regardless of whether the wordlist size is a power of 2)
+    // 6. Decode using base-N conversion (image grammar declares codec: base_n)
     let payload_tree = crate::merkle::WordlistTree::new(payload_words.clone());
-    let bytes = codec::decode_base_n(&matched_words, &payload_tree)
+    let bytes = codec::decode_base_n(&matched_words, &payload_tree, "base_n")
         .map_err(|e| format!("Decoding error: {}", e))?;
     let decoded_text = match String::from_utf8(bytes.clone()) {
         Ok(s) => s,

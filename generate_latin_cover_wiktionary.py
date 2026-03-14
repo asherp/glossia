@@ -29,11 +29,9 @@ except ImportError:
 WIKTIONARY_URL = "https://kaikki.org/dictionary/Latin/kaikki.org-dictionary-Latin.jsonl"
 
 # Map Wiktionary POS to Glossia POS for cover words.
-# Cover words can fill function-word slots that payload words cannot.
+# Cover words fill function-word slots only — content POS (N, V, Adj)
+# are handled entirely by the payload wordlist.
 WIKT_POS_MAP = {
-    'noun': 'N',
-    'verb': 'V',
-    'adj': 'Adj',
     'adv': 'Adv',
     'prep': 'Prep',
     'conj': 'Conj',
@@ -86,8 +84,7 @@ FUNCTION_WORDS = {
     'habet': {'Aux': 1.0},
     'habent': {'Aux': 1.0},
     # To (infinitive marker - Latin doesn't have one, but used for CFG)
-    # Dot (sentence punctuation)
-    '.': {'Dot': 1.0},
+    # Dot is handled as literal punctuation by the generator, not as a cover word
 }
 
 
@@ -171,42 +168,17 @@ def build_cover_list(word_pos, max_per_pos=100):
     """
     Select cover words, limiting to max_per_pos per POS tag.
 
-    Prefers words of length 2-6 (natural cover/glue words),
-    then shorter, then longer. Skips single-letter entries for
-    content POS (N, V, Adj) since those are usually letter names.
+    Prefers shorter words (natural as function/glue words).
     """
-    content_pos = {'N', 'V', 'Adj', 'Adv'}
-
     # Group words by POS
     by_pos = defaultdict(list)
     for word, pos_tags in word_pos.items():
         for pos in pos_tags:
-            # Skip single-letter words for content POS
-            if len(word) <= 1 and pos in content_pos:
-                continue
-            # Skip two-letter words for content POS (usually abbreviations)
-            if len(word) <= 2 and pos in content_pos:
-                continue
             by_pos[pos].append(word)
-
-    # Sort: prefer 3-6 char words, then by length, then alphabetically
-    def sort_key(w):
-        l = len(w)
-        # Bucket: 3-6 chars first (bucket 0), then 2 (bucket 1),
-        # then 7-8 (bucket 2), then 1 (bucket 3)
-        if 3 <= l <= 6:
-            bucket = 0
-        elif l == 2:
-            bucket = 1
-        elif l >= 7:
-            bucket = 2
-        else:
-            bucket = 3
-        return (bucket, l, w)
 
     selected = {}
     for pos, words in by_pos.items():
-        words_sorted = sorted(words, key=sort_key)
+        words_sorted = sorted(words, key=lambda w: (len(w), w))
         chosen = words_sorted[:max_per_pos]
         for word in chosen:
             if word not in selected:

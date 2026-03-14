@@ -31,10 +31,7 @@
 
 grammar:
   name: "Music Grammar"
-
-  # Music supports multiple payload wordlists (chromatic, pentatonic, etc.)
-  # with varying sizes. Disable bitpacking to allow non-power-of-two wordlists.
-  bitpacking: false
+  codec: base_n
 
   # Notes are space-separated tokens (not concatenated like CS base58).
   payload_separator: " "
