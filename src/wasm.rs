@@ -28,6 +28,15 @@ pub fn get_wordlists(language: &str) -> String {
     serde_json::to_string(&wordlists).unwrap_or_else(|_| "[]".to_string())
 }
 
+/// Return the default wordlist profile name for a language.
+///
+/// Uses the grammar-declared `default_wordlist` if present, otherwise
+/// falls back to the first available profile.
+#[wasm_bindgen]
+pub fn get_default_wordlist(language: &str) -> String {
+    crate::generator::data::default_wordlist(language).to_string()
+}
+
 /// Encode input text into natural language prose.
 ///
 /// Returns JSON: `{ "encoded_text": "...", "payload_words": [...], "stats": { ... } }`
@@ -196,7 +205,9 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
             .collect();
         text.split_whitespace()
             .flat_map(|token| {
-                let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                let trimmed = token.trim_matches(|c: char| {
+                    !c.is_alphanumeric() && !payload_set.contains(&c.to_lowercase().to_string())
+                });
                 let all_in_payload = !trimmed.is_empty() && trimmed.chars()
                     .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
                 if all_in_payload {

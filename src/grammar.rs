@@ -1668,11 +1668,11 @@ mod tests {
     }
 
     #[test]
-    fn test_dialect_config_cs_nip04_base58() {
+    fn test_dialect_config_cs_nip04_base64() {
         let config = DialectConfig::from_language_dialect("cs", "nip04")
             .expect("Failed to load CS nip04 dialect config");
-        assert_eq!(config.payload_wordlist(), "base58",
-            "CS nip04 should use payload_base58.yaml");
+        assert_eq!(config.payload_wordlist(), "base64",
+            "CS nip04 should use payload_base64.yaml (base64 is the NIP-04 wire format)");
         assert_eq!(config.cover_wordlist(), "default");
     }
 

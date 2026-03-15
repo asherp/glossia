@@ -42,7 +42,9 @@ fn join_words_with_payload_grammar(
 
     for (_i, word) in words.iter().enumerate() {
         let word_clean = normalize_token_for_bip39(word);
-        let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+        let word_lower = word.to_lowercase();
+        let is_payload = (!word_clean.is_empty() && payload_set.contains(&word_clean))
+            || payload_set.contains(&word_lower);
         let is_newline = word.contains('\n') || word == "<br>";
 
         if is_payload {

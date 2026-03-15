@@ -21,8 +21,8 @@
 #
 # Dialects select the protocol identifier and payload alphabet:
 #   raw      → no armor, payload only
-#   nip04    → NIP-04  (base58, encrypted message armor)
-#   nip44    → NIP-44  (base58, encrypted message armor)
+#   nip04    → NIP-04  (base64, encrypted message armor)
+#   nip44    → NIP-44  (base64, encrypted message armor)
 #   pgp      → PGP     (base58, encrypted message armor)
 #   ascii7   → plain   (printable ASCII, 95 chars, plain message armor)
 #   sig        → plain   (base58, plain signature armor)
@@ -141,7 +141,7 @@ grammar:
               lambda: "λn:(e->t). n"
 
     nip04:
-      payload_wordlist: "base58"
+      payload_wordlist: "base64"
       cover_wordlist: "default"
       rules:
         HEADER:
@@ -159,7 +159,7 @@ grammar:
               lambda: "λn:(e->t). n"
 
     nip44:
-      payload_wordlist: "base58"
+      payload_wordlist: "base64"
       cover_wordlist: "default"
       rules:
         HEADER:

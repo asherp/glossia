@@ -1741,7 +1741,9 @@ fn decode_from_language_with_payload_lang(
             .collect();
         text.split_whitespace()
             .flat_map(|token| {
-                let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                let trimmed = token.trim_matches(|c: char| {
+                    !c.is_alphanumeric() && !payload_set.contains(&c.to_lowercase().to_string())
+                });
                 let all_in_payload = !trimmed.is_empty() && trimmed.chars()
                     .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
                 if all_in_payload {
@@ -1840,7 +1842,9 @@ fn decode_from_language_rich_with_payload_lang(
             .collect();
         text.split_whitespace()
             .flat_map(|token| {
-                let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                let trimmed = token.trim_matches(|c: char| {
+                    !c.is_alphanumeric() && !payload_set.contains(&c.to_lowercase().to_string())
+                });
                 let all_in_payload = !trimmed.is_empty() && trimmed.chars()
                     .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
                 if all_in_payload {
@@ -2289,8 +2293,8 @@ mod tests {
     #[test]
     fn test_nostr_routes_to_cs_nip04_dialect() {
         let p = Pipeline::from_meta("encode into nostr").unwrap();
-        assert_eq!(p.target, Endpoint::language_full("cs", "base58", "nip04"),
-            "nostr should route to cs language with nip04 dialect and base58 wordlist");
+        assert_eq!(p.target, Endpoint::language_full("cs", "base64", "nip04"),
+            "nostr should route to cs language with nip04 dialect and base64 wordlist");
     }
 
     // ── Adverb modifiers ────────────────────────────────────────────

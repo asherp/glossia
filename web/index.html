@@ -1897,6 +1897,7 @@ import init, {
   get_bits_per_word as wasmGetBitsPerWord,
   render_image_svg as wasmRenderImageSvg,
   decode_image_from_colors as wasmDecodeImageFromColors,
+  get_default_wordlist as wasmGetDefaultWordlist,
 } from './glossia.js';
 
 let ready = false;
@@ -2095,6 +2096,15 @@ function buildDialectCatalog() {
   populateDialectDropdown(allDialects);
 }
 
+function resolveWordlistName(language, wordlist) {
+  if (wordlist === 'default') {
+    try {
+      return wasmGetDefaultWordlist(language) || 'default';
+    } catch (e) { return 'default'; }
+  }
+  return wordlist;
+}
+
 function renderCatalog(data) {
   const container = document.getElementById('catalog-container');
   container.innerHTML = '';
@@ -2123,9 +2133,10 @@ function renderCatalog(data) {
         ? bpw.toFixed(2) + ' bits/char'
         : bpw.toFixed(0) + ' bits/word';
 
+      const resolvedWordlist = resolveWordlistName(langGroup.language, d.payload_wordlist);
       row.innerHTML =
         '<div class="name">' + escapeHtml(d.display_name) + '</div>' +
-        '<div class="meta">' + escapeHtml(d.payload_wordlist) + '</div>' +
+        '<div class="meta">' + escapeHtml(resolvedWordlist) + '</div>' +
         '<div class="meta">' + d.wordlist_size + '</div>' +
         '<div><button class="try-btn" data-lang="' + escapeHtml(langGroup.language) +
         '" data-dialect="' + escapeHtml(d.dialect) + '">Try &rarr;</button></div>';
@@ -2201,7 +2212,10 @@ function populateDialectDropdown(data) {
     langGroup.dialects.forEach(d => {
       const option = document.createElement('option');
       option.value = langGroup.language + '|' + d.dialect;
-      option.textContent = d.display_name;
+      const resolvedWl = resolveWordlistName(langGroup.language, d.payload_wordlist);
+      option.textContent = d.payload_wordlist === 'default'
+        ? d.display_name.replace('default', 'default (' + resolvedWl + ')')
+        : d.display_name;
       optgroup.appendChild(option);
     });
 

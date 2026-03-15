@@ -1416,7 +1416,9 @@ fn main() {
                 .collect();
             raw_tokens.iter()
                 .flat_map(|w| {
-                    let trimmed = w.trim_matches(|c: char| !c.is_alphanumeric());
+                    let trimmed = w.trim_matches(|c: char| {
+                        !c.is_alphanumeric() && !payload_set.contains(&c.to_lowercase().to_string())
+                    });
                     let all_in_payload = !trimmed.is_empty() && trimmed.chars()
                         .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
                     if all_in_payload {
@@ -1882,7 +1884,9 @@ fn main() {
                 // where ALL characters are in the payload set (pure payload blocks).
                 text.split_whitespace()
                     .flat_map(|token| {
-                        let trimmed = token.trim_matches(|c: char| !c.is_alphanumeric());
+                        let trimmed = token.trim_matches(|c: char| {
+                            !c.is_alphanumeric() && !payload_set.contains(&c.to_lowercase().to_string())
+                        });
                         let all_in_payload = !trimmed.is_empty() && trimmed.chars()
                             .all(|c| payload_set.contains(&c.to_lowercase().to_string()));
                         if all_in_payload {
@@ -1974,7 +1978,9 @@ fn main() {
             } else if encode_payload_separator.is_empty() {
                 // For concatenated payloads (CS grammar), count characters individually
                 for word in &words {
-                    let trimmed = word.trim_matches(|c: char| !c.is_alphanumeric());
+                    let trimmed = word.trim_matches(|c: char| {
+                        !c.is_alphanumeric() && !payload_set.contains(&c.to_lowercase().to_string())
+                    });
                     for ch in trimmed.chars() {
                         let ch_str = ch.to_lowercase().to_string();
                         if payload_set.contains(&ch_str) {
