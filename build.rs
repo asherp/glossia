@@ -335,6 +335,35 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
     code.push_str("    }\n");
     code.push_str("}\n\n");
 
+    // Generate default wordlist override from grammar.yaml's `default_wordlist` field.
+    // If a grammar declares `default_wordlist: bip39`, that takes priority over
+    // the alphabetical-first profile from get_wordlist_profiles().
+    code.push_str("/// Get the grammar-declared default wordlist for a language.\n");
+    code.push_str("/// Returns Some(name) if grammar.yaml declares `default_wordlist`, None otherwise.\n");
+    code.push_str("pub fn get_grammar_default_wordlist(language: &str) -> Option<&'static str> {\n");
+    code.push_str("    match language {\n");
+
+    for (lang, files) in &languages {
+        if let Some(ref grammar_path) = files.grammar {
+            if let Ok(content) = fs::read_to_string(grammar_path) {
+                // Simple YAML extraction: look for `default_wordlist:` under `grammar:`
+                let doc: Result<serde_yaml::Value, _> = serde_yaml::from_str(&content);
+                if let Ok(doc) = doc {
+                    if let Some(dw) = doc.get("grammar")
+                        .and_then(|g| g.get("default_wordlist"))
+                        .and_then(|v| v.as_str())
+                    {
+                        code.push_str(&format!("        \"{}\" => Some(\"{}\"),\n", lang, dw));
+                    }
+                }
+            }
+        }
+    }
+
+    code.push_str("        _ => None,\n");
+    code.push_str("    }\n");
+    code.push_str("}\n\n");
+
     // Generate precomputed payload word index for fast dialect detection.
     // For each (language, wordlist profile), we extract payload words at build time,
     // sort them, and write a newline-delimited text file to OUT_DIR.

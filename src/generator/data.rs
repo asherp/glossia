@@ -79,9 +79,16 @@ pub fn get_available_wordlists(language: &str) -> Vec<String> {
         .collect()
 }
 
-/// Get the first (primary) wordlist profile for a language.
-/// Returns "default" if payload.yaml exists, otherwise the first named profile.
+/// Get the default wordlist profile for a language.
+///
+/// Resolution order:
+/// 1. Grammar-declared `default_wordlist` field (explicit, from grammar.yaml)
+/// 2. First profile from `get_wordlist_profiles()` (build-time alphabetical fallback)
+/// 3. `"default"` (payload.yaml)
 pub fn default_wordlist(language: &str) -> &'static str {
+    if let Some(dw) = language_index::get_grammar_default_wordlist(language) {
+        return dw;
+    }
     let profiles = language_index::get_wordlist_profiles(language);
     profiles.first().copied().unwrap_or("default")
 }

@@ -16,6 +16,7 @@
 grammar:
   name: "English Grammar"
   codec: bitpack
+  default_wordlist: bip39
 
   # Type system for English grammatical categories
   # Maps POS tags to semantic types (Montague Grammar style)
