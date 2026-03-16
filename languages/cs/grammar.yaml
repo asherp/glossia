@@ -348,6 +348,27 @@ grammar:
               weight: 1.0
               lambda: "λn:(e->t). n"
 
+    sig_latin:
+      # Nostr signature armor with Latin payload words.
+      # Output: ----- BEGIN NOSTR SIGNATURE -----\n<latin words>\n----- END NOSTR SIGNATURE -----
+      # Schnorr sig = 64 bytes = 512 bits → ~34 Latin words (2^15 = 32768 words).
+      payload_wordlist: "default"
+      payload_language: "latin"
+      payload_separator: " "
+      rules:
+        HEADER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Dot Aux[begin] Prefix[nostr] Modal[sig] Dot Conj"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+        FOOTER:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "Conj Dot Aux[end] Prefix[nostr] Modal[sig] Dot"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+
     seal_nostr:
       # Nostr seal armor (bech32 npub).
       # Output: ----- BEGIN NOSTR SEAL -----\nnpub1<bech32 payload>\n----- END NOSTR SEAL -----

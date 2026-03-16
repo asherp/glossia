@@ -1885,6 +1885,49 @@ mod tests {
     }
 
     #[test]
+    fn test_cs_sig_latin_grammar_loads() {
+        let grammar = Grammar::from_language_dialect("cs", "sig_latin")
+            .expect("Failed to load CS sig_latin grammar");
+        assert!(grammar.grammar_uses_pos(Pos::Prefix), "Sig Latin should use Prefix (NOSTR)");
+        assert!(grammar.grammar_uses_pos(Pos::Modal), "Sig Latin should use Modal (SIGNATURE)");
+        assert!(!grammar.grammar_uses_pos(Pos::Cop), "Sig Latin should not use Cop (ENCRYPTED)");
+        assert!(!grammar.grammar_uses_pos(Pos::To), "Sig Latin should not use To (MESSAGE)");
+    }
+
+    #[test]
+    fn test_cs_sig_latin_produces_sequences() {
+        let grammar = Grammar::from_language_dialect("cs", "sig_latin")
+            .expect("Failed to load CS sig_latin grammar");
+        // Same structure as sig_nostr: HEADER(6) + BODY(1+) + FOOTER(6) = minimum 13
+        let seqs_13 = grammar.enumerate_sequences_with_probability("S", 13);
+        assert!(!seqs_13.is_empty(),
+            "Sig Latin should produce k=13 sequences (6 header + 1 body + 6 footer)");
+    }
+
+    #[test]
+    fn test_cs_sig_latin_same_framing_as_sig_nostr() {
+        let latin = Grammar::from_language_dialect("cs", "sig_latin")
+            .expect("Failed to load sig_latin");
+        let nostr = Grammar::from_language_dialect("cs", "sig_nostr")
+            .expect("Failed to load sig_nostr");
+        assert_eq!(
+            latin.min_sentence_length(),
+            nostr.min_sentence_length(),
+            "sig_latin and sig_nostr should have same framing overhead"
+        );
+    }
+
+    #[test]
+    fn test_dialect_config_cs_sig_latin() {
+        let config = DialectConfig::from_language_dialect("cs", "sig_latin")
+            .expect("Failed to load CS sig_latin dialect config");
+        assert_eq!(config.payload_wordlist(), "default",
+            "CS sig_latin should use default payload wordlist (Latin words)");
+        assert_eq!(config.payload_language(), "latin",
+            "CS sig_latin should resolve payload from Latin language");
+    }
+
+    #[test]
     fn test_cs_seal_nostr_grammar_loads() {
         let grammar = Grammar::from_language_dialect("cs", "seal_nostr")
             .expect("Failed to load CS seal_nostr grammar");

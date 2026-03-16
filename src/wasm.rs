@@ -479,6 +479,7 @@ fn generate_dialect_display_name(
         ("cs", "sig", "base58") => "Plain Signature".to_string(),
         ("cs", "sig_pgp", "base58") => "PGP Signature".to_string(),
         ("cs", "sig_nostr", "base16") => "Nostr Signature".to_string(),
+        ("cs", "sig_latin", "default") => "Nostr Signature (Latin)".to_string(),
         ("cs", "seal_nostr", "bech32") => "Nostr Seal".to_string(),
         ("cs", "raw", _) => "Raw (No Armor)".to_string(),
 
