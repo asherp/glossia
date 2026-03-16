@@ -1269,6 +1269,189 @@ fn encode_random_words_inner(
     Ok(response.to_string())
 }
 
+/// Encode raw bytes (hex or base64 input) into base-N payload words.
+///
+/// If `dialect` is empty, returns space-joined bare payload words.
+/// If `dialect` is provided (e.g., "body"), wraps the payload words in prose.
+///
+/// Returns JSON: `{ "encoded_text": "...", "payload_words": [...], "stats": { ... } }`
+#[wasm_bindgen]
+pub fn encode_raw_base_n(input: &str, language: &str, wordlist: &str, dialect: &str, seed: u64) -> String {
+    let result = encode_raw_base_n_inner(input, language, wordlist, dialect, seed);
+    match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn encode_raw_base_n_inner(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+) -> Result<String, String> {
+    // 1. Auto-detect hex/base64 and decode to raw bytes
+    let (_mode, bytes) = codec::detect_mode(input);
+
+    // 2. Load payload wordlist and build WordlistTree
+    let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
+    let payload_tree = WordlistTree::new(payload_words.clone());
+
+    // 3. Encode bytes to payload words via base_n codec
+    let encoded_words = codec::encode_base_n(&bytes, &payload_tree, "base_n")
+        .map_err(|e| format!("Encoding error: {}", e))?;
+
+    // 4. If no dialect, return bare words
+    if dialect.is_empty() {
+        let response = serde_json::json!({
+            "encoded_text": encoded_words.join(" "),
+            "payload_words": encoded_words,
+            "data_mode": "base_n",
+            "stats": {
+                "payload_count": encoded_words.len(),
+                "cover_count": 0,
+                "total_words": encoded_words.len(),
+                "ratio": 1.0
+            }
+        });
+        return Ok(response.to_string());
+    }
+
+    // 5. Wrap in prose using the specified dialect
+    let pos_mapping = build_pos_mapping_for_wordlist(language, wordlist)?;
+
+    let payload_toks: Vec<PayloadTok> = encoded_words
+        .iter()
+        .map(|word| {
+            let allowed = pos_mapping
+                .get(&word.to_lowercase())
+                .cloned()
+                .unwrap_or_default();
+            PayloadTok::new(word.clone(), &allowed)
+        })
+        .collect();
+
+    let wordlist_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
+    let (cover_by_pos, refined_cover) =
+        load_cover_words_by_pos_for_wordlist(&wordlist_set, language, wordlist);
+
+    let mut lex = Lexicon::new(wordlist_set.clone(), wordlist_set);
+    for (pos, words) in cover_by_pos {
+        lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
+    }
+    lex = lex.with_refined_cover(refined_cover);
+
+    let grammar = crate::grammar::Grammar::from_language_dialect(language, dialect)
+        .map_err(|e| format!("Grammar error: {}", e))?;
+
+    let min_k = grammar.min_sentence_length().unwrap_or(5);
+    let concat_payload = grammar.payload_separator().is_empty();
+    let (k_min, k_max) = if concat_payload {
+        let k = min_k + payload_toks.len().saturating_sub(1);
+        (k, k)
+    } else {
+        (5, 12)
+    };
+
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mode = if dialect.starts_with("subject") {
+        GenerationMode::Subject
+    } else {
+        GenerationMode::Body
+    };
+    let (text, used_payload) = generate_text_with_original_payload(
+        &mut rng,
+        &lex,
+        &payload_toks,
+        None,
+        false,
+        mode,
+        language,
+        Some(dialect),
+        k_min,
+        k_max,
+        SentenceLengthMode::Natural,
+        " ",
+    );
+
+    let payload_count = encoded_words.len();
+    let total_words = text.split_whitespace().count();
+    let cover_count = total_words.saturating_sub(used_payload.len());
+
+    let response = serde_json::json!({
+        "encoded_text": text,
+        "payload_words": encoded_words,
+        "used_payload": used_payload.into_iter().collect::<Vec<String>>(),
+        "data_mode": "base_n",
+        "stats": {
+            "payload_count": payload_count,
+            "cover_count": cover_count,
+            "total_words": total_words,
+            "ratio": if total_words > 0 {
+                (payload_count as f64) / (total_words as f64)
+            } else {
+                0.0
+            }
+        }
+    });
+
+    Ok(response.to_string())
+}
+
+/// Decode base-N encoded text back to raw bytes (hex output).
+///
+/// Works with both bare payload words and prose-wrapped text —
+/// cover words are automatically filtered out.
+///
+/// Returns JSON: `{ "decoded_hex": "...", "payload_words": [...] }`
+#[wasm_bindgen]
+pub fn decode_raw_base_n(text: &str, language: &str, wordlist: &str) -> String {
+    let result = decode_raw_base_n_inner(text, language, wordlist);
+    match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+fn decode_raw_base_n_inner(text: &str, language: &str, wordlist: &str) -> Result<String, String> {
+    // 1. Load payload wordlist
+    let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
+    let payload_tree = WordlistTree::new(payload_words.clone());
+
+    // 2. Build payload set for filtering
+    let payload_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
+
+    // 3. Extract payload words (filter out cover/prose words)
+    let extracted: Vec<String> = text
+        .split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+        .filter(|w| payload_set.contains(w))
+        .collect();
+
+    if extracted.is_empty() {
+        return Ok(serde_json::json!({
+            "decoded_hex": "",
+            "payload_words": [],
+            "error": "No payload words found in input"
+        }).to_string());
+    }
+
+    // 4. Decode via base_n codec
+    let bytes = codec::decode_base_n(&extracted, &payload_tree, "base_n")
+        .map_err(|e| format!("Decoding error: {}", e))?;
+
+    // 5. Return hex-encoded bytes
+    let hex = codec::hex_encode(&bytes);
+
+    let response = serde_json::json!({
+        "decoded_hex": hex,
+        "payload_words": extracted,
+    });
+
+    Ok(response.to_string())
+}
+
 /// Parse a hex string to bytes (no external dependency).
 fn parse_hex_bytes(hex: &str) -> Result<Vec<u8>, String> {
     let hex = hex.trim().trim_start_matches("0x").trim_start_matches("0X");
@@ -1280,4 +1463,72 @@ fn parse_hex_bytes(hex: &str) -> Result<Vec<u8>, String> {
         .map(|i| u8::from_str_radix(&hex[i..i + 2], 16)
             .map_err(|_| format!("Invalid hex at position {}: '{}'", i, &hex[i..i + 2])))
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // 64-byte signature (hex-encoded = 128 hex chars)
+    const SIG_HEX_64: &str = "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b";
+    // 32-byte pubkey
+    const PUBKEY_HEX_32: &str = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa3f4a18446b0b8d183f8e8";
+
+    #[test]
+    fn roundtrip_bare_64_bytes() {
+        let encoded_json = encode_raw_base_n(SIG_HEX_64, "latin", "default", "", 42);
+        let enc: serde_json::Value = serde_json::from_str(&encoded_json).unwrap();
+        assert!(enc.get("error").is_none(), "encode error: {}", encoded_json);
+
+        let bare_text = enc["encoded_text"].as_str().unwrap();
+        // Bare mode: no cover words, just payload
+        assert!(!bare_text.is_empty());
+
+        let decoded_json = decode_raw_base_n(bare_text, "latin", "default");
+        let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
+        assert!(dec.get("error").is_none(), "decode error: {}", decoded_json);
+        assert_eq!(dec["decoded_hex"].as_str().unwrap(), SIG_HEX_64);
+    }
+
+    #[test]
+    fn roundtrip_bare_32_bytes() {
+        let encoded_json = encode_raw_base_n(PUBKEY_HEX_32, "latin", "default", "", 42);
+        let enc: serde_json::Value = serde_json::from_str(&encoded_json).unwrap();
+        assert!(enc.get("error").is_none(), "encode error: {}", encoded_json);
+
+        let bare_text = enc["encoded_text"].as_str().unwrap();
+        let decoded_json = decode_raw_base_n(bare_text, "latin", "default");
+        let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
+        assert!(dec.get("error").is_none(), "decode error: {}", decoded_json);
+        assert_eq!(dec["decoded_hex"].as_str().unwrap(), PUBKEY_HEX_32);
+    }
+
+    #[test]
+    fn roundtrip_prose_64_bytes() {
+        let encoded_json = encode_raw_base_n(SIG_HEX_64, "latin", "default", "body", 42);
+        let enc: serde_json::Value = serde_json::from_str(&encoded_json).unwrap();
+        assert!(enc.get("error").is_none(), "encode error: {}", encoded_json);
+
+        let prose_text = enc["encoded_text"].as_str().unwrap();
+        // Prose mode: should have more words than payload alone
+        let payload_count = enc["stats"]["payload_count"].as_u64().unwrap();
+        let total_words = enc["stats"]["total_words"].as_u64().unwrap();
+        assert!(total_words > payload_count, "prose should have cover words");
+
+        let decoded_json = decode_raw_base_n(prose_text, "latin", "default");
+        let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
+        assert!(dec.get("error").is_none(), "decode error: {}", decoded_json);
+        assert_eq!(dec["decoded_hex"].as_str().unwrap(), SIG_HEX_64);
+    }
+
+    #[test]
+    fn empty_dialect_has_no_cover_words() {
+        let encoded_json = encode_raw_base_n(SIG_HEX_64, "latin", "default", "", 42);
+        let enc: serde_json::Value = serde_json::from_str(&encoded_json).unwrap();
+        assert_eq!(enc["stats"]["cover_count"].as_u64().unwrap(), 0);
+        assert_eq!(
+            enc["stats"]["payload_count"].as_u64().unwrap(),
+            enc["stats"]["total_words"].as_u64().unwrap()
+        );
+    }
 }
