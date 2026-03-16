@@ -1,0 +1,272 @@
+{
+  "description": "Glossia canonical test vectors. Two invariants: (1) decode(encode(x)) == x (round-trip), (2) decode(frozen_prose) == expected (backward compat). Decode stability vectors are append-only and must never be edited or removed.",
+  "version": "1.1.0",
+  "generated": "2026-03-15",
+  "invariants": [
+    "decode(encode(input)) == input",
+    "decode(frozen_prose_from_any_past_version) == expected_value"
+  ],
+
+  "round_trip_vectors": [
+    {
+      "id": "empty-input",
+      "description": "Empty payload produces no output",
+      "input": { "value": "", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "", "format": "hex" }
+    },
+    {
+      "id": "single-zero-byte",
+      "description": "One 0x00 byte — minimal payload, tests zero-value preservation",
+      "input": { "value": "00", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "00", "format": "hex" }
+    },
+    {
+      "id": "single-byte-ab",
+      "description": "Single byte 0xAB",
+      "input": { "value": "ab", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "ab", "format": "hex" }
+    },
+    {
+      "id": "two-bytes-cafe",
+      "description": "Two bytes 0xCAFE",
+      "input": { "value": "cafe", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "cafe", "format": "hex" }
+    },
+    {
+      "id": "three-bytes-odd",
+      "description": "Three bytes — odd byte count, tests non-word-aligned packing",
+      "input": { "value": "abcdef", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "abcdef", "format": "hex" }
+    },
+    {
+      "id": "four-bytes-deadbeef",
+      "description": "Classic 4-byte test value",
+      "input": { "value": "deadbeef", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "deadbeef", "format": "hex" },
+      "expected_payload_words": ["ability", "team", "hospital", "rookie"],
+      "expected_rendered": "Ability team hospital to rookie."
+    },
+    {
+      "id": "five-bytes",
+      "description": "Five bytes — tests 5-byte boundary",
+      "input": { "value": "0102030405", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "0102030405", "format": "hex" }
+    },
+    {
+      "id": "leading-zeros-4-bytes",
+      "description": "Leading zeros must survive round-trip — not silently dropped",
+      "input": { "value": "000001ff", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "000001ff", "format": "hex" }
+    },
+    {
+      "id": "all-zeros-16",
+      "description": "16 zero bytes — worst case for leading-zero preservation",
+      "input": { "value": "00000000000000000000000000000000", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "00000000000000000000000000000000", "format": "hex" }
+    },
+    {
+      "id": "all-ff-16",
+      "description": "16 bytes of 0xFF — exercises high-index wordlist entries",
+      "input": { "value": "ffffffffffffffffffffffffffffffff", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "ffffffffffffffffffffffffffffffff", "format": "hex" }
+    },
+    {
+      "id": "random-32-bytes",
+      "description": "32-byte pseudo-random blob — longer payload stress test",
+      "input": { "value": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90", "format": "hex" }
+    },
+    {
+      "id": "bip39-mnemonic-12-words",
+      "description": "Well-known 12-word BIP39 test mnemonic (all-zero entropy)",
+      "input": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "bip39" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "bip39" }
+    },
+    {
+      "id": "btc-bech32-address",
+      "description": "Bitcoin bech32 address — structured input with HRP, version byte, checksum",
+      "input": { "value": "bc1q29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz", "format": "crypto/btc/bech32/bip173" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "naturally", "codec": "bitpack", "seed": 42 },
+      "expected_decoded": { "value": "bc1q29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz", "format": "crypto/btc/bech32/bip173" },
+      "note": "Decode requires format-aware pipeline: --meta 'translate from english naturally into crypto/btc/bech32/bip173'"
+    },
+    {
+      "id": "transcode-english-to-latin",
+      "description": "Hex → English → Latin → hex — verifies binary fidelity across languages",
+      "input": { "value": "cafe", "format": "hex" },
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
+      "transcode_to": { "language": "latin", "wordlist": "default", "dialect": "default", "seed": 42 },
+      "expected_decoded": { "value": "cafe", "format": "hex" }
+    }
+  ],
+
+  "error_vectors": [
+    {
+      "id": "garbage-prose-decode",
+      "description": "Prose with no payload words must fail to decode",
+      "input_prose": "The quick brown fox jumps over the lazy dog.",
+      "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+      "expected": "error"
+    }
+  ],
+
+  "codec_vectors": [
+    {
+      "id": "bitpack-padding-word",
+      "description": "Bitpack: 1 byte with 2048 words → padding word index = number of padding bits",
+      "codec": "bitpack",
+      "wordlist_size": 2048,
+      "input": { "value": "ab", "format": "hex" },
+      "expected_word_count": 2,
+      "expected_padding_word_index": 3,
+      "note": "8 data bits, ceil(8/11)=1 data word, pad=11-8=3"
+    },
+    {
+      "id": "bitpack-zero-padding",
+      "description": "Bitpack: 1 byte with 16 words (4 bits/word) → zero padding bits",
+      "codec": "bitpack",
+      "wordlist_size": 16,
+      "input": { "value": "ab", "format": "hex" },
+      "expected_word_count": 3,
+      "expected_padding_word_index": 0,
+      "note": "8 bits / 4 bits_per_word = 2 data words, no padding"
+    },
+    {
+      "id": "base-n-leading-zeros",
+      "description": "Base-N: leading zero bytes must round-trip with non-power-of-2 wordlist",
+      "codec": "base_n",
+      "wordlist_size": 100,
+      "input": { "value": "000001ff", "format": "hex" },
+      "expected_decoded": { "value": "000001ff", "format": "hex" }
+    }
+  ],
+
+  "merkle_vectors": [
+    {
+      "id": "merkle-4-leaves-round-trip",
+      "description": "parse_merkleized(merkleize(words)) must recover original words in order",
+      "payload": ["abandon", "ability", "able", "about"],
+      "cover": ["the", "of", "and"],
+      "expected_sequence_length": 7,
+      "expected_recovered_payload": ["abandon", "ability", "able", "about"]
+    },
+    {
+      "id": "merkle-2-leaves-minimal",
+      "description": "Minimal Merkle tree: 2 payload, 1 cover — root is always a cover word",
+      "payload": ["word1", "word2"],
+      "cover": ["cover1"],
+      "expected_sequence_length": 3,
+      "expected_recovered_payload": ["word1", "word2"]
+    }
+  ],
+
+  "decode_stability_vectors": {
+    "_comment": "APPEND-ONLY. These vectors pin encoded prose from specific versions. Every future glossia build must decode each prose string to the expected value. Never edit or remove existing entries.",
+    "vectors": [
+      {
+        "id": "v1.0-single-zero-byte",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Tap is set about abandon.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "00", "format": "hex" }
+      },
+      {
+        "id": "v1.0-single-byte-ab",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Tap is set about prison.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "ab", "format": "hex" }
+      },
+      {
+        "id": "v1.0-three-bytes-odd",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Abuse profit hunt to scale.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "abcdef", "format": "hex" }
+      },
+      {
+        "id": "v1.0-deadbeef",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Ability team hospital to rookie.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "deadbeef", "format": "hex" }
+      },
+      {
+        "id": "v1.0-five-bytes",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "The above absurd avoid scissors. Anxiety get pie to some pop for a sky to sir.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "0102030405", "format": "hex" }
+      },
+      {
+        "id": "v1.0-leading-zeros",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Ability abandon abandon to lemon.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "000001ff", "format": "hex" }
+      },
+      {
+        "id": "v1.0-all-zeros-16",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Above abandon abandon to abandon. Abandon may abandon abandon.\nIts abandon abandon abandon. Abandon abandon an abandon.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "00000000000000000000000000000000", "format": "hex" }
+      },
+      {
+        "id": "v1.0-all-ff-16",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Above set zoo to zoo. Zoo may set zoo. Zoo get zoo to zoo via zoo.\nZoo get zoo to zoo out wrap.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "ffffffffffffffffffffffffffffffff", "format": "hex" }
+      },
+      {
+        "id": "v1.0-random-32-bytes",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Absurd set payment to noodle. Our son is vivid. Slogan gather a metal.\nPilot enact the fragile hip. A physical candy get our brass giggle.\nIts pot is fatal. Salute see an alpha scout. Excess may note short.\nNod not satisfy dinner. Its abandon may sit to nod.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90", "format": "hex" }
+      },
+      {
+        "id": "v1.0-cafe-english",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Tap too absorb our slab. The son is useless.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "cafe", "format": "hex" }
+      },
+      {
+        "id": "v1.0-cafe-latin",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Tu abago e  eo. Is reapse abacino  tu.",
+        "decode_from": { "language": "latin", "wordlist": "default", "dialect": "default" },
+        "expected_decoded": { "value": "cafe", "format": "hex" }
+      },
+      {
+        "id": "v1.0-bip39-mnemonic",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Above gesture the basic fortune.\nEach silver want to awake out our machine to some cap. Pie equip to hover.\nCasino yes swear dolphin. Bike may cost ridge to mistake.\nOur hotel adapt a flat security. Its town may dash a review around our due sir.\nTap may give arena. October tell tilt to cost via a maze.\nColumn may see our good kiwi. Its marine security may champion rescue.\nMuseum might see universe. Call arch an obscure system.\nEight require the light clump to gesture. Industry bridge sword out alcohol.\nRaise are mad to cop per a smart hunt. The dig is illegal.\nIts blue may shadow the black tap. Tie cram its sad series.\nGesture beach tail to trend.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "body" },
+        "expected_decoded": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "bip39" }
+      },
+      {
+        "id": "v1.0-btc-bech32",
+        "pinned_since": "1.0.0",
+        "encoded_prose": "Ability set chef to mechanic. Our drum is velvet.\nYear may set meadow to fashion. Sausage yes grant list.\nBlame may get pop during lip. A basic hope may move coin to bounce out crush.\nPay due avoid a tap.",
+        "decode_from": { "language": "english", "wordlist": "bip39", "dialect": "naturally" },
+        "decode_meta": "translate from english naturally into crypto/btc/bech32/bip173",
+        "expected_decoded": { "value": "bc1q29zsu7g0auf4f40avkcych9zzycd4ep3dvdxdgz", "format": "crypto/btc/bech32/bip173" }
+      }
+    ]
+  }
+}
