@@ -172,6 +172,55 @@
     }
   ],
 
+  "dialect_detection_vectors": {
+    "_comment": "Dialect detection: given encoded prose, detect_dialect() must rank the correct language/wordlist first. The invariant is: prose encoded with language L and wordlist W must detect as L/W. Detection uses unique input words, so repeated words (e.g., 'abandon' x11) count once.",
+    "vectors": [
+      {
+        "id": "detect-english-bip39-short",
+        "description": "Short English BIP39 prose (4 payload words in 5 total) — high signal",
+        "input_prose": "Ability team hospital to rookie.",
+        "expected_best_match": { "language": "english", "wordlist": "bip39" },
+        "note": "4/5 unique words match bip39"
+      },
+      {
+        "id": "detect-english-bip39-long",
+        "description": "Longer English BIP39 prose (32-byte payload) — many payload words",
+        "input_prose": "Absurd set payment to noodle. Our son is vivid. Slogan gather a metal.\nPilot enact the fragile hip. A physical candy get our brass giggle.\nIts pot is fatal. Salute see an alpha scout. Excess may note short.\nNod not satisfy dinner. Its abandon may sit to nod.",
+        "expected_best_match": { "language": "english", "wordlist": "bip39" }
+      },
+      {
+        "id": "detect-english-bip39-btc",
+        "description": "BTC address encoded into English — high payload density",
+        "input_prose": "Ability set chef to mechanic. Our drum is velvet.\nYear may set meadow to fashion. Sausage yes grant list.\nBlame may get pop during lip. A basic hope may move coin to bounce out crush.\nPay due avoid a tap.",
+        "expected_best_match": { "language": "english", "wordlist": "bip39" }
+      },
+      {
+        "id": "detect-latin-default",
+        "description": "Latin prose — should detect latin/default, not english",
+        "input_prose": "Tu abago e  eo. Is reapse abacino  tu.",
+        "expected_best_match": { "language": "latin", "wordlist": "default" }
+      },
+      {
+        "id": "detect-bip39-mnemonic-raw",
+        "description": "Raw BIP39 mnemonic — 12 words but only 2 unique ('abandon', 'about'). Low hit count but should still match english/bip39.",
+        "input_prose": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+        "expected_best_match": { "language": "english", "wordlist": "bip39" }
+      },
+      {
+        "id": "detect-all-zeros",
+        "description": "All-zeros payload — mostly 'abandon' repeated, tests degenerate case",
+        "input_prose": "Above abandon abandon to abandon. Abandon may abandon abandon.\nIts abandon abandon abandon. Abandon abandon an abandon.",
+        "expected_best_match": { "language": "english", "wordlist": "bip39" }
+      },
+      {
+        "id": "detect-bip39-mnemonic-long",
+        "description": "12-word BIP39 mnemonic encoded into long prose — many unique payload words",
+        "input_prose": "Above gesture the basic fortune.\nEach silver want to awake out our machine to some cap. Pie equip to hover.\nCasino yes swear dolphin. Bike may cost ridge to mistake.\nOur hotel adapt a flat security. Its town may dash a review around our due sir.\nTap may give arena. October tell tilt to cost via a maze.\nColumn may see our good kiwi. Its marine security may champion rescue.\nMuseum might see universe. Call arch an obscure system.\nEight require the light clump to gesture. Industry bridge sword out alcohol.\nRaise are mad to cop per a smart hunt. The dig is illegal.\nIts blue may shadow the black tap. Tie cram its sad series.\nGesture beach tail to trend.",
+        "expected_best_match": { "language": "english", "wordlist": "bip39" }
+      }
+    ]
+  },
+
   "decode_stability_vectors": {
     "_comment": "APPEND-ONLY. These vectors pin encoded prose from specific versions. Every future glossia build must decode each prose string to the expected value. Never edit or remove existing entries.",
     "vectors": [

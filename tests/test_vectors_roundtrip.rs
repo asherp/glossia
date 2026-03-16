@@ -16,7 +16,27 @@ struct TestVectors {
     #[serde(default)]
     error_vectors: Vec<ErrorVector>,
     #[serde(default)]
+    dialect_detection_vectors: Option<DialectDetectionSection>,
+    #[serde(default)]
     decode_stability_vectors: Option<DecodeStabilitySection>,
+}
+
+#[derive(Deserialize)]
+struct DialectDetectionSection {
+    vectors: Vec<DialectDetectionVector>,
+}
+
+#[derive(Deserialize)]
+struct DialectDetectionVector {
+    id: String,
+    input_prose: String,
+    expected_best_match: ExpectedMatch,
+}
+
+#[derive(Deserialize)]
+struct ExpectedMatch {
+    language: String,
+    wordlist: String,
 }
 
 #[derive(Deserialize)]
@@ -377,6 +397,48 @@ fn decode_stability_vectors() {
             actual, v.expected_decoded.value,
             "[{}] (pinned {}) BACKWARD COMPAT BROKEN: prose from v{} no longer decodes correctly",
             v.id, v.pinned_since, v.pinned_since
+        );
+    }
+}
+
+/// Dialect detection: encoded prose must be detected as the correct language/wordlist.
+/// This guards auto-detect, which is the entry point for decode without explicit format.
+#[test]
+fn dialect_detection_vectors() {
+    use glossia::generator::detect_dialect;
+
+    let vectors = load_vectors();
+    let section = match vectors.dialect_detection_vectors {
+        Some(s) => s,
+        None => return,
+    };
+
+    for v in &section.vectors {
+        let words: Vec<String> = v
+            .input_prose
+            .split_whitespace()
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|w| !w.is_empty())
+            .collect();
+
+        let results = detect_dialect(&words);
+
+        assert!(
+            !results.is_empty(),
+            "[{}] detect_dialect returned no matches",
+            v.id
+        );
+
+        let best = &results[0];
+        assert_eq!(
+            best.language, v.expected_best_match.language,
+            "[{}] expected language '{}' but best match was '{}/{}'",
+            v.id, v.expected_best_match.language, best.language, best.wordlist
+        );
+        assert_eq!(
+            best.wordlist, v.expected_best_match.wordlist,
+            "[{}] expected wordlist '{}' but best match was '{}/{}'",
+            v.id, v.expected_best_match.wordlist, best.language, best.wordlist
         );
     }
 }
