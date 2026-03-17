@@ -252,7 +252,8 @@ pub fn detect_mode(s: &str) -> (DataMode, Vec<u8>) {
 /// Encode bytes into wordlist words.
 ///
 /// The `codec` parameter controls encoding strategy:
-/// - `"bitpack"`: fixed-size bit chunks (uniform distribution, requires power-of-2 wordlist)
+/// - `"bitpack"`: fixed-size bit chunks with padding word (uniform distribution, requires power-of-2 wordlist)
+/// - `"bitpack_fixed"`: fixed-size bit chunks without padding word (for known-length payloads)
 /// - `"base_n"` (or anything else): big-integer base-N encoding
 pub fn encode_base_n(data: &[u8], wordlist: &WordlistTree, codec: &str) -> Result<Vec<String>, DecodeError> {
     if wordlist.is_empty() {
@@ -261,18 +262,24 @@ pub fn encode_base_n(data: &[u8], wordlist: &WordlistTree, codec: &str) -> Resul
     if data.is_empty() {
         return Ok(Vec::new());
     }
-    if codec == "bitpack" && wordlist.len() > 1 && wordlist.len().is_power_of_two() {
-        encode_bitpack(data, wordlist)
-    } else {
-        encode_base_n_bigint(data, wordlist)
+    if wordlist.len() > 1 && wordlist.len().is_power_of_two() {
+        match codec {
+            "bitpack" => return encode_bitpack(data, wordlist),
+            "bitpack_fixed" => return encode_bitpack_fixed(data, wordlist),
+            _ => {}
+        }
     }
+    encode_base_n_bigint(data, wordlist)
 }
 
 /// Decode wordlist words back to bytes.
 ///
 /// The `codec` parameter controls decoding strategy:
-/// - `"bitpack"`: fixed-size bit chunks (requires power-of-2 wordlist)
+/// - `"bitpack"`: fixed-size bit chunks with padding word (requires power-of-2 wordlist)
+/// - `"bitpack_fixed"`: fixed-size bit chunks without padding word (requires `expected_bytes`)
 /// - `"base_n"` (or anything else): big-integer base-N decoding
+///
+/// For `"bitpack_fixed"`, use `decode_base_n_fixed` instead to supply the expected byte count.
 pub fn decode_base_n(words: &[String], wordlist: &WordlistTree, codec: &str) -> Result<Vec<u8>, DecodeError> {
     if wordlist.is_empty() {
         return Err(DecodeError::EmptyWordlist);
@@ -280,10 +287,35 @@ pub fn decode_base_n(words: &[String], wordlist: &WordlistTree, codec: &str) -> 
     if words.is_empty() {
         return Ok(Vec::new());
     }
-    if codec == "bitpack" && wordlist.len() > 1 && wordlist.len().is_power_of_two() {
-        decode_bitpack(words, wordlist)
+    if wordlist.len() > 1 && wordlist.len().is_power_of_two() {
+        match codec {
+            "bitpack" => return decode_bitpack(words, wordlist),
+            "bitpack_fixed" => {
+                // Without expected_bytes, infer from word count (exact when aligned)
+                let bits_per_word = wordlist.len().trailing_zeros() as usize;
+                let total_bits = words.len() * bits_per_word;
+                return decode_bitpack_fixed(words, wordlist, total_bits / 8);
+            }
+            _ => {}
+        }
+    }
+    decode_base_n_bigint(words, wordlist)
+}
+
+/// Decode wordlist words back to bytes with a known payload byte count.
+///
+/// Use this for `"bitpack_fixed"` codec where the caller knows the original data length.
+pub fn decode_base_n_fixed(words: &[String], wordlist: &WordlistTree, codec: &str, expected_bytes: usize) -> Result<Vec<u8>, DecodeError> {
+    if wordlist.is_empty() {
+        return Err(DecodeError::EmptyWordlist);
+    }
+    if words.is_empty() {
+        return Ok(Vec::new());
+    }
+    if codec == "bitpack_fixed" && wordlist.len() > 1 && wordlist.len().is_power_of_two() {
+        decode_bitpack_fixed(words, wordlist, expected_bytes)
     } else {
-        decode_base_n_bigint(words, wordlist)
+        decode_base_n(words, wordlist, codec)
     }
 }
 
@@ -379,6 +411,84 @@ fn decode_bitpack(words: &[String], wordlist: &WordlistTree) -> Result<Vec<u8>, 
 
     // Reconstruct bytes from the bitstream
     let mut result = vec![0u8; n_bytes];
+    for (word_i, &idx) in indices.iter().enumerate() {
+        for b in 0..bits_per_word {
+            let global_bit = word_i * bits_per_word + b;
+            if global_bit >= data_bits {
+                break;
+            }
+            let bit_val = (idx >> (bits_per_word - 1 - b)) & 1;
+            if bit_val == 1 {
+                let byte_idx = global_bit / 8;
+                let bit_idx = 7 - (global_bit % 8);
+                result[byte_idx] |= 1 << bit_idx;
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Bitpack fixed encoding (no padding word, for known-length payloads)
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Encode bytes as fixed-size bit chunks without a padding word.
+///
+/// For known-length payloads (e.g. 32-byte pubkeys), the caller already knows
+/// the byte count, so the padding word is unnecessary overhead.
+///
+/// Format: [data_word_0] [data_word_1] ... [data_word_N-1]
+fn encode_bitpack_fixed(data: &[u8], wordlist: &WordlistTree) -> Result<Vec<String>, DecodeError> {
+    let bits_per_word = wordlist.len().trailing_zeros() as usize;
+    let total_data_bits = data.len() * 8;
+    let n_data_words = (total_data_bits + bits_per_word - 1) / bits_per_word;
+
+    let mut result = Vec::with_capacity(n_data_words);
+
+    for i in 0..n_data_words {
+        let bit_offset = i * bits_per_word;
+        let mut index: usize = 0;
+        for b in 0..bits_per_word {
+            let global_bit = bit_offset + b;
+            let bit_val = if global_bit < total_data_bits {
+                let byte_idx = global_bit / 8;
+                let bit_idx = 7 - (global_bit % 8);
+                ((data[byte_idx] >> bit_idx) & 1) as usize
+            } else {
+                0
+            };
+            index = (index << 1) | bit_val;
+        }
+        result.push(wordlist.get(index).unwrap().clone());
+    }
+
+    Ok(result)
+}
+
+/// Decode bitpack-fixed words back to bytes.
+///
+/// The caller must supply `expected_bytes` — the original payload byte count.
+/// This resolves the bit-alignment ambiguity without needing a padding word.
+fn decode_bitpack_fixed(words: &[String], wordlist: &WordlistTree, expected_bytes: usize) -> Result<Vec<u8>, DecodeError> {
+    use std::collections::HashMap;
+
+    let bits_per_word = wordlist.len().trailing_zeros() as usize;
+    let data_bits = expected_bytes * 8;
+
+    let mut word_to_index: HashMap<String, usize> = HashMap::new();
+    for (i, word) in wordlist.words().iter().enumerate() {
+        word_to_index.insert(word.to_lowercase(), i);
+    }
+
+    let mut indices = Vec::with_capacity(words.len());
+    for word in words {
+        let idx = word_to_index.get(&word.to_lowercase())
+            .ok_or_else(|| DecodeError::UnknownWord(word.clone()))?;
+        indices.push(*idx);
+    }
+
+    let mut result = vec![0u8; expected_bytes];
     for (word_i, &idx) in indices.iter().enumerate() {
         for b in 0..bits_per_word {
             let global_bit = word_i * bits_per_word + b;
@@ -625,6 +735,76 @@ mod tests {
             }
         }
         assert!(seen_high, "bitpack first data word should span full wordlist range");
+    }
+
+    // ── Bitpack-fixed tests ───────────────────────────────────────────
+
+    #[test]
+    fn bitpack_fixed_no_padding_word() {
+        let wl = make_wordlist(65536); // 16 bits per word
+        let data = vec![0xDE, 0xAD, 0xBE, 0xEF]; // 32 bits = 2 words exactly
+        let encoded = encode_base_n(&data, &wl, "bitpack_fixed").unwrap();
+        assert_eq!(encoded.len(), 2, "no padding word, just 2 data words");
+        // Compare with bitpack which adds a padding word
+        let encoded_padded = encode_base_n(&data, &wl, "bitpack").unwrap();
+        assert_eq!(encoded_padded.len(), 3, "bitpack has padding word + 2 data words");
+    }
+
+    #[test]
+    fn bitpack_fixed_round_trip_aligned() {
+        // 32 bytes with 16-bit words: 256/16 = 16 words, no remainder
+        let wl = make_wordlist(65536);
+        let data: Vec<u8> = (0..32).map(|i| (i * 37 + 13) as u8).collect();
+        let encoded = encode_base_n(&data, &wl, "bitpack_fixed").unwrap();
+        assert_eq!(encoded.len(), 16);
+        let decoded = decode_base_n_fixed(&encoded, &wl, "bitpack_fixed", 32).unwrap();
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn bitpack_fixed_round_trip_unaligned() {
+        // 32 bytes with 15-bit words: ceil(256/15) = 18 words, 14 padding bits
+        let wl = make_wordlist(32768); // 15 bits per word
+        let data: Vec<u8> = (0..32).map(|i| (i * 37 + 13) as u8).collect();
+        let encoded = encode_base_n(&data, &wl, "bitpack_fixed").unwrap();
+        assert_eq!(encoded.len(), 18);
+        let decoded = decode_base_n_fixed(&encoded, &wl, "bitpack_fixed", 32).unwrap();
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn bitpack_fixed_constant_word_count() {
+        // The whole point: all 32-byte payloads produce the same number of words
+        let wl = make_wordlist(65536);
+        let mut word_counts = std::collections::HashSet::new();
+        for seed in 0u8..=255 {
+            let mut data = vec![0u8; 32];
+            data[0] = seed;
+            let encoded = encode_base_n(&data, &wl, "bitpack_fixed").unwrap();
+            word_counts.insert(encoded.len());
+        }
+        assert_eq!(word_counts.len(), 1, "all 32-byte payloads must produce same word count");
+        assert!(word_counts.contains(&16));
+    }
+
+    #[test]
+    fn bitpack_fixed_round_trip_leading_zeros() {
+        let wl = make_wordlist(65536);
+        let data = vec![0x00, 0x00, 0x00, 0x00, 0xDE, 0xAD, 0xBE, 0xEF];
+        let encoded = encode_base_n(&data, &wl, "bitpack_fixed").unwrap();
+        assert_eq!(encoded.len(), 4); // 64 bits / 16 = 4 words
+        let decoded = decode_base_n_fixed(&encoded, &wl, "bitpack_fixed", 8).unwrap();
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn bitpack_fixed_round_trip_all_zeros() {
+        let wl = make_wordlist(65536);
+        let data = vec![0x00; 32];
+        let encoded = encode_base_n(&data, &wl, "bitpack_fixed").unwrap();
+        assert_eq!(encoded.len(), 16);
+        let decoded = decode_base_n_fixed(&encoded, &wl, "bitpack_fixed", 32).unwrap();
+        assert_eq!(decoded, data);
     }
 
     // ── Base-N error tests ──────────────────────────────────────────

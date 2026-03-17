@@ -1298,8 +1298,9 @@ fn encode_raw_base_n_inner(
     let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
     let payload_tree = WordlistTree::new(payload_words.clone());
 
-    // 3. Encode bytes to payload words via base_n codec
-    let encoded_words = codec::encode_base_n(&bytes, &payload_tree, "base_n")
+    // 3. Encode bytes to payload words via bitpack_fixed codec
+    let byte_count = bytes.len();
+    let encoded_words = codec::encode_base_n(&bytes, &payload_tree, "bitpack_fixed")
         .map_err(|e| format!("Encoding error: {}", e))?;
 
     // 4. If no dialect, return bare words
@@ -1307,7 +1308,8 @@ fn encode_raw_base_n_inner(
         let response = serde_json::json!({
             "encoded_text": encoded_words.join(" "),
             "payload_words": encoded_words,
-            "data_mode": "base_n",
+            "data_mode": "bitpack_fixed",
+            "byte_count": byte_count,
             "stats": {
                 "payload_count": encoded_words.len(),
                 "cover_count": 0,
@@ -1383,7 +1385,8 @@ fn encode_raw_base_n_inner(
         "encoded_text": text,
         "payload_words": encoded_words,
         "used_payload": used_payload.into_iter().collect::<Vec<String>>(),
-        "data_mode": "base_n",
+        "data_mode": "bitpack_fixed",
+        "byte_count": byte_count,
         "stats": {
             "payload_count": payload_count,
             "cover_count": cover_count,
@@ -1404,17 +1407,20 @@ fn encode_raw_base_n_inner(
 /// Works with both bare payload words and prose-wrapped text —
 /// cover words are automatically filtered out.
 ///
+/// `expected_byte_count`: the known payload size in bytes (e.g. 32 for a pubkey).
+/// Pass 0 to infer from word count (exact when bits_per_word divides payload evenly).
+///
 /// Returns JSON: `{ "decoded_hex": "...", "payload_words": [...] }`
 #[wasm_bindgen]
-pub fn decode_raw_base_n(text: &str, language: &str, wordlist: &str) -> String {
-    let result = decode_raw_base_n_inner(text, language, wordlist);
+pub fn decode_raw_base_n(text: &str, language: &str, wordlist: &str, expected_byte_count: usize) -> String {
+    let result = decode_raw_base_n_inner(text, language, wordlist, expected_byte_count);
     match result {
         Ok(json) => json,
         Err(e) => serde_json::json!({ "error": e }).to_string(),
     }
 }
 
-fn decode_raw_base_n_inner(text: &str, language: &str, wordlist: &str) -> Result<String, String> {
+fn decode_raw_base_n_inner(text: &str, language: &str, wordlist: &str, expected_byte_count: usize) -> Result<String, String> {
     // 1. Load payload wordlist
     let payload_words = load_payload_words_for_wordlist(language, wordlist)?;
     let payload_tree = WordlistTree::new(payload_words.clone());
@@ -1437,9 +1443,12 @@ fn decode_raw_base_n_inner(text: &str, language: &str, wordlist: &str) -> Result
         }).to_string());
     }
 
-    // 4. Decode via base_n codec
-    let bytes = codec::decode_base_n(&extracted, &payload_tree, "base_n")
-        .map_err(|e| format!("Decoding error: {}", e))?;
+    // 4. Decode via bitpack_fixed codec with known byte count
+    let bytes = if expected_byte_count > 0 {
+        codec::decode_base_n_fixed(&extracted, &payload_tree, "bitpack_fixed", expected_byte_count)
+    } else {
+        codec::decode_base_n(&extracted, &payload_tree, "bitpack_fixed")
+    }.map_err(|e| format!("Decoding error: {}", e))?;
 
     // 5. Return hex-encoded bytes
     let hex = codec::hex_encode(&bytes);
@@ -1484,7 +1493,7 @@ mod tests {
         // Bare mode: no cover words, just payload
         assert!(!bare_text.is_empty());
 
-        let decoded_json = decode_raw_base_n(bare_text, "latin", "default");
+        let decoded_json = decode_raw_base_n(bare_text, "latin", "default", 64);
         let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
         assert!(dec.get("error").is_none(), "decode error: {}", decoded_json);
         assert_eq!(dec["decoded_hex"].as_str().unwrap(), SIG_HEX_64);
@@ -1497,7 +1506,7 @@ mod tests {
         assert!(enc.get("error").is_none(), "encode error: {}", encoded_json);
 
         let bare_text = enc["encoded_text"].as_str().unwrap();
-        let decoded_json = decode_raw_base_n(bare_text, "latin", "default");
+        let decoded_json = decode_raw_base_n(bare_text, "latin", "default", 32);
         let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
         assert!(dec.get("error").is_none(), "decode error: {}", decoded_json);
         assert_eq!(dec["decoded_hex"].as_str().unwrap(), PUBKEY_HEX_32);
@@ -1515,10 +1524,69 @@ mod tests {
         let total_words = enc["stats"]["total_words"].as_u64().unwrap();
         assert!(total_words > payload_count, "prose should have cover words");
 
-        let decoded_json = decode_raw_base_n(prose_text, "latin", "default");
+        let decoded_json = decode_raw_base_n(prose_text, "latin", "default", 64);
         let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
         assert!(dec.get("error").is_none(), "decode error: {}", decoded_json);
         assert_eq!(dec["decoded_hex"].as_str().unwrap(), SIG_HEX_64);
+    }
+
+    #[test]
+    fn roundtrip_various_pubkeys() {
+        // Decode bech32 npub to hex (5-bit to 8-bit conversion)
+        fn npub_to_hex(npub: &str) -> String {
+            let charset = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+            let data_part = npub.rsplit('1').next().unwrap();
+            let data5: Vec<u8> = data_part.chars()
+                .map(|c| charset.find(c).unwrap() as u8)
+                .collect();
+            // Drop 6-char checksum, convert 5-bit to 8-bit
+            let data5 = &data5[..data5.len() - 6];
+            let mut acc: u32 = 0;
+            let mut bits = 0;
+            let mut result = Vec::new();
+            for &v in data5 {
+                acc = (acc << 5) | v as u32;
+                bits += 5;
+                while bits >= 8 {
+                    bits -= 8;
+                    result.push((acc >> bits) as u8 & 0xff);
+                }
+            }
+            result.iter().map(|b| format!("{:02x}", b)).collect()
+        }
+
+        let npubs = [
+            // Jack Dorsey
+            "npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m",
+            // fiatjaf
+            "npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6",
+            // Vitor Pamplona
+            "npub1gcxzte5zlkncx26j68ez60fzkvtkm9e0vrwdcvsjakxf9mu9qewqlfnj5z",
+            // Random test key (all zeros would be edge case)
+            "npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqsclp2ue",
+        ];
+
+        for npub in &npubs {
+            let hex = npub_to_hex(npub);
+            assert_eq!(hex.len(), 64, "npub {} decoded to {} hex chars", npub, hex.len());
+
+            let encoded_json = encode_raw_base_n(&hex, "latin", "default", "", 0);
+            let enc: serde_json::Value = serde_json::from_str(&encoded_json).unwrap();
+            assert!(enc.get("error").is_none(), "encode error for {}: {}", npub, encoded_json);
+
+            let text = enc["encoded_text"].as_str().unwrap();
+            let words: Vec<&str> = text.split_whitespace().collect();
+            eprintln!("{}: {} words -> {}", npub, words.len(), text);
+
+            // Roundtrip
+            let decoded_json = decode_raw_base_n(text, "latin", "default", 32);
+            let dec: serde_json::Value = serde_json::from_str(&decoded_json).unwrap();
+            assert!(dec.get("error").is_none(), "decode error for {}: {}", npub, decoded_json);
+            assert_eq!(
+                dec["decoded_hex"].as_str().unwrap(), hex,
+                "roundtrip failed for {}", npub
+            );
+        }
     }
 
     #[test]
@@ -1531,4 +1599,5 @@ mod tests {
             enc["stats"]["total_words"].as_u64().unwrap()
         );
     }
+
 }
