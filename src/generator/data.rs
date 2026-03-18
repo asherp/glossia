@@ -236,44 +236,51 @@ fn load_or_build_payload_cache(language: &str, wordlist: &str) -> Result<Arc<Pay
         }
     };
 
-    // Parse with serde_yaml::Value to handle mixed types: f64 weights (N: 1.0)
-    // alongside string metadata (srgb: "#440255") and other non-POS fields.
-    // Only f64 values that parse as valid POS tags are used; everything else is ignored.
+    // Parse with serde_yaml::Value to preserve YAML key order.
+    // Word ordering in the YAML file is authoritative for codec indices.
+    // serde_yaml 0.9 Mapping uses IndexMap internally, so iteration order = file order.
     use serde_yaml::Value;
-    let yaml_data: HashMap<String, HashMap<String, Value>> = serde_yaml::from_str(&yaml_content)
+    let yaml_value: Value = serde_yaml::from_str(&yaml_content)
         .map_err(|e| format!("Failed to parse YAML: {}", e))?;
+
+    let mapping = yaml_value.as_mapping()
+        .ok_or_else(|| "Payload YAML is not a mapping".to_string())?;
 
     // Load language-specific POS tag mappings (small file; only used when building cache).
     let pos_mappings = load_pos_mappings(language);
 
-    let mut words: Vec<String> = Vec::with_capacity(yaml_data.len());
-    let mut pos_mapping: HashMap<String, Vec<Pos>> = HashMap::with_capacity(yaml_data.len());
+    let mut words: Vec<String> = Vec::with_capacity(mapping.len());
+    let mut pos_mapping: HashMap<String, Vec<Pos>> = HashMap::with_capacity(mapping.len());
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::with_capacity(mapping.len());
 
-    for (word, pos_weights) in yaml_data {
-        let word_lower = word.to_lowercase();
-        if !word_lower.is_empty() {
-            words.push(word_lower.clone());
+    for (key, value) in mapping {
+        let word = match key.as_str() {
+            Some(s) => s.to_lowercase(),
+            None => continue,
+        };
+        if word.is_empty() || !seen.insert(word.clone()) {
+            continue;
         }
 
+        words.push(word.clone());
+
         let mut pos_tags = Vec::new();
-        for (pos_str, value) in pos_weights {
-            // Only process numeric values (POS weights); skip strings and other types
-            if let Some(weight) = value.as_f64() {
-                if weight > 0.0 {
-                    if let Some(pos) = parse_pos_tag(&pos_str, &pos_mappings) {
-                        pos_tags.push(pos);
+        if let Some(pos_map) = value.as_mapping() {
+            for (pos_key, pos_val) in pos_map {
+                if let (Some(pos_str), Some(weight)) = (pos_key.as_str(), pos_val.as_f64()) {
+                    if weight > 0.0 {
+                        if let Some(pos) = parse_pos_tag(pos_str, &pos_mappings) {
+                            pos_tags.push(pos);
+                        }
                     }
                 }
             }
         }
 
-        if !word_lower.is_empty() && !pos_tags.is_empty() {
-            pos_mapping.insert(word_lower, pos_tags);
+        if !pos_tags.is_empty() {
+            pos_mapping.insert(word, pos_tags);
         }
     }
-
-    words.sort();
-    words.dedup();
 
     let data = PayloadCacheData { words, pos_mapping };
 
@@ -468,14 +475,25 @@ pub fn load_payload_words_from_embedded(language: &str) -> Result<Vec<String>, S
     load_payload_words_from_yaml_content(payload_yaml)
 }
 
-/// Load payload words from YAML content string (extracts keys).
+/// Load payload words from YAML content string (extracts keys in file order).
 pub fn load_payload_words_from_yaml_content(yaml_content: &str) -> Result<Vec<String>, String> {
     use serde_yaml::Value;
-    let yaml_data: HashMap<String, HashMap<String, Value>> = serde_yaml::from_str(yaml_content)
+    let yaml_value: Value = serde_yaml::from_str(yaml_content)
         .map_err(|e| format!("Failed to parse YAML: {}", e))?;
 
-    let mut words: Vec<String> = yaml_data.keys().cloned().collect();
-    words.sort();
+    let mapping = yaml_value.as_mapping()
+        .ok_or_else(|| "Payload YAML is not a mapping".to_string())?;
+
+    let mut words: Vec<String> = Vec::with_capacity(mapping.len());
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::with_capacity(mapping.len());
+    for (key, _) in mapping {
+        if let Some(s) = key.as_str() {
+            let word = s.to_lowercase();
+            if !word.is_empty() && seen.insert(word.clone()) {
+                words.push(word);
+            }
+        }
+    }
     Ok(words)
 }
 

@@ -2977,8 +2977,10 @@ mod tests {
     #[test]
     fn test_english_no_leakage_into_latin() {
         // Generate Latin text and verify no English function words appear
+        // Note: "is" is excluded because it's a valid Latin pronoun (cover word).
+        // "a" is excluded because it's a valid Latin preposition.
         let english_function_words: HashSet<&str> = [
-            "the", "an", "is", "are", "does", "do", "a",
+            "the", "an", "are", "does", "do",
         ].iter().copied().collect();
 
         for seed in [42u64, 123, 999, 7, 2024] {

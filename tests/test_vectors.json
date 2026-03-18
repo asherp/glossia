@@ -197,7 +197,7 @@
       {
         "id": "detect-latin-default",
         "description": "Latin prose — should detect latin/default, not english",
-        "input_prose": "Tu abago e  eo. Is reapse abacino  tu.",
+        "input_prose": "Aca  e  contritio.",
         "expected_best_match": { "language": "latin", "wordlist": "default" }
       },
       {
@@ -297,7 +297,7 @@
       {
         "id": "v1.0-cafe-latin",
         "pinned_since": "1.0.0",
-        "encoded_prose": "Tu abago e  eo. Is reapse abacino  tu.",
+        "encoded_prose": "Aca  e  contritio.",
         "decode_from": { "language": "latin", "wordlist": "default", "dialect": "default" },
         "expected_decoded": { "value": "cafe", "format": "hex" }
       },
