@@ -13,6 +13,7 @@ use super::spline::CubicSpline;
 ///   - U1, U2: smoothly varying normal-plane basis vectors
 #[derive(Debug, Clone)]
 pub struct BishopFrame {
+    #[allow(dead_code)]
     s_samples: Vec<f64>,
     t_splines: [CubicSpline; 3],
     u1_splines: [CubicSpline; 3],

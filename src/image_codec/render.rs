@@ -14,6 +14,7 @@ use image::{RgbImage, Rgb};
 use super::color::{Vec3, Lab, Srgb, lab_to_srgb};
 use super::curve::PaletteCurve;
 use super::frame::BishopFrame;
+#[cfg(any(feature = "native", test))]
 use super::constellation::EPSILON;
 use super::capacity::build_encoder;
 use super::codec;

@@ -26,6 +26,7 @@ pub struct ScaleDefinition {
 
 /// The 12 chromatic pitch class names, using flats to match payload.yaml notation.
 /// Index = pitch class number (C=0, Db=1, ..., B=11).
+#[cfg(test)]
 const PITCH_CLASS_NAMES: [&str; 12] = [
     "C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B",
 ];

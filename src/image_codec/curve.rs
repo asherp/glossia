@@ -18,6 +18,7 @@ pub struct PaletteCurve {
     /// Arc-length values at each sample point (monotonically increasing).
     s_table: Vec<f64>,
     /// Raw parameter u at each sample point.
+    #[allow(dead_code)]
     u_table: Vec<f64>,
     /// Spline from s -> u for arc-length reparameterization.
     s_to_u: CubicSpline,

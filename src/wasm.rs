@@ -1002,9 +1002,8 @@ fn encode_image_banner_inner(
 ) -> Result<String, String> {
     use crate::image_codec::render::viridis_approx_curve;
     use crate::image_codec::frame::BishopFrame;
-    use crate::image_codec::capacity::{derive_config_table, select_encoding_params};
+    use crate::image_codec::capacity::select_encoding_params;
     use crate::image_codec::banner::encode_banner;
-    use crate::image_codec::color::lab_to_srgb;
 
     // Parse hex payload
     let payload = parse_hex_bytes(payload_hex)?;
@@ -1038,8 +1037,7 @@ fn render_banner_svg_from_encoded(
     width: f64,
     height: f64,
 ) -> String {
-    use crate::image_codec::voronoi::{voronoi_cells, Point};
-    use crate::image_codec::color::lab_to_srgb;
+    use crate::image_codec::voronoi::voronoi_cells;
 
     let n = encoded.seeds.len();
 

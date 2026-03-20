@@ -53,6 +53,7 @@ pub struct Lexicon {
     /// Lowercased payload words (for filtering / repetition logic).
     payload_set: HashSet<String>,
     /// Lowercased full wordlist set (for collision checks when inflecting cover words).
+    #[allow(dead_code)]
     pub(crate) wordlist_set: HashSet<String>,
     /// Cover words indexed by (POS, refinement_tag) for grammar-driven morphology.
     pub(crate) refined_cover: HashMap<(Pos, String), Vec<String>>,

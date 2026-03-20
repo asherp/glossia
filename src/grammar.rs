@@ -24,6 +24,7 @@ pub struct Grammar {
     pub(crate) rules: HashMap<String, GrammarRule>,
     // Type-driven grammar configuration (new implementation)
     pub(crate) language_config: Option<LanguageConfig>,
+    #[allow(dead_code)]
     pub(crate) dialect: Option<String>,
     /// Separator between consecutive payload words in the output.
     /// Default: " " (space). CS languages use "" for character concatenation.
