@@ -53,7 +53,7 @@ pub struct Lexicon {
     /// Lowercased payload words (for filtering / repetition logic).
     payload_set: HashSet<String>,
     /// Lowercased full wordlist set (for collision checks when inflecting cover words).
-    pub(crate) wordlist_set: HashSet<String>,
+    pub(crate) _wordlist_set: HashSet<String>,
     /// Cover words indexed by (POS, refinement_tag) for grammar-driven morphology.
     pub(crate) refined_cover: HashMap<(Pos, String), Vec<String>>,
     /// Payload words indexed by refinement tag for type-level validation.
@@ -69,7 +69,7 @@ impl Lexicon {
         Self {
             by_pos: HashMap::new(),
             payload_set,
-            wordlist_set,
+            _wordlist_set: wordlist_set,
             refined_cover: HashMap::new(),
             refined_payload: HashMap::new(),
         }

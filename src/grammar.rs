@@ -24,7 +24,7 @@ pub struct Grammar {
     pub(crate) rules: HashMap<String, GrammarRule>,
     // Type-driven grammar configuration (new implementation)
     pub(crate) language_config: Option<LanguageConfig>,
-    pub(crate) dialect: Option<String>,
+    pub(crate) _dialect: Option<String>,
     /// Separator between consecutive payload words in the output.
     /// Default: " " (space). CS languages use "" for character concatenation.
     /// This is the **payload grammar**: how the payload is formatted within the
@@ -747,7 +747,7 @@ impl Grammar {
                     return Ok(Grammar {
                         rules,
                         language_config: Some(language_config),
-                        dialect: Some(dialect.to_string()),
+                        _dialect: Some(dialect.to_string()),
                         payload_separator,
                         dot_is_punctuation,
                         payload_line_width,
@@ -780,7 +780,7 @@ impl Grammar {
                 return Ok(Grammar {
                     rules,
                     language_config: Some(language_config),
-                    dialect: Some(dialect.to_string()),
+                    _dialect: Some(dialect.to_string()),
                     payload_separator,
                     dot_is_punctuation,
                     payload_line_width,
@@ -804,7 +804,7 @@ impl Grammar {
         Ok(Grammar {
             rules,
             language_config: None,
-            dialect: Some("body".to_string()),
+            _dialect: Some("body".to_string()),
             payload_separator,
             dot_is_punctuation,
             payload_line_width,

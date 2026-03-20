@@ -588,7 +588,6 @@ fn scan_languages_dir(
 
     for rel_from_repo in file_list {
         // rel_from_repo is like "languages/latin/payload.yaml"
-        let path = rel_from_repo.clone();
         let rel_path = match rel_from_repo.strip_prefix("languages") {
             Ok(r) => r.to_path_buf(),
             Err(_) => continue,

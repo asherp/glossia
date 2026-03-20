@@ -13,7 +13,7 @@ use super::spline::CubicSpline;
 ///   - U1, U2: smoothly varying normal-plane basis vectors
 #[derive(Debug, Clone)]
 pub struct BishopFrame {
-    s_samples: Vec<f64>,
+    _s_samples: Vec<f64>,
     t_splines: [CubicSpline; 3],
     u1_splines: [CubicSpline; 3],
     u2_splines: [CubicSpline; 3],
@@ -79,7 +79,7 @@ impl BishopFrame {
         let u2_splines = build_component_splines(&s_samples, &u2);
 
         BishopFrame {
-            s_samples,
+            _s_samples: s_samples,
             t_splines,
             u1_splines,
             u2_splines,
