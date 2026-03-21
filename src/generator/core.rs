@@ -855,9 +855,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
         let mut current_payload_i = 0;
         let mut prev_words_strings: Vec<String> = Vec::new(); // Store owned strings
         let mut sentence_count = 0;
-        const MAX_SENTENCES: usize = 100; // Safety limit to prevent infinite loops
-        
-        while current_payload_i < payload.len() && sentence_count < MAX_SENTENCES {
+        // Dynamic limit: at worst 1 payload word per sentence, plus buffer for rejected sentences
+        let max_sentences = payload.len().max(100) + 50;
+
+        while current_payload_i < payload.len() && sentence_count < max_sentences {
             sentence_count += 1;
             
             // Get the next payload word's POS for start_symbol selection
@@ -1116,8 +1117,9 @@ pub fn generate_text_with_original_payload<R: Rng>(
         }
         
         let mut sentence_count = 0;
-        const MAX_SENTENCES: usize = 200; // Safety limit to prevent infinite loops
-        while payload_i < payload.len() && sentence_count < MAX_SENTENCES {
+        // Dynamic limit: at worst 1 payload word per sentence, plus buffer for rejected sentences
+        let max_sentences = payload.len().max(200) + 50;
+        while payload_i < payload.len() && sentence_count < max_sentences {
             sentence_count += 1;
         // Make each sentence size adapt to remaining needs.
         let remaining_payload = payload.len().saturating_sub(payload_i);
@@ -1502,9 +1504,10 @@ fn generate_text_merkle_segmented<R: Rng>(
     let mut words: Vec<String> = Vec::new();
     let mut segment_start = 0;
     let mut sentence_count = 0;
-    const MAX_SENTENCES: usize = 200;
-    
-    while segment_start < payload.len() && sentence_count < MAX_SENTENCES {
+    // Dynamic limit: at worst 1 payload word per sentence, plus buffer for rejected sentences
+    let max_sentences = payload.len().max(200) + 50;
+
+    while segment_start < payload.len() && sentence_count < max_sentences {
         sentence_count += 1;
         
         // Find next segment: collect words until we find 1-2 payload words
