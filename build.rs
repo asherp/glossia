@@ -210,34 +210,31 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
     code.push_str("            _ => None,\n");
     code.push_str("        }\n");
     code.push_str("    } else {\n");
-    code.push_str("        // Debug build: only English files embedded\n");
+    code.push_str("        // Debug build: English and Latin files embedded\n");
     code.push_str("        match path {\n");
 
-    // Debug build: embed all English files (payload, cover, grammar, other)
-    if let Some(files) = languages.get("english") {
-        if let Some(ref payload) = files.payload {
-            let rel_path = payload.strip_prefix(languages_dir).unwrap();
-            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
-            code.push_str(&format!(
-                "            \"{}\" => Some(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/languages/{}\"))),\n",
-                rel_str, rel_str
-            ));
-        }
-        if let Some(ref cover) = files.cover {
-            let rel_path = cover.strip_prefix(languages_dir).unwrap();
-            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
-            code.push_str(&format!(
-                "            \"{}\" => Some(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/languages/{}\"))),\n",
-                rel_str, rel_str
-            ));
-        }
-        for (_name, path) in &files.other {
-            let rel_path = path.strip_prefix(languages_dir).unwrap();
-            let rel_str = rel_path.to_string_lossy().replace('\\', "/");
-            code.push_str(&format!(
-                "            \"{}\" => Some(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/languages/{}\"))),\n",
-                rel_str, rel_str
-            ));
+    // Debug build: embed English and Latin files (payload, cover, grammar, pos_mapping, dialect, other)
+    for debug_lang in &["english", "latin"] {
+        if let Some(files) = languages.get(*debug_lang) {
+            for file_path in [&files.payload, &files.cover, &files.grammar, &files.pos_mapping, &files.dialect]
+                .iter()
+                .filter_map(|f| f.as_ref())
+            {
+                let rel_path = file_path.strip_prefix(languages_dir).unwrap();
+                let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+                code.push_str(&format!(
+                    "            \"{}\" => Some(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/languages/{}\"))),\n",
+                    rel_str, rel_str
+                ));
+            }
+            for (_name, path) in &files.other {
+                let rel_path = path.strip_prefix(languages_dir).unwrap();
+                let rel_str = rel_path.to_string_lossy().replace('\\', "/");
+                code.push_str(&format!(
+                    "            \"{}\" => Some(include_str!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/languages/{}\"))),\n",
+                    rel_str, rel_str
+                ));
+            }
         }
     }
     
@@ -249,12 +246,12 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
     // Generate has_embedded_files function
     code.push_str("/// Check if a language has embedded files (packaged with the binary)\n");
     code.push_str("/// In release builds, all languages with YAML files are embedded.\n");
-    code.push_str("/// In debug builds, only English is embedded (for faster iteration).\n");
+    code.push_str("/// In debug builds, English and Latin are embedded.\n");
     code.push_str("pub fn has_embedded_files(language: &str) -> bool {\n");
     code.push_str("    if cfg!(not(debug_assertions)) {\n");
     code.push_str("        // Release build: embed all languages that have payload.yaml\n");
     code.push_str("        matches!(language, ");
-    
+
     // Already sorted since languages is a BTreeMap
     let lang_list: Vec<String> = languages.iter()
         .filter(|(_, files)| files.payload.is_some())
@@ -263,8 +260,8 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
     code.push_str(&lang_list.join(" | "));
     code.push_str(")\n");
     code.push_str("    } else {\n");
-    code.push_str("        // Debug build: only English embedded (faster rebuilds during development)\n");
-    code.push_str("        matches!(language, \"english\")\n");
+    code.push_str("        // Debug build: English and Latin embedded (Latin needed for nostr-mail)\n");
+    code.push_str("        matches!(language, \"english\" | \"latin\")\n");
     code.push_str("    }\n");
     code.push_str("}\n\n");
     
