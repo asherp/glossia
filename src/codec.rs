@@ -52,6 +52,8 @@ pub enum DecodeError {
     EmptyWordlist,
     /// Decoded bytes are not valid UTF-8.
     InvalidUtf8,
+    /// The encoded payload is structurally invalid (e.g. inconsistent padding, misaligned bitstream).
+    MalformedPayload(String),
 }
 
 impl fmt::Display for DecodeError {
@@ -61,6 +63,7 @@ impl fmt::Display for DecodeError {
             DecodeError::EmptyInput => write!(f, "empty input"),
             DecodeError::EmptyWordlist => write!(f, "empty wordlist"),
             DecodeError::InvalidUtf8 => write!(f, "decoded bytes are not valid UTF-8"),
+            DecodeError::MalformedPayload(msg) => write!(f, "malformed payload: {}", msg),
         }
     }
 }
@@ -399,6 +402,12 @@ fn decode_bitpack(words: &[String], wordlist: &WordlistTree) -> Result<Vec<u8>, 
 
     let total_bits = data_words.len() * bits_per_word;
     let data_bits = total_bits - pad_bits;
+    if data_bits % 8 != 0 {
+        return Err(DecodeError::MalformedPayload(format!(
+            "decode_bitpack: data_bits={} not byte-aligned (pad_bits={}, total_bits={})",
+            data_bits, pad_bits, total_bits
+        )));
+    }
     let n_bytes = data_bits / 8;
 
     // Collect all indices
