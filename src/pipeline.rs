@@ -22,6 +22,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -37,6 +38,29 @@ use crate::generator::core::generate_text_with_original_payload;
 use crate::grammar::{Grammar, DialectConfig};
 use crate::merkle::WordlistTree;
 use crate::types::Pos;
+
+// ─── WordlistTree cache ─────────────────────────────────────────────────
+// WordlistTree::new(words) walks every word in the payload list (5-10k
+// entries for Latin), lowercases each (one allocation per word), and
+// inserts into a HashMap — ~tens of ms for big wordlists. Decode-heavy
+// callers (email pipeline, message verifiers) hit this on every block
+// and were spending the bulk of decrypt time rebuilding the same index.
+// Cache the built tree per (language, wordlist) so it's paid exactly
+// once per process.
+static PAYLOAD_TREE_CACHE: OnceLock<Mutex<HashMap<String, Arc<WordlistTree>>>> = OnceLock::new();
+
+fn get_cached_payload_tree(language: &str, wordlist: &str) -> Result<Arc<WordlistTree>, PipelineError> {
+    let key = format!("{}:{}", language, wordlist);
+    let cache = PAYLOAD_TREE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(tree) = cache.lock().unwrap().get(&key) {
+        return Ok(tree.clone());
+    }
+    let words = load_payload_words_for_wordlist(language, wordlist)
+        .map_err(|e| PipelineError::DecodeError(e))?;
+    let tree = Arc::new(WordlistTree::new(words));
+    cache.lock().unwrap().insert(key, tree.clone());
+    Ok(tree)
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // Types
@@ -1709,10 +1733,8 @@ fn decode_from_language_with_payload_lang(
         wordlist
     };
 
-    // 1. Load payload wordlist.
-    let payload_words = load_payload_words_for_wordlist(payload_lang, wordlist)
-        .map_err(|e| PipelineError::DecodeError(e))?;
-    let payload_tree = WordlistTree::new(payload_words.clone());
+    // 1. Load payload wordlist (cached — see get_cached_payload_tree).
+    let payload_tree = get_cached_payload_tree(payload_lang, wordlist)?;
 
     // 2. Grammar tells us how payload words are separated.
     let grammar = Grammar::from_language_dialect(grammar_lang, grammar_dialect)
@@ -1737,7 +1759,7 @@ fn decode_from_language_with_payload_lang(
     // 3. Extract payload words from prose.
     let extracted: Vec<String> = if payload_separator.is_empty() {
         // Concatenated payload (CS grammar): chars from pure-payload blocks.
-        let payload_set: HashSet<String> = payload_words.iter()
+        let payload_set: HashSet<String> = payload_tree.words().iter()
             .map(|w| w.to_lowercase())
             .collect();
         text.split_whitespace()
@@ -1775,7 +1797,7 @@ fn decode_from_language_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    let bytes = codec::decode_base_n(&extracted, &payload_tree, grammar.codec())
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, grammar.codec())
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
     match String::from_utf8(bytes.clone()) {
         Ok(s) => Ok(s),
@@ -1814,10 +1836,8 @@ fn decode_from_language_rich_with_payload_lang(
         wordlist
     };
 
-    // 1. Load payload wordlist.
-    let payload_words = load_payload_words_for_wordlist(payload_lang, wordlist)
-        .map_err(|e| PipelineError::DecodeError(e))?;
-    let payload_tree = WordlistTree::new(payload_words.clone());
+    // 1. Load payload wordlist (cached — see get_cached_payload_tree).
+    let payload_tree = get_cached_payload_tree(payload_lang, wordlist)?;
 
     // 2. Grammar tells us how payload words are separated.
     let grammar = Grammar::from_language_dialect(grammar_lang, grammar_dialect)
@@ -1838,7 +1858,7 @@ fn decode_from_language_rich_with_payload_lang(
 
     // 3. Extract payload words from prose.
     let extracted: Vec<String> = if payload_separator.is_empty() {
-        let payload_set: HashSet<String> = payload_words.iter()
+        let payload_set: HashSet<String> = payload_tree.words().iter()
             .map(|w| w.to_lowercase())
             .collect();
         text.split_whitespace()
@@ -1875,7 +1895,7 @@ fn decode_from_language_rich_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    let bytes = codec::decode_base_n(&extracted, &payload_tree, grammar.codec())
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, grammar.codec())
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
     let decoded = match String::from_utf8(bytes.clone()) {
         Ok(s) => s,
