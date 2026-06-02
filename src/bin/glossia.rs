@@ -3230,7 +3230,7 @@ mod tests {
     #[test]
     fn test_meta_payload_words_load() {
         let words = load_payload_words("meta").unwrap();
-        assert_eq!(words.len(), 17, "Meta should have exactly 17 payload words");
+        assert_eq!(words.len(), 18, "Meta should have exactly 18 payload words");
         // Spot-check some dialect identifiers
         assert!(words.contains(&"latin".to_string()), "Should contain 'latin'");
         assert!(words.contains(&"english".to_string()), "Should contain 'english'");
