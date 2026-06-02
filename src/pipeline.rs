@@ -49,7 +49,17 @@ use crate::types::Pos;
 // once per process.
 static PAYLOAD_TREE_CACHE: OnceLock<Mutex<HashMap<String, Arc<WordlistTree>>>> = OnceLock::new();
 
-fn get_cached_payload_tree(language: &str, wordlist: &str) -> Result<Arc<WordlistTree>, PipelineError> {
+/// Return a process-wide cached payload [`WordlistTree`] for `(language, wordlist)`.
+///
+/// Building a `WordlistTree` is O(n) over the payload wordlist (tens of ms for
+/// large lists like English `lemmas`/`ngram` at 2¹⁷ words). This getter is
+/// backed by a global cache, so the build cost is paid at most once per
+/// `(language, wordlist)` per process; subsequent calls return a cheap
+/// `Arc` clone of the shared tree.
+///
+/// Prefer this over [`crate::generator::data::load_payload_tree`], which
+/// rebuilds the tree on every call.
+pub fn cached_payload_tree(language: &str, wordlist: &str) -> Result<Arc<WordlistTree>, PipelineError> {
     let key = format!("{}:{}", language, wordlist);
     let cache = PAYLOAD_TREE_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
     if let Some(tree) = cache.lock().unwrap().get(&key) {
@@ -1733,8 +1743,8 @@ fn decode_from_language_with_payload_lang(
         wordlist
     };
 
-    // 1. Load payload wordlist (cached — see get_cached_payload_tree).
-    let payload_tree = get_cached_payload_tree(payload_lang, wordlist)?;
+    // 1. Load payload wordlist (cached — see cached_payload_tree).
+    let payload_tree = cached_payload_tree(payload_lang, wordlist)?;
 
     // 2. Grammar tells us how payload words are separated.
     let grammar = Grammar::from_language_dialect(grammar_lang, grammar_dialect)
@@ -1836,8 +1846,8 @@ fn decode_from_language_rich_with_payload_lang(
         wordlist
     };
 
-    // 1. Load payload wordlist (cached — see get_cached_payload_tree).
-    let payload_tree = get_cached_payload_tree(payload_lang, wordlist)?;
+    // 1. Load payload wordlist (cached — see cached_payload_tree).
+    let payload_tree = cached_payload_tree(payload_lang, wordlist)?;
 
     // 2. Grammar tells us how payload words are separated.
     let grammar = Grammar::from_language_dialect(grammar_lang, grammar_dialect)
@@ -2066,6 +2076,17 @@ fn encode_crypto(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── cached_payload_tree() ────────────────────────────────────────
+
+    #[test]
+    fn test_cached_payload_tree_returns_shared_instance() {
+        let wl = crate::generator::data::default_wordlist("english");
+        let a = cached_payload_tree("english", wl).unwrap();
+        let b = cached_payload_tree("english", wl).unwrap();
+        // Second call must hit the cache and hand back the same Arc.
+        assert!(Arc::ptr_eq(&a, &b));
+    }
 
     // ── from_meta() parsing ──────────────────────────────────────────
 
