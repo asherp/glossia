@@ -52,7 +52,7 @@ pub use codec::{
 };
 
 // Re-export pipeline types and functions
-pub use pipeline::{Pipeline, Endpoint, PipelineError, encode_into_language, decode_from_language};
+pub use pipeline::{Pipeline, Endpoint, PipelineError, encode_into_language, decode_from_language, cached_payload_tree};
 
 #[cfg(feature = "native")]
 use nlprule::{Tokenizer, Rules};
