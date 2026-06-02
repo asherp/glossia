@@ -766,6 +766,22 @@ fn find_languages_dir() -> Option<String> {
         return Some("languages".to_string());
     }
 
+    // Walk up parent directories from the current directory. This handles being
+    // run from a workspace member subdirectory (e.g. `cargo test -p glossia-cli`,
+    // whose test binary runs with CWD set to the member crate root) while the
+    // `languages/` folder lives at the workspace root one or more levels up.
+    if let Ok(mut dir) = std::env::current_dir() {
+        loop {
+            let candidate = dir.join("languages");
+            if candidate.join("english/payload_bip39.yaml").exists() {
+                return Some(candidate.to_string_lossy().to_string());
+            }
+            if !dir.pop() {
+                break;
+            }
+        }
+    }
+
     // Try relative to the binary location (for installed binaries)
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
@@ -839,7 +855,7 @@ pub fn get_wordlist_path(language: &str, wordlist: &str) -> Result<String, Strin
 
 /// Find a language file (payload.yaml, cover.yaml, etc.) recursively
 #[cfg(not(target_arch = "wasm32"))]
-fn find_language_file(language: &str, filename: &str) -> Option<String> {
+pub(crate) fn find_language_file(language: &str, filename: &str) -> Option<String> {
     let languages_dir = find_languages_dir()?;
 
     // First try exact path (supports subdirectories like "math/primes")

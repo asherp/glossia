@@ -246,8 +246,8 @@ impl DialectConfig {
 
         #[cfg(not(target_arch = "wasm32"))]
         let yaml_content = yaml_content.or_else(|| {
-            let path = format!("languages/{}/grammar.yaml", language);
-            std::fs::read_to_string(&path).ok()
+            crate::generator::data::find_language_file(language, "grammar.yaml")
+                .and_then(|path| std::fs::read_to_string(&path).ok())
         });
 
         if let Some(content) = yaml_content {
@@ -329,8 +329,9 @@ impl DialectConfig {
         // Fallback: try reading from filesystem (native only)
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
-            if let Ok(content) = std::fs::read_to_string(&grammar_yaml_path) {
+            if let Some(content) = crate::generator::data::find_language_file(language, "grammar.yaml")
+                .and_then(|path| std::fs::read_to_string(&path).ok())
+            {
                 if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
                     if let Some(grammar) = doc.get("grammar") {
                         if let Some(dialects) = grammar.get("dialects") {
@@ -395,8 +396,9 @@ impl DialectConfig {
         // Fallback: try reading from filesystem (native only)
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
-            if let Ok(content) = std::fs::read_to_string(&grammar_yaml_path) {
+            if let Some(content) = crate::generator::data::find_language_file(language, "grammar.yaml")
+                .and_then(|path| std::fs::read_to_string(&path).ok())
+            {
                 if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
                     if let Some(grammar) = doc.get("grammar") {
                         if let Some(dialects) = grammar.get("dialects") {
@@ -765,12 +767,7 @@ impl Grammar {
         // Fall back to filesystem lookup (native only)
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let grammar_yaml_path = format!("languages/{}/grammar.yaml", language);
-            let grammar_yaml_path = if std::path::Path::new(&grammar_yaml_path).exists() {
-                Some(grammar_yaml_path)
-            } else {
-                find_grammar_file_recursive(language, "grammar.yaml")
-            };
+            let grammar_yaml_path = crate::generator::data::find_language_file(language, "grammar.yaml");
 
             if let Some(path) = grammar_yaml_path {
                 let grammar_yaml = std::fs::read_to_string(&path)?;
@@ -2147,72 +2144,6 @@ mod tests {
     }
 }
 
-/// Recursively search for grammar files matching the language name
-#[cfg(not(target_arch = "wasm32"))]
-fn find_grammar_file_recursive(language: &str, filename: &str) -> Option<String> {
-    // Try current directory first
-    let languages_dir = "languages";
-    if !std::path::Path::new(languages_dir).exists() {
-        return None;
-    }
-    
-    // Try exact path first
-    let exact_path = format!("{}/{}/{}", languages_dir, language, filename);
-    if std::path::Path::new(&exact_path).exists() {
-        return Some(exact_path);
-    }
-    
-    // Recursively search
-    let languages_path = std::path::Path::new(languages_dir);
-    if let Ok(entries) = std::fs::read_dir(languages_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                if let Some(found) = find_grammar_file_recursive_helper(&path, language, filename) {
-                    return Some(found);
-                }
-            }
-        }
-    }
-    
-    None
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn find_grammar_file_recursive_helper(dir: &std::path::Path, language: &str, filename: &str) -> Option<String> {
-    // Check if this directory matches the language name (last component)
-    if let Some(dir_name) = dir.file_name().and_then(|n| n.to_str()) {
-        // If language is just the directory name (e.g., "primes" matches "primes/")
-        if dir_name == language {
-            let file_path = dir.join(filename);
-            if file_path.exists() {
-                return Some(file_path.to_string_lossy().to_string());
-            }
-        }
-        
-        // If language contains slashes (e.g., "math/primes"), check if path ends with it
-        if language.contains('/') {
-            let lang_path = std::path::Path::new(language);
-            if dir.ends_with(lang_path) {
-                let file_path = dir.join(filename);
-                if file_path.exists() {
-                    return Some(file_path.to_string_lossy().to_string());
-                }
-            }
-        }
-    }
-    
-    // Recursively search subdirectories
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                if let Some(found) = find_grammar_file_recursive_helper(&path, language, filename) {
-                    return Some(found);
-                }
-            }
-        }
-    }
-    
-    None
-}
+// Grammar-file resolution (including recursive search for nested languages like
+// "math/primes") is handled by crate::generator::data::find_language_file, which
+// resolves the languages/ directory in a CWD-independent way.

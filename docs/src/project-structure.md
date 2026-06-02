@@ -2,11 +2,31 @@
 
 ## Directory Layout
 
+The repository is a Cargo workspace. The root crate (`glossia`) is the
+library; the `glossia` command-line binary lives in the `glossia-cli` member,
+and developer tooling lives in the `glossia-tools` member. This keeps the
+library (built as `cdylib` + `rlib`) from sharing a target name with the CLI
+binary, which previously broke `cargo test --release` for downstream consumers
+([cargo#6313](https://github.com/rust-lang/cargo/issues/6313)).
+
 ```
 glossia/
-├── Cargo.toml              # Package configuration
+├── Cargo.toml              # Workspace root + glossia library package
 ├── build.rs                # Build script: language embedding & validation
 ├── CLAUDE.md               # Project instructions for Claude Code agents
+│
+├── glossia-cli/            # `glossia` CLI binary (package: glossia-cli)
+│   ├── Cargo.toml
+│   └── src/main.rs         # Main CLI entry point
+│
+├── glossia-tools/          # Developer tooling (package: glossia-tools)
+│   ├── Cargo.toml
+│   └── src/bin/
+│       ├── get_top_words.rs    # Word frequency analysis tool
+│       ├── tag_words.rs        # POS tagging using nlprule
+│       ├── cleanup_weights.rs  # Remove zero-weighted productions
+│       ├── compare_pos_weights.rs  # Compare weight distributions
+│       └── validate_pos_weights.rs # Validate POS weight files
 │
 ├── src/
 │   ├── lib.rs              # Library root: re-exports, GrammarChecker
@@ -27,13 +47,7 @@ glossia/
 │   │   ├── cache.rs        # SequenceCache: precomputed POS sequences for all k values
 │   │   └── utils.rs        # Helpers: normalize_token, wrap_payload, word_wrap
 │   │
-│   └── bin/
-│       ├── glossia.rs          # Main CLI binary
-│       ├── get_top_words.rs    # Word frequency analysis tool
-│       ├── tag_words.rs        # POS tagging using nlprule
-│       ├── cleanup_weights.rs  # Remove zero-weighted productions
-│       ├── compare_pos_weights.rs  # Compare weight distributions
-│       └── validate_pos_weights.rs # Validate POS weight files
+│   └── (library modules only — binaries live in glossia-cli / glossia-tools)
 │
 ├── languages/
 │   ├── english/
