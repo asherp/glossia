@@ -7,16 +7,21 @@
 git clone https://github.com/asherp/glossia.git
 cd glossia
 
-# Install the binary
-cargo install --path .
+# Install the binary (the CLI lives in the glossia-cli crate)
+cargo install --path glossia-cli
 ```
 
 This installs the `glossia` binary to `~/.cargo/bin/glossia` (or `$CARGO_HOME/bin/glossia` if set). Make sure this directory is in your `PATH`.
 
+> **Note:** The repository is a Cargo workspace. The `glossia` crate at the
+> root is the library; the `glossia` command-line binary is provided by the
+> `glossia-cli` crate, and the developer tooling (POS tagging, weight
+> validation, etc.) lives in `glossia-tools`.
+
 ## From Git
 
 ```bash
-cargo install --git https://github.com/asherp/glossia.git
+cargo install --git https://github.com/asherp/glossia.git glossia-cli
 ```
 
 ## Verify Installation

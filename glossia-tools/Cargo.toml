@@ -1,0 +1,23 @@
+[package]
+name = "glossia-tools"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Build/dev tooling for glossia: wordlist generation, POS tagging, weight validation"
+publish = false
+
+# Each file in src/bin/ is a separate developer tool binary:
+#   cleanup_weights, tag_words, compare_pos_weights, get_top_words, validate_pos_weights
+
+[dependencies]
+glossia = { path = "..", features = ["native"] }
+anyhow = "1.0"
+bincode = "1.3"
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+clap = { version = "4.4", features = ["derive"] }
+csv = "1.3"
+reqwest = { version = "0.11", features = ["blocking"] }
+rayon = "1.11"
+flate2 = "1.0"

@@ -23,8 +23,8 @@ This tool uses a small, controlled grammar to generate sentences that embed BIP3
 git clone https://github.com/asherp/glossia.git
 cd glossia
 
-# Install the binary
-cargo install --path .
+# Install the binary (the CLI lives in the glossia-cli crate)
+cargo install --path glossia-cli
 ```
 
 This will install the `glossia` binary to `~/.cargo/bin/glossia` (or `$CARGO_HOME/bin/glossia` if set). Make sure this directory is in your `PATH`.
@@ -34,7 +34,7 @@ This will install the `glossia` binary to `~/.cargo/bin/glossia` (or `$CARGO_HOM
 ### Install from Git
 
 ```bash
-cargo install --git https://github.com/asherp/glossia.git
+cargo install --git https://github.com/asherp/glossia.git glossia-cli
 ```
 
 ### Verify Installation
@@ -257,12 +257,20 @@ The English grammar (`languages/english/body.cfg`) is set up so that **VP can op
 
 ## Project Structure
 
-- `src/main.rs`: Main implementation with CFG grammar, lexicon, and generation logic
-- `src/lib.rs`: Library module providing `GrammarChecker` for nlprule integration
+This repository is a Cargo workspace:
+
+- `glossia` (repo root): the library crate (`src/lib.rs`, grammar, generator, codec, merkle, …), built as `cdylib` + `rlib`
+- `glossia-cli/`: the `glossia` command-line binary (`glossia-cli/src/main.rs`)
+- `glossia-tools/`: developer tooling binaries (`cleanup_weights`, `tag_words`, `compare_pos_weights`, `get_top_words`, `validate_pos_weights`)
+
+Key files:
+
+- `glossia-cli/src/main.rs`: CLI entry point with arg parsing and generation/decoding flow
+- `src/lib.rs`: Library root; provides `GrammarChecker` for nlprule integration and re-exports the public API
 - `src/grammar.rs`: Grammar parser and CFG implementation using pest
 - `src/grammar_parser.pest`: Pest grammar definition for parsing CFG files
-- `src/bin/get_top_words.rs`: Word frequency analysis tool for generating word lists
-- `src/bin/tag_words.rs`: POS tagging tool using nlprule
+- `glossia-tools/src/bin/get_top_words.rs`: Word frequency analysis tool for generating word lists
+- `glossia-tools/src/bin/tag_words.rs`: POS tagging tool using nlprule
 - `languages/english/subject.cfg`: CFG grammar definition for subject lines
 - `languages/english/body.cfg`: CFG grammar definition for body text
 - `languages/english/cover_POS.txt`: Cover lexicon with POS tags (format: `word|POS1,POS2`)
