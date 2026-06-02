@@ -34,7 +34,8 @@ pub use generator::{
     load_payload_tree, load_cover_tree, load_cover_word_pos_tags,
     get_embedded_yaml, has_embedded_files, get_available_languages,
     get_available_wordlists,
-    detect_dialect, detect_dialect_best, DialectMatch,
+    detect_dialect, detect_dialect_filtered, detect_dialect_with, detect_dialect_best,
+    DialectMatch, DialectFilter,
     inject_scale_payload,
 };
 #[cfg(not(target_arch = "wasm32"))]
