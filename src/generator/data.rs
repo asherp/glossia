@@ -942,6 +942,123 @@ impl std::fmt::Display for DialectMatch {
     }
 }
 
+/// An allowlist + threshold restricting which dialects [`detect_dialect_with`]
+/// scans.
+///
+/// By default (`DialectFilter::default()` / `DialectFilter::new()`) every
+/// language × wordlist combination is scanned with no hit-rate threshold —
+/// identical to [`detect_dialect`]. Add constraints with the builder methods:
+///
+/// * [`min_hit_rate`](DialectFilter::min_hit_rate) — drop matches below a
+///   `hits / total` ratio (footgun reduction; see issue #14).
+/// * [`allow_language`](DialectFilter::allow_language) — restrict the scan to
+///   whole languages.
+/// * [`allow_wordlist`](DialectFilter::allow_wordlist) — restrict the scan to
+///   specific `(language, wordlist)` pairs.
+///
+/// Allowlist semantics are a **union**: if any language or wordlist constraint
+/// is set, a `(language, wordlist)` pair is scanned when it matches an allowed
+/// whole-language **or** an allowed specific pair. If no allowlist constraint is
+/// set, all pairs are scanned. Restricting the scan up front avoids the binary
+/// searches — and, more importantly, any downstream `WordlistTree` cold-builds —
+/// for excluded lists entirely.
+///
+/// # Example
+///
+/// ```no_run
+/// use glossia::generator::{DialectFilter, detect_dialect_with};
+///
+/// // Only consider Latin's default list and English's bip39 list, and require
+/// // a majority of input words to match.
+/// let filter = DialectFilter::new()
+///     .min_hit_rate(0.5)
+///     .allow_wordlist("latin", "default")
+///     .allow_wordlist("english", "bip39");
+///
+/// let words: Vec<String> = "abandon ability able".split_whitespace()
+///     .map(|s| s.to_string()).collect();
+/// let matches = detect_dialect_with(&words, &filter);
+/// ```
+#[derive(Clone, Debug, Default)]
+pub struct DialectFilter {
+    /// Minimum `hits / total` ratio (0.0..=1.0) a wordlist must reach to be kept.
+    min_hit_rate: f64,
+    /// If non-empty, whole languages that are always scanned.
+    languages: HashSet<String>,
+    /// If non-empty, specific `(language, wordlist)` pairs that are scanned.
+    wordlists: HashSet<(String, String)>,
+}
+
+impl DialectFilter {
+    /// Create an unconstrained filter (scans everything, no threshold).
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Drop matches whose `hit_rate` is below `min_hit_rate` (0.0..=1.0).
+    pub fn min_hit_rate(mut self, min_hit_rate: f64) -> Self {
+        self.min_hit_rate = min_hit_rate;
+        self
+    }
+
+    /// Allow an entire language (all of its wordlists).
+    pub fn allow_language(mut self, language: impl Into<String>) -> Self {
+        self.languages.insert(language.into());
+        self
+    }
+
+    /// Allow several whole languages at once.
+    pub fn allow_languages<I, S>(mut self, languages: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.languages.extend(languages.into_iter().map(Into::into));
+        self
+    }
+
+    /// Allow a specific `(language, wordlist)` pair.
+    pub fn allow_wordlist(
+        mut self,
+        language: impl Into<String>,
+        wordlist: impl Into<String>,
+    ) -> Self {
+        self.wordlists.insert((language.into(), wordlist.into()));
+        self
+    }
+
+    /// Allow several specific `(language, wordlist)` pairs at once.
+    pub fn allow_wordlists<I, L, W>(mut self, wordlists: I) -> Self
+    where
+        I: IntoIterator<Item = (L, W)>,
+        L: Into<String>,
+        W: Into<String>,
+    {
+        self.wordlists
+            .extend(wordlists.into_iter().map(|(l, w)| (l.into(), w.into())));
+        self
+    }
+
+    /// Whether any allowlist constraint (language or wordlist) has been set.
+    fn has_allowlist(&self) -> bool {
+        !self.languages.is_empty() || !self.wordlists.is_empty()
+    }
+
+    /// Whether the given `(language, wordlist)` pair should be scanned.
+    fn allows(&self, language: &str, wordlist: &str) -> bool {
+        if !self.has_allowlist() {
+            return true;
+        }
+        if self.languages.contains(language) {
+            return true;
+        }
+        // Avoid allocating a tuple of owned Strings just to probe the set.
+        self.wordlists
+            .iter()
+            .any(|(l, w)| l == language && w == wordlist)
+    }
+}
+
 /// Binary search for a word in a sorted, newline-delimited string.
 ///
 /// The `sorted_text` parameter is a `&'static str` of words separated by `\n`,
@@ -1010,6 +1127,17 @@ fn binary_search_sorted_words(sorted_text: &str, word: &str) -> bool {
 /// A vector of `DialectMatch` entries sorted best-first. Only entries with
 /// at least one hit are included.
 ///
+/// # Footgun warning
+///
+/// This returns **every** wordlist with at least one hit, so a single
+/// coincidentally-shared word can qualify a very large wordlist as a candidate.
+/// Callers that build a `WordlistTree` per returned candidate (e.g. to attempt
+/// a decode) can pay a large cold-build cost for lists that matched only
+/// incidentally. Either threshold on `hit_rate` / `wordlist_size` before
+/// building per-candidate trees, or use [`detect_dialect_filtered`] /
+/// [`detect_dialect_with`] to drop low-hit-rate matches (and restrict the scan
+/// to an allowlist of languages/wordlists) up front.
+///
 /// # Example
 ///
 /// ```no_run
@@ -1023,6 +1151,79 @@ fn binary_search_sorted_words(sorted_text: &str, word: &str) -> bool {
 /// }
 /// ```
 pub fn detect_dialect(input_words: &[String]) -> Vec<DialectMatch> {
+    detect_dialect_with(input_words, &DialectFilter::new())
+}
+
+/// Like [`detect_dialect`], but drops matches whose `hit_rate` is below
+/// `min_hit_rate`.
+///
+/// This is the footgun-reduction variant: a `min_hit_rate` above `0.0` filters
+/// out wordlists that matched only a handful of coincidental words, so callers
+/// that build a `WordlistTree` per candidate don't pay the cold-build cost for
+/// obviously-spurious large lists. For language/wordlist allowlisting as well,
+/// use [`detect_dialect_with`].
+///
+/// # Arguments
+///
+/// * `input_words` — the words to test (typically extracted from encoded text
+///   by splitting on whitespace and normalizing).
+/// * `min_hit_rate` — minimum `hits / total` ratio (0.0 to 1.0) a wordlist must
+///   reach to be included. `0.0` keeps every wordlist with at least one hit
+///   (identical to [`detect_dialect`]); e.g. `0.5` keeps only wordlists matching
+///   a majority of the input words.
+///
+/// # Returns
+///
+/// A vector of `DialectMatch` entries sorted best-first (most hits → highest
+/// hit rate → smallest wordlist).
+///
+/// # Example
+///
+/// ```no_run
+/// use glossia::generator::detect_dialect_filtered;
+///
+/// let words: Vec<String> = "abandon ability able about above".split_whitespace()
+///     .map(|s| s.to_string()).collect();
+/// // Only keep wordlists matching at least half the input words.
+/// let matches = detect_dialect_filtered(&words, 0.5);
+/// ```
+pub fn detect_dialect_filtered(input_words: &[String], min_hit_rate: f64) -> Vec<DialectMatch> {
+    detect_dialect_with(input_words, &DialectFilter::new().min_hit_rate(min_hit_rate))
+}
+
+/// Detect dialect, restricting the scan with a [`DialectFilter`].
+///
+/// This is the most general entry point: it backs both [`detect_dialect`] (with
+/// an unconstrained filter) and [`detect_dialect_filtered`]. Use it to combine a
+/// `min_hit_rate` threshold with an allowlist of whole languages and/or specific
+/// `(language, wordlist)` pairs — pairs outside the allowlist are skipped before
+/// any binary search, so excluded (and potentially large) lists cost nothing.
+///
+/// # Arguments
+///
+/// * `input_words` — the words to test (typically extracted from encoded text
+///   by splitting on whitespace and normalizing).
+/// * `filter` — the allowlist + hit-rate threshold; see [`DialectFilter`].
+///
+/// # Returns
+///
+/// A vector of `DialectMatch` entries sorted best-first (most hits → highest
+/// hit rate → smallest wordlist).
+///
+/// # Example
+///
+/// ```no_run
+/// use glossia::generator::{DialectFilter, detect_dialect_with};
+///
+/// let filter = DialectFilter::new()
+///     .min_hit_rate(0.5)
+///     .allow_language("latin")
+///     .allow_wordlist("english", "bip39");
+/// let words: Vec<String> = "abandon ability able".split_whitespace()
+///     .map(|s| s.to_string()).collect();
+/// let matches = detect_dialect_with(&words, &filter);
+/// ```
+pub fn detect_dialect_with(input_words: &[String], filter: &DialectFilter) -> Vec<DialectMatch> {
     use crate::grammar::DialectConfig;
 
     if input_words.is_empty() {
@@ -1045,6 +1246,13 @@ pub fn detect_dialect(input_words: &[String]) -> Vec<DialectMatch> {
     for &lang in languages {
         let wordlists = get_available_wordlists(lang);
         for wl_name in &wordlists {
+            // Skip wordlists outside the allowlist before doing any work — this
+            // avoids the binary searches and any downstream WordlistTree builds
+            // for excluded (and potentially very large) lists.
+            if !filter.allows(lang, wl_name) {
+                continue;
+            }
+
             // Every payload wordlist has a precomputed sorted index (built at compile time
             // alongside the disjointness and power-of-two checks). Binary search gives
             // O(log n) per word.
@@ -1061,9 +1269,13 @@ pub fn detect_dialect(input_words: &[String]) -> Vec<DialectMatch> {
             }
 
             if hits > 0 {
+                let hit_rate = hits as f64 / total as f64;
+                if hit_rate < filter.min_hit_rate {
+                    continue;
+                }
+
                 let wordlist_size = language_index::get_payload_word_count(lang, wl_name);
                 let dialects = DialectConfig::available_dialects(lang);
-                let hit_rate = hits as f64 / total as f64;
 
                 results.push(DialectMatch {
                     language: lang.to_string(),
@@ -1253,6 +1465,90 @@ mod tests {
             .collect();
         let matches = detect_dialect(&words);
         assert!(matches.is_empty(), "Nonsense words should return no matches");
+    }
+
+    #[test]
+    fn test_detect_dialect_filtered_drops_low_hit_rate() {
+        // "abandon", "ability", "able" are BIP39 payload words; "xyzzyplugh" is not.
+        // With a high min_hit_rate, wordlists that match only a coincidental
+        // fraction of the input should be dropped.
+        let words: Vec<String> = "abandon ability able xyzzyplugh"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+
+        // min_hit_rate = 0.0 is identical to detect_dialect: keep every hit.
+        let unfiltered = detect_dialect_filtered(&words, 0.0);
+        assert_eq!(unfiltered.len(), detect_dialect(&words).len());
+
+        // A 0.5 threshold keeps the strong English match (3/4 = 0.75) but every
+        // returned candidate must clear the bar.
+        let filtered = detect_dialect_filtered(&words, 0.5);
+        assert!(!filtered.is_empty(), "Strong match should survive filtering");
+        for m in &filtered {
+            assert!(
+                m.hit_rate >= 0.5,
+                "filtered result {} has hit_rate {} below threshold",
+                m, m.hit_rate
+            );
+        }
+
+        // An impossible threshold drops everything.
+        let none = detect_dialect_filtered(&words, 1.01);
+        assert!(none.is_empty(), "hit_rate can't exceed 1.0, so all should be dropped");
+    }
+
+    #[test]
+    fn test_detect_dialect_with_language_allowlist() {
+        // BIP39 words live in english; restricting to a non-english language
+        // should yield no english matches.
+        let words: Vec<String> = "abandon ability able about above"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+
+        // Unconstrained filter is identical to detect_dialect.
+        let all = detect_dialect_with(&words, &DialectFilter::new());
+        assert_eq!(all.len(), detect_dialect(&words).len());
+        assert!(all.iter().any(|m| m.language == "english"));
+
+        // Allow only english: every returned match must be english.
+        let only_english = detect_dialect_with(&words, &DialectFilter::new().allow_language("english"));
+        assert!(!only_english.is_empty(), "english should still match BIP39 words");
+        assert!(
+            only_english.iter().all(|m| m.language == "english"),
+            "language allowlist must exclude non-english matches"
+        );
+    }
+
+    #[test]
+    fn test_detect_dialect_with_wordlist_allowlist_union() {
+        // BIP39 words: english has multiple wordlists. Restrict to a single
+        // (english, bip39) pair and confirm nothing else is returned.
+        let words: Vec<String> = "abandon ability able about above"
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect();
+
+        let filter = DialectFilter::new().allow_wordlist("english", "bip39");
+        let matches = detect_dialect_with(&words, &filter);
+        assert!(!matches.is_empty(), "english/bip39 should match BIP39 words");
+        assert!(
+            matches.iter().all(|m| m.language == "english" && m.wordlist == "bip39"),
+            "wordlist allowlist must restrict to the exact (language, wordlist) pair"
+        );
+
+        // Union semantics: allowing a whole language OR a specific pair both pass.
+        let union = detect_dialect_with(
+            &words,
+            &DialectFilter::new()
+                .allow_language("english")
+                .allow_wordlist("latin", "default"),
+        );
+        assert!(
+            union.iter().all(|m| m.language == "english" || (m.language == "latin" && m.wordlist == "default")),
+            "union allowlist should admit english (any wordlist) and latin/default only"
+        );
     }
 
     #[test]
