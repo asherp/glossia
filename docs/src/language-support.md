@@ -8,6 +8,7 @@ Glossia supports multiple languages. Each language provides its own wordlists, g
 |----------|-----------|---------|--------|
 | **English** | BIP39, n-gram, WordNet lemmas | Full YAML grammar with dialects | Fully implemented |
 | **Latin** | Custom (65,536 words), Harry Potter | Full YAML grammar with dialects | Fully implemented |
+| **Czech** | BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose) | Fully implemented |
 | **Math/Primes** | Prime numbers (payload), composites (cover) | Arithmetic grammar | Experimental |
 | **Harry Potter** | HP spell vocabulary | Custom | Experimental |
 | **French** | BIP39 (text only) | Not yet | Planned |
@@ -24,6 +25,9 @@ glossia --random 12 --wordlist ngram --seed 0
 
 # Specify language explicitly
 glossia --random 12 --language english --seed 0
+
+# Czech (official BIP39 wordlist)
+glossia --random 12 --language czech --seed 0
 ```
 
 ## Language File Structure

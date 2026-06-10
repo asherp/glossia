@@ -1,0 +1,338 @@
+# Czech cover words for Glossia
+# These words fill non-payload grammar slots and MUST NOT appear in
+# languages/czech/payload.yaml (disjointness is enforced at compile time).
+#
+# Czech has no articles, so there is no Det category (cf. Latin).
+# Adjectives (-ý/-á/-é/-í) and manner adverbs (-ě) are guaranteed disjoint
+# from the BIP39 payload, which contains no diacritic-vowel-final words.
+#
+# Order: function words first, then content cover words.
+#
+je:
+  Cop: 1.0
+jsou:
+  Cop: 1.0
+byl:
+  Cop: 1.0
+byla:
+  Cop: 1.0
+bylo:
+  Cop: 1.0
+byli:
+  Cop: 1.0
+jsem:
+  Cop: 1.0
+jsi:
+  Cop: 1.0
+jsme:
+  Cop: 1.0
+jste:
+  Cop: 1.0
+bývá:
+  Cop: 1.0
+budou:
+  Cop: 1.0
+a:
+  Conj: 1.0
+i:
+  Conj: 1.0
+ale:
+  Conj: 1.0
+nebo:
+  Conj: 1.0
+že:
+  Conj: 1.0
+když:
+  Conj: 1.0
+protože:
+  Conj: 1.0
+aby:
+  Conj: 1.0
+ani:
+  Conj: 1.0
+však:
+  Conj: 1.0
+či:
+  Conj: 1.0
+tedy:
+  Conj: 1.0
+na:
+  Prep: 1.0
+ve:
+  Prep: 1.0
+do:
+  Prep: 1.0
+od:
+  Prep: 1.0
+za:
+  Prep: 1.0
+pod:
+  Prep: 1.0
+nad:
+  Prep: 1.0
+se:
+  Prep: 1.0
+si:
+  Prep: 1.0
+ku:
+  Prep: 1.0
+při:
+  Prep: 1.0
+pro:
+  Prep: 1.0
+bez:
+  Prep: 1.0
+mezi:
+  Prep: 1.0
+přes:
+  Prep: 1.0
+ob:
+  Prep: 1.0
+ke:
+  Prep: 1.0
+ze:
+  Prep: 1.0
+musí:
+  Modal: 1.0
+může:
+  Modal: 1.0
+chce:
+  Modal: 1.0
+smí:
+  Modal: 1.0
+mají:
+  Modal: 1.0
+bude:
+  Modal: 1.0
+lze:
+  Modal: 1.0
+umí:
+  Modal: 1.0
+ráčí:
+  Modal: 1.0
+hodlá:
+  Modal: 1.0
+on:
+  Pron: 1.0
+ona:
+  Pron: 1.0
+ono:
+  Pron: 1.0
+oni:
+  Pron: 1.0
+ten:
+  Pron: 1.0
+ta:
+  Pron: 1.0
+kdo:
+  Pron: 1.0
+já:
+  Pron: 1.0
+ty:
+  Pron: 1.0
+my:
+  Pron: 1.0
+vy:
+  Pron: 1.0
+jeho:
+  Pron: 1.0
+její:
+  Pron: 1.0
+jenž:
+  Pron: 1.0
+onen:
+  Pron: 1.0
+ne:
+  Adv: 1.0
+velmi:
+  Adv: 1.0
+také:
+  Adv: 1.0
+tam:
+  Adv: 1.0
+teď:
+  Adv: 1.0
+vždy:
+  Adv: 1.0
+zde:
+  Adv: 1.0
+právě:
+  Adv: 1.0
+stále:
+  Adv: 1.0
+posud:
+  Adv: 1.0
+zase:
+  Adv: 1.0
+dobře:
+  Adv: 1.0
+špatně:
+  Adv: 1.0
+krásně:
+  Adv: 1.0
+silně:
+  Adv: 1.0
+jasně:
+  Adv: 1.0
+tiše:
+  Adv: 1.0
+blízce:
+  Adv: 1.0
+hladce:
+  Adv: 1.0
+prudce:
+  Adv: 1.0
+dobrý:
+  Adj: 1.0
+nový:
+  Adj: 1.0
+starý:
+  Adj: 1.0
+malý:
+  Adj: 1.0
+velký:
+  Adj: 1.0
+mladý:
+  Adj: 1.0
+bílý:
+  Adj: 1.0
+černý:
+  Adj: 1.0
+dlouhý:
+  Adj: 1.0
+krásný:
+  Adj: 1.0
+silný:
+  Adj: 1.0
+slabý:
+  Adj: 1.0
+rychlý:
+  Adj: 1.0
+pomalý:
+  Adj: 1.0
+těžký:
+  Adj: 1.0
+lehký:
+  Adj: 1.0
+drahý:
+  Adj: 1.0
+jasný:
+  Adj: 1.0
+tmavý:
+  Adj: 1.0
+tichý:
+  Adj: 1.0
+modrý:
+  Adj: 1.0
+zelený:
+  Adj: 1.0
+žlutý:
+  Adj: 1.0
+šedý:
+  Adj: 1.0
+hnědý:
+  Adj: 1.0
+zlatý:
+  Adj: 1.0
+ostrý:
+  Adj: 1.0
+hladký:
+  Adj: 1.0
+mokrý:
+  Adj: 1.0
+suchý:
+  Adj: 1.0
+umění:
+  N: 1.0
+zdraví:
+  N: 1.0
+štěstí:
+  N: 1.0
+nádraží:
+  N: 1.0
+náměstí:
+  N: 1.0
+stavení:
+  N: 1.0
+obilí:
+  N: 1.0
+nářadí:
+  N: 1.0
+počasí:
+  N: 1.0
+údolí:
+  N: 1.0
+bydlení:
+  N: 1.0
+setkání:
+  N: 1.0
+povolání:
+  N: 1.0
+přání:
+  N: 1.0
+znamení:
+  N: 1.0
+vězení:
+  N: 1.0
+pondělí:
+  N: 1.0
+úterý:
+  N: 1.0
+nebezpečí:
+  N: 1.0
+pohoří:
+  N: 1.0
+dělat:
+  V: 1.0
+mít:
+  V: 1.0
+vědět:
+  V: 1.0
+vidět:
+  V: 1.0
+slyšet:
+  V: 1.0
+chtít:
+  V: 1.0
+jít:
+  V: 1.0
+psát:
+  V: 1.0
+číst:
+  V: 1.0
+žít:
+  V: 1.0
+dát:
+  V: 1.0
+brát:
+  V: 1.0
+nést:
+  V: 1.0
+vést:
+  V: 1.0
+najít:
+  V: 1.0
+myslet:
+  V: 1.0
+volat:
+  V: 1.0
+ptát:
+  V: 1.0
+stát:
+  V: 1.0
+znát:
+  V: 1.0
+sedět:
+  V: 1.0
+ležet:
+  V: 1.0
+běžet:
+  V: 1.0
+nosit:
+  V: 1.0
+vozit:
+  V: 1.0
+vařit:
+  V: 1.0
+točit:
+  V: 1.0

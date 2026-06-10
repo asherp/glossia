@@ -286,6 +286,7 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
     match word {
         "english" => Some(("english", "body")),
         "latin" => Some(("latin", "body")),
+        "czech" => Some(("czech", "body")),
         "nostr" => Some(("cs", "nip04")),
         "pgp" => Some(("cs", "pgp")),
         "primes" => Some(("math", "body")),

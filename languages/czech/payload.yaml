@@ -1,0 +1,4397 @@
+# Czech BIP39 Payload Wordlist for Glossia
+# Source: official BIP-0039 Czech wordlist (2048 words)
+#   https://github.com/bitcoin/bips/blob/master/bip-0039/czech.txt
+#
+# POS tags are assigned by Czech morphological (suffix) heuristics:
+#   -ovat/-nout/-ět  -> verb infinitive (V)
+#   -ít/-it/-at/-et  -> verb infinitive (V), with noun (N) fallback weight
+#   everything else  -> noun (N)
+# POS only guides cover-text generation; decoding filters purely by
+# membership in this wordlist, so tagging accuracy never affects round-trips.
+#
+# Order is the canonical BIP39 alphabetical order: APPEND-ONLY and frozen.
+#
+abdikace:
+  N: 1.0
+abeceda:
+  N: 1.0
+adresa:
+  N: 1.0
+agrese:
+  N: 1.0
+akce:
+  N: 1.0
+aktovka:
+  N: 1.0
+alej:
+  N: 1.0
+alkohol:
+  N: 1.0
+amputace:
+  N: 1.0
+ananas:
+  N: 1.0
+andulka:
+  N: 1.0
+anekdota:
+  N: 1.0
+anketa:
+  N: 1.0
+antika:
+  N: 1.0
+anulovat:
+  V: 1.0
+archa:
+  N: 1.0
+arogance:
+  N: 1.0
+asfalt:
+  N: 1.0
+asistent:
+  N: 1.0
+aspirace:
+  N: 1.0
+astma:
+  N: 1.0
+astronom:
+  N: 1.0
+atlas:
+  N: 1.0
+atletika:
+  N: 1.0
+atol:
+  N: 1.0
+autobus:
+  N: 1.0
+azyl:
+  N: 1.0
+babka:
+  N: 1.0
+bachor:
+  N: 1.0
+bacil:
+  N: 1.0
+baculka:
+  N: 1.0
+badatel:
+  N: 1.0
+bageta:
+  N: 1.0
+bagr:
+  N: 1.0
+bahno:
+  N: 1.0
+bakterie:
+  N: 1.0
+balada:
+  N: 1.0
+baletka:
+  N: 1.0
+balkon:
+  N: 1.0
+balonek:
+  N: 1.0
+balvan:
+  N: 1.0
+balza:
+  N: 1.0
+bambus:
+  N: 1.0
+bankomat:
+  V: 0.55
+  N: 0.45
+barbar:
+  N: 1.0
+baret:
+  V: 0.4
+  N: 0.6
+barman:
+  N: 1.0
+baroko:
+  N: 1.0
+barva:
+  N: 1.0
+baterka:
+  N: 1.0
+batoh:
+  N: 1.0
+bavlna:
+  N: 1.0
+bazalka:
+  N: 1.0
+bazilika:
+  N: 1.0
+bazuka:
+  N: 1.0
+bedna:
+  N: 1.0
+beran:
+  N: 1.0
+beseda:
+  N: 1.0
+bestie:
+  N: 1.0
+beton:
+  N: 1.0
+bezinka:
+  N: 1.0
+bezmoc:
+  N: 1.0
+beztak:
+  N: 1.0
+bicykl:
+  N: 1.0
+bidlo:
+  N: 1.0
+biftek:
+  N: 1.0
+bikiny:
+  N: 1.0
+bilance:
+  N: 1.0
+biograf:
+  N: 1.0
+biolog:
+  N: 1.0
+bitva:
+  N: 1.0
+bizon:
+  N: 1.0
+blahobyt:
+  N: 1.0
+blatouch:
+  N: 1.0
+blecha:
+  N: 1.0
+bledule:
+  N: 1.0
+blesk:
+  N: 1.0
+blikat:
+  V: 0.55
+  N: 0.45
+blizna:
+  N: 1.0
+blokovat:
+  V: 1.0
+bloudit:
+  V: 0.7
+  N: 0.3
+blud:
+  N: 1.0
+bobek:
+  N: 1.0
+bobr:
+  N: 1.0
+bodlina:
+  N: 1.0
+bodnout:
+  V: 1.0
+bohatost:
+  N: 1.0
+bojkot:
+  N: 1.0
+bojovat:
+  V: 1.0
+bokorys:
+  N: 1.0
+bolest:
+  N: 1.0
+borec:
+  N: 1.0
+borovice:
+  N: 1.0
+bota:
+  N: 1.0
+boubel:
+  N: 1.0
+bouchat:
+  V: 0.55
+  N: 0.45
+bouda:
+  N: 1.0
+boule:
+  N: 1.0
+bourat:
+  V: 0.55
+  N: 0.45
+boxer:
+  N: 1.0
+bradavka:
+  N: 1.0
+brambora:
+  N: 1.0
+branka:
+  N: 1.0
+bratr:
+  N: 1.0
+brepta:
+  N: 1.0
+briketa:
+  N: 1.0
+brko:
+  N: 1.0
+brloh:
+  N: 1.0
+bronz:
+  N: 1.0
+broskev:
+  N: 1.0
+brunetka:
+  N: 1.0
+brusinka:
+  N: 1.0
+brzda:
+  N: 1.0
+brzy:
+  N: 1.0
+bublina:
+  N: 1.0
+bubnovat:
+  V: 1.0
+buchta:
+  N: 1.0
+buditel:
+  N: 1.0
+budka:
+  N: 1.0
+budova:
+  N: 1.0
+bufet:
+  V: 0.4
+  N: 0.6
+bujarost:
+  N: 1.0
+bukvice:
+  N: 1.0
+buldok:
+  N: 1.0
+bulva:
+  N: 1.0
+bunda:
+  N: 1.0
+bunkr:
+  N: 1.0
+burza:
+  N: 1.0
+butik:
+  N: 1.0
+buvol:
+  N: 1.0
+buzola:
+  N: 1.0
+bydlet:
+  V: 0.4
+  N: 0.6
+bylina:
+  N: 1.0
+bytovka:
+  N: 1.0
+bzukot:
+  N: 1.0
+capart:
+  N: 1.0
+carevna:
+  N: 1.0
+cedr:
+  N: 1.0
+cedule:
+  N: 1.0
+cejch:
+  N: 1.0
+cejn:
+  N: 1.0
+cela:
+  N: 1.0
+celer:
+  N: 1.0
+celkem:
+  N: 1.0
+celnice:
+  N: 1.0
+cenina:
+  N: 1.0
+cennost:
+  N: 1.0
+cenovka:
+  N: 1.0
+centrum:
+  N: 1.0
+cenzor:
+  N: 1.0
+cestopis:
+  N: 1.0
+cetka:
+  N: 1.0
+chalupa:
+  N: 1.0
+chapadlo:
+  N: 1.0
+charita:
+  N: 1.0
+chata:
+  N: 1.0
+chechtat:
+  V: 0.55
+  N: 0.45
+chemie:
+  N: 1.0
+chichot:
+  N: 1.0
+chirurg:
+  N: 1.0
+chlad:
+  N: 1.0
+chleba:
+  N: 1.0
+chlubit:
+  V: 0.7
+  N: 0.3
+chmel:
+  N: 1.0
+chmura:
+  N: 1.0
+chobot:
+  N: 1.0
+chochol:
+  N: 1.0
+chodba:
+  N: 1.0
+cholera:
+  N: 1.0
+chomout:
+  N: 1.0
+chopit:
+  V: 0.7
+  N: 0.3
+choroba:
+  N: 1.0
+chov:
+  N: 1.0
+chrapot:
+  N: 1.0
+chrlit:
+  V: 0.7
+  N: 0.3
+chrt:
+  N: 1.0
+chrup:
+  N: 1.0
+chtivost:
+  N: 1.0
+chudina:
+  N: 1.0
+chutnat:
+  V: 0.55
+  N: 0.45
+chvat:
+  V: 0.55
+  N: 0.45
+chvilka:
+  N: 1.0
+chvost:
+  N: 1.0
+chyba:
+  N: 1.0
+chystat:
+  V: 0.55
+  N: 0.45
+chytit:
+  V: 0.7
+  N: 0.3
+cibule:
+  N: 1.0
+cigareta:
+  N: 1.0
+cihelna:
+  N: 1.0
+cihla:
+  N: 1.0
+cinkot:
+  N: 1.0
+cirkus:
+  N: 1.0
+cisterna:
+  N: 1.0
+citace:
+  N: 1.0
+citrus:
+  N: 1.0
+cizinec:
+  N: 1.0
+cizost:
+  N: 1.0
+clona:
+  N: 1.0
+cokoliv:
+  N: 1.0
+couvat:
+  V: 0.55
+  N: 0.45
+ctitel:
+  N: 1.0
+ctnost:
+  N: 1.0
+cudnost:
+  N: 1.0
+cuketa:
+  N: 1.0
+cukr:
+  N: 1.0
+cupot:
+  N: 1.0
+cvaknout:
+  V: 1.0
+cval:
+  N: 1.0
+cvik:
+  N: 1.0
+cvrkot:
+  N: 1.0
+cyklista:
+  N: 1.0
+daleko:
+  N: 1.0
+dareba:
+  N: 1.0
+datel:
+  N: 1.0
+datum:
+  N: 1.0
+dcera:
+  N: 1.0
+debata:
+  N: 1.0
+dechovka:
+  N: 1.0
+decibel:
+  N: 1.0
+deficit:
+  V: 0.7
+  N: 0.3
+deflace:
+  N: 1.0
+dekl:
+  N: 1.0
+dekret:
+  V: 0.4
+  N: 0.6
+demokrat:
+  V: 0.55
+  N: 0.45
+deprese:
+  N: 1.0
+derby:
+  N: 1.0
+deska:
+  N: 1.0
+detektiv:
+  N: 1.0
+dikobraz:
+  N: 1.0
+diktovat:
+  V: 1.0
+dioda:
+  N: 1.0
+diplom:
+  N: 1.0
+disk:
+  N: 1.0
+displej:
+  N: 1.0
+divadlo:
+  N: 1.0
+divoch:
+  N: 1.0
+dlaha:
+  N: 1.0
+dlouho:
+  N: 1.0
+dluhopis:
+  N: 1.0
+dnes:
+  N: 1.0
+dobro:
+  N: 1.0
+dobytek:
+  N: 1.0
+docent:
+  N: 1.0
+dochutit:
+  V: 0.7
+  N: 0.3
+dodnes:
+  N: 1.0
+dohled:
+  N: 1.0
+dohoda:
+  N: 1.0
+dohra:
+  N: 1.0
+dojem:
+  N: 1.0
+dojnice:
+  N: 1.0
+doklad:
+  N: 1.0
+dokola:
+  N: 1.0
+doktor:
+  N: 1.0
+dokument:
+  N: 1.0
+dolar:
+  N: 1.0
+doleva:
+  N: 1.0
+dolina:
+  N: 1.0
+doma:
+  N: 1.0
+dominant:
+  N: 1.0
+domluvit:
+  V: 0.7
+  N: 0.3
+domov:
+  N: 1.0
+donutit:
+  V: 0.7
+  N: 0.3
+dopad:
+  N: 1.0
+dopis:
+  N: 1.0
+doplnit:
+  V: 0.7
+  N: 0.3
+doposud:
+  N: 1.0
+doprovod:
+  N: 1.0
+dopustit:
+  V: 0.7
+  N: 0.3
+dorazit:
+  V: 0.7
+  N: 0.3
+dorost:
+  N: 1.0
+dort:
+  N: 1.0
+dosah:
+  N: 1.0
+doslov:
+  N: 1.0
+dostatek:
+  N: 1.0
+dosud:
+  N: 1.0
+dosyta:
+  N: 1.0
+dotaz:
+  N: 1.0
+dotek:
+  N: 1.0
+dotknout:
+  V: 1.0
+doufat:
+  V: 0.55
+  N: 0.45
+doutnat:
+  V: 0.55
+  N: 0.45
+dovozce:
+  N: 1.0
+dozadu:
+  N: 1.0
+doznat:
+  V: 0.55
+  N: 0.45
+dozorce:
+  N: 1.0
+drahota:
+  N: 1.0
+drak:
+  N: 1.0
+dramatik:
+  N: 1.0
+dravec:
+  N: 1.0
+draze:
+  N: 1.0
+drdol:
+  N: 1.0
+drobnost:
+  N: 1.0
+drogerie:
+  N: 1.0
+drozd:
+  N: 1.0
+drsnost:
+  N: 1.0
+drtit:
+  V: 0.7
+  N: 0.3
+drzost:
+  N: 1.0
+duben:
+  N: 1.0
+duchovno:
+  N: 1.0
+dudek:
+  N: 1.0
+duha:
+  N: 1.0
+duhovka:
+  N: 1.0
+dusit:
+  V: 0.7
+  N: 0.3
+dusno:
+  N: 1.0
+dutost:
+  N: 1.0
+dvojice:
+  N: 1.0
+dvorec:
+  N: 1.0
+dynamit:
+  V: 0.7
+  N: 0.3
+ekolog:
+  N: 1.0
+ekonomie:
+  N: 1.0
+elektron:
+  N: 1.0
+elipsa:
+  N: 1.0
+email:
+  N: 1.0
+emise:
+  N: 1.0
+emoce:
+  N: 1.0
+empatie:
+  N: 1.0
+epizoda:
+  N: 1.0
+epocha:
+  N: 1.0
+epopej:
+  N: 1.0
+epos:
+  N: 1.0
+esej:
+  N: 1.0
+esence:
+  N: 1.0
+eskorta:
+  N: 1.0
+eskymo:
+  N: 1.0
+etiketa:
+  N: 1.0
+euforie:
+  N: 1.0
+evoluce:
+  N: 1.0
+exekuce:
+  N: 1.0
+exkurze:
+  N: 1.0
+expedice:
+  N: 1.0
+exploze:
+  N: 1.0
+export:
+  N: 1.0
+extrakt:
+  N: 1.0
+facka:
+  N: 1.0
+fajfka:
+  N: 1.0
+fakulta:
+  N: 1.0
+fanatik:
+  N: 1.0
+fantazie:
+  N: 1.0
+farmacie:
+  N: 1.0
+favorit:
+  V: 0.7
+  N: 0.3
+fazole:
+  N: 1.0
+federace:
+  N: 1.0
+fejeton:
+  N: 1.0
+fenka:
+  N: 1.0
+fialka:
+  N: 1.0
+figurant:
+  N: 1.0
+filozof:
+  N: 1.0
+filtr:
+  N: 1.0
+finance:
+  N: 1.0
+finta:
+  N: 1.0
+fixace:
+  N: 1.0
+fjord:
+  N: 1.0
+flanel:
+  N: 1.0
+flirt:
+  N: 1.0
+flotila:
+  N: 1.0
+fond:
+  N: 1.0
+fosfor:
+  N: 1.0
+fotbal:
+  N: 1.0
+fotka:
+  N: 1.0
+foton:
+  N: 1.0
+frakce:
+  N: 1.0
+freska:
+  N: 1.0
+fronta:
+  N: 1.0
+fukar:
+  N: 1.0
+funkce:
+  N: 1.0
+fyzika:
+  N: 1.0
+galeje:
+  N: 1.0
+garant:
+  N: 1.0
+genetika:
+  N: 1.0
+geolog:
+  N: 1.0
+gilotina:
+  N: 1.0
+glazura:
+  N: 1.0
+glejt:
+  N: 1.0
+golem:
+  N: 1.0
+golfista:
+  N: 1.0
+gotika:
+  N: 1.0
+graf:
+  N: 1.0
+gramofon:
+  N: 1.0
+granule:
+  N: 1.0
+grep:
+  N: 1.0
+gril:
+  N: 1.0
+grog:
+  N: 1.0
+groteska:
+  N: 1.0
+guma:
+  N: 1.0
+hadice:
+  N: 1.0
+hadr:
+  N: 1.0
+hala:
+  N: 1.0
+halenka:
+  N: 1.0
+hanba:
+  N: 1.0
+hanopis:
+  N: 1.0
+harfa:
+  N: 1.0
+harpuna:
+  N: 1.0
+havran:
+  N: 1.0
+hebkost:
+  N: 1.0
+hejkal:
+  N: 1.0
+hejno:
+  N: 1.0
+hejtman:
+  N: 1.0
+hektar:
+  N: 1.0
+helma:
+  N: 1.0
+hematom:
+  N: 1.0
+herec:
+  N: 1.0
+herna:
+  N: 1.0
+heslo:
+  N: 1.0
+hezky:
+  N: 1.0
+historik:
+  N: 1.0
+hladovka:
+  N: 1.0
+hlasivky:
+  N: 1.0
+hlava:
+  N: 1.0
+hledat:
+  V: 0.55
+  N: 0.45
+hlen:
+  N: 1.0
+hlodavec:
+  N: 1.0
+hloh:
+  N: 1.0
+hloupost:
+  N: 1.0
+hltat:
+  V: 0.55
+  N: 0.45
+hlubina:
+  N: 1.0
+hluchota:
+  N: 1.0
+hmat:
+  V: 0.55
+  N: 0.45
+hmota:
+  N: 1.0
+hmyz:
+  N: 1.0
+hnis:
+  N: 1.0
+hnojivo:
+  N: 1.0
+hnout:
+  V: 1.0
+hoblina:
+  N: 1.0
+hoboj:
+  N: 1.0
+hoch:
+  N: 1.0
+hodiny:
+  N: 1.0
+hodlat:
+  V: 0.55
+  N: 0.45
+hodnota:
+  N: 1.0
+hodovat:
+  V: 1.0
+hojnost:
+  N: 1.0
+hokej:
+  N: 1.0
+holinka:
+  N: 1.0
+holka:
+  N: 1.0
+holub:
+  N: 1.0
+homole:
+  N: 1.0
+honitba:
+  N: 1.0
+honorace:
+  N: 1.0
+horal:
+  N: 1.0
+horda:
+  N: 1.0
+horizont:
+  N: 1.0
+horko:
+  N: 1.0
+horlivec:
+  N: 1.0
+hormon:
+  N: 1.0
+hornina:
+  N: 1.0
+horoskop:
+  N: 1.0
+horstvo:
+  N: 1.0
+hospoda:
+  N: 1.0
+hostina:
+  N: 1.0
+hotovost:
+  N: 1.0
+houba:
+  N: 1.0
+houf:
+  N: 1.0
+houpat:
+  V: 0.55
+  N: 0.45
+houska:
+  N: 1.0
+hovor:
+  N: 1.0
+hradba:
+  N: 1.0
+hranice:
+  N: 1.0
+hravost:
+  N: 1.0
+hrazda:
+  N: 1.0
+hrbolek:
+  N: 1.0
+hrdina:
+  N: 1.0
+hrdlo:
+  N: 1.0
+hrdost:
+  N: 1.0
+hrnek:
+  N: 1.0
+hrobka:
+  N: 1.0
+hromada:
+  N: 1.0
+hrot:
+  N: 1.0
+hrouda:
+  N: 1.0
+hrozen:
+  N: 1.0
+hrstka:
+  N: 1.0
+hrubost:
+  N: 1.0
+hryzat:
+  V: 0.55
+  N: 0.45
+hubenost:
+  N: 1.0
+hubnout:
+  V: 1.0
+hudba:
+  N: 1.0
+hukot:
+  N: 1.0
+humr:
+  N: 1.0
+husita:
+  N: 1.0
+hustota:
+  N: 1.0
+hvozd:
+  N: 1.0
+hybnost:
+  N: 1.0
+hydrant:
+  N: 1.0
+hygiena:
+  N: 1.0
+hymna:
+  N: 1.0
+hysterik:
+  N: 1.0
+idylka:
+  N: 1.0
+ihned:
+  N: 1.0
+ikona:
+  N: 1.0
+iluze:
+  N: 1.0
+imunita:
+  N: 1.0
+infekce:
+  N: 1.0
+inflace:
+  N: 1.0
+inkaso:
+  N: 1.0
+inovace:
+  N: 1.0
+inspekce:
+  N: 1.0
+internet:
+  V: 0.4
+  N: 0.6
+invalida:
+  N: 1.0
+investor:
+  N: 1.0
+inzerce:
+  N: 1.0
+ironie:
+  N: 1.0
+jablko:
+  N: 1.0
+jachta:
+  N: 1.0
+jahoda:
+  N: 1.0
+jakmile:
+  N: 1.0
+jakost:
+  N: 1.0
+jalovec:
+  N: 1.0
+jantar:
+  N: 1.0
+jarmark:
+  N: 1.0
+jaro:
+  N: 1.0
+jasan:
+  N: 1.0
+jasno:
+  N: 1.0
+jatka:
+  N: 1.0
+javor:
+  N: 1.0
+jazyk:
+  N: 1.0
+jedinec:
+  N: 1.0
+jedle:
+  N: 1.0
+jednatel:
+  N: 1.0
+jehlan:
+  N: 1.0
+jekot:
+  N: 1.0
+jelen:
+  N: 1.0
+jelito:
+  N: 1.0
+jemnost:
+  N: 1.0
+jenom:
+  N: 1.0
+jepice:
+  N: 1.0
+jeseter:
+  N: 1.0
+jevit:
+  V: 0.7
+  N: 0.3
+jezdec:
+  N: 1.0
+jezero:
+  N: 1.0
+jinak:
+  N: 1.0
+jindy:
+  N: 1.0
+jinoch:
+  N: 1.0
+jiskra:
+  N: 1.0
+jistota:
+  N: 1.0
+jitrnice:
+  N: 1.0
+jizva:
+  N: 1.0
+jmenovat:
+  V: 1.0
+jogurt:
+  N: 1.0
+jurta:
+  N: 1.0
+kabaret:
+  V: 0.4
+  N: 0.6
+kabel:
+  N: 1.0
+kabinet:
+  V: 0.4
+  N: 0.6
+kachna:
+  N: 1.0
+kadet:
+  V: 0.4
+  N: 0.6
+kadidlo:
+  N: 1.0
+kahan:
+  N: 1.0
+kajak:
+  N: 1.0
+kajuta:
+  N: 1.0
+kakao:
+  N: 1.0
+kaktus:
+  N: 1.0
+kalamita:
+  N: 1.0
+kalhoty:
+  N: 1.0
+kalibr:
+  N: 1.0
+kalnost:
+  N: 1.0
+kamera:
+  N: 1.0
+kamkoliv:
+  N: 1.0
+kamna:
+  N: 1.0
+kanibal:
+  N: 1.0
+kanoe:
+  N: 1.0
+kantor:
+  N: 1.0
+kapalina:
+  N: 1.0
+kapela:
+  N: 1.0
+kapitola:
+  N: 1.0
+kapka:
+  N: 1.0
+kaple:
+  N: 1.0
+kapota:
+  N: 1.0
+kapr:
+  N: 1.0
+kapusta:
+  N: 1.0
+kapybara:
+  N: 1.0
+karamel:
+  N: 1.0
+karotka:
+  N: 1.0
+karton:
+  N: 1.0
+kasa:
+  N: 1.0
+katalog:
+  N: 1.0
+katedra:
+  N: 1.0
+kauce:
+  N: 1.0
+kauza:
+  N: 1.0
+kavalec:
+  N: 1.0
+kazajka:
+  N: 1.0
+kazeta:
+  N: 1.0
+kazivost:
+  N: 1.0
+kdekoliv:
+  N: 1.0
+kdesi:
+  N: 1.0
+kedluben:
+  N: 1.0
+kemp:
+  N: 1.0
+keramika:
+  N: 1.0
+kino:
+  N: 1.0
+klacek:
+  N: 1.0
+kladivo:
+  N: 1.0
+klam:
+  N: 1.0
+klapot:
+  N: 1.0
+klasika:
+  N: 1.0
+klaun:
+  N: 1.0
+klec:
+  N: 1.0
+klenba:
+  N: 1.0
+klepat:
+  V: 0.55
+  N: 0.45
+klesnout:
+  V: 1.0
+klid:
+  N: 1.0
+klima:
+  N: 1.0
+klisna:
+  N: 1.0
+klobouk:
+  N: 1.0
+klokan:
+  N: 1.0
+klopa:
+  N: 1.0
+kloub:
+  N: 1.0
+klubovna:
+  N: 1.0
+klusat:
+  V: 0.55
+  N: 0.45
+kluzkost:
+  N: 1.0
+kmen:
+  N: 1.0
+kmitat:
+  V: 0.55
+  N: 0.45
+kmotr:
+  N: 1.0
+kniha:
+  N: 1.0
+knot:
+  N: 1.0
+koalice:
+  N: 1.0
+koberec:
+  N: 1.0
+kobka:
+  N: 1.0
+kobliha:
+  N: 1.0
+kobyla:
+  N: 1.0
+kocour:
+  N: 1.0
+kohout:
+  N: 1.0
+kojenec:
+  N: 1.0
+kokos:
+  N: 1.0
+koktejl:
+  N: 1.0
+kolaps:
+  N: 1.0
+koleda:
+  N: 1.0
+kolize:
+  N: 1.0
+kolo:
+  N: 1.0
+komando:
+  N: 1.0
+kometa:
+  N: 1.0
+komik:
+  N: 1.0
+komnata:
+  N: 1.0
+komora:
+  N: 1.0
+kompas:
+  N: 1.0
+komunita:
+  N: 1.0
+konat:
+  V: 0.55
+  N: 0.45
+koncept:
+  N: 1.0
+kondice:
+  N: 1.0
+konec:
+  N: 1.0
+konfese:
+  N: 1.0
+kongres:
+  N: 1.0
+konina:
+  N: 1.0
+konkurs:
+  N: 1.0
+kontakt:
+  N: 1.0
+konzerva:
+  N: 1.0
+kopanec:
+  N: 1.0
+kopie:
+  N: 1.0
+kopnout:
+  V: 1.0
+koprovka:
+  N: 1.0
+korbel:
+  N: 1.0
+korektor:
+  N: 1.0
+kormidlo:
+  N: 1.0
+koroptev:
+  N: 1.0
+korpus:
+  N: 1.0
+koruna:
+  N: 1.0
+koryto:
+  N: 1.0
+korzet:
+  V: 0.4
+  N: 0.6
+kosatec:
+  N: 1.0
+kostka:
+  N: 1.0
+kotel:
+  N: 1.0
+kotleta:
+  N: 1.0
+kotoul:
+  N: 1.0
+koukat:
+  V: 0.55
+  N: 0.45
+koupelna:
+  N: 1.0
+kousek:
+  N: 1.0
+kouzlo:
+  N: 1.0
+kovboj:
+  N: 1.0
+koza:
+  N: 1.0
+kozoroh:
+  N: 1.0
+krabice:
+  N: 1.0
+krach:
+  N: 1.0
+krajina:
+  N: 1.0
+kralovat:
+  V: 1.0
+krasopis:
+  N: 1.0
+kravata:
+  N: 1.0
+kredit:
+  V: 0.7
+  N: 0.3
+krejcar:
+  N: 1.0
+kresba:
+  N: 1.0
+kreveta:
+  N: 1.0
+kriket:
+  V: 0.4
+  N: 0.6
+kritik:
+  N: 1.0
+krize:
+  N: 1.0
+krkavec:
+  N: 1.0
+krmelec:
+  N: 1.0
+krmivo:
+  N: 1.0
+krocan:
+  N: 1.0
+krok:
+  N: 1.0
+kronika:
+  N: 1.0
+kropit:
+  V: 0.7
+  N: 0.3
+kroupa:
+  N: 1.0
+krovka:
+  N: 1.0
+krtek:
+  N: 1.0
+kruhadlo:
+  N: 1.0
+krupice:
+  N: 1.0
+krutost:
+  N: 1.0
+krvinka:
+  N: 1.0
+krychle:
+  N: 1.0
+krypta:
+  N: 1.0
+krystal:
+  N: 1.0
+kryt:
+  N: 1.0
+kudlanka:
+  N: 1.0
+kufr:
+  N: 1.0
+kujnost:
+  N: 1.0
+kukla:
+  N: 1.0
+kulajda:
+  N: 1.0
+kulich:
+  N: 1.0
+kulka:
+  N: 1.0
+kulomet:
+  V: 0.4
+  N: 0.6
+kultura:
+  N: 1.0
+kuna:
+  N: 1.0
+kupodivu:
+  N: 1.0
+kurt:
+  N: 1.0
+kurzor:
+  N: 1.0
+kutil:
+  N: 1.0
+kvalita:
+  N: 1.0
+kvasinka:
+  N: 1.0
+kvestor:
+  N: 1.0
+kynolog:
+  N: 1.0
+kyselina:
+  N: 1.0
+kytara:
+  N: 1.0
+kytice:
+  N: 1.0
+kytka:
+  N: 1.0
+kytovec:
+  N: 1.0
+kyvadlo:
+  N: 1.0
+labrador:
+  N: 1.0
+lachtan:
+  N: 1.0
+ladnost:
+  N: 1.0
+laik:
+  N: 1.0
+lakomec:
+  N: 1.0
+lamela:
+  N: 1.0
+lampa:
+  N: 1.0
+lanovka:
+  N: 1.0
+lasice:
+  N: 1.0
+laso:
+  N: 1.0
+lastura:
+  N: 1.0
+latinka:
+  N: 1.0
+lavina:
+  N: 1.0
+lebka:
+  N: 1.0
+leckdy:
+  N: 1.0
+leden:
+  N: 1.0
+lednice:
+  N: 1.0
+ledovka:
+  N: 1.0
+ledvina:
+  N: 1.0
+legenda:
+  N: 1.0
+legie:
+  N: 1.0
+legrace:
+  N: 1.0
+lehce:
+  N: 1.0
+lehkost:
+  N: 1.0
+lehnout:
+  V: 1.0
+lektvar:
+  N: 1.0
+lenochod:
+  N: 1.0
+lentilka:
+  N: 1.0
+lepenka:
+  N: 1.0
+lepidlo:
+  N: 1.0
+letadlo:
+  N: 1.0
+letec:
+  N: 1.0
+letmo:
+  N: 1.0
+letokruh:
+  N: 1.0
+levhart:
+  N: 1.0
+levitace:
+  N: 1.0
+levobok:
+  N: 1.0
+libra:
+  N: 1.0
+lichotka:
+  N: 1.0
+lidojed:
+  N: 1.0
+lidskost:
+  N: 1.0
+lihovina:
+  N: 1.0
+lijavec:
+  N: 1.0
+lilek:
+  N: 1.0
+limetka:
+  N: 1.0
+linie:
+  N: 1.0
+linka:
+  N: 1.0
+linoleum:
+  N: 1.0
+listopad:
+  N: 1.0
+litina:
+  N: 1.0
+litovat:
+  V: 1.0
+lobista:
+  N: 1.0
+lodivod:
+  N: 1.0
+logika:
+  N: 1.0
+logoped:
+  N: 1.0
+lokalita:
+  N: 1.0
+loket:
+  V: 0.4
+  N: 0.6
+lomcovat:
+  V: 1.0
+lopata:
+  N: 1.0
+lopuch:
+  N: 1.0
+lord:
+  N: 1.0
+losos:
+  N: 1.0
+lotr:
+  N: 1.0
+loudal:
+  N: 1.0
+louh:
+  N: 1.0
+louka:
+  N: 1.0
+louskat:
+  V: 0.55
+  N: 0.45
+lovec:
+  N: 1.0
+lstivost:
+  N: 1.0
+lucerna:
+  N: 1.0
+lucifer:
+  N: 1.0
+lump:
+  N: 1.0
+lusk:
+  N: 1.0
+lustrace:
+  N: 1.0
+lvice:
+  N: 1.0
+lyra:
+  N: 1.0
+lyrika:
+  N: 1.0
+lysina:
+  N: 1.0
+madam:
+  N: 1.0
+madlo:
+  N: 1.0
+magistr:
+  N: 1.0
+mahagon:
+  N: 1.0
+majetek:
+  N: 1.0
+majitel:
+  N: 1.0
+majorita:
+  N: 1.0
+makak:
+  N: 1.0
+makovice:
+  N: 1.0
+makrela:
+  N: 1.0
+malba:
+  N: 1.0
+malina:
+  N: 1.0
+malovat:
+  V: 1.0
+malvice:
+  N: 1.0
+maminka:
+  N: 1.0
+mandle:
+  N: 1.0
+manko:
+  N: 1.0
+marnost:
+  N: 1.0
+masakr:
+  N: 1.0
+maskot:
+  N: 1.0
+masopust:
+  N: 1.0
+matice:
+  N: 1.0
+matrika:
+  N: 1.0
+maturita:
+  N: 1.0
+mazanec:
+  N: 1.0
+mazivo:
+  N: 1.0
+mazlit:
+  V: 0.7
+  N: 0.3
+mazurka:
+  N: 1.0
+mdloba:
+  N: 1.0
+mechanik:
+  N: 1.0
+meditace:
+  N: 1.0
+medovina:
+  N: 1.0
+melasa:
+  N: 1.0
+meloun:
+  N: 1.0
+mentolka:
+  N: 1.0
+metla:
+  N: 1.0
+metoda:
+  N: 1.0
+metr:
+  N: 1.0
+mezera:
+  N: 1.0
+migrace:
+  N: 1.0
+mihnout:
+  V: 1.0
+mihule:
+  N: 1.0
+mikina:
+  N: 1.0
+mikrofon:
+  N: 1.0
+milenec:
+  N: 1.0
+milimetr:
+  N: 1.0
+milost:
+  N: 1.0
+mimika:
+  N: 1.0
+mincovna:
+  N: 1.0
+minibar:
+  N: 1.0
+minomet:
+  V: 0.4
+  N: 0.6
+minulost:
+  N: 1.0
+miska:
+  N: 1.0
+mistr:
+  N: 1.0
+mixovat:
+  V: 1.0
+mladost:
+  N: 1.0
+mlha:
+  N: 1.0
+mlhovina:
+  N: 1.0
+mlok:
+  N: 1.0
+mlsat:
+  V: 0.55
+  N: 0.45
+mluvit:
+  V: 0.7
+  N: 0.3
+mnich:
+  N: 1.0
+mnohem:
+  N: 1.0
+mobil:
+  N: 1.0
+mocnost:
+  N: 1.0
+modelka:
+  N: 1.0
+modlitba:
+  N: 1.0
+mohyla:
+  N: 1.0
+mokro:
+  N: 1.0
+molekula:
+  N: 1.0
+momentka:
+  N: 1.0
+monarcha:
+  N: 1.0
+monokl:
+  N: 1.0
+monstrum:
+  N: 1.0
+montovat:
+  V: 1.0
+monzun:
+  N: 1.0
+mosaz:
+  N: 1.0
+moskyt:
+  N: 1.0
+most:
+  N: 1.0
+motivace:
+  N: 1.0
+motorka:
+  N: 1.0
+motyka:
+  N: 1.0
+moucha:
+  N: 1.0
+moudrost:
+  N: 1.0
+mozaika:
+  N: 1.0
+mozek:
+  N: 1.0
+mozol:
+  N: 1.0
+mramor:
+  N: 1.0
+mravenec:
+  N: 1.0
+mrkev:
+  N: 1.0
+mrtvola:
+  N: 1.0
+mrzet:
+  V: 0.4
+  N: 0.6
+mrzutost:
+  N: 1.0
+mstitel:
+  N: 1.0
+mudrc:
+  N: 1.0
+muflon:
+  N: 1.0
+mulat:
+  V: 0.55
+  N: 0.45
+mumie:
+  N: 1.0
+munice:
+  N: 1.0
+muset:
+  V: 0.4
+  N: 0.6
+mutace:
+  N: 1.0
+muzeum:
+  N: 1.0
+muzikant:
+  N: 1.0
+myslivec:
+  N: 1.0
+mzda:
+  N: 1.0
+nabourat:
+  V: 0.55
+  N: 0.45
+nachytat:
+  V: 0.55
+  N: 0.45
+nadace:
+  N: 1.0
+nadbytek:
+  N: 1.0
+nadhoz:
+  N: 1.0
+nadobro:
+  N: 1.0
+nadpis:
+  N: 1.0
+nahlas:
+  N: 1.0
+nahnat:
+  V: 0.55
+  N: 0.45
+nahodile:
+  N: 1.0
+nahradit:
+  V: 0.7
+  N: 0.3
+naivita:
+  N: 1.0
+najednou:
+  N: 1.0
+najisto:
+  N: 1.0
+najmout:
+  V: 1.0
+naklonit:
+  V: 0.7
+  N: 0.3
+nakonec:
+  N: 1.0
+nakrmit:
+  V: 0.7
+  N: 0.3
+nalevo:
+  N: 1.0
+namazat:
+  V: 0.55
+  N: 0.45
+namluvit:
+  V: 0.7
+  N: 0.3
+nanometr:
+  N: 1.0
+naoko:
+  N: 1.0
+naopak:
+  N: 1.0
+naostro:
+  N: 1.0
+napadat:
+  V: 0.55
+  N: 0.45
+napevno:
+  N: 1.0
+naplnit:
+  V: 0.7
+  N: 0.3
+napnout:
+  V: 1.0
+naposled:
+  N: 1.0
+naprosto:
+  N: 1.0
+narodit:
+  V: 0.7
+  N: 0.3
+naruby:
+  N: 1.0
+narychlo:
+  N: 1.0
+nasadit:
+  V: 0.7
+  N: 0.3
+nasekat:
+  V: 0.55
+  N: 0.45
+naslepo:
+  N: 1.0
+nastat:
+  V: 0.55
+  N: 0.45
+natolik:
+  N: 1.0
+navenek:
+  N: 1.0
+navrch:
+  N: 1.0
+navzdory:
+  N: 1.0
+nazvat:
+  V: 0.55
+  N: 0.45
+nebe:
+  N: 1.0
+nechat:
+  V: 0.55
+  N: 0.45
+necky:
+  N: 1.0
+nedaleko:
+  N: 1.0
+nedbat:
+  V: 0.55
+  N: 0.45
+neduh:
+  N: 1.0
+negace:
+  N: 1.0
+nehet:
+  V: 0.4
+  N: 0.6
+nehoda:
+  N: 1.0
+nejen:
+  N: 1.0
+nejprve:
+  N: 1.0
+neklid:
+  N: 1.0
+nelibost:
+  N: 1.0
+nemilost:
+  N: 1.0
+nemoc:
+  N: 1.0
+neochota:
+  N: 1.0
+neonka:
+  N: 1.0
+nepokoj:
+  N: 1.0
+nerost:
+  N: 1.0
+nerv:
+  N: 1.0
+nesmysl:
+  N: 1.0
+nesoulad:
+  N: 1.0
+netvor:
+  N: 1.0
+neuron:
+  N: 1.0
+nevina:
+  N: 1.0
+nezvykle:
+  N: 1.0
+nicota:
+  N: 1.0
+nijak:
+  N: 1.0
+nikam:
+  N: 1.0
+nikdy:
+  N: 1.0
+nikl:
+  N: 1.0
+nikterak:
+  N: 1.0
+nitro:
+  N: 1.0
+nocleh:
+  N: 1.0
+nohavice:
+  N: 1.0
+nominace:
+  N: 1.0
+nora:
+  N: 1.0
+norek:
+  N: 1.0
+nositel:
+  N: 1.0
+nosnost:
+  N: 1.0
+nouze:
+  N: 1.0
+noviny:
+  N: 1.0
+novota:
+  N: 1.0
+nozdra:
+  N: 1.0
+nuda:
+  N: 1.0
+nudle:
+  N: 1.0
+nuget:
+  V: 0.4
+  N: 0.6
+nutit:
+  V: 0.7
+  N: 0.3
+nutnost:
+  N: 1.0
+nutrie:
+  N: 1.0
+nymfa:
+  N: 1.0
+obal:
+  N: 1.0
+obarvit:
+  V: 0.7
+  N: 0.3
+obava:
+  N: 1.0
+obdiv:
+  N: 1.0
+obec:
+  N: 1.0
+obehnat:
+  V: 0.55
+  N: 0.45
+obejmout:
+  V: 1.0
+obezita:
+  N: 1.0
+obhajoba:
+  N: 1.0
+obilnice:
+  N: 1.0
+objasnit:
+  V: 0.7
+  N: 0.3
+objekt:
+  N: 1.0
+obklopit:
+  V: 0.7
+  N: 0.3
+oblast:
+  N: 1.0
+oblek:
+  N: 1.0
+obliba:
+  N: 1.0
+obloha:
+  N: 1.0
+obluda:
+  N: 1.0
+obnos:
+  N: 1.0
+obohatit:
+  V: 0.7
+  N: 0.3
+obojek:
+  N: 1.0
+obout:
+  V: 1.0
+obrazec:
+  N: 1.0
+obrna:
+  N: 1.0
+obruba:
+  N: 1.0
+obrys:
+  N: 1.0
+obsah:
+  N: 1.0
+obsluha:
+  N: 1.0
+obstarat:
+  V: 0.55
+  N: 0.45
+obuv:
+  N: 1.0
+obvaz:
+  N: 1.0
+obvinit:
+  V: 0.7
+  N: 0.3
+obvod:
+  N: 1.0
+obvykle:
+  N: 1.0
+obyvatel:
+  N: 1.0
+obzor:
+  N: 1.0
+ocas:
+  N: 1.0
+ocel:
+  N: 1.0
+ocenit:
+  V: 0.7
+  N: 0.3
+ochladit:
+  V: 0.7
+  N: 0.3
+ochota:
+  N: 1.0
+ochrana:
+  N: 1.0
+ocitnout:
+  V: 1.0
+odboj:
+  N: 1.0
+odbyt:
+  N: 1.0
+odchod:
+  N: 1.0
+odcizit:
+  V: 0.7
+  N: 0.3
+odebrat:
+  V: 0.55
+  N: 0.45
+odeslat:
+  V: 0.55
+  N: 0.45
+odevzdat:
+  V: 0.55
+  N: 0.45
+odezva:
+  N: 1.0
+odhadce:
+  N: 1.0
+odhodit:
+  V: 0.7
+  N: 0.3
+odjet:
+  V: 0.4
+  N: 0.6
+odjinud:
+  N: 1.0
+odkaz:
+  N: 1.0
+odkoupit:
+  V: 0.7
+  N: 0.3
+odliv:
+  N: 1.0
+odluka:
+  N: 1.0
+odmlka:
+  N: 1.0
+odolnost:
+  N: 1.0
+odpad:
+  N: 1.0
+odpis:
+  N: 1.0
+odplout:
+  V: 1.0
+odpor:
+  N: 1.0
+odpustit:
+  V: 0.7
+  N: 0.3
+odpykat:
+  V: 0.55
+  N: 0.45
+odrazka:
+  N: 1.0
+odsoudit:
+  V: 0.7
+  N: 0.3
+odstup:
+  N: 1.0
+odsun:
+  N: 1.0
+odtok:
+  N: 1.0
+odtud:
+  N: 1.0
+odvaha:
+  N: 1.0
+odveta:
+  N: 1.0
+odvolat:
+  V: 0.55
+  N: 0.45
+odvracet:
+  V: 0.4
+  N: 0.6
+odznak:
+  N: 1.0
+ofina:
+  N: 1.0
+ofsajd:
+  N: 1.0
+ohlas:
+  N: 1.0
+ohnisko:
+  N: 1.0
+ohrada:
+  N: 1.0
+ohrozit:
+  V: 0.7
+  N: 0.3
+ohryzek:
+  N: 1.0
+okap:
+  N: 1.0
+okenice:
+  N: 1.0
+oklika:
+  N: 1.0
+okno:
+  N: 1.0
+okouzlit:
+  V: 0.7
+  N: 0.3
+okovy:
+  N: 1.0
+okrasa:
+  N: 1.0
+okres:
+  N: 1.0
+okrsek:
+  N: 1.0
+okruh:
+  N: 1.0
+okupant:
+  N: 1.0
+okurka:
+  N: 1.0
+okusit:
+  V: 0.7
+  N: 0.3
+olejnina:
+  N: 1.0
+olizovat:
+  V: 1.0
+omak:
+  N: 1.0
+omeleta:
+  N: 1.0
+omezit:
+  V: 0.7
+  N: 0.3
+omladina:
+  N: 1.0
+omlouvat:
+  V: 0.55
+  N: 0.45
+omluva:
+  N: 1.0
+omyl:
+  N: 1.0
+onehdy:
+  N: 1.0
+opakovat:
+  V: 1.0
+opasek:
+  N: 1.0
+operace:
+  N: 1.0
+opice:
+  N: 1.0
+opilost:
+  N: 1.0
+opisovat:
+  V: 1.0
+opora:
+  N: 1.0
+opozice:
+  N: 1.0
+opravdu:
+  N: 1.0
+oproti:
+  N: 1.0
+orbital:
+  N: 1.0
+orchestr:
+  N: 1.0
+orgie:
+  N: 1.0
+orlice:
+  N: 1.0
+orloj:
+  N: 1.0
+ortel:
+  N: 1.0
+osada:
+  N: 1.0
+oschnout:
+  V: 1.0
+osika:
+  N: 1.0
+osivo:
+  N: 1.0
+oslava:
+  N: 1.0
+oslepit:
+  V: 0.7
+  N: 0.3
+oslnit:
+  V: 0.7
+  N: 0.3
+oslovit:
+  V: 0.7
+  N: 0.3
+osnova:
+  N: 1.0
+osoba:
+  N: 1.0
+osolit:
+  V: 0.7
+  N: 0.3
+ospalec:
+  N: 1.0
+osten:
+  N: 1.0
+ostraha:
+  N: 1.0
+ostuda:
+  N: 1.0
+ostych:
+  N: 1.0
+osvojit:
+  V: 0.7
+  N: 0.3
+oteplit:
+  V: 0.7
+  N: 0.3
+otisk:
+  N: 1.0
+otop:
+  N: 1.0
+otrhat:
+  V: 0.55
+  N: 0.45
+otrlost:
+  N: 1.0
+otrok:
+  N: 1.0
+otruby:
+  N: 1.0
+otvor:
+  N: 1.0
+ovanout:
+  V: 1.0
+ovar:
+  N: 1.0
+oves:
+  N: 1.0
+ovlivnit:
+  V: 0.7
+  N: 0.3
+ovoce:
+  N: 1.0
+oxid:
+  N: 1.0
+ozdoba:
+  N: 1.0
+pachatel:
+  N: 1.0
+pacient:
+  N: 1.0
+padouch:
+  N: 1.0
+pahorek:
+  N: 1.0
+pakt:
+  N: 1.0
+palanda:
+  N: 1.0
+palec:
+  N: 1.0
+palivo:
+  N: 1.0
+paluba:
+  N: 1.0
+pamflet:
+  V: 0.4
+  N: 0.6
+pamlsek:
+  N: 1.0
+panenka:
+  N: 1.0
+panika:
+  N: 1.0
+panna:
+  N: 1.0
+panovat:
+  V: 1.0
+panstvo:
+  N: 1.0
+pantofle:
+  N: 1.0
+paprika:
+  N: 1.0
+parketa:
+  N: 1.0
+parodie:
+  N: 1.0
+parta:
+  N: 1.0
+paruka:
+  N: 1.0
+paryba:
+  N: 1.0
+paseka:
+  N: 1.0
+pasivita:
+  N: 1.0
+pastelka:
+  N: 1.0
+patent:
+  N: 1.0
+patrona:
+  N: 1.0
+pavouk:
+  N: 1.0
+pazneht:
+  N: 1.0
+pazourek:
+  N: 1.0
+pecka:
+  N: 1.0
+pedagog:
+  N: 1.0
+pejsek:
+  N: 1.0
+peklo:
+  N: 1.0
+peloton:
+  N: 1.0
+penalta:
+  N: 1.0
+pendrek:
+  N: 1.0
+penze:
+  N: 1.0
+periskop:
+  N: 1.0
+pero:
+  N: 1.0
+pestrost:
+  N: 1.0
+petarda:
+  N: 1.0
+petice:
+  N: 1.0
+petrolej:
+  N: 1.0
+pevnina:
+  N: 1.0
+pexeso:
+  N: 1.0
+pianista:
+  N: 1.0
+piha:
+  N: 1.0
+pijavice:
+  N: 1.0
+pikle:
+  N: 1.0
+piknik:
+  N: 1.0
+pilina:
+  N: 1.0
+pilnost:
+  N: 1.0
+pilulka:
+  N: 1.0
+pinzeta:
+  N: 1.0
+pipeta:
+  N: 1.0
+pisatel:
+  N: 1.0
+pistole:
+  N: 1.0
+pitevna:
+  N: 1.0
+pivnice:
+  N: 1.0
+pivovar:
+  N: 1.0
+placenta:
+  N: 1.0
+plakat:
+  V: 0.55
+  N: 0.45
+plamen:
+  N: 1.0
+planeta:
+  N: 1.0
+plastika:
+  N: 1.0
+platit:
+  V: 0.7
+  N: 0.3
+plavidlo:
+  N: 1.0
+plaz:
+  N: 1.0
+plech:
+  N: 1.0
+plemeno:
+  N: 1.0
+plenta:
+  N: 1.0
+ples:
+  N: 1.0
+pletivo:
+  N: 1.0
+plevel:
+  N: 1.0
+plivat:
+  V: 0.55
+  N: 0.45
+plnit:
+  V: 0.7
+  N: 0.3
+plno:
+  N: 1.0
+plocha:
+  N: 1.0
+plodina:
+  N: 1.0
+plomba:
+  N: 1.0
+plout:
+  V: 1.0
+pluk:
+  N: 1.0
+plyn:
+  N: 1.0
+pobavit:
+  V: 0.7
+  N: 0.3
+pobyt:
+  N: 1.0
+pochod:
+  N: 1.0
+pocit:
+  V: 0.7
+  N: 0.3
+poctivec:
+  N: 1.0
+podat:
+  V: 0.55
+  N: 0.45
+podcenit:
+  V: 0.7
+  N: 0.3
+podepsat:
+  V: 0.55
+  N: 0.45
+podhled:
+  N: 1.0
+podivit:
+  V: 0.7
+  N: 0.3
+podklad:
+  N: 1.0
+podmanit:
+  V: 0.7
+  N: 0.3
+podnik:
+  N: 1.0
+podoba:
+  N: 1.0
+podpora:
+  N: 1.0
+podraz:
+  N: 1.0
+podstata:
+  N: 1.0
+podvod:
+  N: 1.0
+podzim:
+  N: 1.0
+poezie:
+  N: 1.0
+pohanka:
+  N: 1.0
+pohnutka:
+  N: 1.0
+pohovor:
+  N: 1.0
+pohroma:
+  N: 1.0
+pohyb:
+  N: 1.0
+pointa:
+  N: 1.0
+pojistka:
+  N: 1.0
+pojmout:
+  V: 1.0
+pokazit:
+  V: 0.7
+  N: 0.3
+pokles:
+  N: 1.0
+pokoj:
+  N: 1.0
+pokrok:
+  N: 1.0
+pokuta:
+  N: 1.0
+pokyn:
+  N: 1.0
+poledne:
+  N: 1.0
+polibek:
+  N: 1.0
+polknout:
+  V: 1.0
+poloha:
+  N: 1.0
+polynom:
+  N: 1.0
+pomalu:
+  N: 1.0
+pominout:
+  V: 1.0
+pomlka:
+  N: 1.0
+pomoc:
+  N: 1.0
+pomsta:
+  N: 1.0
+pomyslet:
+  V: 0.4
+  N: 0.6
+ponechat:
+  V: 0.55
+  N: 0.45
+ponorka:
+  N: 1.0
+ponurost:
+  N: 1.0
+popadat:
+  V: 0.55
+  N: 0.45
+popel:
+  N: 1.0
+popisek:
+  N: 1.0
+poplach:
+  N: 1.0
+poprosit:
+  V: 0.7
+  N: 0.3
+popsat:
+  V: 0.55
+  N: 0.45
+popud:
+  N: 1.0
+poradce:
+  N: 1.0
+porce:
+  N: 1.0
+porod:
+  N: 1.0
+porucha:
+  N: 1.0
+poryv:
+  N: 1.0
+posadit:
+  V: 0.7
+  N: 0.3
+posed:
+  N: 1.0
+posila:
+  N: 1.0
+poskok:
+  N: 1.0
+poslanec:
+  N: 1.0
+posoudit:
+  V: 0.7
+  N: 0.3
+pospolu:
+  N: 1.0
+postava:
+  N: 1.0
+posudek:
+  N: 1.0
+posyp:
+  N: 1.0
+potah:
+  N: 1.0
+potkan:
+  N: 1.0
+potlesk:
+  N: 1.0
+potomek:
+  N: 1.0
+potrava:
+  N: 1.0
+potupa:
+  N: 1.0
+potvora:
+  N: 1.0
+poukaz:
+  N: 1.0
+pouto:
+  N: 1.0
+pouzdro:
+  N: 1.0
+povaha:
+  N: 1.0
+povidla:
+  N: 1.0
+povlak:
+  N: 1.0
+povoz:
+  N: 1.0
+povrch:
+  N: 1.0
+povstat:
+  V: 0.55
+  N: 0.45
+povyk:
+  N: 1.0
+povzdech:
+  N: 1.0
+pozdrav:
+  N: 1.0
+pozemek:
+  N: 1.0
+poznatek:
+  N: 1.0
+pozor:
+  N: 1.0
+pozvat:
+  V: 0.55
+  N: 0.45
+pracovat:
+  V: 1.0
+prahory:
+  N: 1.0
+praktika:
+  N: 1.0
+prales:
+  N: 1.0
+praotec:
+  N: 1.0
+praporek:
+  N: 1.0
+prase:
+  N: 1.0
+pravda:
+  N: 1.0
+princip:
+  N: 1.0
+prkno:
+  N: 1.0
+probudit:
+  V: 0.7
+  N: 0.3
+procento:
+  N: 1.0
+prodej:
+  N: 1.0
+profese:
+  N: 1.0
+prohra:
+  N: 1.0
+projekt:
+  N: 1.0
+prolomit:
+  V: 0.7
+  N: 0.3
+promile:
+  N: 1.0
+pronikat:
+  V: 0.55
+  N: 0.45
+propad:
+  N: 1.0
+prorok:
+  N: 1.0
+prosba:
+  N: 1.0
+proton:
+  N: 1.0
+proutek:
+  N: 1.0
+provaz:
+  N: 1.0
+prskavka:
+  N: 1.0
+prsten:
+  N: 1.0
+prudkost:
+  N: 1.0
+prut:
+  N: 1.0
+prvek:
+  N: 1.0
+prvohory:
+  N: 1.0
+psanec:
+  N: 1.0
+psovod:
+  N: 1.0
+pstruh:
+  N: 1.0
+ptactvo:
+  N: 1.0
+puberta:
+  N: 1.0
+puch:
+  N: 1.0
+pudl:
+  N: 1.0
+pukavec:
+  N: 1.0
+puklina:
+  N: 1.0
+pukrle:
+  N: 1.0
+pult:
+  N: 1.0
+pumpa:
+  N: 1.0
+punc:
+  N: 1.0
+pupen:
+  N: 1.0
+pusa:
+  N: 1.0
+pusinka:
+  N: 1.0
+pustina:
+  N: 1.0
+putovat:
+  V: 1.0
+putyka:
+  N: 1.0
+pyramida:
+  N: 1.0
+pysk:
+  N: 1.0
+pytel:
+  N: 1.0
+racek:
+  N: 1.0
+rachot:
+  N: 1.0
+radiace:
+  N: 1.0
+radnice:
+  N: 1.0
+radon:
+  N: 1.0
+raft:
+  N: 1.0
+ragby:
+  N: 1.0
+raketa:
+  N: 1.0
+rakovina:
+  N: 1.0
+rameno:
+  N: 1.0
+rampouch:
+  N: 1.0
+rande:
+  N: 1.0
+rarach:
+  N: 1.0
+rarita:
+  N: 1.0
+rasovna:
+  N: 1.0
+rastr:
+  N: 1.0
+ratolest:
+  N: 1.0
+razance:
+  N: 1.0
+razidlo:
+  N: 1.0
+reagovat:
+  V: 1.0
+reakce:
+  N: 1.0
+recept:
+  N: 1.0
+redaktor:
+  N: 1.0
+referent:
+  N: 1.0
+reflex:
+  N: 1.0
+rejnok:
+  N: 1.0
+reklama:
+  N: 1.0
+rekord:
+  N: 1.0
+rekrut:
+  N: 1.0
+rektor:
+  N: 1.0
+reputace:
+  N: 1.0
+revize:
+  N: 1.0
+revma:
+  N: 1.0
+revolver:
+  N: 1.0
+rezerva:
+  N: 1.0
+riskovat:
+  V: 1.0
+riziko:
+  N: 1.0
+robotika:
+  N: 1.0
+rodokmen:
+  N: 1.0
+rohovka:
+  N: 1.0
+rokle:
+  N: 1.0
+rokoko:
+  N: 1.0
+romaneto:
+  N: 1.0
+ropovod:
+  N: 1.0
+ropucha:
+  N: 1.0
+rorejs:
+  N: 1.0
+rosol:
+  N: 1.0
+rostlina:
+  N: 1.0
+rotmistr:
+  N: 1.0
+rotoped:
+  N: 1.0
+rotunda:
+  N: 1.0
+roubenka:
+  N: 1.0
+roucho:
+  N: 1.0
+roup:
+  N: 1.0
+roura:
+  N: 1.0
+rovina:
+  N: 1.0
+rovnice:
+  N: 1.0
+rozbor:
+  N: 1.0
+rozchod:
+  N: 1.0
+rozdat:
+  V: 0.55
+  N: 0.45
+rozeznat:
+  V: 0.55
+  N: 0.45
+rozhodce:
+  N: 1.0
+rozinka:
+  N: 1.0
+rozjezd:
+  N: 1.0
+rozkaz:
+  N: 1.0
+rozloha:
+  N: 1.0
+rozmar:
+  N: 1.0
+rozpad:
+  N: 1.0
+rozruch:
+  N: 1.0
+rozsah:
+  N: 1.0
+roztok:
+  N: 1.0
+rozum:
+  N: 1.0
+rozvod:
+  N: 1.0
+rubrika:
+  N: 1.0
+ruchadlo:
+  N: 1.0
+rukavice:
+  N: 1.0
+rukopis:
+  N: 1.0
+ryba:
+  N: 1.0
+rybolov:
+  N: 1.0
+rychlost:
+  N: 1.0
+rydlo:
+  N: 1.0
+rypadlo:
+  N: 1.0
+rytina:
+  N: 1.0
+ryzost:
+  N: 1.0
+sadista:
+  N: 1.0
+sahat:
+  V: 0.55
+  N: 0.45
+sako:
+  N: 1.0
+samec:
+  N: 1.0
+samizdat:
+  V: 0.55
+  N: 0.45
+samota:
+  N: 1.0
+sanitka:
+  N: 1.0
+sardinka:
+  N: 1.0
+sasanka:
+  N: 1.0
+satelit:
+  V: 0.7
+  N: 0.3
+sazba:
+  N: 1.0
+sazenice:
+  N: 1.0
+sbor:
+  N: 1.0
+schovat:
+  V: 1.0
+sebranka:
+  N: 1.0
+secese:
+  N: 1.0
+sedadlo:
+  N: 1.0
+sediment:
+  N: 1.0
+sedlo:
+  N: 1.0
+sehnat:
+  V: 0.55
+  N: 0.45
+sejmout:
+  V: 1.0
+sekera:
+  N: 1.0
+sekta:
+  N: 1.0
+sekunda:
+  N: 1.0
+sekvoje:
+  N: 1.0
+semeno:
+  N: 1.0
+seno:
+  N: 1.0
+servis:
+  N: 1.0
+sesadit:
+  V: 0.7
+  N: 0.3
+seshora:
+  N: 1.0
+seskok:
+  N: 1.0
+seslat:
+  V: 0.55
+  N: 0.45
+sestra:
+  N: 1.0
+sesuv:
+  N: 1.0
+sesypat:
+  V: 0.55
+  N: 0.45
+setba:
+  N: 1.0
+setina:
+  N: 1.0
+setkat:
+  V: 0.55
+  N: 0.45
+setnout:
+  V: 1.0
+setrvat:
+  V: 0.55
+  N: 0.45
+sever:
+  N: 1.0
+seznam:
+  N: 1.0
+shoda:
+  N: 1.0
+shrnout:
+  V: 1.0
+sifon:
+  N: 1.0
+silnice:
+  N: 1.0
+sirka:
+  N: 1.0
+sirotek:
+  N: 1.0
+sirup:
+  N: 1.0
+situace:
+  N: 1.0
+skafandr:
+  N: 1.0
+skalisko:
+  N: 1.0
+skanzen:
+  N: 1.0
+skaut:
+  N: 1.0
+skeptik:
+  N: 1.0
+skica:
+  N: 1.0
+skladba:
+  N: 1.0
+sklenice:
+  N: 1.0
+sklo:
+  N: 1.0
+skluz:
+  N: 1.0
+skoba:
+  N: 1.0
+skokan:
+  N: 1.0
+skoro:
+  N: 1.0
+skripta:
+  N: 1.0
+skrz:
+  N: 1.0
+skupina:
+  N: 1.0
+skvost:
+  N: 1.0
+skvrna:
+  N: 1.0
+slabika:
+  N: 1.0
+sladidlo:
+  N: 1.0
+slanina:
+  N: 1.0
+slast:
+  N: 1.0
+slavnost:
+  N: 1.0
+sledovat:
+  V: 1.0
+slepec:
+  N: 1.0
+sleva:
+  N: 1.0
+slezina:
+  N: 1.0
+slib:
+  N: 1.0
+slina:
+  N: 1.0
+sliznice:
+  N: 1.0
+slon:
+  N: 1.0
+sloupek:
+  N: 1.0
+slovo:
+  N: 1.0
+sluch:
+  N: 1.0
+sluha:
+  N: 1.0
+slunce:
+  N: 1.0
+slupka:
+  N: 1.0
+slza:
+  N: 1.0
+smaragd:
+  N: 1.0
+smetana:
+  N: 1.0
+smilstvo:
+  N: 1.0
+smlouva:
+  N: 1.0
+smog:
+  N: 1.0
+smrad:
+  N: 1.0
+smrk:
+  N: 1.0
+smrtka:
+  N: 1.0
+smutek:
+  N: 1.0
+smysl:
+  N: 1.0
+snad:
+  N: 1.0
+snaha:
+  N: 1.0
+snob:
+  N: 1.0
+sobota:
+  N: 1.0
+socha:
+  N: 1.0
+sodovka:
+  N: 1.0
+sokol:
+  N: 1.0
+sopka:
+  N: 1.0
+sotva:
+  N: 1.0
+souboj:
+  N: 1.0
+soucit:
+  V: 0.7
+  N: 0.3
+soudce:
+  N: 1.0
+souhlas:
+  N: 1.0
+soulad:
+  N: 1.0
+soumrak:
+  N: 1.0
+souprava:
+  N: 1.0
+soused:
+  N: 1.0
+soutok:
+  N: 1.0
+souviset:
+  V: 0.4
+  N: 0.6
+spalovna:
+  N: 1.0
+spasitel:
+  N: 1.0
+spis:
+  N: 1.0
+splav:
+  N: 1.0
+spodek:
+  N: 1.0
+spojenec:
+  N: 1.0
+spolu:
+  N: 1.0
+sponzor:
+  N: 1.0
+spornost:
+  N: 1.0
+spousta:
+  N: 1.0
+sprcha:
+  N: 1.0
+spustit:
+  V: 0.7
+  N: 0.3
+sranda:
+  N: 1.0
+sraz:
+  N: 1.0
+srdce:
+  N: 1.0
+srna:
+  N: 1.0
+srnec:
+  N: 1.0
+srovnat:
+  V: 0.55
+  N: 0.45
+srpen:
+  N: 1.0
+srst:
+  N: 1.0
+srub:
+  N: 1.0
+stanice:
+  N: 1.0
+starosta:
+  N: 1.0
+statika:
+  N: 1.0
+stavba:
+  N: 1.0
+stehno:
+  N: 1.0
+stezka:
+  N: 1.0
+stodola:
+  N: 1.0
+stolek:
+  N: 1.0
+stopa:
+  N: 1.0
+storno:
+  N: 1.0
+stoupat:
+  V: 0.55
+  N: 0.45
+strach:
+  N: 1.0
+stres:
+  N: 1.0
+strhnout:
+  V: 1.0
+strom:
+  N: 1.0
+struna:
+  N: 1.0
+studna:
+  N: 1.0
+stupnice:
+  N: 1.0
+stvol:
+  N: 1.0
+styk:
+  N: 1.0
+subjekt:
+  N: 1.0
+subtropy:
+  N: 1.0
+suchar:
+  N: 1.0
+sudost:
+  N: 1.0
+sukno:
+  N: 1.0
+sundat:
+  V: 0.55
+  N: 0.45
+sunout:
+  V: 1.0
+surikata:
+  N: 1.0
+surovina:
+  N: 1.0
+svah:
+  N: 1.0
+svalstvo:
+  N: 1.0
+svetr:
+  N: 1.0
+svatba:
+  N: 1.0
+svazek:
+  N: 1.0
+svisle:
+  N: 1.0
+svitek:
+  N: 1.0
+svoboda:
+  N: 1.0
+svodidlo:
+  N: 1.0
+svorka:
+  N: 1.0
+svrab:
+  N: 1.0
+sykavka:
+  N: 1.0
+sykot:
+  N: 1.0
+synek:
+  N: 1.0
+synovec:
+  N: 1.0
+sypat:
+  V: 0.55
+  N: 0.45
+sypkost:
+  N: 1.0
+syrovost:
+  N: 1.0
+sysel:
+  N: 1.0
+sytost:
+  N: 1.0
+tabletka:
+  N: 1.0
+tabule:
+  N: 1.0
+tahoun:
+  N: 1.0
+tajemno:
+  N: 1.0
+tajfun:
+  N: 1.0
+tajga:
+  N: 1.0
+tajit:
+  V: 0.7
+  N: 0.3
+tajnost:
+  N: 1.0
+taktika:
+  N: 1.0
+tamhle:
+  N: 1.0
+tampon:
+  N: 1.0
+tancovat:
+  V: 1.0
+tanec:
+  N: 1.0
+tanker:
+  N: 1.0
+tapeta:
+  N: 1.0
+tavenina:
+  N: 1.0
+tazatel:
+  N: 1.0
+technika:
+  N: 1.0
+tehdy:
+  N: 1.0
+tekutina:
+  N: 1.0
+telefon:
+  N: 1.0
+temnota:
+  N: 1.0
+tendence:
+  N: 1.0
+tenista:
+  N: 1.0
+tenor:
+  N: 1.0
+teplota:
+  N: 1.0
+tepna:
+  N: 1.0
+teprve:
+  N: 1.0
+terapie:
+  N: 1.0
+termoska:
+  N: 1.0
+textil:
+  N: 1.0
+ticho:
+  N: 1.0
+tiskopis:
+  N: 1.0
+titulek:
+  N: 1.0
+tkadlec:
+  N: 1.0
+tkanina:
+  N: 1.0
+tlapka:
+  N: 1.0
+tleskat:
+  V: 0.55
+  N: 0.45
+tlukot:
+  N: 1.0
+tlupa:
+  N: 1.0
+tmel:
+  N: 1.0
+toaleta:
+  N: 1.0
+topinka:
+  N: 1.0
+topol:
+  N: 1.0
+torzo:
+  N: 1.0
+touha:
+  N: 1.0
+toulec:
+  N: 1.0
+tradice:
+  N: 1.0
+traktor:
+  N: 1.0
+tramp:
+  N: 1.0
+trasa:
+  N: 1.0
+traverza:
+  N: 1.0
+trefit:
+  V: 0.7
+  N: 0.3
+trest:
+  N: 1.0
+trezor:
+  N: 1.0
+trhavina:
+  N: 1.0
+trhlina:
+  N: 1.0
+trochu:
+  N: 1.0
+trojice:
+  N: 1.0
+troska:
+  N: 1.0
+trouba:
+  N: 1.0
+trpce:
+  N: 1.0
+trpitel:
+  N: 1.0
+trpkost:
+  N: 1.0
+trubec:
+  N: 1.0
+truchlit:
+  V: 0.7
+  N: 0.3
+truhlice:
+  N: 1.0
+trus:
+  N: 1.0
+trvat:
+  V: 0.55
+  N: 0.45
+tudy:
+  N: 1.0
+tuhnout:
+  V: 1.0
+tuhost:
+  N: 1.0
+tundra:
+  N: 1.0
+turista:
+  N: 1.0
+turnaj:
+  N: 1.0
+tuzemsko:
+  N: 1.0
+tvaroh:
+  N: 1.0
+tvorba:
+  N: 1.0
+tvrdost:
+  N: 1.0
+tvrz:
+  N: 1.0
+tygr:
+  N: 1.0
+tykev:
+  N: 1.0
+ubohost:
+  N: 1.0
+uboze:
+  N: 1.0
+ubrat:
+  V: 0.55
+  N: 0.45
+ubrousek:
+  N: 1.0
+ubrus:
+  N: 1.0
+ubytovna:
+  N: 1.0
+ucho:
+  N: 1.0
+uctivost:
+  N: 1.0
+udivit:
+  V: 0.7
+  N: 0.3
+uhradit:
+  V: 0.7
+  N: 0.3
+ujednat:
+  V: 0.55
+  N: 0.45
+ujistit:
+  V: 0.7
+  N: 0.3
+ujmout:
+  V: 1.0
+ukazatel:
+  N: 1.0
+uklidnit:
+  V: 0.7
+  N: 0.3
+uklonit:
+  V: 0.7
+  N: 0.3
+ukotvit:
+  V: 0.7
+  N: 0.3
+ukrojit:
+  V: 0.7
+  N: 0.3
+ulice:
+  N: 1.0
+ulita:
+  N: 1.0
+ulovit:
+  V: 0.7
+  N: 0.3
+umyvadlo:
+  N: 1.0
+unavit:
+  V: 0.7
+  N: 0.3
+uniforma:
+  N: 1.0
+uniknout:
+  V: 1.0
+upadnout:
+  V: 1.0
+uplatnit:
+  V: 0.7
+  N: 0.3
+uplynout:
+  V: 1.0
+upoutat:
+  V: 0.55
+  N: 0.45
+upravit:
+  V: 0.7
+  N: 0.3
+uran:
+  N: 1.0
+urazit:
+  V: 0.7
+  N: 0.3
+usednout:
+  V: 1.0
+usilovat:
+  V: 1.0
+usmrtit:
+  V: 0.7
+  N: 0.3
+usnadnit:
+  V: 0.7
+  N: 0.3
+usnout:
+  V: 1.0
+usoudit:
+  V: 0.7
+  N: 0.3
+ustlat:
+  V: 0.55
+  N: 0.45
+ustrnout:
+  V: 1.0
+utahovat:
+  V: 1.0
+utkat:
+  V: 0.55
+  N: 0.45
+utlumit:
+  V: 0.7
+  N: 0.3
+utonout:
+  V: 1.0
+utopenec:
+  N: 1.0
+utrousit:
+  V: 0.7
+  N: 0.3
+uvalit:
+  V: 0.7
+  N: 0.3
+uvolnit:
+  V: 0.7
+  N: 0.3
+uvozovka:
+  N: 1.0
+uzdravit:
+  V: 0.7
+  N: 0.3
+uzel:
+  N: 1.0
+uzenina:
+  N: 1.0
+uzlina:
+  N: 1.0
+uznat:
+  V: 0.55
+  N: 0.45
+vagon:
+  N: 1.0
+valcha:
+  N: 1.0
+valoun:
+  N: 1.0
+vana:
+  N: 1.0
+vandal:
+  N: 1.0
+vanilka:
+  N: 1.0
+varan:
+  N: 1.0
+varhany:
+  N: 1.0
+varovat:
+  V: 1.0
+vcelku:
+  N: 1.0
+vchod:
+  N: 1.0
+vdova:
+  N: 1.0
+vedro:
+  N: 1.0
+vegetace:
+  N: 1.0
+vejce:
+  N: 1.0
+velbloud:
+  N: 1.0
+veletrh:
+  N: 1.0
+velitel:
+  N: 1.0
+velmoc:
+  N: 1.0
+velryba:
+  N: 1.0
+venkov:
+  N: 1.0
+veranda:
+  N: 1.0
+verze:
+  N: 1.0
+veselka:
+  N: 1.0
+veskrze:
+  N: 1.0
+vesnice:
+  N: 1.0
+vespodu:
+  N: 1.0
+vesta:
+  N: 1.0
+veterina:
+  N: 1.0
+veverka:
+  N: 1.0
+vibrace:
+  N: 1.0
+vichr:
+  N: 1.0
+videohra:
+  N: 1.0
+vidina:
+  N: 1.0
+vidle:
+  N: 1.0
+vila:
+  N: 1.0
+vinice:
+  N: 1.0
+viset:
+  V: 0.4
+  N: 0.6
+vitalita:
+  N: 1.0
+vize:
+  N: 1.0
+vizitka:
+  N: 1.0
+vjezd:
+  N: 1.0
+vklad:
+  N: 1.0
+vkus:
+  N: 1.0
+vlajka:
+  N: 1.0
+vlak:
+  N: 1.0
+vlasec:
+  N: 1.0
+vlevo:
+  N: 1.0
+vlhkost:
+  N: 1.0
+vliv:
+  N: 1.0
+vlnovka:
+  N: 1.0
+vloupat:
+  V: 0.55
+  N: 0.45
+vnucovat:
+  V: 1.0
+vnuk:
+  N: 1.0
+voda:
+  N: 1.0
+vodivost:
+  N: 1.0
+vodoznak:
+  N: 1.0
+vodstvo:
+  N: 1.0
+vojensky:
+  N: 1.0
+vojna:
+  N: 1.0
+vojsko:
+  N: 1.0
+volant:
+  N: 1.0
+volba:
+  N: 1.0
+volit:
+  V: 0.7
+  N: 0.3
+volno:
+  N: 1.0
+voskovka:
+  N: 1.0
+vozidlo:
+  N: 1.0
+vozovna:
+  N: 1.0
+vpravo:
+  N: 1.0
+vrabec:
+  N: 1.0
+vracet:
+  V: 0.4
+  N: 0.6
+vrah:
+  N: 1.0
+vrata:
+  N: 1.0
+vrba:
+  N: 1.0
+vrcholek:
+  N: 1.0
+vrhat:
+  V: 0.55
+  N: 0.45
+vrstva:
+  N: 1.0
+vrtule:
+  N: 1.0
+vsadit:
+  V: 0.7
+  N: 0.3
+vstoupit:
+  V: 0.7
+  N: 0.3
+vstup:
+  N: 1.0
+vtip:
+  N: 1.0
+vybavit:
+  V: 0.7
+  N: 0.3
+vybrat:
+  V: 0.55
+  N: 0.45
+vychovat:
+  V: 1.0
+vydat:
+  V: 0.55
+  N: 0.45
+vydra:
+  N: 1.0
+vyfotit:
+  V: 0.7
+  N: 0.3
+vyhledat:
+  V: 0.55
+  N: 0.45
+vyhnout:
+  V: 1.0
+vyhodit:
+  V: 0.7
+  N: 0.3
+vyhradit:
+  V: 0.7
+  N: 0.3
+vyhubit:
+  V: 0.7
+  N: 0.3
+vyjasnit:
+  V: 0.7
+  N: 0.3
+vyjet:
+  V: 0.4
+  N: 0.6
+vyjmout:
+  V: 1.0
+vyklopit:
+  V: 0.7
+  N: 0.3
+vykonat:
+  V: 0.55
+  N: 0.45
+vylekat:
+  V: 0.55
+  N: 0.45
+vymazat:
+  V: 0.55
+  N: 0.45
+vymezit:
+  V: 0.7
+  N: 0.3
+vymizet:
+  V: 0.4
+  N: 0.6
+vymyslet:
+  V: 0.4
+  N: 0.6
+vynechat:
+  V: 0.55
+  N: 0.45
+vynikat:
+  V: 0.55
+  N: 0.45
+vynutit:
+  V: 0.7
+  N: 0.3
+vypadat:
+  V: 0.55
+  N: 0.45
+vyplatit:
+  V: 0.7
+  N: 0.3
+vypravit:
+  V: 0.7
+  N: 0.3
+vypustit:
+  V: 0.7
+  N: 0.3
+vyrazit:
+  V: 0.7
+  N: 0.3
+vyrovnat:
+  V: 0.55
+  N: 0.45
+vyrvat:
+  V: 0.55
+  N: 0.45
+vyslovit:
+  V: 0.7
+  N: 0.3
+vysoko:
+  N: 1.0
+vystavit:
+  V: 0.7
+  N: 0.3
+vysunout:
+  V: 1.0
+vysypat:
+  V: 0.55
+  N: 0.45
+vytasit:
+  V: 0.7
+  N: 0.3
+vytesat:
+  V: 0.55
+  N: 0.45
+vytratit:
+  V: 0.7
+  N: 0.3
+vyvinout:
+  V: 1.0
+vyvolat:
+  V: 0.55
+  N: 0.45
+vyvrhel:
+  N: 1.0
+vyzdobit:
+  V: 0.7
+  N: 0.3
+vyznat:
+  V: 0.55
+  N: 0.45
+vzadu:
+  N: 1.0
+vzbudit:
+  V: 0.7
+  N: 0.3
+vzchopit:
+  V: 0.7
+  N: 0.3
+vzdor:
+  N: 1.0
+vzduch:
+  N: 1.0
+vzdychat:
+  V: 0.55
+  N: 0.45
+vzestup:
+  N: 1.0
+vzhledem:
+  N: 1.0
+vzkaz:
+  N: 1.0
+vzlykat:
+  V: 0.55
+  N: 0.45
+vznik:
+  N: 1.0
+vzorek:
+  N: 1.0
+vzpoura:
+  N: 1.0
+vztah:
+  N: 1.0
+vztek:
+  N: 1.0
+xylofon:
+  N: 1.0
+zabrat:
+  V: 0.55
+  N: 0.45
+zabydlet:
+  V: 0.4
+  N: 0.6
+zachovat:
+  V: 1.0
+zadarmo:
+  N: 1.0
+zadusit:
+  V: 0.7
+  N: 0.3
+zafoukat:
+  V: 0.55
+  N: 0.45
+zahltit:
+  V: 0.7
+  N: 0.3
+zahodit:
+  V: 0.7
+  N: 0.3
+zahrada:
+  N: 1.0
+zahynout:
+  V: 1.0
+zajatec:
+  N: 1.0
+zajet:
+  V: 0.4
+  N: 0.6
+zajistit:
+  V: 0.7
+  N: 0.3
+zaklepat:
+  V: 0.55
+  N: 0.45
+zakoupit:
+  V: 0.7
+  N: 0.3
+zalepit:
+  V: 0.7
+  N: 0.3
+zamezit:
+  V: 0.7
+  N: 0.3
+zamotat:
+  V: 0.55
+  N: 0.45
+zamyslet:
+  V: 0.4
+  N: 0.6
+zanechat:
+  V: 0.55
+  N: 0.45
+zanikat:
+  V: 0.55
+  N: 0.45
+zaplatit:
+  V: 0.7
+  N: 0.3
+zapojit:
+  V: 0.7
+  N: 0.3
+zapsat:
+  V: 0.55
+  N: 0.45
+zarazit:
+  V: 0.7
+  N: 0.3
+zastavit:
+  V: 0.7
+  N: 0.3
+zasunout:
+  V: 1.0
+zatajit:
+  V: 0.7
+  N: 0.3
+zatemnit:
+  V: 0.7
+  N: 0.3
+zatknout:
+  V: 1.0
+zaujmout:
+  V: 1.0
+zavalit:
+  V: 0.7
+  N: 0.3
+zavelet:
+  V: 0.4
+  N: 0.6
+zavinit:
+  V: 0.7
+  N: 0.3
+zavolat:
+  V: 0.55
+  N: 0.45
+zavrtat:
+  V: 0.55
+  N: 0.45
+zazvonit:
+  V: 0.7
+  N: 0.3
+zbavit:
+  V: 0.7
+  N: 0.3
+zbrusu:
+  N: 1.0
+zbudovat:
+  V: 1.0
+zbytek:
+  N: 1.0
+zdaleka:
+  N: 1.0
+zdarma:
+  N: 1.0
+zdatnost:
+  N: 1.0
+zdivo:
+  N: 1.0
+zdobit:
+  V: 0.7
+  N: 0.3
+zdroj:
+  N: 1.0
+zdvih:
+  N: 1.0
+zdymadlo:
+  N: 1.0
+zelenina:
+  N: 1.0
+zeman:
+  N: 1.0
+zemina:
+  N: 1.0
+zeptat:
+  V: 0.55
+  N: 0.45
+zezadu:
+  N: 1.0
+zezdola:
+  N: 1.0
+zhatit:
+  V: 0.7
+  N: 0.3
+zhltnout:
+  V: 1.0
+zhluboka:
+  N: 1.0
+zhotovit:
+  V: 0.7
+  N: 0.3
+zhruba:
+  N: 1.0
+zima:
+  N: 1.0
+zimnice:
+  N: 1.0
+zjemnit:
+  V: 0.7
+  N: 0.3
+zklamat:
+  V: 0.55
+  N: 0.45
+zkoumat:
+  V: 0.55
+  N: 0.45
+zkratka:
+  N: 1.0
+zkumavka:
+  N: 1.0
+zlato:
+  N: 1.0
+zlehka:
+  N: 1.0
+zloba:
+  N: 1.0
+zlom:
+  N: 1.0
+zlost:
+  N: 1.0
+zlozvyk:
+  N: 1.0
+zmapovat:
+  V: 1.0
+zmar:
+  N: 1.0
+zmatek:
+  N: 1.0
+zmije:
+  N: 1.0
+zmizet:
+  V: 0.4
+  N: 0.6
+zmocnit:
+  V: 0.7
+  N: 0.3
+zmodrat:
+  V: 0.55
+  N: 0.45
+zmrzlina:
+  N: 1.0
+zmutovat:
+  V: 1.0
+znak:
+  N: 1.0
+znalost:
+  N: 1.0
+znamenat:
+  V: 0.55
+  N: 0.45
+znovu:
+  N: 1.0
+zobrazit:
+  V: 0.7
+  N: 0.3
+zotavit:
+  V: 0.7
+  N: 0.3
+zoubek:
+  N: 1.0
+zoufale:
+  N: 1.0
+zplodit:
+  V: 0.7
+  N: 0.3
+zpomalit:
+  V: 0.7
+  N: 0.3
+zprava:
+  N: 1.0
+zprostit:
+  V: 0.7
+  N: 0.3
+zprudka:
+  N: 1.0
+zprvu:
+  N: 1.0
+zrada:
+  N: 1.0
+zranit:
+  V: 0.7
+  N: 0.3
+zrcadlo:
+  N: 1.0
+zrnitost:
+  N: 1.0
+zrno:
+  N: 1.0
+zrovna:
+  N: 1.0
+zrychlit:
+  V: 0.7
+  N: 0.3
+zrzavost:
+  N: 1.0
+zticha:
+  N: 1.0
+ztratit:
+  V: 0.7
+  N: 0.3
+zubovina:
+  N: 1.0
+zubr:
+  N: 1.0
+zvednout:
+  V: 1.0
+zvenku:
+  N: 1.0
+zvesela:
+  N: 1.0
+zvon:
+  N: 1.0
+zvrat:
+  V: 0.55
+  N: 0.45
+zvukovod:
+  N: 1.0
+zvyk:
+  N: 1.0

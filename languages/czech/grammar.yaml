@@ -1,0 +1,331 @@
+# Czech Grammar Rules — Montague Grammar with CCG Combinators
+#
+# Each rule specifies a lambda term for semantic composition.
+# The lambda notation is canonical; combinator equivalents appear in comments.
+#
+# Type inventory (Montague Grammar):
+#   e     = entity
+#   t     = truth value (sentence/proposition)
+#   A → B = function from A to B
+#
+# Czech-specific notes:
+#   - No determiners/articles (no Det type), like Latin
+#   - Flexible word order; default is SVO, but case endings carry the grammar
+#   - NP = bare N or Adj N (adjectives precede the noun)
+#   - The BIP39 payload is noun- and verb-heavy, so productions favour N/V slots
+#
+# CCG combinators used:
+#   B f g x   = f(g(x))      — forward composition
+#   C f x y   = f(y)(x)      — permutation (word order)
+#   T x f     = f(x)         — type raising
+
+grammar:
+  name: "Czech Grammar"
+  codec: bitpack
+  default_wordlist: default
+
+  # Type system for Czech grammatical categories
+  # Note: Czech has no determiners/articles (no Det type)
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+
+    - name: "V"
+      lambda_type: "e -> (e -> t)"
+
+    - name: "Adj"
+      lambda_type: "e -> e"
+
+    - name: "Adv"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Prep"
+      lambda_type: "e -> (e -> t)"
+
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Dot"
+      lambda_type: "t"
+
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+    - name: "Pron"
+      lambda_type: "e"
+
+  # Base rules (body dialect)
+  rules:
+    sentence:
+      # S = NP VP Dot
+      # T NP (B VP Dot) — type-raise NP, compose VP with Dot
+      lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+      cfg_productions:
+        - production: "NP VP Dot"
+          weight: 0.85
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+        - production: "NP Adv V NP Dot"
+          weight: 0.10
+          # adverb modifies verb
+          lambda: "λnp:(e->t). λadv:((e->t)->(e->t)). λv:(e->(e->t)). adv(v(np))"
+        - production: "NP V NP Dot"
+          weight: 0.05
+          # simple transitive
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+
+    noun_phrase:
+      # NP : e → t (predicate over entities)
+      # Czech NP = bare noun or Adj N (no determiners)
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "N"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+        - production: "Adj N"
+          weight: 0.6
+          # adjective modifies noun
+          lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+
+    verb_phrase:
+      # VP : (e → t) → t (takes subject predicate, produces truth)
+      lambda: "λv:(e->(e->t)). v"
+      cfg_productions:
+        - production: "VP_BASE"
+          weight: 0.70
+          lambda: "λv:(e->(e->t)). v"
+        - production: "VP_BASE VP_PP_TAIL"
+          weight: 0.30
+          lambda: "λv:(e->(e->t)). v"
+
+    vp_base:
+      # VP_BASE: core verb phrase before PP attachment
+      lambda: "λv:(e->(e->t)). v"
+      cfg_productions:
+        - production: "V NP"
+          weight: 0.35
+          # V NP — transitive verb with object (Czech allows SVO and SOV)
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+        - production: "Cop Adj"
+          weight: 0.20
+          # Cop(Adj) — copula links subject to adjective predicate
+          lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+        - production: "Modal V NP"
+          weight: 0.15
+          # Modal modifies (V applied to NP)
+          lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
+        - production: "V PP"
+          weight: 0.15
+          # V PP — verb with prepositional complement
+          lambda: "λpp:(e->(e->t)). λv:(e->(e->t)). v"
+        - production: "V NP PP"
+          weight: 0.10
+          # V NP PP — verb with object and PP adjunct
+          lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+        - production: "Modal V"
+          weight: 0.05
+          # Modal(V) — intransitive with modal
+          lambda: "λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v)"
+
+    vp_with_pp:
+      # VP_PP_TAIL: PP attachment to verb phrase
+      lambda: "λprep:(e->(e->t)). prep"
+      cfg_productions:
+        - production: "PP"
+          weight: 0.70
+          lambda: "λprep:(e->(e->t)). prep"
+        - production: "PP VP_PP_TAIL"
+          weight: 0.30
+          lambda: "λprep:(e->(e->t)). prep"
+
+    prepositional_phrase:
+      # PP = Prep NP
+      lambda: "λprep:(e->(e->t)). prep"
+      cfg_productions:
+        - production: "Prep NP"
+          weight: 1.0
+          # Prep(NP) — forward application (with quantifier bridge)
+          lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
+
+  # Dialect-specific rule overrides
+  dialects:
+    subject:
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+      rules:
+        sentence:
+          # S = Prefix? SContent
+          lambda: "λs:t. s"
+          cfg_productions:
+            - production: "Prefix SContent"
+              weight: 0.3
+              lambda: "λs:t. λpfx:(t->t). pfx(s)"
+            - production: "SContent"
+              weight: 0.7
+              lambda: "λs:t. s"
+
+        sentence_content:
+          # SContent : t
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+          cfg_productions:
+            - production: "NP VP Dot"
+              weight: 0.15
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP VP PP Dot"
+              weight: 0.30
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP VP PP PP Dot"
+              weight: 0.25
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "Adj N VP PP Dot"
+              weight: 0.15
+              lambda: "λn:(e->t). λvp:((e->t)->t). vp(n)"
+            - production: "V NP PP Dot"
+              weight: 0.15
+              lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+
+        noun_phrase:
+          # Czech NP: no determiners, just N or Adj N
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
+            - production: "Adj N"
+              weight: 0.6
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Adj N Adj"
+              weight: 0.2
+              # double adjective modification
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+
+        verb_phrase:
+          lambda: "λv:(e->(e->t)). v"
+          cfg_productions:
+            - production: "V NP"
+              weight: 0.4
+              lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+            - production: "Cop Adj"
+              weight: 0.3
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Modal V NP"
+              weight: 0.2
+              lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
+            - production: "Modal V NP PP"
+              weight: 0.1
+              lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
+
+        prepositional_phrase:
+          lambda: "λprep:(e->(e->t)). prep"
+          cfg_productions:
+            - production: "Prep NP"
+              weight: 1.0
+              lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
+
+    prose:
+      # Prose dialect — longer, flowing sentences with PP chains and conjunctions.
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+      rules:
+        sentence:
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+          cfg_productions:
+            - production: "NP VP Dot"
+              weight: 0.20
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP VP PP Dot"
+              weight: 0.25
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP VP PP PP Dot"
+              weight: 0.20
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP Adv V NP PP Dot"
+              weight: 0.10
+              lambda: "λnp:(e->t). λadv:((e->t)->(e->t)). λv:(e->(e->t)). adv(v(np))"
+            - production: "NP VP Conj NP VP Dot"
+              weight: 0.15
+              # conjoined clauses
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "Adv NP VP PP Dot"
+              weight: 0.10
+              # fronted adverb
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+
+        noun_phrase:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 0.5
+              lambda: "λn:(e->t). n"
+            - production: "Adj N"
+              weight: 0.4
+              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
+            - production: "Pron"
+              weight: 0.1
+              lambda: "λpron:e. pron"
+
+        verb_phrase:
+          lambda: "λv:(e->(e->t)). v"
+          cfg_productions:
+            - production: "V NP"
+              weight: 0.30
+              lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+            - production: "Modal V NP"
+              weight: 0.20
+              lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
+            - production: "V NP PP"
+              weight: 0.20
+              lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
+            - production: "Cop Adj"
+              weight: 0.15
+              lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
+            - production: "Adv V NP"
+              weight: 0.15
+              lambda: "λnp:(e->t). λv:(e->(e->t)). λadv:((e->t)->(e->t)). adv(v(np))"
+
+        prepositional_phrase:
+          lambda: "λprep:(e->(e->t)). prep"
+          cfg_productions:
+            - production: "Prep NP"
+              weight: 1.0
+              lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
+
+    payload_only:
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Dot"
+              weight: 0.3
+              lambda: "λn:(e->t). n"
+            - production: "N N Dot"
+              weight: 0.2
+              lambda: "λn:(e->t). n"
+            - production: "N N N Dot"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "N N N N Dot"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "N N N N N Dot"
+              weight: 0.05
+              lambda: "λn:(e->t). n"
+            - production: "V N Dot"
+              weight: 0.1
+              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
+            - production: "V N N Dot"
+              weight: 0.1
+              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
