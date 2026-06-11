@@ -11,17 +11,16 @@ on:
       - 'languages/**'
   workflow_dispatch:
 
+# Pushing the built site to the gh-pages branch requires write access.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
-  group: pages
+  group: pages-deploy
   cancel-in-progress: false
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,24 +28,23 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM
         run: ./build_web.sh
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      # Deploy the production site to the root of gh-pages. clean-exclude keeps
+      # the pr-preview/ directory (managed by the PR Preview workflow) intact so
+      # production deploys don't wipe live preview deployments.
+      - name: Deploy to GitHub Pages (production)
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          path: web
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+          branch: gh-pages
+          folder: web
+          clean: true
+          clean-exclude: |
+            pr-preview/
