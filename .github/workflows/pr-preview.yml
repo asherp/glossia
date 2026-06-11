@@ -1,0 +1,55 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
+
+# contents: write to push the preview into gh-pages; pull-requests: write so the
+# action can post/update the preview-link comment on the PR.
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pr-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    # Skip pull requests from forks: their restricted GITHUB_TOKEN cannot push to
+    # gh-pages, so a preview deploy would always fail.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v4
+
+      # The build steps are skipped when a PR is closed: pr-preview-action only
+      # needs to tear down the existing preview directory in that case.
+      - name: Install Rust
+        if: github.event.action != 'closed'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        if: github.event.action != 'closed'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install wasm-pack
+        if: github.event.action != 'closed'
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Build WASM
+        if: github.event.action != 'closed'
+        run: ./build_web.sh
+
+      # On open/synchronize/reopen: deploy web/ to gh-pages under
+      # pr-preview/pr-<N>/ and comment the URL. On close: remove that directory.
+      - name: Deploy PR preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: ./web/
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview

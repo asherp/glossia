@@ -15,4 +15,5 @@
 - [Email Dialect](./email-dialect.md)
 - [Nostr Seal](./nostr-seal.md)
 - [Project Structure](./project-structure.md)
+- [Deployment & CI](./deployment.md)
 - [Whitepaper](./whitepaper.md)
