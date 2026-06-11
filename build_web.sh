@@ -2,11 +2,7 @@
 set -e
 
 echo "==> Building Glossia WASM module..."
-# Scope the build to the glossia library package only. Without -p, wasm-pack's
-# `cargo build` selects every default-member (glossia-cli, glossia-tools), and
-# resolver v2 unifies their features onto glossia — pulling in the native-only
-# nlprule dependency (and its C lib onig_sys, which cannot compile to wasm32).
-wasm-pack build --target web --no-default-features --features wasm -- -p glossia
+wasm-pack build --target web --no-default-features --features wasm
 
 echo "==> Copying artifacts to web/..."
 mkdir -p web

@@ -1,6 +1,11 @@
 [workspace]
 members = ["glossia-cli", "glossia-tools"]
-default-members = [".", "glossia-cli", "glossia-tools"]
+# Only the glossia library is a default member. This keeps the WASM build
+# (wasm-pack runs `cargo build` with no package selector) scoped to glossia
+# alone — otherwise resolver v2 unifies glossia-cli/glossia-tools' `native`
+# feature onto the wasm build, pulling in nlprule (and its C lib onig_sys,
+# which cannot compile to wasm32). Build everything with `cargo build --workspace`.
+default-members = ["."]
 resolver = "2"
 
 [package]
