@@ -387,7 +387,7 @@ impl Pipeline {
 
         // Meta payload words for classification.
         let meta_payload: HashSet<&str> = [
-            "latin", "english", "hex", "base64", "base58", "ascii7", "bits",
+            "latin", "english", "czech", "hex", "base64", "base58", "ascii7", "bits",
             "bytes", "nostr", "pgp", "prose", "body", "subject", "spells", "bip39", "sig", "seal",
             "primes", "merkle", "image", "voronoi", "grid", "mosaic",
             "constellation", "patches", "raw",
