@@ -9,10 +9,22 @@ mkdir -p web
 cp pkg/glossia_bg.wasm web/
 cp pkg/glossia.js web/
 
-# Optional: optimize WASM size if wasm-opt is available
+# Aggressively optimize WASM size: -Oz (size first) plus strip the debug and
+# name sections, which are large and unneeded in production. wasm-pack already
+# runs its own wasm-opt pass, but this makes the size pass explicit and adds
+# stripping. See issue #21.
 if command -v wasm-opt &> /dev/null; then
-    echo "==> Optimizing WASM with wasm-opt..."
-    wasm-opt -Os web/glossia_bg.wasm -o web/glossia_bg.wasm
+    before=$(wc -c < web/glossia_bg.wasm)
+    echo "==> Optimizing WASM with wasm-opt -Oz --strip-debug --strip-producers..."
+    wasm-opt -Oz --strip-debug --strip-producers \
+        web/glossia_bg.wasm -o web/glossia_bg.wasm
+    after=$(wc -c < web/glossia_bg.wasm)
+    echo "    glossia_bg.wasm: ${before} B -> ${after} B"
+else
+    echo "==> WARNING: wasm-opt not found on PATH; skipping size optimization."
+    echo "    Install it via 'cargo install wasm-opt' or the binaryen package"
+    echo "    to significantly shrink the deployed bundle."
+    echo "    Current size: $(wc -c < web/glossia_bg.wasm) B"
 fi
 
 echo "==> Build complete."
