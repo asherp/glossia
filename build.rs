@@ -3,9 +3,37 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+/// True when the build script is compiling for a wasm32 target (e.g. the web
+/// app via `wasm-pack`). Cargo exposes the target architecture to build scripts
+/// through `CARGO_CFG_TARGET_ARCH`.
+fn is_wasm_target() -> bool {
+    env::var("CARGO_CFG_TARGET_ARCH").as_deref() == Ok("wasm32")
+}
+
+/// Large language data files that are excluded from wasm builds to keep the
+/// web bundle small (see issue #21).
+///
+/// These are general-purpose English wordlist profiles (`lemmas`, `ngram`) and
+/// the WordNet source data they were derived from. They are not referenced by
+/// any grammar dialect, so the web app never exposes them, yet together they
+/// account for ~13 MB of the embedded YAML. They remain fully available in
+/// native (CLI) builds.
+fn is_excluded_in_wasm(lang: &str, filename: &str) -> bool {
+    matches!(
+        (lang, filename),
+        ("english", "payload_lemmas.yaml")
+            | ("english", "payload_ngram.yaml")
+            | ("english", "cover_ngram.yaml")
+            | ("english", "wordnet_lemmas.yaml")
+    )
+}
+
 fn main() {
     // Tell Cargo to rerun this build script if languages directory changes
     println!("cargo:rerun-if-changed=languages");
+    // Re-run when the target architecture changes (native <-> wasm) so the
+    // wasm-only language trimming below is applied correctly.
+    println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
 
     // Generate language index at build time
     let languages_dir = Path::new("languages");
@@ -128,12 +156,20 @@ struct LanguageFiles {
 
 fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let mut languages: HashMap<String, LanguageFiles> = HashMap::new();
-    
+
     // Recursively scan languages directory
     scan_languages_dir(languages_dir, languages_dir, &mut languages)?;
-    
+
     // Sort languages for deterministic output (prevents unnecessary rebuilds)
     let languages: BTreeMap<String, LanguageFiles> = languages.into_iter().collect();
+
+    // In wasm builds, drop large language data files that the web app never
+    // exposes (see `is_excluded_in_wasm`). This is the single largest lever on
+    // the wasm bundle size. Skipping is applied consistently across every
+    // generated lookup (embedded YAML, wordlist profiles, payload word index,
+    // word counts) so the runtime view stays self-consistent.
+    let wasm = is_wasm_target();
+    let skip = |lang: &str, filename: &str| wasm && is_excluded_in_wasm(lang, filename);
     
     // Generate Rust code
     let out_dir = env::var("OUT_DIR")?;
@@ -197,7 +233,10 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
             ));
         }
         
-        for (_name, path) in &files.other {
+        for (name, path) in &files.other {
+            if skip(_lang, name) {
+                continue;
+            }
             let rel_path = path.strip_prefix(languages_dir).unwrap();
             let rel_str = rel_path.to_string_lossy().replace('\\', "/");
             code.push_str(&format!(
@@ -206,7 +245,7 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
             ));
         }
     }
-    
+
     code.push_str("            _ => None,\n");
     code.push_str("        }\n");
     code.push_str("    } else {\n");
@@ -227,7 +266,10 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
                     rel_str, rel_str
                 ));
             }
-            for (_name, path) in &files.other {
+            for (name, path) in &files.other {
+                if skip(debug_lang, name) {
+                    continue;
+                }
                 let rel_path = path.strip_prefix(languages_dir).unwrap();
                 let rel_str = rel_path.to_string_lossy().replace('\\', "/");
                 code.push_str(&format!(
@@ -237,7 +279,7 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
             }
         }
     }
-    
+
     code.push_str("            _ => None,\n");
     code.push_str("        }\n");
     code.push_str("    }\n");
@@ -296,7 +338,7 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
             }
         }
         for (name, _) in &files.other {
-            if name.starts_with("payload") && name.ends_with(".yaml") {
+            if name.starts_with("payload") && name.ends_with(".yaml") && !skip(lang, name) {
                 payload_filenames.push(name.clone());
             }
         }
@@ -384,7 +426,7 @@ fn generate_language_index(languages_dir: &Path) -> Result<PathBuf, Box<dyn std:
             payload_paths.push((profile, p.clone()));
         }
         for (name, path) in &files.other {
-            if name.starts_with("payload") && name.ends_with(".yaml") {
+            if name.starts_with("payload") && name.ends_with(".yaml") && !skip(lang, name) {
                 let profile = if name == "payload.yaml" {
                     "default".to_string()
                 } else {

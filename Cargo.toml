@@ -26,6 +26,42 @@ wasm = ["dep:wasm-bindgen", "dep:js-sys", "dep:getrandom"]
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+# Size-oriented release profile (issue #21). `lto` and `codegen-units = 1` let
+# the linker discard unused code across crate boundaries, and `strip` removes
+# symbol/debug info — all of which shrink both the native binary and the wasm
+# bundle without hurting runtime speed. Aggressive size-only optimisation of the
+# wasm artifact itself (e.g. `wasm-opt -Oz`) is handled in `build_web.sh`, so
+# `opt-level` is left at its default to keep native CLI throughput fast.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+# Aggressive size optimisation of the wasm bundle (issue #21). wasm-pack runs
+# its own bundled wasm-opt; configuring its flags here makes the size pass
+# explicit and always-applied. `-Oz` optimises for size and the strip flags
+# drop the debug/name and producers sections.
+#
+# The `--enable-*` flags are required because modern stable rustc emits these
+# wasm features by default for wasm32-unknown-unknown, but wasm-opt rejects
+# them unless explicitly enabled ("Bulk memory operations require bulk memory
+# [--enable-bulk-memory]"). We enable the full default rustc featureset so the
+# validator accepts the input; enabling a superset is harmless. We also do NOT
+# install a separate system `wasm-opt` in CI — an older one gets picked up by
+# wasm-pack and fails the same validation.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    '-Oz',
+    '--strip-debug',
+    '--strip-producers',
+    '--enable-bulk-memory',
+    '--enable-nontrapping-float-to-int',
+    '--enable-sign-ext',
+    '--enable-mutable-globals',
+    '--enable-multivalue',
+    '--enable-reference-types',
+]
+
 [dependencies]
 rand = "0.8"
 anyhow = "1.0"

@@ -41,6 +41,10 @@ jobs:
         if: github.event.action != 'closed'
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      # NOTE: do not install a system `wasm-opt` here. wasm-pack uses its own
+      # bundled wasm-opt and runs the size pass configured under
+      # [package.metadata.wasm-pack.profile.release] in Cargo.toml; a system
+      # binary gets picked up instead and can reject modern wasm features.
       - name: Build WASM
         if: github.event.action != 'closed'
         run: ./build_web.sh
