@@ -38,15 +38,29 @@ codegen-units = 1
 strip = true
 
 # Aggressive size optimisation of the wasm bundle (issue #21). wasm-pack runs
-# its own pinned, modern wasm-opt; configuring its flags here makes the size
-# pass explicit and always-applied. `-Oz` optimises for size and the strip
-# flags drop the debug/name and producers sections. We deliberately do NOT
-# install a separate system `wasm-opt` in CI: an older system binary gets
-# picked up by wasm-pack and rejects the bulk-memory ops modern rustc emits
-# ("bulk memory is disabled"). Letting wasm-pack use its bundled wasm-opt
-# avoids that mismatch.
+# its own bundled wasm-opt; configuring its flags here makes the size pass
+# explicit and always-applied. `-Oz` optimises for size and the strip flags
+# drop the debug/name and producers sections.
+#
+# The `--enable-*` flags are required because modern stable rustc emits these
+# wasm features by default for wasm32-unknown-unknown, but wasm-opt rejects
+# them unless explicitly enabled ("Bulk memory operations require bulk memory
+# [--enable-bulk-memory]"). We enable the full default rustc featureset so the
+# validator accepts the input; enabling a superset is harmless. We also do NOT
+# install a separate system `wasm-opt` in CI — an older one gets picked up by
+# wasm-pack and fails the same validation.
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ['-Oz', '--strip-debug', '--strip-producers']
+wasm-opt = [
+    '-Oz',
+    '--strip-debug',
+    '--strip-producers',
+    '--enable-bulk-memory',
+    '--enable-nontrapping-float-to-int',
+    '--enable-sign-ext',
+    '--enable-mutable-globals',
+    '--enable-multivalue',
+    '--enable-reference-types',
+]
 
 [dependencies]
 rand = "0.8"
