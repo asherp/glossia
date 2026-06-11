@@ -77,10 +77,12 @@ but **no grammar dialect references them**, so the web app never exposes them.
    the runtime view stays self-consistent. Native (CLI) builds are unchanged
    and keep all wordlists. This is the single largest win: the raw
    `cargo build` wasm lib drops from **~20.7 MB → ~3.8 MB**.
-2. **Aggressive size optimisation.** `build_web.sh` runs an explicit
-   `wasm-opt -Oz --strip-debug --strip-producers` pass (and warns if `wasm-opt`
-   is missing rather than silently skipping). The deploy workflows install
-   `binaryen` so this pass always runs in CI.
+2. **Aggressive size optimisation.** `wasm-opt -Oz --strip-debug
+   --strip-producers` is configured under
+   `[package.metadata.wasm-pack.profile.release]` in `Cargo.toml`, so wasm-pack
+   always runs it using its own bundled wasm-opt. (Installing a *system*
+   `wasm-opt` is intentionally avoided: an older system binary gets picked up by
+   wasm-pack and rejects the bulk-memory ops modern rustc emits.)
 3. **Size-tuned release profile.** `[profile.release]` enables `lto`,
    `codegen-units = 1`, and `strip`, letting the linker drop dead code and
    symbol info from both native and wasm builds.

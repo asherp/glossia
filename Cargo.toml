@@ -37,6 +37,17 @@ lto = true
 codegen-units = 1
 strip = true
 
+# Aggressive size optimisation of the wasm bundle (issue #21). wasm-pack runs
+# its own pinned, modern wasm-opt; configuring its flags here makes the size
+# pass explicit and always-applied. `-Oz` optimises for size and the strip
+# flags drop the debug/name and producers sections. We deliberately do NOT
+# install a separate system `wasm-opt` in CI: an older system binary gets
+# picked up by wasm-pack and rejects the bulk-memory ops modern rustc emits
+# ("bulk memory is disabled"). Letting wasm-pack use its bundled wasm-opt
+# avoids that mismatch.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ['-Oz', '--strip-debug', '--strip-producers']
+
 [dependencies]
 rand = "0.8"
 anyhow = "1.0"
