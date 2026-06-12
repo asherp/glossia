@@ -286,6 +286,7 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
     match word {
         "english" => Some(("english", "body")),
         "latin" => Some(("latin", "body")),
+        "czech" => Some(("czech", "body")),
         "nostr" => Some(("cs", "nip04")),
         "pgp" => Some(("cs", "pgp")),
         "primes" => Some(("math", "body")),
@@ -386,7 +387,7 @@ impl Pipeline {
 
         // Meta payload words for classification.
         let meta_payload: HashSet<&str> = [
-            "latin", "english", "hex", "base64", "base58", "ascii7", "bits",
+            "latin", "english", "czech", "hex", "base64", "base58", "ascii7", "bits",
             "bytes", "nostr", "pgp", "prose", "body", "subject", "spells", "bip39", "sig", "seal",
             "primes", "merkle", "image", "voronoi", "grid", "mosaic",
             "constellation", "patches", "raw",

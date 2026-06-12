@@ -736,6 +736,7 @@ footer a:hover { text-decoration: underline; }
         <button class="btn-sm preset-btn" data-meta="encode into latin compactly" title="Latin prose encoding">Latin</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin bip39" title="BIP39 seed phrase as Latin (base-N, fewer words)">Latin BIP39</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin spells" title="Harry Potter spell format">Spells</button>
+        <button class="btn-sm preset-btn" data-meta="encode into czech naturally" title="Czech prose (official BIP39 Czech wordlist)">Czech</button>
       </div>
       <div class="preset-tab-content" data-tab="crypto">
         <button class="btn-sm preset-btn" data-meta="encode into pgp" title="PGP encrypted message armor">PGP Message</button>
@@ -782,6 +783,7 @@ footer a:hover { text-decoration: underline; }
       <div class="preset-tab-content" data-tab="pipelines">
         <button class="btn-sm preset-btn" data-meta="transcode from latin into english" title="Translate Latin prose to English prose">Latin &rarr; English</button>
         <button class="btn-sm preset-btn" data-meta="transcode from english into latin" title="Translate English prose to Latin prose">English &rarr; Latin</button>
+        <button class="btn-sm preset-btn" data-meta="transcode from czech into english" title="Translate Czech prose to English prose">Czech &rarr; English</button>
         <button class="btn-sm preset-btn" data-meta="encode into english naturally" title="Encode raw hex as English prose">Hex &rarr; English</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin compactly" title="Encode raw data as Latin prose">Data &rarr; Latin</button>
       </div>
@@ -864,7 +866,7 @@ footer a:hover { text-decoration: underline; }
             <code>transcode from &lt;source&gt; into &lt;target&gt;</code>
           </div>
           <div style="margin-bottom:0.5rem;">
-            <strong style="color:var(--text);">Targets:</strong> english, latin, pgp, nostr, music, hex, base64, ascii7
+            <strong style="color:var(--text);">Targets:</strong> english, latin, czech, pgp, nostr, music, hex, base64, ascii7
           </div>
           <div>
             <strong style="color:var(--text);">Modifiers:</strong> naturally, compactly, minimally, optimally
@@ -1682,16 +1684,18 @@ function reverseMetaInstruction(instruction) {
 
 function parseTargetLanguage() {
   const instruction = document.getElementById('meta-input').value.trim().toLowerCase();
-  const match = instruction.match(/(?:into|as|to)\s+(english|latin)/);
+  const match = instruction.match(/(?:into|as|to)\s+(english|latin|czech)/);
   if (match) return match[1];
   if (instruction.includes('english')) return 'english';
   if (instruction.includes('latin')) return 'latin';
+  if (instruction.includes('czech')) return 'czech';
   return 'english';
 }
 
 function targetWordlist() {
   const lang = parseTargetLanguage();
-  if (lang === 'latin') return 'default';
+  // Languages whose default payload lives in payload.yaml (not payload_bip39.yaml)
+  if (lang === 'latin' || lang === 'czech') return 'default';
   return 'bip39';
 }
 

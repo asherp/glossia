@@ -3223,10 +3223,11 @@ mod tests {
     #[test]
     fn test_meta_payload_words_load() {
         let words = load_payload_words("meta").unwrap();
-        assert_eq!(words.len(), 18, "Meta should have exactly 18 payload words");
+        assert_eq!(words.len(), 19, "Meta should have exactly 19 payload words");
         // Spot-check some dialect identifiers
         assert!(words.contains(&"latin".to_string()), "Should contain 'latin'");
         assert!(words.contains(&"english".to_string()), "Should contain 'english'");
+        assert!(words.contains(&"czech".to_string()), "Should contain 'czech'");
         assert!(words.contains(&"hex".to_string()), "Should contain 'hex'");
         assert!(words.contains(&"nostr".to_string()), "Should contain 'nostr'");
         assert!(words.contains(&"html".to_string()), "Should contain 'html'");
@@ -3236,7 +3237,7 @@ mod tests {
     fn test_meta_pos_mapping() {
         let mapping = build_pos_mapping_for_wordlist("meta", "default")
             .expect("Should load meta POS mapping");
-        // All 16 payload words should have POS tags
+        // All meta payload words should have POS tags
         let words = load_payload_words("meta").unwrap();
         for word in &words {
             let word_lower = word.to_lowercase();

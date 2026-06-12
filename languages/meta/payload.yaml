@@ -103,3 +103,8 @@ music:
   N: 0.5
   Adj: 0.4
   Pron: 0.1
+
+czech:
+  N: 0.5
+  Adj: 0.4
+  Pron: 0.1
