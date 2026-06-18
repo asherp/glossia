@@ -1718,6 +1718,45 @@ pub fn decode_from_language(
     decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body")
 }
 
+/// Choose the decode codec for a sequence of extracted payload words.
+///
+/// Framed Glossia prose carries a leading padding-count word and is interspersed
+/// with cover/function words, so it round-trips through the grammar's declared
+/// codec (`bitpack` for power-of-two wordlists). A *bare* payload sequence — e.g.
+/// a raw BIP39 mnemonic typed directly rather than produced by Glossia's encoder
+/// — has no padding word and no cover words: every input token is a payload word.
+/// Handing such input to `bitpack` misreads the first word as a padding count,
+/// leaving `(N-1) * bits_per_word` data bits that are almost never byte-aligned,
+/// so the decode aborts with "data_bits not byte-aligned" (issue #23).
+///
+/// When every input token is a payload word (`payload_words == total_tokens`) the
+/// input is unframed; decode it as a plain base-N integer instead — the same
+/// interpretation the `raw` dialect path uses for bare mnemonics. Only `bitpack`
+/// is rerouted; `base_n` already handles unframed input.
+fn decode_codec_for_input<'a>(
+    grammar_codec: &'a str,
+    total_tokens: usize,
+    payload_words: usize,
+) -> &'a str {
+    if grammar_codec == "bitpack" && payload_words > 0 && payload_words == total_tokens {
+        "base_n"
+    } else {
+        grammar_codec
+    }
+}
+
+/// Count whitespace-delimited input tokens that survive alphanumeric trimming.
+///
+/// Used to detect bare/unframed payload input: when this equals the number of
+/// extracted payload words, the input carries no cover words (see
+/// [`decode_codec_for_input`]).
+fn alnum_token_count(text: &str) -> usize {
+    text.split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
+        .filter(|w| !w.is_empty())
+        .count()
+}
+
 /// Internal decode with separate grammar language and payload language.
 ///
 /// `grammar_lang` determines which grammar.yaml to load (for payload_separator).
@@ -1808,7 +1847,14 @@ fn decode_from_language_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    let bytes = codec::decode_base_n(&extracted, &*payload_tree, grammar.codec())
+    // Bare/unframed input (a raw mnemonic: all tokens are payload words) has no
+    // bitpack padding header, so decode it as base-N instead (issue #23).
+    let codec_name = if payload_separator.is_empty() {
+        grammar.codec()
+    } else {
+        decode_codec_for_input(grammar.codec(), alnum_token_count(text), extracted.len())
+    };
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
     match String::from_utf8(bytes.clone()) {
         Ok(s) => Ok(s),
@@ -1906,7 +1952,14 @@ fn decode_from_language_rich_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    let bytes = codec::decode_base_n(&extracted, &*payload_tree, grammar.codec())
+    // Bare/unframed input (a raw mnemonic: all tokens are payload words) has no
+    // bitpack padding header, so decode it as base-N instead (issue #23).
+    let codec_name = if payload_separator.is_empty() {
+        grammar.codec()
+    } else {
+        decode_codec_for_input(grammar.codec(), alnum_token_count(text), extracted.len())
+    };
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
     let decoded = match String::from_utf8(bytes.clone()) {
         Ok(s) => s,
@@ -2244,6 +2297,56 @@ mod tests {
         );
         let decoded = decode_pipeline.execute(&latin_prose).unwrap();
         assert_eq!(decoded, input, "Transcode round-trip should recover original");
+    }
+
+    #[test]
+    fn test_decode_codec_for_input_detects_bare_vs_framed() {
+        // Every input token is a payload word → unframed bare mnemonic → base_n.
+        assert_eq!(decode_codec_for_input("bitpack", 4, 4), "base_n");
+        // Cover words present (more tokens than payload words) → framed → bitpack.
+        assert_eq!(decode_codec_for_input("bitpack", 9, 4), "bitpack");
+        // Non-bitpack codecs already handle unframed input and are never rerouted.
+        assert_eq!(decode_codec_for_input("base_n", 4, 4), "base_n");
+        // No payload words extracted → keep the declared codec.
+        assert_eq!(decode_codec_for_input("bitpack", 0, 0), "bitpack");
+    }
+
+    #[test]
+    fn test_transcode_bare_mnemonic_english_to_latin() {
+        // Regression for issue #23: bare payload words (a raw BIP39 mnemonic, not
+        // Glossia-encoded prose) carry no bitpack padding header, so transcoding
+        // them must not fail with "data_bits not byte-aligned". They decode as a
+        // plain base-N integer, matching the `raw` dialect path.
+        let bare = "abandon ability able about";
+
+        let transcode = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "body"),
+            Endpoint::language("latin"),
+        )
+        .with_seed(42);
+        let latin = transcode
+            .execute(bare)
+            .expect("bare-word transcode should succeed, not error on byte alignment");
+        assert!(!latin.is_empty(), "Latin prose should not be empty");
+
+        // Byte-lossless: the Latin output must decode to the same bytes the bare
+        // English words decode to directly.
+        let from_english = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "body"),
+            Endpoint::Auto,
+        )
+        .execute(bare)
+        .unwrap();
+        let from_latin = Pipeline::from_params(
+            Endpoint::language("latin"),
+            Endpoint::Auto,
+        )
+        .execute(&latin)
+        .unwrap();
+        assert_eq!(
+            from_english, from_latin,
+            "bare-word transcode must be byte-lossless"
+        );
     }
 
     #[test]
