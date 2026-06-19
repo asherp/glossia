@@ -995,6 +995,50 @@ impl Pipeline {
         })
     }
 
+    /// Decode bare/raw payload words (e.g. a BIP39 mnemonic) into hex bytes.
+    ///
+    /// Raw input carries no Glossia header or cover words, so every payload word
+    /// is data and decoding is a plain base-N integer (no bitpack padding word).
+    /// Returns the hex-encoded bytes and the extracted payload words. Shared by
+    /// [`Self::do_decode`] and [`Self::do_decode_rich`] so both agree.
+    fn decode_raw_words(
+        &self,
+        input: &str,
+        language: &str,
+        wordlist: &str,
+    ) -> Result<(String, Vec<String>), PipelineError> {
+        let wordlist_name = if wordlist == "default" {
+            let dw = crate::generator::default_wordlist(language);
+            if dw == "default" { wordlist } else { dw }
+        } else {
+            wordlist
+        };
+        let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
+            .map_err(|e| PipelineError::DecodeError(e))?;
+        let payload_tree = WordlistTree::new(payload_words);
+
+        let words: Vec<String> = input
+            .split_whitespace()
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+            .filter(|w| !w.is_empty() && payload_tree.contains(w))
+            .collect();
+
+        if words.is_empty() {
+            return Err(PipelineError::DecodeError(
+                "no payload words found in input".to_string(),
+            ));
+        }
+
+        if self.verbose {
+            eprintln!("Raw decode: {} payload words via base-N", words.len());
+        }
+
+        // Raw mnemonics have no bitpack header — always use base_n.
+        let bytes = codec::decode_base_n(&words, &payload_tree, "base_n")
+            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+        Ok((codec::hex_encode(&bytes), words))
+    }
+
     /// Decode: language prose → extract payload words → binary → data string.
     fn do_decode(&self, input: &str, source: &Endpoint) -> Result<String, PipelineError> {
         let (language, wordlist, dialect) = match source {
@@ -1014,36 +1058,8 @@ impl Pipeline {
         // "raw" dialect: input is raw payload words (e.g. BIP39 mnemonic) without
         // Glossia header or cover words. Decode directly via base-N.
         if dialect == "raw" {
-            let wordlist_name = if wordlist == "default" {
-                let dw = crate::generator::default_wordlist(language);
-                if dw == "default" { wordlist } else { dw }
-            } else {
-                wordlist
-            };
-            let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
-                .map_err(|e| PipelineError::DecodeError(e))?;
-            let payload_tree = WordlistTree::new(payload_words);
-
-            let words: Vec<String> = input
-                .split_whitespace()
-                .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-                .filter(|w| !w.is_empty() && payload_tree.contains(w))
-                .collect();
-
-            if words.is_empty() {
-                return Err(PipelineError::DecodeError(
-                    "no payload words found in input".to_string(),
-                ));
-            }
-
-            if self.verbose {
-                eprintln!("Raw decode: {} payload words via base-N", words.len());
-            }
-
-            // Raw mnemonics have no bitpack header — always use base_n.
-            let bytes = codec::decode_base_n(&words, &payload_tree, "base_n")
-                .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-            return Ok(codec::hex_encode(&bytes));
+            let (output, _) = self.decode_raw_words(input, language, wordlist)?;
+            return Ok(output);
         }
 
         // Resolve payload_language: if the dialect declares a different language
@@ -1140,6 +1156,25 @@ impl Pipeline {
                 payload_words: extracted,
                 data_mode: None,
                 stats: None,
+                resolved_source: None,
+            });
+        }
+
+        // "raw" dialect: bare payload words (e.g. BIP39 mnemonic), all payload and
+        // no cover — decode via base-N, same as the plain do_decode raw branch.
+        if dialect == "raw" {
+            let (output, words) = self.decode_raw_words(input, language, wordlist)?;
+            let payload_count = words.len();
+            return Ok(PipelineResult {
+                output,
+                payload_words: words,
+                data_mode: None,
+                stats: Some(PipelineStats {
+                    payload_count,
+                    cover_count: 0,
+                    total_words: payload_count,
+                    ratio: 1.0,
+                }),
                 resolved_source: None,
             });
         }
@@ -2341,6 +2376,31 @@ mod tests {
         );
         let decoded = decode.execute(&bare_words).unwrap();
         assert_eq!(decoded, input, "raw encode/decode must round-trip");
+    }
+
+    #[test]
+    fn test_raw_decode_rich_returns_stats() {
+        // Regression: do_decode_rich had no `raw` branch, so a rich decode of bare
+        // payload words fell through to the prose decoder. It now decodes via
+        // base-N and reports all-payload stats, agreeing with the plain do_decode.
+        let bare = "add garlic"; // base-N of 0xcafe in english/bip39
+
+        let pipeline = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "raw"),
+            Endpoint::Format(DataMode::Hex),
+        );
+
+        let plain = pipeline.execute(bare).unwrap();
+        let rich = pipeline.execute_rich(bare).unwrap();
+
+        assert_eq!(rich.output, plain, "rich and plain raw decode must agree");
+        assert_eq!(rich.output, "cafe");
+        assert_eq!(rich.payload_words, vec!["add".to_string(), "garlic".to_string()]);
+        let stats = rich.stats.expect("raw decode should report stats");
+        assert_eq!(stats.payload_count, 2);
+        assert_eq!(stats.cover_count, 0);
+        assert_eq!(stats.total_words, 2);
+        assert_eq!(stats.ratio, 1.0);
     }
 
     #[test]
