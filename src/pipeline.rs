@@ -873,11 +873,12 @@ impl Pipeline {
                 .map_err(|e| PipelineError::EncodeError(e))?;
             let payload_tree = WordlistTree::new(payload_words);
 
-            let codec = Grammar::from_language_dialect(language, "body")
-                .map(|g| g.codec().to_string())
-                .unwrap_or_else(|_| "bitpack".to_string());
+            // Raw output is bare payload words with no padding header, so it must
+            // use base-N — the same codec the raw decode path uses. (bitpack would
+            // prepend a padding-count word that the bare-word decoder doesn't
+            // expect, breaking the round-trip.)
             let (_, data) = codec::detect_mode(input);
-            let words = codec::encode_base_n(&data, &payload_tree, &codec)
+            let words = codec::encode_base_n(&data, &payload_tree, "base_n")
                 .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
 
             return Ok(words.join(" "));
@@ -917,11 +918,12 @@ impl Pipeline {
                 .map_err(|e| PipelineError::EncodeError(e))?;
             let payload_tree = WordlistTree::new(payload_words);
 
-            let codec = Grammar::from_language_dialect(language, "body")
-                .map(|g| g.codec().to_string())
-                .unwrap_or_else(|_| "bitpack".to_string());
+            // Raw output is bare payload words with no padding header, so it must
+            // use base-N — the same codec the raw decode path uses. (bitpack would
+            // prepend a padding-count word that the bare-word decoder doesn't
+            // expect, breaking the round-trip.)
             let (_, data) = codec::detect_mode(input);
-            let words = codec::encode_base_n(&data, &payload_tree, &codec)
+            let words = codec::encode_base_n(&data, &payload_tree, "base_n")
                 .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
 
             let output = words.join(" ");
@@ -2309,6 +2311,36 @@ mod tests {
         assert_eq!(decode_codec_for_input("base_n", 4, 4), "base_n");
         // No payload words extracted → keep the declared codec.
         assert_eq!(decode_codec_for_input("bitpack", 0, 0), "bitpack");
+    }
+
+    #[test]
+    fn test_raw_encode_decode_round_trip() {
+        // Regression: the "raw" dialect must use the SAME codec on encode and
+        // decode. Previously raw-encode used bitpack (prepending a padding-count
+        // word) while raw-decode used base_n, so the bytes did not survive the
+        // round-trip and the output carried a spurious leading word.
+        let input = "cafe"; // hex → bytes 0xca 0xfe
+
+        let encode = Pipeline::from_params(
+            Endpoint::Format(DataMode::Hex),
+            Endpoint::language_full("english", "bip39", "raw"),
+        );
+        let bare_words = encode.execute(input).unwrap();
+
+        // base-N of 0xcafe is exactly 2 words; bitpack would add a 3rd padding
+        // word. Asserting the count locks in the "no header" property.
+        assert_eq!(
+            bare_words.split_whitespace().count(),
+            2,
+            "raw output must be bare data words with no padding header, got: {bare_words:?}"
+        );
+
+        let decode = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "raw"),
+            Endpoint::Format(DataMode::Hex),
+        );
+        let decoded = decode.execute(&bare_words).unwrap();
+        assert_eq!(decoded, input, "raw encode/decode must round-trip");
     }
 
     #[test]
