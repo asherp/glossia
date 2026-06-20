@@ -722,8 +722,6 @@ footer a:hover { text-decoration: underline; }
       <div class="preset-tabs">
         <button class="preset-tab active" data-tab="text">Text</button>
         <button class="preset-tab" data-tab="crypto">Crypto</button>
-        <button class="preset-tab" data-tab="music">Music</button>
-        <button class="preset-tab" data-tab="image">Image</button>
         <button class="preset-tab" data-tab="pipelines">Pipelines</button>
       </div>
       <div class="preset-tab-content active" data-tab="text">
@@ -750,36 +748,6 @@ footer a:hover { text-decoration: underline; }
         <button class="btn-sm preset-btn" data-meta="encode into ascii7" title="Plain ASCII message">ASCII7</button>
         <button class="btn-sm preset-btn" data-meta="encode into cs raw" title="Raw encoding, no armor">Raw</button>
       </div>
-      <div class="preset-tab-content" data-tab="music">
-        <button class="btn-sm preset-btn" data-meta="encode into music" title="Chromatic scored notation">Chromatic</button>
-        <button class="btn-sm preset-btn" data-meta="encode into music pentatonic" title="Pentatonic scale notation">Pentatonic</button>
-        <button class="btn-sm preset-btn" data-meta="encode into music blues" title="Blues scale notation">Blues</button>
-      </div>
-      <div class="preset-tab-content" data-tab="image" style="flex-direction:column; gap:0.25rem;">
-        <div class="image-row">
-          <span class="image-group-label">Layout</span>
-          <button class="btn-sm image-layout-btn active" data-layout="voronoi" title="Voronoi mosaic layout">Voronoi</button>
-          <button class="btn-sm image-layout-btn" data-layout="grid" title="Rectangular grid layout">Grid</button>
-          <button class="btn-sm image-layout-btn" data-layout="constellation" title="Circular dots on dark background">Constellation</button>
-          <button class="btn-sm image-layout-btn" data-layout="patches" title="4-column patch grid">Patches</button>
-        </div>
-        <div class="image-row">
-          <span class="image-group-label">Shape</span>
-          <button class="btn-sm image-shape-btn active" data-shape="rect" title="Rectangular canvas">Rect</button>
-          <button class="btn-sm image-shape-btn" data-shape="disk" title="Circular clipping">Disk</button>
-        </div>
-        <div class="image-row">
-          <span class="image-group-label">Palette</span>
-          <button class="btn-sm image-palette-btn active" data-palette="viridis" title="Deep purple through teal to yellow-green (128 colors)">viridis</button>
-          <button class="btn-sm image-palette-btn" data-palette="plasma" title="Dark purple through magenta to orange-yellow (128 colors)">plasma</button>
-          <button class="btn-sm image-palette-btn" data-palette="inferno" title="Near-black through red-orange to bright yellow (128 colors)">inferno</button>
-          <button class="btn-sm image-palette-btn" data-palette="magma" title="Near-black through purple-pink to pale white (64 colors)">magma</button>
-          <button class="btn-sm image-palette-btn" data-palette="cividis" title="Dark blue through olive-grey to yellow, CVD-safe (128 colors)">cividis</button>
-          <button class="btn-sm image-palette-btn" data-palette="turbo" title="Dark blue through rainbow to dark red (8 colors)">turbo</button>
-          <button class="btn-sm image-palette-btn" data-palette="mako" title="Deep purple-black through teal to pale cyan (64 colors)">mako</button>
-          <button class="btn-sm image-palette-btn" data-palette="rocket" title="Near-black through magenta to pale white (32 colors)">rocket</button>
-        </div>
-      </div>
       <div class="preset-tab-content" data-tab="pipelines">
         <button class="btn-sm preset-btn" data-meta="transcode from latin into english" title="Translate Latin prose to English prose">Latin &rarr; English</button>
         <button class="btn-sm preset-btn" data-meta="transcode from english into latin" title="Translate English prose to Latin prose">English &rarr; Latin</button>
@@ -802,6 +770,7 @@ footer a:hover { text-decoration: underline; }
         </div>
         <div class="panel-footer">
           <div id="random-btns" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+            <button class="btn-sm" onclick="randomApiKey()" title="Generate a realistic sk-style API key — read it aloud or paste it into chat, then decode it back byte-for-byte">API Key</button>
             <button class="btn-sm" onclick="randomWords(12)" title="Generate 12 random BIP39 words">BIP39 (12)</button>
             <button class="btn-sm" onclick="randomWords(24)" title="Generate 24 random BIP39 words">BIP39 (24)</button>
             <button class="btn-sm" onclick="randomHex()" title="Generate random hex string">Hex</button>
@@ -866,7 +835,7 @@ footer a:hover { text-decoration: underline; }
             <code>transcode from &lt;source&gt; into &lt;target&gt;</code>
           </div>
           <div style="margin-bottom:0.5rem;">
-            <strong style="color:var(--text);">Targets:</strong> english, latin, czech, pgp, nostr, music, hex, base64, ascii7
+            <strong style="color:var(--text);">Targets:</strong> english, latin, czech, pgp, nostr, hex, base64, ascii7
           </div>
           <div>
             <strong style="color:var(--text);">Modifiers:</strong> naturally, compactly, minimally, optimally
@@ -1720,6 +1689,20 @@ window.randomWords = function(count) {
     errEl.textContent = e.message || String(e);
     errEl.classList.remove('hidden');
   }
+};
+
+window.randomApiKey = function() {
+  // A realistic "sk-"-style secret token: the headline last-mile scenario —
+  // turn an opaque key into readable prose you can dictate or paste, then
+  // decode it back byte-for-byte.
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const length = 48;
+  const randomValues = crypto.getRandomValues(new Uint8Array(length));
+  const chars = Array.from(randomValues)
+    .map(v => alphabet[v % alphabet.length])
+    .join('');
+  document.getElementById('input-area').value = 'sk-' + chars;
+  autoRunNow();
 };
 
 window.randomHex = function() {
