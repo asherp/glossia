@@ -2404,6 +2404,45 @@ mod tests {
     }
 
     #[test]
+    fn test_english_bip39_dialect_preserves_seed_words() {
+        // The english "bip39" dialect uses base_n, so encoding a BIP39 seed weaves
+        // the exact seed words into prose (with cover words) instead of re-chunking
+        // them via bitpack. Verify every seed word survives and the seed round-trips.
+        let seed = "abandon ability able about above absent absorb access accident account accuse achieve";
+
+        let encode = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "raw"),
+            Endpoint::language_full("english", "bip39", "bip39"),
+        )
+        .with_seed(42);
+        let prose = encode.execute(seed).unwrap();
+
+        // Every seed word appears verbatim in the prose (interspersed with cover).
+        for w in seed.split_whitespace() {
+            assert!(
+                prose.split_whitespace().any(|t| {
+                    t.trim_matches(|c: char| !c.is_alphanumeric())
+                        .eq_ignore_ascii_case(w)
+                }),
+                "seed word {w:?} missing from english bip39 prose: {prose:?}"
+            );
+        }
+
+        // Round-trips back to the exact seed (prose → bytes → raw seed words).
+        let recovered = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "bip39"),
+            Endpoint::language_full("english", "bip39", "raw"),
+        )
+        .execute(&prose)
+        .unwrap();
+        assert_eq!(
+            recovered.split_whitespace().collect::<Vec<_>>(),
+            seed.split_whitespace().collect::<Vec<_>>(),
+            "english bip39 dialect must round-trip to the original seed"
+        );
+    }
+
+    #[test]
     fn test_transcode_bare_mnemonic_english_to_latin() {
         // Regression for issue #23: bare payload words (a raw BIP39 mnemonic, not
         // Glossia-encoded prose) carry no bitpack padding header, so transcoding
