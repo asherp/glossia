@@ -731,8 +731,9 @@ footer a:hover { text-decoration: underline; }
         <button class="btn-sm preset-btn" data-meta="encode into english optimally" title="Generate 50 variations, pick the best">Optimal</button>
         <button class="btn-sm preset-btn" data-meta="encode into english subject" title="Email subject line format">Subject</button>
         <button class="btn-sm preset-btn" data-meta="encode into english prose" title="Literary prose format">Prose</button>
+        <button class="btn-sm preset-btn" data-meta="encode into english bip39" title="Weave a BIP39 seed into English prose — keeps your exact seed words, just adds cover words (base-N)">English BIP39</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin compactly" title="Latin prose encoding">Latin</button>
-        <button class="btn-sm preset-btn" data-meta="encode into latin bip39" title="BIP39 seed phrase as Latin (base-N, fewer words)">Latin BIP39</button>
+        <button class="btn-sm preset-btn" data-meta="encode into latin bip39" title="Same BIP39 seed as Latin — fewer words (2^15 wordlist, base-N)">Latin BIP39</button>
         <button class="btn-sm preset-btn" data-meta="encode into latin spells" title="Harry Potter spell format">Spells</button>
         <button class="btn-sm preset-btn" data-meta="encode into czech naturally" title="Czech prose (official BIP39 Czech wordlist)">Czech</button>
       </div>
@@ -1684,6 +1685,11 @@ window.randomWords = function(count) {
       return;
     }
     document.getElementById('input-area').value = words.join(' ');
+    // A BIP39 seed is itself English/bip39 words, so default to the
+    // word-preserving "english bip39" dialect (base-N): the user sees their
+    // exact seed words woven into prose, not re-chunked by bitpack. From here
+    // they can click "Latin BIP39" to see the same seed in fewer Latin words.
+    document.getElementById('meta-input').value = 'encode into english bip39';
     autoRunNow();
   } catch (e) {
     errEl.textContent = e.message || String(e);
