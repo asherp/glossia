@@ -719,6 +719,11 @@ footer a:hover { text-decoration: underline; }
         .demo-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; margin-top: 0.85rem; }
         #demo .panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         #demo .panel-header .lang-row { margin-left: auto; }
+        #left-box { flex: 1; min-height: 160px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
+          font-family: var(--font-mono); line-height: 1.7; color: var(--text); outline: none;
+          white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
+        #left-box:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
+        #left-box u, #right-box u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
       </style>
       <div class="section-header">
         <h3>BIP39 Seed Phrase</h3>
@@ -732,7 +737,7 @@ footer a:hover { text-decoration: underline; }
             <span class="dialect-label" id="left-label">BIP39 seed</span>
           </div>
           <div class="panel-body">
-            <textarea id="left-box" placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></textarea>
+            <div contenteditable="true" spellcheck="false" id="left-box" data-placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></div>
           </div>
           <div class="panel-footer">
             <button class="btn-sm" id="gen-btn" onclick="generateSeed()" title="Generate a random 12-word BIP39 seed">&#127922; Generate seed</button>
@@ -866,7 +871,7 @@ import init, {
 let ready = false;
 let mode = 'encode';            // 'encode' (seed -> prose) or 'decode' (prose -> seed words)
 let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
-let detectedLang = 'english';   // SOURCE language auto-detected from the left prose (decode only)
+let detectedLang = 'english';   // SOURCE language auto-detected from the left box (both modes)
 let inputTimer = null;
 const SEED = 42n;               // fixed seed -> deterministic prose
 
@@ -891,6 +896,36 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
+// Normalize a word for payload-set membership: lowercase, strip non-alphanumerics
+// (Unicode-aware, so Czech/Latin accents are kept).
+function norm(w) { return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+function normSet(words) { return new Set((words || []).map(norm).filter(Boolean)); }
+
+// Wrap each prose word that is a payload word in <u>…</u>; whitespace preserved.
+function underlineProse(text, payloadSet) {
+  return text.split(/(\s+)/).map(tok => {
+    if (tok === '') return '';
+    if (/^\s+$/.test(tok)) return tok.replace(/\n/g, '<br>');
+    const n = norm(tok);
+    const esc = escapeHtml(tok);
+    return (n && payloadSet.has(n)) ? '<u>' + esc + '</u>' : esc;
+  }).join('');
+}
+
+function placeCaretEnd(el) {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.collapse(false);
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
+}
+
+// ─── Left box (contenteditable) accessors ────────────────────────────
+
+function leftText() { return document.getElementById('left-box').innerText; }
+function setLeftPlain(text) { document.getElementById('left-box').textContent = text; }
+
 function showError(msg) {
   const e = document.getElementById('demo-error');
   e.textContent = msg;
@@ -900,7 +935,7 @@ function clearError() {
   document.getElementById('demo-error').classList.add('hidden');
 }
 
-function setOutput(text) {
+function setOutput(text, html) {
   const el = document.getElementById('right-box');
   if (!text) {
     el.classList.add('empty');
@@ -909,7 +944,7 @@ function setOutput(text) {
     return;
   }
   el.classList.remove('empty');
-  el.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
+  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
   el.dataset.plainText = text;
 }
 
@@ -929,21 +964,6 @@ function buildLangButtons() {
   }
 }
 
-// Auto-detect the SOURCE language of the left-box prose (decode mode),
-// restricted to the languages this panel supports. Sets detectedLang; the
-// TARGET language (currentLang / right buttons) is left untouched.
-function detectLeftLanguage() {
-  const text = document.getElementById('left-box').value.trim();
-  if (!text) return;
-  try {
-    const matches = JSON.parse(wasmDetectDialect(text));
-    if (Array.isArray(matches)) {
-      const best = matches.find(m => LANGS.some(l => l.id === m.language));
-      if (best) detectedLang = best.language;
-    }
-  } catch (e) { /* keep detected language */ }
-}
-
 function updateLangHighlights() {
   document.querySelectorAll('.lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === currentLang);
@@ -956,7 +976,22 @@ function selectLang(id) {
   run();
 }
 
-// ─── Chrome (labels, which language row is shown) ─────────────────────
+// Auto-detect the SOURCE language of the left box (both modes), restricted to
+// the languages this panel supports. Sets detectedLang; the TARGET language
+// (currentLang / right buttons) is left untouched.
+function detectLeftLanguage() {
+  const text = leftText().trim();
+  if (!text) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(text));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => LANGS.some(l => l.id === m.language));
+      if (best) detectedLang = best.language;
+    }
+  } catch (e) { /* keep detected language */ }
+}
+
+// ─── Chrome (labels, hint) ───────────────────────────────────────────
 
 function updateChrome() {
   const target = langById(currentLang);
@@ -964,9 +999,9 @@ function updateChrome() {
   const genBtn = document.getElementById('gen-btn');
   const hint = document.getElementById('demo-hint');
 
-  // The buttons live above the right box in both modes and always name the
-  // TARGET language (Google-Translate style: target on the right). The left box
-  // is the SOURCE, whose language is auto-detected in both modes.
+  // Buttons live above the right box in both modes and always name the TARGET
+  // language (Google-Translate style). The left box is the SOURCE, whose
+  // language is auto-detected in both modes.
   const srcSeedLabel = detectedLang === 'english' ? 'BIP39 seed' : (source.label + ' seed words');
   const tgtSeedLabel = currentLang === 'english' ? 'BIP39 seed' : (target.label + ' seed words');
   if (mode === 'encode') {
@@ -975,13 +1010,13 @@ function updateChrome() {
     document.getElementById('right-label').textContent = target.label + ' sentences';
     genBtn.classList.remove('hidden');
     hint.textContent = 'Generates a 12-word seed and weaves it into ' + target.label +
-      ' prose. Pick the target language on the right; press ⇄ to decode a sentence back into a seed.';
+      ' prose (payload words underlined). Pick the target language on the right; press ⇄ to decode.';
   } else {
     // prose (left, source auto-detected) -> seed words (right, target language).
     document.getElementById('left-label').textContent = source.label + ' sentences (detected)';
     document.getElementById('right-label').textContent = tgtSeedLabel;
     genBtn.classList.add('hidden');
-    hint.textContent = 'Detected ' + source.label + ' on the left; showing the seed as ' +
+    hint.textContent = 'Detected ' + source.label + ' on the left (payload words underlined); showing the seed as ' +
       target.label + (currentLang === 'english' ? ' (BIP39).' : ' words.') +
       ' Pick the target language on the right; press ⇄ to go back to encoding.';
   }
@@ -990,16 +1025,34 @@ function updateChrome() {
 
 // ─── Core encode / decode ────────────────────────────────────────────
 
+// Extract the payload words actually present in a piece of prose, in its own
+// language (source==target), so they can be underlined.
+function prosePayloadSet(proseText, langId) {
+  const l = langById(langId);
+  try {
+    const r = JSON.parse(wasmTranscode(proseText, 'transcode from ' + l.source + ' into ' + l.rawTarget, SEED));
+    if (r.error) return new Set();
+    return normSet((r.output || '').split(/\s+/).filter(Boolean));
+  } catch (e) { return new Set(); }
+}
+
+// Re-render the left box with payload words underlined (decode: left holds prose).
+function underlineLeft(proseText) {
+  const set = prosePayloadSet(proseText, detectedLang);
+  const el = document.getElementById('left-box');
+  const focused = (document.activeElement === el);
+  el.innerHTML = underlineProse(proseText, set);
+  if (focused) placeCaretEnd(el);
+}
+
 function run() {
   if (!ready) return;
   clearError();
-  const text = document.getElementById('left-box').value.trim();
+  const text = leftText().trim();
   if (!text) { setOutput(''); return; }
 
   // currentLang is the TARGET (right buttons); detectedLang is the SOURCE
-  // (auto-detected from the left box, in both modes). Encode and decode are
-  // mirror transcodes: encode reads bare words and writes prose; decode reads
-  // prose and writes bare words.
+  // (auto-detected from the left box). Encode and decode are mirror transcodes.
   const src = langById(detectedLang);
   const tgt = langById(currentLang);
   const meta = (mode === 'encode')
@@ -1009,7 +1062,16 @@ function run() {
   try {
     const result = JSON.parse(wasmTranscode(text, meta, SEED));
     if (result.error) { showError(result.error); setOutput(''); return; }
-    setOutput((result.output || '').trim());
+    const out = (result.output || '').trim();
+    if (mode === 'encode') {
+      // Right box holds the prose — underline its payload words.
+      setOutput(out, underlineProse(out, normSet(result.payload_words || [])));
+    } else {
+      // Right box holds bare seed words (no underline); left box holds the
+      // prose — underline its payload words.
+      setOutput(out);
+      underlineLeft(text);
+    }
   } catch (e) {
     showError(e.message || String(e));
     setOutput('');
@@ -1020,12 +1082,12 @@ function run() {
 
 window.generateSeed = function() {
   if (!ready) return;
-  if (mode !== 'encode') { mode = 'encode'; updateChrome(); }
+  if (mode !== 'encode') { mode = 'encode'; }
   clearError();
   try {
     const words = JSON.parse(wasmRandomWords(12, 'english', 'bip39', BigInt(Date.now())));
     if (words.error) { showError(words.error); return; }
-    document.getElementById('left-box').value = words.join(' ');
+    setLeftPlain(words.join(' '));
     detectLeftLanguage();   // a freshly generated seed detects as English
     updateChrome();
     run();
@@ -1038,8 +1100,8 @@ window.toggleMode = function() {
   // Move the current output into the input box, then flip direction.
   const out = document.getElementById('right-box').dataset.plainText || '';
   mode = (mode === 'encode') ? 'decode' : 'encode';
-  document.getElementById('left-box').value = out;
-  detectLeftLanguage();  // pick up the source language of whatever's now on the left
+  setLeftPlain(out);
+  detectLeftLanguage();   // pick up the source language of whatever's now on the left
   updateChrome();
   run();
 };
