@@ -1036,7 +1036,24 @@ impl Pipeline {
         // Raw mnemonics have no bitpack header — always use base_n.
         let bytes = codec::decode_base_n(&words, &payload_tree, "base_n")
             .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-        Ok((codec::hex_encode(&bytes), words))
+        // Raw output defaults to hex (back-compat); honor an explicit format target.
+        let output = match self.target_format() {
+            Some(fmt) => render_decoded_bytes(&bytes, Some(fmt)),
+            None => codec::hex_encode(&bytes),
+        };
+        Ok((output, words))
+    }
+
+    /// The explicit output format requested by the pipeline target, if any.
+    ///
+    /// `Some(mode)` when the target is a `Format` endpoint (e.g. `… into hex`);
+    /// `None` for an `Auto` or `Language` target, so each decode path keeps its
+    /// own default rendering.
+    fn target_format(&self) -> Option<DataMode> {
+        match &self.target {
+            Endpoint::Format(mode) => Some(*mode),
+            _ => None,
+        }
     }
 
     /// Decode: language prose → extract payload words → binary → data string.
@@ -1068,7 +1085,7 @@ impl Pipeline {
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
-        decode_from_language_with_payload_lang(input, language, &payload_lang, wordlist, self.verbose, dialect)
+        decode_from_language_with_payload_lang(input, language, &payload_lang, wordlist, self.verbose, dialect, self.target_format())
     }
 
     /// Transcode: source prose → binary → target prose.
@@ -1185,7 +1202,7 @@ impl Pipeline {
             .unwrap_or_else(|_| language.to_string());
 
         let (decoded, extracted) = decode_from_language_rich_with_payload_lang(
-            input, language, &payload_lang, wordlist, self.verbose, dialect)?;
+            input, language, &payload_lang, wordlist, self.verbose, dialect, self.target_format())?;
 
         Ok(PipelineResult {
             output: decoded,
@@ -1743,6 +1760,23 @@ fn strip_email_header_labels(text: &str) -> String {
     result
 }
 
+/// Render decoded bytes into a textual representation.
+///
+/// `Some(mode)` forces the representation requested by the pipeline target:
+/// `Hex` → lowercase hex, `Base64` → base64, `Ascii7`/`Bytes8` → UTF-8 (lossy).
+/// `None` keeps the back-compatible auto behavior: the UTF-8 string when the
+/// bytes are valid UTF-8, otherwise lowercase hex.
+fn render_decoded_bytes(bytes: &[u8], format: Option<DataMode>) -> String {
+    match format {
+        Some(DataMode::Hex) => codec::hex_encode(bytes),
+        Some(DataMode::Base64) => codec::base64_encode(bytes),
+        Some(DataMode::Ascii7) | Some(DataMode::Bytes8) => {
+            String::from_utf8_lossy(bytes).into_owned()
+        }
+        None => String::from_utf8(bytes.to_vec()).unwrap_or_else(|_| codec::hex_encode(bytes)),
+    }
+}
+
 /// Decode language prose back to the original data string.
 ///
 /// Prose → extract payload words (filter out cover words) → binary → string.
@@ -1752,7 +1786,7 @@ pub fn decode_from_language(
     wordlist: &str,
     verbose: bool,
 ) -> Result<String, PipelineError> {
-    decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body")
+    decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body", None)
 }
 
 /// Choose the decode codec for a sequence of extracted payload words.
@@ -1806,6 +1840,7 @@ fn decode_from_language_with_payload_lang(
     wordlist: &str,
     verbose: bool,
     grammar_dialect: &str,
+    format: Option<DataMode>,
 ) -> Result<String, PipelineError> {
     // Strip email header labels if the input looks like an RFC 5322 message.
     // This prevents header names like "Subject" from colliding with payload words.
@@ -1893,10 +1928,7 @@ fn decode_from_language_with_payload_lang(
     };
     let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-    match String::from_utf8(bytes.clone()) {
-        Ok(s) => Ok(s),
-        Err(_) => Ok(codec::hex_encode(&bytes)),
-    }
+    Ok(render_decoded_bytes(&bytes, format))
 }
 
 /// Decode language prose, returning both the decoded text and extracted payload words.
@@ -1906,7 +1938,7 @@ pub fn decode_from_language_rich(
     wordlist: &str,
     verbose: bool,
 ) -> Result<(String, Vec<String>), PipelineError> {
-    decode_from_language_rich_with_payload_lang(text, language, language, wordlist, verbose, "body")
+    decode_from_language_rich_with_payload_lang(text, language, language, wordlist, verbose, "body", None)
 }
 
 /// Internal rich decode with separate grammar language and payload language.
@@ -1917,6 +1949,7 @@ fn decode_from_language_rich_with_payload_lang(
     wordlist: &str,
     verbose: bool,
     grammar_dialect: &str,
+    format: Option<DataMode>,
 ) -> Result<(String, Vec<String>), PipelineError> {
     // Strip email header labels if the input looks like an RFC 5322 message.
     let text = strip_email_header_labels(text);
@@ -1998,10 +2031,7 @@ fn decode_from_language_rich_with_payload_lang(
     };
     let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-    let decoded = match String::from_utf8(bytes.clone()) {
-        Ok(s) => s,
-        Err(_) => codec::hex_encode(&bytes),
-    };
+    let decoded = render_decoded_bytes(&bytes, format);
 
     Ok((decoded, extracted))
 }
@@ -2440,6 +2470,58 @@ mod tests {
             seed.split_whitespace().collect::<Vec<_>>(),
             "english bip39 dialect must round-trip to the original seed"
         );
+    }
+
+    #[test]
+    fn test_decode_honors_target_format() {
+        // Regression for #28: decode into a Format endpoint must render the
+        // recovered bytes in that format, not always UTF-8-else-hex.
+        let key = "sk-test-ABC123xyz";
+
+        let prose = Pipeline::from_params(
+            Endpoint::Auto,
+            Endpoint::language_full("english", "bip39", "body"),
+        )
+        .with_seed(42)
+        .execute(key)
+        .unwrap();
+
+        let decode = |fmt: DataMode| {
+            Pipeline::from_params(
+                Endpoint::language_full("english", "bip39", "body"),
+                Endpoint::Format(fmt),
+            )
+            .execute(&prose)
+            .unwrap()
+        };
+
+        // hex target -> hex of the bytes (and decodes back to the key)
+        let hex = decode(DataMode::Hex);
+        assert_eq!(
+            codec::hex_decode(&hex).expect("valid hex"),
+            key.as_bytes(),
+            "into hex must yield hex of the bytes, got {hex:?}"
+        );
+
+        // base64 target -> base64 of the bytes (and decodes back to the key)
+        let b64 = decode(DataMode::Base64);
+        assert_eq!(
+            codec::base64_decode(&b64).expect("valid base64"),
+            key.as_bytes(),
+            "into base64 must yield base64 of the bytes, got {b64:?}"
+        );
+
+        // ascii target -> the original string
+        assert_eq!(decode(DataMode::Ascii7), key, "into ascii must yield the string");
+
+        // Auto (no explicit format) keeps the UTF-8-else-hex behavior.
+        let auto = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "body"),
+            Endpoint::Auto,
+        )
+        .execute(&prose)
+        .unwrap();
+        assert_eq!(auto, key, "Auto decode must be unchanged");
     }
 
     #[test]
