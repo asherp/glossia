@@ -1111,6 +1111,22 @@ window.copyOutput = function() {
   navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
 };
 
+// ─── Theme toggle ────────────────────────────────────────────────────
+
+const toggleBtn = document.getElementById('theme-toggle');
+function updateToggleIcon() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  toggleBtn.innerHTML = isDark ? '&#9790;' : '&#9728;';
+}
+toggleBtn.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('glossia-theme', next);
+  updateToggleIcon();
+});
+updateToggleIcon();
+
 // ─── Startup ─────────────────────────────────────────────────────────
 
 async function startup() {
