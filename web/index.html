@@ -1679,47 +1679,62 @@ async function expand(bytes, flag) {
   return bytes;
 }
 
-async function encDeriveKey(password, salt) {
-  const baseKey = await crypto.subtle.importKey('raw', ENC_TE.encode(password), 'PBKDF2', false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
-    baseKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+// Derive BOTH the AES-GCM key and its nonce from password + salt, so the
+// nonce never has to be transmitted. Each message uses a fresh random salt,
+// making (key, nonce) unique per message — the only thing GCM requires — so a
+// derived nonce is as safe as a random one while saving 12 bytes on the wire.
+async function encDeriveKeyNonce(password, salt) {
+  const baseKey = await crypto.subtle.importKey('raw', ENC_TE.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, baseKey, (32 + 12) * 8));
+  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  return { key, nonce: bits.subarray(32, 44) };
 }
 
-// Framed blob: [len:u32 BE][flag:1][salt:16][iv:12][ciphertext+tag].
-// flag selects how the message bytes were reduced (raw/gzip/ascii7). The
-// length prefix lets decoding drop any trailing bit-packing padding the codec
-// adds, so AES-GCM sees exactly the bytes that were encrypted.
+// Unsigned LEB128 varint (modulo/multiply math, so lengths above 2^31 are safe).
+function varintEncode(n) {
+  const out = [];
+  do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 0x80; out.push(b); } while (n > 0);
+  return new Uint8Array(out);
+}
+function varintDecode(bytes, pos) {
+  let value = 0, mult = 1, p = pos, b;
+  do { b = bytes[p++]; value += (b & 0x7f) * mult; mult *= 128; } while (b & 0x80);
+  return { value, next: p };
+}
+
+// Framed blob: [blobLen:varint][flag:1][salt:12][ciphertext+tag]. The nonce is
+// derived (not stored). flag selects how the message bytes were reduced
+// (raw/gzip/ascii7). The length prefix lets decoding drop any trailing
+// bit-packing padding the codec adds, so AES-GCM sees exactly the encrypted bytes.
 async function encryptToHex(message, password) {
-  const { data: compressed, flag } = await maybeReduce(ENC_TE.encode(message));
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await encDeriveKey(password, salt);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed));
-  const blob = new Uint8Array(1 + 16 + 12 + ct.length);
+  const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
+  const salt = crypto.getRandomValues(new Uint8Array(12));
+  const { key, nonce } = await encDeriveKeyNonce(password, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, reduced));
+  const blob = new Uint8Array(1 + 12 + ct.length);
   blob[0] = flag;
   blob.set(salt, 1);
-  blob.set(iv, 17);
-  blob.set(ct, 29);
-  const framed = new Uint8Array(4 + blob.length);
-  new DataView(framed.buffer).setUint32(0, blob.length, false);
-  framed.set(blob, 4);
+  blob.set(ct, 13);
+  const lenPrefix = varintEncode(blob.length);
+  const framed = new Uint8Array(lenPrefix.length + blob.length);
+  framed.set(lenPrefix, 0);
+  framed.set(blob, lenPrefix.length);
   return toHex(framed);
 }
 async function decryptFromHex(hexStr, password) {
   const all = fromHex(hexStr);
-  if (all.length < 4) throw new Error('Ciphertext too short.');
-  const len = new DataView(all.buffer, all.byteOffset, 4).getUint32(0, false);
-  const blob = all.subarray(4, 4 + len);
-  if (blob.length < 29) throw new Error('Ciphertext too short or corrupted.');
+  if (all.length < 1) throw new Error('Ciphertext too short.');
+  const { value: blobLen, next } = varintDecode(all, 0);
+  const blob = all.subarray(next, next + blobLen);
+  if (blob.length < 1 + 12 + 16) throw new Error('Ciphertext too short or corrupted.');
   const flag = blob[0];
-  const salt = blob.subarray(1, 17);
-  const iv = blob.subarray(17, 29);
-  const ct = blob.subarray(29);
-  const key = await encDeriveKey(password, salt);
+  const salt = blob.subarray(1, 13);
+  const ct = blob.subarray(13);
+  const { key, nonce } = await encDeriveKeyNonce(password, salt);
   let plain;
   try {
-    plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+    plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, ct));
   } catch (e) {
     throw new Error('Wrong password or corrupted message.');
   }
