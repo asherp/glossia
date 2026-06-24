@@ -821,24 +821,16 @@ footer a:hover { text-decoration: underline; }
           white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
         .io-input:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
         .io-input u, .output-area u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
-        .usecase-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
-        .usecase-tab { padding: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
-          color: var(--text-dim); cursor: pointer; border: none; background: none;
-          border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
-        .usecase-tab:hover { color: var(--text); }
-        .usecase-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        /* Stacked demos (no tabs): encryption first, each visually separated. */
+        .demo-section { display: flex; flex-direction: column; }
+        #panel-encrypt { order: -1; }
+        #panel-bip39, #panel-apikey { border-top: 1px solid var(--border); padding-top: 0.5rem; }
         .enc-password-row { display: flex; align-items: center; justify-content: center;
           gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
         .enc-password-row label { font-family: var(--font-mono); font-size: 0.65rem;
           text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
         .enc-password-row input { min-width: 260px; }
       </style>
-
-      <div class="usecase-tabs">
-        <button class="usecase-tab active" data-uc="bip39">BIP39 Seed</button>
-        <button class="usecase-tab" data-uc="apikey">API Key</button>
-        <button class="usecase-tab" data-uc="encrypt">Encrypted Message</button>
-      </div>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
       <div id="panel-bip39">
@@ -884,7 +876,7 @@ footer a:hover { text-decoration: underline; }
       </div>
 
       <!-- ─── API Key panel ───────────────────────────────────────── -->
-      <div id="panel-apikey" class="hidden">
+      <div id="panel-apikey">
         <div class="section-header">
           <h3>API Key / Secret Token</h3>
           <p>Turn an opaque key into a readable sentence &mdash; dictate it, paste it, decode it back byte-for-byte</p>
@@ -928,7 +920,7 @@ footer a:hover { text-decoration: underline; }
       </div>
 
       <!-- ─── Encrypted Message panel ─────────────────────────────── -->
-      <div id="panel-encrypt" class="hidden">
+      <div id="panel-encrypt">
         <div class="section-header">
           <h3>Encrypted Message</h3>
           <p>Compress and password-encrypt any text, then hide the ciphertext in readable prose &mdash; decode it back byte-for-byte with the same password</p>
@@ -1372,10 +1364,20 @@ window.copyOutput = function() {
   navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
 };
 
+// Cover visibility is shared across the three (now simultaneously visible)
+// demos, so a toggle re-renders all of them. None of these regenerate a
+// secret: BIP39/API-Key re-encode deterministically from the fixed SEED, and
+// the encryption panel re-renders from its cached ciphertext.
+function applyCoverToAll() {
+  updateChrome(); run();
+  akRun();
+  if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
+  else encUpdateChrome();
+}
+
 window.toggleCover = function() {
   showCover = !showCover;
-  run();          // re-encode from the (stable) seed and re-render per showCover
-  updateChrome();
+  applyCoverToAll();
 };
 
 // ═══ API Key panel ═══════════════════════════════════════════════════
@@ -1564,7 +1566,7 @@ window.akCopy = function() {
 
 window.akToggleCover = function() {
   showCover = !showCover;
-  akRun();        // re-encode from the (stable) key and re-render per showCover
+  applyCoverToAll();
 };
 
 // ═══ Encrypted Message panel ═════════════════════════════════════════
@@ -1890,23 +1892,9 @@ window.encCopy = function() {
 
 window.encToggleCover = function() {
   showCover = !showCover;
-  // Re-render the cached ciphertext rather than re-encrypting.
-  if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
-  else encUpdateChrome();
+  applyCoverToAll();
 };
 
-// ═══ Use-case selector ═══════════════════════════════════════════════
-
-window.selectUseCase = function(uc) {
-  document.querySelectorAll('.usecase-tab').forEach(t => t.classList.toggle('active', t.dataset.uc === uc));
-  document.getElementById('panel-bip39').classList.toggle('hidden', uc !== 'bip39');
-  document.getElementById('panel-apikey').classList.toggle('hidden', uc !== 'apikey');
-  document.getElementById('panel-encrypt').classList.toggle('hidden', uc !== 'encrypt');
-  // Re-render the shown panel so labels, highlights, and cover state are current.
-  if (uc === 'apikey') { akRun(); }
-  else if (uc === 'encrypt') { encUpdateChrome(); encRun(); }
-  else { updateChrome(); run(); }
-};
 // ─── Theme toggle ────────────────────────────────────────────────────
 
 const toggleBtn = document.getElementById('theme-toggle');
@@ -1968,8 +1956,6 @@ async function startup() {
       encTimer = setTimeout(() => { encRun(); }, 300);
     });
 
-    document.querySelectorAll('.usecase-tab').forEach(t =>
-      t.addEventListener('click', () => selectUseCase(t.dataset.uc)));
     akGenerate();
     encUpdateChrome();
     encSample();
