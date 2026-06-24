@@ -1626,12 +1626,15 @@ async function gunzipBytes(bytes) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
-// Compress when the browser supports it; record the choice in a flag byte so
-// decoding works the same regardless of where the message was produced.
+// Compress when it actually shrinks the payload; record the choice in a flag
+// byte so decoding works the same regardless of where the message was made.
+// gzip has ~18 bytes of fixed overhead, so short messages stay uncompressed.
 async function maybeCompress(bytes) {
   if (typeof CompressionStream === 'undefined') return { data: bytes, flag: 0 };
-  try { return { data: await gzipBytes(bytes), flag: 1 }; }
-  catch (e) { return { data: bytes, flag: 0 }; }
+  try {
+    const gz = await gzipBytes(bytes);
+    return (gz.length < bytes.length) ? { data: gz, flag: 1 } : { data: bytes, flag: 0 };
+  } catch (e) { return { data: bytes, flag: 0 }; }
 }
 async function maybeDecompress(bytes, flag) {
   if (!(flag & 1)) return bytes;
