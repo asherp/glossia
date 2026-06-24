@@ -871,9 +871,10 @@ let inputTimer = null;
 const SEED = 42n;               // fixed seed -> deterministic prose
 
 // Languages offered for the BIP39 panel. Each has a word-preserving base_n
-// "bip39" dialect, so the seed round-trips byte-for-byte. English shares the
-// payload wordlist with BIP39, so the seed words appear verbatim in the prose;
-// Latin/Czech re-express the same entropy in their own (more compact) wordlists.
+// "bip39" dialect, so the seed round-trips byte-for-byte. English and Czech use
+// 2^11 (2048-word) lists — same word count as the seed; English even shares the
+// BIP39 wordlist, so the seed words appear verbatim in the prose. Latin uses a
+// 2^15 list, so the same 12-word seed becomes ~9 Latin words.
 //   source    : prose endpoint  — bip39-dialect prose in this language
 //   rawTarget : bare endpoint   — bare payload words in this language
 const LANGS = [
