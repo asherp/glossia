@@ -874,13 +874,12 @@ const SEED = 42n;               // fixed seed -> deterministic prose
 // "bip39" dialect, so the seed round-trips byte-for-byte. English shares the
 // payload wordlist with BIP39, so the seed words appear verbatim in the prose;
 // Latin/Czech re-express the same entropy in their own (more compact) wordlists.
-//   encodeMeta : seed -> prose in this language
-//   source     : how to read this language's prose (decode source endpoint)
-//   rawTarget  : bare payload words in this language (decode target endpoint)
+//   source    : prose endpoint  — bip39-dialect prose in this language
+//   rawTarget : bare endpoint   — bare payload words in this language
 const LANGS = [
-  { id: 'english', label: 'English', encodeMeta: 'encode into english bip39', source: 'english/bip39/bip39', rawTarget: 'english/bip39/raw' },
-  { id: 'latin',   label: 'Latin',   encodeMeta: 'encode into latin bip39',   source: 'latin/default/bip39', rawTarget: 'latin/default/raw' },
-  { id: 'czech',   label: 'Czech',   encodeMeta: 'encode into czech bip39',   source: 'czech/default/bip39', rawTarget: 'czech/default/raw' },
+  { id: 'english', label: 'English', source: 'english/bip39/bip39', rawTarget: 'english/bip39/raw' },
+  { id: 'latin',   label: 'Latin',   source: 'latin/default/bip39', rawTarget: 'latin/default/raw' },
+  { id: 'czech',   label: 'Czech',   source: 'czech/default/bip39', rawTarget: 'czech/default/raw' },
 ];
 
 function langById(id) { return LANGS.find(l => l.id === id) || LANGS[0]; }
@@ -965,19 +964,21 @@ function updateChrome() {
   const hint = document.getElementById('demo-hint');
 
   // The buttons live above the right box in both modes and always name the
-  // TARGET language (Google-Translate style: target on the right).
+  // TARGET language (Google-Translate style: target on the right). The left box
+  // is the SOURCE, whose language is auto-detected in both modes.
+  const srcSeedLabel = detectedLang === 'english' ? 'BIP39 seed' : (source.label + ' seed words');
+  const tgtSeedLabel = currentLang === 'english' ? 'BIP39 seed' : (target.label + ' seed words');
   if (mode === 'encode') {
-    // seed (left, source) -> prose (right, target language).
-    document.getElementById('left-label').textContent = 'BIP39 seed';
+    // bare seed words (left, source) -> prose (right, target language).
+    document.getElementById('left-label').textContent = srcSeedLabel;
     document.getElementById('right-label').textContent = target.label + ' sentences';
     genBtn.classList.remove('hidden');
     hint.textContent = 'Generates a 12-word seed and weaves it into ' + target.label +
       ' prose. Pick the target language on the right; press ⇄ to decode a sentence back into a seed.';
   } else {
     // prose (left, source auto-detected) -> seed words (right, target language).
-    const seedLabel = currentLang === 'english' ? 'BIP39 seed' : (target.label + ' seed words');
     document.getElementById('left-label').textContent = source.label + ' sentences (detected)';
-    document.getElementById('right-label').textContent = seedLabel;
+    document.getElementById('right-label').textContent = tgtSeedLabel;
     genBtn.classList.add('hidden');
     hint.textContent = 'Detected ' + source.label + ' on the left; showing the seed as ' +
       target.label + (currentLang === 'english' ? ' (BIP39).' : ' words.') +
@@ -994,12 +995,15 @@ function run() {
   const text = document.getElementById('left-box').value.trim();
   if (!text) { setOutput(''); return; }
 
-  // currentLang is the TARGET (right buttons). In decode, the SOURCE is the
-  // auto-detected language of the left prose.
-  const target = langById(currentLang);
+  // currentLang is the TARGET (right buttons); detectedLang is the SOURCE
+  // (auto-detected from the left box, in both modes). Encode and decode are
+  // mirror transcodes: encode reads bare words and writes prose; decode reads
+  // prose and writes bare words.
+  const src = langById(detectedLang);
+  const tgt = langById(currentLang);
   const meta = (mode === 'encode')
-    ? target.encodeMeta
-    : 'transcode from ' + langById(detectedLang).source + ' into ' + target.rawTarget;
+    ? 'transcode from ' + src.rawTarget + ' into ' + tgt.source   // bare seed words -> prose
+    : 'transcode from ' + src.source + ' into ' + tgt.rawTarget;  // prose -> bare seed words
 
   try {
     const result = JSON.parse(wasmTranscode(text, meta, SEED));
@@ -1021,6 +1025,8 @@ window.generateSeed = function() {
     const words = JSON.parse(wasmRandomWords(12, 'english', 'bip39', BigInt(Date.now())));
     if (words.error) { showError(words.error); return; }
     document.getElementById('left-box').value = words.join(' ');
+    detectLeftLanguage();   // a freshly generated seed detects as English
+    updateChrome();
     run();
   } catch (e) {
     showError(e.message || String(e));
@@ -1032,7 +1038,7 @@ window.toggleMode = function() {
   const out = document.getElementById('right-box').dataset.plainText || '';
   mode = (mode === 'encode') ? 'decode' : 'encode';
   document.getElementById('left-box').value = out;
-  if (mode === 'decode') detectLeftLanguage();  // pick up the prose's language
+  detectLeftLanguage();  // pick up the source language of whatever's now on the left
   updateChrome();
   run();
 };
@@ -1056,7 +1062,8 @@ async function startup() {
     document.getElementById('left-box').addEventListener('input', () => {
       clearTimeout(inputTimer);
       inputTimer = setTimeout(() => {
-        if (mode === 'decode') { detectLeftLanguage(); updateChrome(); }
+        detectLeftLanguage();   // re-detect the source language as the user edits/pastes
+        updateChrome();
         run();
       }, 250);
     });
