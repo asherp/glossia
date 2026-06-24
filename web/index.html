@@ -719,53 +719,108 @@ footer a:hover { text-decoration: underline; }
         .demo-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; margin-top: 0.85rem; }
         #demo .panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         #demo .panel-header .lang-row { margin-left: auto; }
-        #left-box { flex: 1; min-height: 160px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
+        .io-input { flex: 1; min-height: 160px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
           font-family: var(--font-mono); line-height: 1.7; color: var(--text); outline: none;
           white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
-        #left-box:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
-        #left-box u, #right-box u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
+        .io-input:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
+        .io-input u, .output-area u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
+        .usecase-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
+        .usecase-tab { padding: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
+          color: var(--text-dim); cursor: pointer; border: none; background: none;
+          border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .usecase-tab:hover { color: var(--text); }
+        .usecase-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
       </style>
-      <div class="section-header">
-        <h3>BIP39 Seed Phrase</h3>
-        <p>Turn a recovery phrase into a readable sentence &mdash; and back again, byte-for-byte</p>
+
+      <div class="usecase-tabs">
+        <button class="usecase-tab active" data-uc="bip39">BIP39 Seed</button>
+        <button class="usecase-tab" data-uc="apikey">API Key</button>
       </div>
 
-      <div class="panels">
-        <!-- Left panel: input -->
-        <div class="panel panel-left">
-          <div class="panel-header">
-            <span class="dialect-label" id="left-label">BIP39 seed</span>
+      <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
+      <div id="panel-bip39">
+        <div class="section-header">
+          <h3>BIP39 Seed Phrase</h3>
+          <p>Turn a recovery phrase into a readable sentence &mdash; and back again, byte-for-byte</p>
+        </div>
+
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="left-label">BIP39 seed</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="left-box" class="io-input" data-placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="gen-btn" onclick="generateSeed()" title="Generate a random 12-word BIP39 seed">&#127922; Generate seed</button>
+              <div id="demo-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
           </div>
-          <div class="panel-body">
-            <div contenteditable="true" spellcheck="false" id="left-box" data-placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></div>
-          </div>
-          <div class="panel-footer">
-            <button class="btn-sm" id="gen-btn" onclick="generateSeed()" title="Generate a random 12-word BIP39 seed">&#127922; Generate seed</button>
-            <div id="demo-error" class="error-msg hidden" style="padding:0;"></div>
+
+          <button class="swap-btn" id="swap-btn" onclick="toggleMode()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="right-label">English sentences</span>
+              <div class="lang-row" id="right-langs"></div>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="right-box">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="copy-btn" onclick="copyOutput()">Copy</button>
+            </div>
           </div>
         </div>
 
-        <!-- Swap button: encode <-> decode -->
-        <button class="swap-btn" id="swap-btn" onclick="toggleMode()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
-        </button>
-
-        <!-- Right panel: output -->
-        <div class="panel panel-right">
-          <div class="panel-header">
-            <span class="dialect-label" id="right-label">English sentences</span>
-            <div class="lang-row" id="right-langs"></div>
-          </div>
-          <div class="panel-body">
-            <div class="output-area empty" id="right-box">Output will appear here</div>
-          </div>
-          <div class="panel-footer">
-            <button class="btn-sm" id="copy-btn" onclick="copyOutput()">Copy</button>
-          </div>
-        </div>
+        <p class="demo-hint" id="demo-hint"></p>
       </div>
 
-      <p class="demo-hint" id="demo-hint"></p>
+      <!-- ─── API Key panel ───────────────────────────────────────── -->
+      <div id="panel-apikey" class="hidden">
+        <div class="section-header">
+          <h3>API Key / Secret Token</h3>
+          <p>Turn an opaque key into a readable sentence &mdash; dictate it, paste it, decode it back byte-for-byte</p>
+        </div>
+
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="ak-left-label">API key</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="ak-left-box" class="io-input" data-placeholder="Click &ldquo;Generate key&rdquo;, or paste an API key / hex / base64&hellip;"></div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="ak-gen-btn" onclick="akGenerate()" title="Generate a realistic sk- API key">&#127922; Generate key</button>
+              <div id="ak-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
+          </div>
+
+          <button class="swap-btn" id="ak-swap-btn" onclick="akToggle()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="ak-right-label">English sentences</span>
+              <div class="lang-row" id="ak-langs"></div>
+              <div class="lang-row hidden" id="ak-fmts"></div>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="ak-right-box">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="ak-copy-btn" onclick="akCopy()">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="demo-hint" id="ak-hint"></p>
+      </div>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -965,7 +1020,7 @@ function buildLangButtons() {
 }
 
 function updateLangHighlights() {
-  document.querySelectorAll('.lang-btn').forEach(b => {
+  document.querySelectorAll('#right-langs .lang-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.lang === currentLang);
   });
 }
@@ -1111,6 +1166,190 @@ window.copyOutput = function() {
   navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
 };
 
+// ═══ API Key panel ═══════════════════════════════════════════════════
+//
+// Symmetric Google-Translate model, but the two sides are different domains:
+//   encode: key (format auto-detected) -> prose; right buttons pick the LANGUAGE
+//   decode: prose (language auto-detected) -> key; right buttons pick the FORMAT
+
+let akMode = 'encode';
+let akLang = 'english';      // TARGET language (right buttons, encode), persists
+let akFormat = 'ascii7';     // TARGET format (right buttons, decode), persists
+let akDetLang = 'english';   // SOURCE language auto-detected from left prose (decode)
+let akDetFmt = '';           // SOURCE format auto-detected from the key (encode), display only
+let akTimer = null;
+
+const AK_LANGS = [
+  { id: 'english', label: 'English', source: 'english/bip39/body' },
+  { id: 'latin',   label: 'Latin',   source: 'latin/default/body' },
+  { id: 'czech',   label: 'Czech',   source: 'czech/default/body' },
+];
+const AK_FORMATS = [
+  { id: 'ascii7', label: 'ASCII',  word: 'ascii7' },
+  { id: 'hex',    label: 'Hex',    word: 'hex' },
+  { id: 'base64', label: 'Base64', word: 'base64' },
+];
+const AK_FMT_LABEL = { ascii7: 'ASCII', bytes8: 'bytes', hex: 'hex', base64: 'base64' };
+function akLangById(id) { return AK_LANGS.find(l => l.id === id) || AK_LANGS[0]; }
+function akFmtById(id) { return AK_FORMATS.find(f => f.id === id) || AK_FORMATS[0]; }
+
+function akLeftText() { return document.getElementById('ak-left-box').innerText; }
+function akSetLeftPlain(t) { document.getElementById('ak-left-box').textContent = t; }
+function akShowError(m) { const e = document.getElementById('ak-error'); e.textContent = m; e.classList.remove('hidden'); }
+function akClearError() { document.getElementById('ak-error').classList.add('hidden'); }
+
+function akSetOutput(text, html) {
+  const el = document.getElementById('ak-right-box');
+  if (!text) { el.classList.add('empty'); el.textContent = 'Output will appear here'; el.dataset.plainText = ''; return; }
+  el.classList.remove('empty');
+  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
+  el.dataset.plainText = text;
+}
+
+function akBuildButtons() {
+  const langRow = document.getElementById('ak-langs');
+  langRow.innerHTML = '';
+  for (const l of AK_LANGS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.akLang = l.id;
+    b.textContent = l.label;
+    b.title = l.label + ' prose';
+    b.addEventListener('click', () => { akLang = l.id; akRun(); });
+    langRow.appendChild(b);
+  }
+  const fmtRow = document.getElementById('ak-fmts');
+  fmtRow.innerHTML = '';
+  for (const f of AK_FORMATS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.akFmt = f.id;
+    b.textContent = f.label;
+    b.title = 'Decode to ' + f.label;
+    b.addEventListener('click', () => { akFormat = f.id; akRun(); });
+    fmtRow.appendChild(b);
+  }
+}
+
+function akUpdateHighlights() {
+  document.querySelectorAll('#ak-langs .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.akLang === akLang));
+  document.querySelectorAll('#ak-fmts .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.akFmt === akFormat));
+}
+
+// Decode mode: auto-detect the SOURCE language of the left prose.
+function akDetectLeftLang() {
+  const text = akLeftText().trim();
+  if (!text) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(text));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => AK_LANGS.some(l => l.id === m.language));
+      if (best) akDetLang = best.language;
+    }
+  } catch (e) { /* keep detected language */ }
+}
+
+function akUpdateChrome() {
+  const genBtn = document.getElementById('ak-gen-btn');
+  const hint = document.getElementById('ak-hint');
+  const langRow = document.getElementById('ak-langs');
+  const fmtRow = document.getElementById('ak-fmts');
+  if (akMode === 'encode') {
+    // key (left, source) -> prose (right, target language).
+    const fmt = akDetFmt ? (AK_FMT_LABEL[akDetFmt] || akDetFmt) : '';
+    document.getElementById('ak-left-label').textContent = 'API key' + (fmt ? ' · ' + fmt : '');
+    document.getElementById('ak-right-label').textContent = akLangById(akLang).label + ' sentences';
+    langRow.classList.remove('hidden');
+    fmtRow.classList.add('hidden');
+    genBtn.classList.remove('hidden');
+    hint.textContent = 'Encodes the key into ' + akLangById(akLang).label +
+      ' prose (payload words underlined). Pick the target language on the right; press ⇄ to decode.';
+  } else {
+    // prose (left, source auto-detected) -> key (right, target format).
+    document.getElementById('ak-left-label').textContent = akLangById(akDetLang).label + ' sentences (detected)';
+    document.getElementById('ak-right-label').textContent = 'Key · ' + akFmtById(akFormat).label;
+    langRow.classList.add('hidden');
+    fmtRow.classList.remove('hidden');
+    genBtn.classList.add('hidden');
+    hint.textContent = 'Detected ' + akLangById(akDetLang).label +
+      ' prose (payload words underlined); recovering the key as ' + akFmtById(akFormat).label +
+      '. Pick the output format on the right; press ⇄ to encode.';
+  }
+  akUpdateHighlights();
+}
+
+function akUnderlineLeft(prose, words) {
+  const el = document.getElementById('ak-left-box');
+  const focused = (document.activeElement === el);
+  el.innerHTML = underlineProse(prose, normSet(words));
+  if (focused) placeCaretEnd(el);
+}
+
+function akRun() {
+  if (!ready) return;
+  akClearError();
+  akUpdateChrome();
+  const text = akLeftText().trim();
+  if (!text) { akSetOutput(''); return; }
+  try {
+    if (akMode === 'encode') {
+      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLang + ' naturally', SEED));
+      if (r.error) { akShowError(r.error); akSetOutput(''); return; }
+      akDetFmt = r.data_mode || '';
+      const out = (r.output || '').trim();
+      akSetOutput(out, underlineProse(out, normSet(r.payload_words || [])));
+      akUpdateChrome();   // refresh the detected-format chip
+    } else {
+      const meta = 'transcode from ' + akLangById(akDetLang).source + ' into ' + akFmtById(akFormat).word;
+      const r = JSON.parse(wasmTranscode(text, meta, SEED));
+      if (r.error) { akShowError(r.error); akSetOutput(''); return; }
+      akSetOutput((r.output || '').trim());
+      akUnderlineLeft(text, r.payload_words || []);   // payload words of the source prose
+    }
+  } catch (e) {
+    akShowError(e.message || String(e));
+    akSetOutput('');
+  }
+}
+
+function akRandomKey() {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const rv = crypto.getRandomValues(new Uint8Array(32));
+  let s = 'sk-';
+  for (const v of rv) s += alphabet[v % alphabet.length];
+  return s;
+}
+
+window.akGenerate = function() {
+  if (!ready) return;
+  if (akMode !== 'encode') { akMode = 'encode'; }
+  akClearError();
+  akSetLeftPlain(akRandomKey());
+  akRun();
+};
+
+window.akToggle = function() {
+  const out = document.getElementById('ak-right-box').dataset.plainText || '';
+  akMode = (akMode === 'encode') ? 'decode' : 'encode';
+  akSetLeftPlain(out);
+  if (akMode === 'decode') akDetectLeftLang();
+  akRun();
+};
+
+window.akCopy = function() {
+  const el = document.getElementById('ak-right-box');
+  navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
+};
+
+// ═══ Use-case selector ═══════════════════════════════════════════════
+
+window.selectUseCase = function(uc) {
+  document.querySelectorAll('.usecase-tab').forEach(t => t.classList.toggle('active', t.dataset.uc === uc));
+  document.getElementById('panel-bip39').classList.toggle('hidden', uc !== 'bip39');
+  document.getElementById('panel-apikey').classList.toggle('hidden', uc !== 'apikey');
+  // Re-sync the shown panel's labels/highlights.
+  if (uc === 'apikey') { akUpdateChrome(); } else { updateChrome(); }
+};
 // ─── Theme toggle ────────────────────────────────────────────────────
 
 const toggleBtn = document.getElementById('theme-toggle');
@@ -1148,6 +1387,19 @@ async function startup() {
     });
     updateChrome();
     generateSeed();
+
+    // API Key panel
+    akBuildButtons();
+    document.getElementById('ak-left-box').addEventListener('input', () => {
+      clearTimeout(akTimer);
+      akTimer = setTimeout(() => {
+        if (akMode === 'decode') akDetectLeftLang();
+        akRun();
+      }, 250);
+    });
+    document.querySelectorAll('.usecase-tab').forEach(t =>
+      t.addEventListener('click', () => selectUseCase(t.dataset.uc)));
+    akGenerate();
   } catch (e) {
     console.error('Failed to load WASM:', e);
     document.getElementById('loading').innerHTML =
