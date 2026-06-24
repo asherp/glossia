@@ -1626,19 +1626,57 @@ async function gunzipBytes(bytes) {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
-// Compress when it actually shrinks the payload; record the choice in a flag
-// byte so decoding works the same regardless of where the message was made.
-// gzip has ~18 bytes of fixed overhead, so short messages stay uncompressed.
-async function maybeCompress(bytes) {
-  if (typeof CompressionStream === 'undefined') return { data: bytes, flag: 0 };
-  try {
-    const gz = await gzipBytes(bytes);
-    return (gz.length < bytes.length) ? { data: gz, flag: 1 } : { data: bytes, flag: 0 };
-  } catch (e) { return { data: bytes, flag: 0 }; }
+// Pack pure-ASCII bytes 7-bits-wide: [charCount:u16 BE][7-bit packed stream].
+// Returns null if any byte is >= 128 (needs the full 8th bit) or the message
+// is too long for the u16 count. Saves ~12.5% over raw bytes, with no
+// gzip-style fixed overhead — useful for short ASCII the compressor can't help.
+function asciiPack7(bytes) {
+  const L = bytes.length;
+  if (L > 0xffff) return null;
+  for (let i = 0; i < L; i++) if (bytes[i] > 0x7f) return null;
+  const out = new Uint8Array(2 + Math.ceil(L * 7 / 8));
+  out[0] = (L >> 8) & 0xff; out[1] = L & 0xff;
+  let acc = 0, bits = 0, pos = 2;
+  for (let i = 0; i < L; i++) {
+    acc = (acc << 7) | bytes[i];
+    bits += 7;
+    while (bits >= 8) { bits -= 8; out[pos++] = (acc >> bits) & 0xff; }
+  }
+  if (bits > 0) out[pos++] = (acc << (8 - bits)) & 0xff;
+  return out;
 }
-async function maybeDecompress(bytes, flag) {
-  if (!(flag & 1)) return bytes;
-  return gunzipBytes(bytes);
+function asciiUnpack7(packed) {
+  const L = (packed[0] << 8) | packed[1];
+  const out = new Uint8Array(L);
+  let acc = 0, bits = 0, pos = 2, n = 0;
+  while (n < L) {
+    acc = (acc << 8) | (packed[pos++] || 0);
+    bits += 8;
+    while (bits >= 7 && n < L) { bits -= 7; out[n++] = (acc >> bits) & 0x7f; }
+  }
+  return out;
+}
+
+// Pick the smallest representation and record it in the flag byte:
+//   0 = raw UTF-8   1 = gzip   2 = 7-bit ASCII pack
+// gzip wins on longer/repetitive text; 7-bit packing wins on short ASCII
+// where gzip's ~18-byte overhead would make things bigger.
+async function maybeReduce(bytes) {
+  let best = { data: bytes, flag: 0 };
+  const a7 = asciiPack7(bytes);
+  if (a7 && a7.length < best.data.length) best = { data: a7, flag: 2 };
+  if (typeof CompressionStream !== 'undefined') {
+    try {
+      const gz = await gzipBytes(bytes);
+      if (gz.length < best.data.length) best = { data: gz, flag: 1 };
+    } catch (e) { /* keep current best */ }
+  }
+  return best;
+}
+async function expand(bytes, flag) {
+  if (flag === 1) return gunzipBytes(bytes);
+  if (flag === 2) return asciiUnpack7(bytes);
+  return bytes;
 }
 
 async function encDeriveKey(password, salt) {
@@ -1649,10 +1687,11 @@ async function encDeriveKey(password, salt) {
 }
 
 // Framed blob: [len:u32 BE][flag:1][salt:16][iv:12][ciphertext+tag].
-// The length prefix lets decoding drop any trailing bit-packing padding the
-// codec adds, so AES-GCM sees exactly the bytes that were encrypted.
+// flag selects how the message bytes were reduced (raw/gzip/ascii7). The
+// length prefix lets decoding drop any trailing bit-packing padding the codec
+// adds, so AES-GCM sees exactly the bytes that were encrypted.
 async function encryptToHex(message, password) {
-  const { data: compressed, flag } = await maybeCompress(ENC_TE.encode(message));
+  const { data: compressed, flag } = await maybeReduce(ENC_TE.encode(message));
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const key = await encDeriveKey(password, salt);
@@ -1684,7 +1723,7 @@ async function decryptFromHex(hexStr, password) {
   } catch (e) {
     throw new Error('Wrong password or corrupted message.');
   }
-  return ENC_TD.decode(await maybeDecompress(plain, flag));
+  return ENC_TD.decode(await expand(plain, flag));
 }
 
 // ─── Language buttons ────────────────────────────────────────────────
