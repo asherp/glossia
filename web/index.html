@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glossia - A Lossless Linguistic Codec</title>
-<meta name="description" content="Glossia encodes binary data into grammatically correct natural language and ASCII armor — composed through natural-language pipeline specifications and unified by formal grammar theory.">
+<meta name="description" content="Glossia transforms machine data — cryptographic keys, signatures, hashes, encrypted messages — into structured language and other human-friendly forms, with perfect round-trip fidelity. Human interfaces for machine data.">
 
 <style>
 :root {
@@ -618,6 +618,78 @@ footer a:hover { text-decoration: underline; }
 .branching-diagram .highlight { color: var(--accent); font-weight: 600; }
 
 
+/* Problem section: ciphertext vs. language */
+.cipher-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem auto 0;
+  max-width: 760px;
+}
+.cipher-demo code {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.cipher-demo .ciphertext {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  word-break: break-all;
+}
+.cipher-demo .plaintext {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.cipher-demo .cipher-arrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.problem-note, .guarantee {
+  max-width: 720px;
+  margin: 1.5rem auto 0;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  line-height: 1.75;
+}
+.guarantee strong { color: var(--text); }
+
+/* What Glossia does: application list */
+.applications {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+  max-width: 760px;
+  margin: 1.5rem auto 0;
+}
+.applications li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem 0.85rem 2.1rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  position: relative;
+}
+.applications li::before {
+  content: "\2192";
+  position: absolute;
+  left: 0.9rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Animations */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
@@ -681,7 +753,7 @@ footer a:hover { text-decoration: underline; }
   <div class="top-bar">
     <div class="top-bar-title">
       <h1>GLOSSIA:</h1>
-      <span class="tagline">a universal linguistic codec</span>
+      <span class="tagline">human interfaces for machine data</span>
     </div>
     <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9790;</button>
   </div>
@@ -696,16 +768,41 @@ footer a:hover { text-decoration: underline; }
          1. HERO (Revised)
          ═══════════════════════════════════════════════════════════ -->
     <section class="hero animate-in">
-      <h2>One Grammar, Lossless Round-Trips</h2>
+      <h2>Computers Speak in Hex.<br>Humans Speak in Language.</h2>
       <p class="subtitle">
-        Turn seed phrases, API keys, and arbitrary bytes into readable prose or ASCII armor
-        — composed through natural-language pipelines and unified by formal grammar theory.
+        Glossia bridges the gap. Keys, signatures, hashes, encrypted messages, wallet addresses,
+        access tokens — the things we're asked to copy, verify, and trust are built for machines,
+        not people. Glossia transforms that data into structured language and other human-friendly
+        forms, with perfect round-trip fidelity.
       </p>
 
       <div class="cta">
         <a href="#demo">Try the Demo</a>
         <a href="editor.html" style="background:transparent; color:var(--accent); border:2px solid var(--accent); margin-left:0.75rem;">Open Editor</a>
       </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         THE PROBLEM IS PRESENTATION
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="section-header">
+        <h3>The Problem Isn't Encryption. It's Presentation.</h3>
+        <p>Most people recoil at ciphertext — even when the data is perfectly secure, it feels foreign and inaccessible.</p>
+      </div>
+      <div class="cipher-demo">
+        <code class="ciphertext">f4b7c912e8a1d0f3a6b2&hellip;</code>
+        <span class="cipher-arrow">same bytes&nbsp;&rarr;</span>
+        <code class="plaintext">the quiet harbor keeps every distant sail</code>
+      </div>
+      <p class="problem-note">
+        Humans assign meaning and legitimacy to familiar forms of communication. A passage of
+        Latin carries different weight than a block of hexadecimal, even when neither is understood
+        by the reader. Glossia exploits this: the same payload can be represented as structured
+        English, Latin prose, ASCII armor, and other human-friendly forms — without changing a
+        single bit. The goal isn't compression or secrecy. It's reducing the language barrier
+        between humans and digital systems.
+      </p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -826,11 +923,32 @@ footer a:hover { text-decoration: underline; }
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════
+         WHAT GLOSSIA DOES
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="section-header">
+      <h3>What Glossia Does</h3>
+      <p>A lossless framework that converts binary data into human-oriented representations.</p>
+    </div>
+    <ul class="applications">
+      <li>Human-friendly cryptographic messages</li>
+      <li>Verifiable signatures and proofs</li>
+      <li>Mnemonic representations of keys and identifiers</li>
+      <li>Machine-readable text that survives email, chat, and documents</li>
+      <li>Accessible interfaces for complex technical systems</li>
+      <li>Alternative representations across other human-friendly forms</li>
+    </ul>
+    <p class="guarantee">
+      Every representation decodes back to the exact original bytes.
+      <strong>No approximation. No AI interpretation. No information loss.</strong>
+      Just a different language for the same data.
+    </p>
+
+    <!-- ═══════════════════════════════════════════════════════════
          WHY GLOSSIA?
          ═══════════════════════════════════════════════════════════ -->
     <div class="section-header">
       <h3>Why Glossia?</h3>
-      <p>A composable codec algebra for text and ASCII armor</p>
+      <p>The practical payoff of machine data that reads like language</p>
     </div>
     <div class="features">
       <div class="feature-card">
