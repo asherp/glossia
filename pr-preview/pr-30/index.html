@@ -827,11 +827,17 @@ footer a:hover { text-decoration: underline; }
           border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
         .usecase-tab:hover { color: var(--text); }
         .usecase-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .enc-password-row { display: flex; align-items: center; justify-content: center;
+          gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .enc-password-row label { font-family: var(--font-mono); font-size: 0.65rem;
+          text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+        .enc-password-row input { min-width: 260px; }
       </style>
 
       <div class="usecase-tabs">
         <button class="usecase-tab active" data-uc="bip39">BIP39 Seed</button>
         <button class="usecase-tab" data-uc="apikey">API Key</button>
+        <button class="usecase-tab" data-uc="encrypt">Encrypted Message</button>
       </div>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
@@ -919,6 +925,54 @@ footer a:hover { text-decoration: underline; }
         </div>
 
         <p class="demo-hint" id="ak-hint"></p>
+      </div>
+
+      <!-- ─── Encrypted Message panel ─────────────────────────────── -->
+      <div id="panel-encrypt" class="hidden">
+        <div class="section-header">
+          <h3>Encrypted Message</h3>
+          <p>Compress and password-encrypt any text, then hide the ciphertext in readable prose &mdash; decode it back byte-for-byte with the same password</p>
+        </div>
+
+        <div class="enc-password-row">
+          <label for="enc-pass">Password</label>
+          <input type="password" id="enc-pass" placeholder="Shared secret&hellip;" autocomplete="off" spellcheck="false">
+        </div>
+
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="enc-left-label">Message</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="enc-left-box" class="io-input" data-placeholder="Type a secret message&hellip;"></div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="enc-gen-btn" onclick="encSample()" title="Insert a sample message">&#10024; Sample message</button>
+              <div id="enc-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
+          </div>
+
+          <button class="swap-btn" id="enc-swap-btn" onclick="encToggle()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="enc-right-label">English sentences</span>
+              <div class="lang-row" id="enc-langs"></div>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="enc-right-box">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="enc-cover-btn" onclick="encToggleCover()" title="Show or hide the cover words">Hide cover</button>
+              <button class="btn-sm" id="enc-copy-btn" onclick="encCopy()">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="demo-hint" id="enc-hint"></p>
       </div>
     </section>
 
@@ -1041,6 +1095,8 @@ import init, {
   render_image_svg as wasmRenderImageSvg,
   decode_image_from_colors as wasmDecodeImageFromColors,
   get_default_wordlist as wasmGetDefaultWordlist,
+  encode_raw_base_n as wasmEncodeRawBaseN,
+  decode_raw_base_n as wasmDecodeRawBaseN,
 } from './glossia.js';
 
 let ready = false;
@@ -1508,14 +1564,288 @@ window.akToggleCover = function() {
   akRun();        // re-encode from the (stable) key and re-render per showCover
 };
 
+// ═══ Encrypted Message panel ═════════════════════════════════════════
+//
+// Symmetric Google-Translate model with a shared password:
+//   encode: message + password -> compress -> AES-GCM encrypt -> language prose
+//   decode: language prose + password -> decrypt -> decompress -> message
+//
+// The ciphertext is random per encryption, so the cover toggle and language
+// buttons re-render from the cached ciphertext (encCipherHex) rather than
+// re-encrypting. encode_raw_base_n uses the fixed SEED, so re-rendering the
+// same ciphertext into the same language is deterministic.
+
+const ENC_LANGS = [
+  { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
+  { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
+  { id: 'czech',   label: 'Czech',   language: 'czech',   wordlist: 'default', dialect: 'body' },
+];
+function encLangById(id) { return ENC_LANGS.find(l => l.id === id) || ENC_LANGS[0]; }
+
+let encMode = 'encode';       // 'encode' (message -> prose) or 'decode' (prose -> message)
+let encLang = 'english';      // TARGET language (right buttons, encode), persists
+let encDetLang = 'english';   // SOURCE language auto-detected from left prose (decode)
+let encCipherHex = '';        // last framed ciphertext hex (encode), drives re-render
+let encTimer = null;
+let encRunId = 0;             // guards against stale async renders
+
+function encLeftText() { return document.getElementById('enc-left-box').innerText; }
+function encSetLeftPlain(t) { document.getElementById('enc-left-box').textContent = t; }
+function encPassword() { return document.getElementById('enc-pass').value; }
+function encShowError(m) { const e = document.getElementById('enc-error'); e.textContent = m; e.classList.remove('hidden'); }
+function encClearError() { document.getElementById('enc-error').classList.add('hidden'); }
+
+function encSetOutput(text, html) {
+  const el = document.getElementById('enc-right-box');
+  if (!text) { el.classList.add('empty'); el.textContent = 'Output will appear here'; el.dataset.plainText = ''; return; }
+  el.classList.remove('empty');
+  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
+  el.dataset.plainText = text;
+}
+
+// ─── compression (CompressionStream) + AES-GCM (WebCrypto) helpers ────
+const ENC_TE = new TextEncoder();
+const ENC_TD = new TextDecoder();
+
+function toHex(bytes) { return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''); }
+function fromHex(h) {
+  const clean = h.trim().toLowerCase().replace(/[^0-9a-f]/g, '');
+  const out = new Uint8Array(clean.length >> 1);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
+  return out;
+}
+
+async function gzipBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function gunzipBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+// Compress when the browser supports it; record the choice in a flag byte so
+// decoding works the same regardless of where the message was produced.
+async function maybeCompress(bytes) {
+  if (typeof CompressionStream === 'undefined') return { data: bytes, flag: 0 };
+  try { return { data: await gzipBytes(bytes), flag: 1 }; }
+  catch (e) { return { data: bytes, flag: 0 }; }
+}
+async function maybeDecompress(bytes, flag) {
+  if (!(flag & 1)) return bytes;
+  return gunzipBytes(bytes);
+}
+
+async function encDeriveKey(password, salt) {
+  const baseKey = await crypto.subtle.importKey('raw', ENC_TE.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+    baseKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+
+// Framed blob: [len:u32 BE][flag:1][salt:16][iv:12][ciphertext+tag].
+// The length prefix lets decoding drop any trailing bit-packing padding the
+// codec adds, so AES-GCM sees exactly the bytes that were encrypted.
+async function encryptToHex(message, password) {
+  const { data: compressed, flag } = await maybeCompress(ENC_TE.encode(message));
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await encDeriveKey(password, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed));
+  const blob = new Uint8Array(1 + 16 + 12 + ct.length);
+  blob[0] = flag;
+  blob.set(salt, 1);
+  blob.set(iv, 17);
+  blob.set(ct, 29);
+  const framed = new Uint8Array(4 + blob.length);
+  new DataView(framed.buffer).setUint32(0, blob.length, false);
+  framed.set(blob, 4);
+  return toHex(framed);
+}
+async function decryptFromHex(hexStr, password) {
+  const all = fromHex(hexStr);
+  if (all.length < 4) throw new Error('Ciphertext too short.');
+  const len = new DataView(all.buffer, all.byteOffset, 4).getUint32(0, false);
+  const blob = all.subarray(4, 4 + len);
+  if (blob.length < 29) throw new Error('Ciphertext too short or corrupted.');
+  const flag = blob[0];
+  const salt = blob.subarray(1, 17);
+  const iv = blob.subarray(17, 29);
+  const ct = blob.subarray(29);
+  const key = await encDeriveKey(password, salt);
+  let plain;
+  try {
+    plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct));
+  } catch (e) {
+    throw new Error('Wrong password or corrupted message.');
+  }
+  return ENC_TD.decode(await maybeDecompress(plain, flag));
+}
+
+// ─── Language buttons ────────────────────────────────────────────────
+function encBuildButtons() {
+  const row = document.getElementById('enc-langs');
+  row.innerHTML = '';
+  for (const l of ENC_LANGS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.encLang = l.id;
+    b.textContent = l.label;
+    b.title = l.label + ' prose';
+    b.addEventListener('click', () => {
+      encLang = l.id;
+      // In encode mode, just re-encode the cached ciphertext into the new
+      // language — no need to re-encrypt (which would change the ciphertext).
+      if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
+      else { encRun(); }
+    });
+    row.appendChild(b);
+  }
+}
+function encUpdateHighlights() {
+  document.querySelectorAll('#enc-langs .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.encLang === encLang));
+}
+
+// Auto-detect the SOURCE language of the left prose (decode), restricted to
+// the languages this panel supports.
+function encDetectLeftLang() {
+  const text = encLeftText().trim();
+  if (!text) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(text));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => ENC_LANGS.some(l => l.language === m.language));
+      if (best) encDetLang = (ENC_LANGS.find(l => l.language === best.language) || {}).id || encDetLang;
+    }
+  } catch (e) { /* keep detected language */ }
+}
+
+function encUpdateChrome() {
+  const langRow = document.getElementById('enc-langs');
+  const genBtn = document.getElementById('enc-gen-btn');
+  const coverBtn = document.getElementById('enc-cover-btn');
+  const hint = document.getElementById('enc-hint');
+  if (encMode === 'encode') {
+    document.getElementById('enc-left-label').textContent = 'Message';
+    document.getElementById('enc-right-label').textContent = encLangById(encLang).label + ' sentences';
+    langRow.classList.remove('hidden');
+    genBtn.classList.remove('hidden');
+    coverBtn.classList.remove('hidden');
+    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+    hint.textContent = 'Compresses and AES-GCM-encrypts your message with the password, then hides the ' +
+      'ciphertext in ' + encLangById(encLang).label + ' prose (payload words underlined). ' +
+      'Pick the target language on the right; press ⇄ to decode.';
+  } else {
+    document.getElementById('enc-left-label').textContent = encLangById(encDetLang).label + ' sentences (detected)';
+    document.getElementById('enc-right-label').textContent = 'Decrypted message';
+    langRow.classList.add('hidden');
+    genBtn.classList.add('hidden');
+    coverBtn.classList.add('hidden');
+    hint.textContent = 'Detected ' + encLangById(encDetLang).label + ' prose (payload words underlined); ' +
+      'decrypting with the password to recover the original message. Press ⇄ to go back to encrypting.';
+  }
+  encUpdateHighlights();
+}
+
+function encUnderlineLeft(prose, words) {
+  const el = document.getElementById('enc-left-box');
+  const focused = (document.activeElement === el);
+  el.innerHTML = underlineProse(prose, normSet(words));
+  if (focused) placeCaretEnd(el);
+}
+
+// Render the cached ciphertext into the current target language (deterministic).
+function encRenderFromHex(hexStr) {
+  if (!ready || !hexStr) { encSetOutput(''); return; }
+  const tgt = encLangById(encLang);
+  try {
+    const r = JSON.parse(wasmEncodeRawBaseN(hexStr, tgt.language, tgt.wordlist, tgt.dialect, SEED));
+    if (r.error) { encShowError(r.error); encSetOutput(''); return; }
+    const out = (r.encoded_text || '').trim();
+    const set = normSet(r.payload_words || []);
+    encSetOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+  } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); }
+}
+
+async function encRun() {
+  if (!ready) return;
+  const myId = ++encRunId;
+  encClearError();
+  encUpdateChrome();
+  const text = encLeftText().trim();
+  const pw = encPassword();
+
+  if (encMode === 'encode') {
+    if (!text) { encCipherHex = ''; encSetOutput(''); return; }
+    if (!pw) { encSetOutput(''); encShowError('Enter a password to encrypt.'); return; }
+    let hexStr;
+    try { hexStr = await encryptToHex(text, pw); }
+    catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
+    if (myId !== encRunId) return;   // a newer run superseded this one
+    encCipherHex = hexStr;
+    encRenderFromHex(encCipherHex);
+  } else {
+    if (!text) { encSetOutput(''); return; }
+    encDetectLeftLang();
+    encUpdateChrome();
+    const src = encLangById(encDetLang);
+    let hexStr;
+    try {
+      const r = JSON.parse(wasmDecodeRawBaseN(text, src.language, src.wordlist, 0));
+      if (r.error) { encShowError(r.error); encSetOutput(''); return; }
+      hexStr = r.decoded_hex || '';
+      encUnderlineLeft(text, r.payload_words || []);
+    } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); return; }
+    if (!hexStr) { encSetOutput(''); return; }
+    if (!pw) { encSetOutput(''); encShowError('Enter the password to decrypt.'); return; }
+    let message;
+    try { message = await decryptFromHex(hexStr, pw); }
+    catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
+    if (myId !== encRunId) return;
+    encSetOutput(message);
+  }
+}
+
+window.encSample = function() {
+  if (!ready) return;
+  if (encMode !== 'encode') encMode = 'encode';
+  encClearError();
+  encSetLeftPlain('Meet me at the old harbor at midnight. Bring the charts.');
+  if (!encPassword()) document.getElementById('enc-pass').value = 'correct horse battery staple';
+  encRun();
+};
+
+window.encToggle = function() {
+  // Move the current output into the input box, then flip direction.
+  const out = document.getElementById('enc-right-box').dataset.plainText || '';
+  encMode = (encMode === 'encode') ? 'decode' : 'encode';
+  encSetLeftPlain(out);
+  if (encMode === 'decode') encDetectLeftLang();
+  encRun();
+};
+
+window.encCopy = function() {
+  const el = document.getElementById('enc-right-box');
+  navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
+};
+
+window.encToggleCover = function() {
+  showCover = !showCover;
+  // Re-render the cached ciphertext rather than re-encrypting.
+  if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
+  else encUpdateChrome();
+};
+
 // ═══ Use-case selector ═══════════════════════════════════════════════
 
 window.selectUseCase = function(uc) {
   document.querySelectorAll('.usecase-tab').forEach(t => t.classList.toggle('active', t.dataset.uc === uc));
   document.getElementById('panel-bip39').classList.toggle('hidden', uc !== 'bip39');
   document.getElementById('panel-apikey').classList.toggle('hidden', uc !== 'apikey');
+  document.getElementById('panel-encrypt').classList.toggle('hidden', uc !== 'encrypt');
   // Re-render the shown panel so labels, highlights, and cover state are current.
-  if (uc === 'apikey') { akRun(); } else { updateChrome(); run(); }
+  if (uc === 'apikey') { akRun(); }
+  else if (uc === 'encrypt') { encUpdateChrome(); encRun(); }
+  else { updateChrome(); run(); }
 };
 // ─── Theme toggle ────────────────────────────────────────────────────
 
@@ -1564,9 +1894,25 @@ async function startup() {
         akRun();
       }, 250);
     });
+    // Encrypted Message panel
+    encBuildButtons();
+    document.getElementById('enc-left-box').addEventListener('input', () => {
+      clearTimeout(encTimer);
+      encTimer = setTimeout(() => {
+        if (encMode === 'decode') encDetectLeftLang();
+        encRun();
+      }, 300);
+    });
+    document.getElementById('enc-pass').addEventListener('input', () => {
+      clearTimeout(encTimer);
+      encTimer = setTimeout(() => { encRun(); }, 300);
+    });
+
     document.querySelectorAll('.usecase-tab').forEach(t =>
       t.addEventListener('click', () => selectUseCase(t.dataset.uc)));
     akGenerate();
+    encUpdateChrome();
+    encSample();
   } catch (e) {
     console.error('Failed to load WASM:', e);
     document.getElementById('loading').innerHTML =
