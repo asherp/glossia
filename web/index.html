@@ -864,8 +864,9 @@ import init, {
 } from './glossia.js';
 
 let ready = false;
-let mode = 'encode';            // 'encode' (seed -> prose) or 'decode' (prose -> seed)
-let currentLang = 'english';
+let mode = 'encode';            // 'encode' (seed -> prose) or 'decode' (prose -> seed words)
+let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
+let detectedLang = 'english';   // SOURCE language auto-detected from the left prose (decode only)
 let inputTimer = null;
 const SEED = 42n;               // fixed seed -> deterministic prose
 
@@ -873,10 +874,13 @@ const SEED = 42n;               // fixed seed -> deterministic prose
 // "bip39" dialect, so the seed round-trips byte-for-byte. English shares the
 // payload wordlist with BIP39, so the seed words appear verbatim in the prose;
 // Latin/Czech re-express the same entropy in their own (more compact) wordlists.
+//   encodeMeta : seed -> prose in this language
+//   source     : how to read this language's prose (decode source endpoint)
+//   rawTarget  : bare payload words in this language (decode target endpoint)
 const LANGS = [
-  { id: 'english', label: 'English', encodeMeta: 'encode into english bip39', source: 'english/bip39/bip39' },
-  { id: 'latin',   label: 'Latin',   encodeMeta: 'encode into latin bip39',   source: 'latin/default/bip39' },
-  { id: 'czech',   label: 'Czech',   encodeMeta: 'encode into czech bip39',   source: 'czech/default/bip39' },
+  { id: 'english', label: 'English', encodeMeta: 'encode into english bip39', source: 'english/bip39/bip39', rawTarget: 'english/bip39/raw' },
+  { id: 'latin',   label: 'Latin',   encodeMeta: 'encode into latin bip39',   source: 'latin/default/bip39', rawTarget: 'latin/default/raw' },
+  { id: 'czech',   label: 'Czech',   encodeMeta: 'encode into czech bip39',   source: 'czech/default/bip39', rawTarget: 'czech/default/raw' },
 ];
 
 function langById(id) { return LANGS.find(l => l.id === id) || LANGS[0]; }
@@ -925,8 +929,9 @@ function buildLangButtons() {
   }
 }
 
-// Auto-detect which language the left-box prose is written in (decode mode),
-// restricted to the languages this panel supports.
+// Auto-detect the SOURCE language of the left-box prose (decode mode),
+// restricted to the languages this panel supports. Sets detectedLang; the
+// TARGET language (currentLang / right buttons) is left untouched.
 function detectLeftLanguage() {
   const text = document.getElementById('left-box').value.trim();
   if (!text) return;
@@ -934,9 +939,9 @@ function detectLeftLanguage() {
     const matches = JSON.parse(wasmDetectDialect(text));
     if (Array.isArray(matches)) {
       const best = matches.find(m => LANGS.some(l => l.id === m.language));
-      if (best) currentLang = best.language;
+      if (best) detectedLang = best.language;
     }
-  } catch (e) { /* keep current language */ }
+  } catch (e) { /* keep detected language */ }
 }
 
 function updateLangHighlights() {
@@ -954,27 +959,29 @@ function selectLang(id) {
 // ─── Chrome (labels, which language row is shown) ─────────────────────
 
 function updateChrome() {
-  const lang = langById(currentLang);
+  const target = langById(currentLang);
+  const source = langById(detectedLang);
   const genBtn = document.getElementById('gen-btn');
   const hint = document.getElementById('demo-hint');
 
-  // The language buttons live above the right box in both modes and always
-  // name the *prose* language.
+  // The buttons live above the right box in both modes and always name the
+  // TARGET language (Google-Translate style: target on the right).
   if (mode === 'encode') {
-    // seed (left) -> prose (right); buttons pick the prose language.
+    // seed (left, source) -> prose (right, target language).
     document.getElementById('left-label').textContent = 'BIP39 seed';
-    document.getElementById('right-label').textContent = lang.label + ' sentences';
+    document.getElementById('right-label').textContent = target.label + ' sentences';
     genBtn.classList.remove('hidden');
-    hint.textContent = 'Generates a 12-word seed and weaves it into ' + lang.label +
-      ' prose. Pick a language above the sentence; press ⇄ to decode a sentence back into the seed.';
+    hint.textContent = 'Generates a 12-word seed and weaves it into ' + target.label +
+      ' prose. Pick the target language on the right; press ⇄ to decode a sentence back into a seed.';
   } else {
-    // prose (left, auto-detected) -> mnemonic (right). Buttons highlight the
-    // detected prose language; click one to re-read the prose as that language.
-    document.getElementById('left-label').textContent = lang.label + ' sentences';
-    document.getElementById('right-label').textContent = 'BIP39 seed';
+    // prose (left, source auto-detected) -> seed words (right, target language).
+    const seedLabel = currentLang === 'english' ? 'BIP39 seed' : (target.label + ' seed words');
+    document.getElementById('left-label').textContent = source.label + ' sentences (detected)';
+    document.getElementById('right-label').textContent = seedLabel;
     genBtn.classList.add('hidden');
-    hint.textContent = 'Detected ' + lang.label + ' prose on the left and recovered the BIP39 seed. ' +
-      'Paste any sentence to decode it; press ⇄ to go back to encoding.';
+    hint.textContent = 'Detected ' + source.label + ' on the left; showing the seed as ' +
+      target.label + (currentLang === 'english' ? ' (BIP39).' : ' words.') +
+      ' Pick the target language on the right; press ⇄ to go back to encoding.';
   }
   updateLangHighlights();
 }
@@ -987,10 +994,12 @@ function run() {
   const text = document.getElementById('left-box').value.trim();
   if (!text) { setOutput(''); return; }
 
-  const lang = langById(currentLang);
+  // currentLang is the TARGET (right buttons). In decode, the SOURCE is the
+  // auto-detected language of the left prose.
+  const target = langById(currentLang);
   const meta = (mode === 'encode')
-    ? lang.encodeMeta
-    : 'transcode from ' + lang.source + ' into english/bip39/raw';
+    ? target.encodeMeta
+    : 'transcode from ' + langById(detectedLang).source + ' into ' + target.rawTarget;
 
   try {
     const result = JSON.parse(wasmTranscode(text, meta, SEED));
