@@ -1156,10 +1156,13 @@ function placeCaretEnd(el) {
 let showCover = true;
 
 // The cleaned payload words present in prose, in order (cover words dropped).
+// Payload words are case-insensitive (and BIP39 words are canonically
+// lowercase), so the payload-only view normalizes them to lowercase.
 function payloadTokens(text, set) {
   return text.split(/\s+/)
     .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
-    .filter(t => t && set.has(norm(t)));
+    .filter(t => t && set.has(norm(t)))
+    .map(t => t.toLowerCase());
 }
 function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
 
