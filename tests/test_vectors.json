@@ -89,10 +89,10 @@
     },
     {
       "id": "bip39-mnemonic-12-words",
-      "description": "Well-known 12-word BIP39 test mnemonic (all-zero entropy)",
+      "description": "Well-known 12-word BIP39 test mnemonic (all-zero entropy). Detected as a seed and encoded via the word-preserving english bip39 dialect (base_n); the seed words survive in the prose and the entropy round-trips.",
       "input": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "bip39" },
-      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "body", "codec": "bitpack", "seed": 42 },
-      "expected_decoded": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "bip39" }
+      "encoding": { "language": "english", "wordlist": "bip39", "dialect": "bip39", "codec": "base_n", "seed": 42 },
+      "expected_decoded": { "value": "000000000000000000000003", "format": "hex" }
     },
     {
       "id": "btc-bech32-address",

@@ -457,6 +457,17 @@ grammar:
               weight: 0.10
               lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). λprep:(e->(e->t)). prep(det(n))"
 
+    # BIP39 transcode: weave a BIP39 seed phrase into natural English prose.
+    # Uses base_n (rebase) instead of bitpack — no padding word, no re-chunking —
+    # so the exact input mnemonic words are preserved verbatim, just interspersed
+    # with cover words. Inherits the base (body) prose rules. Mirror of Latin's
+    # bip39 dialect, but here payload == cover language (English), so the seed
+    # words appear directly in the sentence.
+    bip39:
+      codec: base_n
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+
     payload_only:
       payload_wordlist: "default"
       cover_wordlist: "default"

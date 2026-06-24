@@ -712,189 +712,117 @@ footer a:hover { text-decoration: underline; }
          INTERACTIVE DEMO
          ═══════════════════════════════════════════════════════════ -->
     <section class="demo-section" id="demo">
-      <div class="section-header">
-        <h3>Interactive Demo</h3>
-        <p>Experience the transformation live — encode and decode instantly in your browser</p>
+      <style>
+        .lang-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+        .lang-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+        .lang-btn.active:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+        .demo-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; margin-top: 0.85rem; }
+        #demo .panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+        #demo .panel-header .lang-row { margin-left: auto; }
+        .io-input { flex: 1; min-height: 160px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
+          font-family: var(--font-mono); line-height: 1.7; color: var(--text); outline: none;
+          white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
+        .io-input:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
+        .io-input u, .output-area u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
+        .usecase-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
+        .usecase-tab { padding: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
+          color: var(--text-dim); cursor: pointer; border: none; background: none;
+          border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
+        .usecase-tab:hover { color: var(--text); }
+        .usecase-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+      </style>
+
+      <div class="usecase-tabs">
+        <button class="usecase-tab active" data-uc="bip39">BIP39 Seed</button>
+        <button class="usecase-tab" data-uc="apikey">API Key</button>
       </div>
 
-    <!-- Tabbed preset bar -->
-    <div style="margin-bottom:0.75rem;">
-      <div class="preset-tabs">
-        <button class="preset-tab active" data-tab="text">Text</button>
-        <button class="preset-tab" data-tab="crypto">Crypto</button>
-        <button class="preset-tab" data-tab="music">Music</button>
-        <button class="preset-tab" data-tab="image">Image</button>
-        <button class="preset-tab" data-tab="pipelines">Pipelines</button>
-      </div>
-      <div class="preset-tab-content active" data-tab="text">
-        <button class="btn-sm preset-btn" data-meta="encode into english naturally" title="Natural readable prose (default)">Natural</button>
-        <button class="btn-sm preset-btn" data-meta="encode into english compactly" title="Shortest sentences, maximum payload density">Compact</button>
-        <button class="btn-sm preset-btn" data-meta="encode into english minimally" title="Aggressive word count minimization">Minimal</button>
-        <button class="btn-sm preset-btn" data-meta="encode into english optimally" title="Generate 50 variations, pick the best">Optimal</button>
-        <button class="btn-sm preset-btn" data-meta="encode into english subject" title="Email subject line format">Subject</button>
-        <button class="btn-sm preset-btn" data-meta="encode into english prose" title="Literary prose format">Prose</button>
-        <button class="btn-sm preset-btn" data-meta="encode into latin compactly" title="Latin prose encoding">Latin</button>
-        <button class="btn-sm preset-btn" data-meta="encode into latin bip39" title="BIP39 seed phrase as Latin (base-N, fewer words)">Latin BIP39</button>
-        <button class="btn-sm preset-btn" data-meta="encode into latin spells" title="Harry Potter spell format">Spells</button>
-        <button class="btn-sm preset-btn" data-meta="encode into czech naturally" title="Czech prose (official BIP39 Czech wordlist)">Czech</button>
-      </div>
-      <div class="preset-tab-content" data-tab="crypto">
-        <button class="btn-sm preset-btn" data-meta="encode into pgp" title="PGP encrypted message armor">PGP Message</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip04" title="NIP-04 encrypted message">NIP-04</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip44" title="NIP-44 encrypted message">NIP-44</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip04_bip39" title="NIP-04 encrypted (BIP39 words)">NIP-04 (BIP39)</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/nip44_bip39" title="NIP-44 encrypted (BIP39 words)">NIP-44 (BIP39)</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_nostr" title="Nostr signature">Nostr Sig</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_bip39" title="Nostr signature (BIP39 words)">Nostr Sig (BIP39)</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs/default/sig_pgp" title="PGP signature armor">PGP Sig</button>
-        <button class="btn-sm preset-btn" data-meta="encode into ascii7" title="Plain ASCII message">ASCII7</button>
-        <button class="btn-sm preset-btn" data-meta="encode into cs raw" title="Raw encoding, no armor">Raw</button>
-      </div>
-      <div class="preset-tab-content" data-tab="music">
-        <button class="btn-sm preset-btn" data-meta="encode into music" title="Chromatic scored notation">Chromatic</button>
-        <button class="btn-sm preset-btn" data-meta="encode into music pentatonic" title="Pentatonic scale notation">Pentatonic</button>
-        <button class="btn-sm preset-btn" data-meta="encode into music blues" title="Blues scale notation">Blues</button>
-      </div>
-      <div class="preset-tab-content" data-tab="image" style="flex-direction:column; gap:0.25rem;">
-        <div class="image-row">
-          <span class="image-group-label">Layout</span>
-          <button class="btn-sm image-layout-btn active" data-layout="voronoi" title="Voronoi mosaic layout">Voronoi</button>
-          <button class="btn-sm image-layout-btn" data-layout="grid" title="Rectangular grid layout">Grid</button>
-          <button class="btn-sm image-layout-btn" data-layout="constellation" title="Circular dots on dark background">Constellation</button>
-          <button class="btn-sm image-layout-btn" data-layout="patches" title="4-column patch grid">Patches</button>
+      <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
+      <div id="panel-bip39">
+        <div class="section-header">
+          <h3>BIP39 Seed Phrase</h3>
+          <p>Turn a recovery phrase into a readable sentence &mdash; and back again, byte-for-byte</p>
         </div>
-        <div class="image-row">
-          <span class="image-group-label">Shape</span>
-          <button class="btn-sm image-shape-btn active" data-shape="rect" title="Rectangular canvas">Rect</button>
-          <button class="btn-sm image-shape-btn" data-shape="disk" title="Circular clipping">Disk</button>
-        </div>
-        <div class="image-row">
-          <span class="image-group-label">Palette</span>
-          <button class="btn-sm image-palette-btn active" data-palette="viridis" title="Deep purple through teal to yellow-green (128 colors)">viridis</button>
-          <button class="btn-sm image-palette-btn" data-palette="plasma" title="Dark purple through magenta to orange-yellow (128 colors)">plasma</button>
-          <button class="btn-sm image-palette-btn" data-palette="inferno" title="Near-black through red-orange to bright yellow (128 colors)">inferno</button>
-          <button class="btn-sm image-palette-btn" data-palette="magma" title="Near-black through purple-pink to pale white (64 colors)">magma</button>
-          <button class="btn-sm image-palette-btn" data-palette="cividis" title="Dark blue through olive-grey to yellow, CVD-safe (128 colors)">cividis</button>
-          <button class="btn-sm image-palette-btn" data-palette="turbo" title="Dark blue through rainbow to dark red (8 colors)">turbo</button>
-          <button class="btn-sm image-palette-btn" data-palette="mako" title="Deep purple-black through teal to pale cyan (64 colors)">mako</button>
-          <button class="btn-sm image-palette-btn" data-palette="rocket" title="Near-black through magenta to pale white (32 colors)">rocket</button>
-        </div>
-      </div>
-      <div class="preset-tab-content" data-tab="pipelines">
-        <button class="btn-sm preset-btn" data-meta="transcode from latin into english" title="Translate Latin prose to English prose">Latin &rarr; English</button>
-        <button class="btn-sm preset-btn" data-meta="transcode from english into latin" title="Translate English prose to Latin prose">English &rarr; Latin</button>
-        <button class="btn-sm preset-btn" data-meta="transcode from czech into english" title="Translate Czech prose to English prose">Czech &rarr; English</button>
-        <button class="btn-sm preset-btn" data-meta="encode into english naturally" title="Encode raw hex as English prose">Hex &rarr; English</button>
-        <button class="btn-sm preset-btn" data-meta="encode into latin compactly" title="Encode raw data as Latin prose">Data &rarr; Latin</button>
-      </div>
-    </div>
 
-    <!-- Side-by-side panels -->
-    <div class="panels">
-      <!-- Left panel: Input -->
-      <div class="panel panel-left">
-        <div class="panel-header">
-          <span class="dialect-label" id="input-dialect-label">Input: english/bip39</span>
-        </div>
-        <div class="panel-body">
-          <textarea id="input-area" placeholder="Type text to encode...">Hello, Glossia!</textarea>
-          <div id="input-image-preview" class="hidden" style="padding: 0.75rem 0.85rem;"></div>
-        </div>
-        <div class="panel-footer">
-          <div id="random-btns" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-            <button class="btn-sm" onclick="randomWords(12)" title="Generate 12 random BIP39 words">BIP39 (12)</button>
-            <button class="btn-sm" onclick="randomWords(24)" title="Generate 24 random BIP39 words">BIP39 (24)</button>
-            <button class="btn-sm" onclick="randomHex()" title="Generate random hex string">Hex</button>
-            <button class="btn-sm" onclick="randomBase64()" title="Generate random base64 string">Base64</button>
-            <button class="btn-sm" onclick="randomBitcoinKey()" title="Generate random Bitcoin address (bc1...)">BTC Address</button>
-            <button class="btn-sm" onclick="randomNostrKey()" title="Generate random Nostr pubkey (npub...)">Nostr Key</button>
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="left-label">BIP39 seed</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="left-box" class="io-input" data-placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="gen-btn" onclick="generateSeed()" title="Generate a random 12-word BIP39 seed">&#127922; Generate seed</button>
+              <div id="demo-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
           </div>
-          <div id="input-error" class="error-msg hidden" style="padding:0;"></div>
-        </div>
-        <div class="panel-footer" id="input-stats-footer" style="display:none;">
-          <div class="stats-bar">
-            <span>Format: <span class="stat-value" id="stat-input-format">-</span></span>
-            <span>Words: <span class="stat-value" id="stat-input-words">-</span></span>
-            <span>Bytes: <span class="stat-value" id="stat-input-bytes">-</span></span>
-            <span id="input-bits-info" style="margin-left: auto;"></span>
+
+          <button class="swap-btn" id="swap-btn" onclick="toggleMode()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="right-label">English sentences</span>
+              <div class="lang-row" id="right-langs"></div>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="right-box">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="cover-btn" onclick="toggleCover()" title="Show or hide the cover words">Hide cover</button>
+              <button class="btn-sm" id="copy-btn" onclick="copyOutput()">Copy</button>
+            </div>
           </div>
         </div>
+
+        <p class="demo-hint" id="demo-hint"></p>
       </div>
 
-      <!-- Swap button -->
-      <button class="swap-btn" id="swap-btn" title="Switch between Encode and Decode" aria-label="Swap mode">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
-      </button>
+      <!-- ─── API Key panel ───────────────────────────────────────── -->
+      <div id="panel-apikey" class="hidden">
+        <div class="section-header">
+          <h3>API Key / Secret Token</h3>
+          <p>Turn an opaque key into a readable sentence &mdash; dictate it, paste it, decode it back byte-for-byte</p>
+        </div>
 
-      <!-- Right panel: Output only -->
-      <div class="panel panel-right">
-        <div class="panel-header">
-          <span class="dialect-label" id="output-dialect-label">Encoding with: english/bip39</span>
-          <button class="btn-sm" id="copy-btn" onclick="copyOutput()" style="display:none;">Copy</button>
-          <button class="btn-sm" id="save-btn" onclick="saveImage()" style="display:none;">Save SVG</button>
-        </div>
-        <div class="panel-body">
-          <div class="output-area empty" id="output-area">
-            Output will appear here
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="ak-left-label">API key</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="ak-left-box" class="io-input" data-placeholder="Click &ldquo;Generate key&rdquo;, or paste an API key / hex / base64&hellip;"></div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="ak-gen-btn" onclick="akGenerate()" title="Generate a realistic sk- API key">&#127922; Generate key</button>
+              <div id="ak-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
           </div>
-        </div>
-        <div class="panel-footer" id="stats-footer" style="display:none;">
-          <div class="stats-bar" id="stats-bar">
-            <span>Payload: <span class="stat-value" id="stat-payload">0</span></span>
-            <span>Cover: <span class="stat-value" id="stat-cover">0</span></span>
-            <span>Total: <span class="stat-value" id="stat-total">0</span></span>
-            <span>Ratio: <span class="stat-value" id="stat-ratio">0%</span></span>
-            <span id="output-bits-info" style="margin-left: auto;"></span>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Controls section -->
-    <div class="controls-section">
-      <div class="control-group" style="flex: 3; min-width: 280px; position: relative;">
-        <label for="meta-input">
-          Meta Instruction
-          <span class="help-icon" id="help-toggle" title="Show pipeline syntax help">?</span>
-        </label>
-        <input type="text" id="meta-input" value="encode into english naturally" style="width: 100%;">
-        <div class="help-popover" id="help-popover">
-          <h5>Pipeline Syntax</h5>
-          <div style="margin-bottom:0.5rem;">
-            <code>encode into &lt;target&gt; [modifier]</code><br>
-            <code>decode from &lt;source&gt;</code><br>
-            <code>transcode from &lt;source&gt; into &lt;target&gt;</code>
-          </div>
-          <div style="margin-bottom:0.5rem;">
-            <strong style="color:var(--text);">Targets:</strong> english, latin, czech, pgp, nostr, music, hex, base64, ascii7
-          </div>
-          <div>
-            <strong style="color:var(--text);">Modifiers:</strong> naturally, compactly, minimally, optimally
+          <button class="swap-btn" id="ak-swap-btn" onclick="akToggle()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="ak-right-label">English sentences</span>
+              <div class="lang-row" id="ak-langs"></div>
+              <div class="lang-row hidden" id="ak-fmts"></div>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="ak-right-box">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="ak-cover-btn" onclick="akToggleCover()" title="Show or hide the cover words">Hide cover</button>
+              <button class="btn-sm" id="ak-copy-btn" onclick="akCopy()">Copy</button>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="control-group" style="min-width:140px;">
-        <label for="dialect-select">Dialect</label>
-        <select id="dialect-select" style="width:100%;">
-          <option value="">-- from presets --</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label for="seed">Seed</label>
-        <input type="number" id="seed" value="42" min="0">
-      </div>
-      <div class="control-group">
-        <button class="btn-toggle" id="cover-toggle" title="Toggle cover words on/off">
-          &#9745; Cover
-        </button>
-      </div>
-    </div>
 
-    <!-- Action button (hidden, auto-run handles all operations) -->
-    <div class="action-row" style="display:none;">
-      <button class="primary" id="action-btn">Transcode</button>
-    </div>
-
+        <p class="demo-hint" id="ak-hint"></p>
+      </div>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -998,797 +926,481 @@ import init, {
 } from './glossia.js';
 
 let ready = false;
-let metaInstruction = 'encode into english naturally';
-
-// Store last result for cover word toggle
-let lastEncodedText = '';
-let lastPayloadWords = [];
-let lastStats = {};
-let lastDataMode = null;
-let lastSource = null;
-let lastTarget = null;
-let lastResolvedSource = null;
-let lastIsImageOutput = false;
-let lastImageDialect = '';
-let showCoverWords = true;
-
-
-// ─── Dialect catalog ─────────────────────────────────────────────────
-
-let allDialects = [];
-
-function buildDialectCatalog() {
-  try {
-    allDialects = JSON.parse(wasmGetAllDialects());
-  } catch (e) {
-    console.warn('Failed to load dialects:', e);
-    return;
-  }
-
-  populateDialectDropdown(allDialects);
-}
-
-function resolveWordlistName(language, wordlist) {
-  if (wordlist === 'default') {
-    try {
-      return wasmGetDefaultWordlist(language) || 'default';
-    } catch (e) { return 'default'; }
-  }
-  return wordlist;
-}
-
-
-function buildMetaForDialect(language, dialect) {
-  // Build a meta instruction for a given language/dialect combination
-  if (language === 'cs') {
-    // Crypto signature dialects
-    const csMap = {
-      'nip04': 'encode into cs/default/nip04',
-      'nip44': 'encode into cs/default/nip44',
-      'nip04_bip39': 'encode into cs/default/nip04_bip39',
-      'nip44_bip39': 'encode into cs/default/nip44_bip39',
-      'pgp': 'encode into cs/default/pgp',
-      'sig': 'encode into cs/default/sig',
-      'sig_pgp': 'encode into cs/default/sig_pgp',
-      'sig_nostr': 'encode into cs/default/sig_nostr',
-      'sig_bip39': 'encode into cs/default/sig_bip39',
-      'ascii7': 'encode into cs/default/ascii7',
-      'raw': 'encode into cs/default/raw',
-    };
-    return csMap[dialect] || 'encode into ' + language + ' ' + dialect;
-  }
-  if (dialect === 'spells') return 'encode into latin spells';
-  if (dialect === 'bip39') return 'encode into ' + language + ' bip39';
-  if (dialect === 'subject') return 'encode into ' + language + ' subject';
-  if (dialect === 'prose') return 'encode into ' + language + ' prose';
-  if (dialect === 'payload_only') return 'encode into ' + language;
-  return 'encode into ' + language + ' naturally';
-}
-
-
-// ─── Dialect dropdown ────────────────────────────────────────────────
-
-function populateDialectDropdown(data) {
-  const select = document.getElementById('dialect-select');
-  // Keep the first default option
-  data.forEach(langGroup => {
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = langGroup.language_display;
-
-    langGroup.dialects.forEach(d => {
-      const option = document.createElement('option');
-      option.value = langGroup.language + '|' + d.dialect;
-      const resolvedWl = resolveWordlistName(langGroup.language, d.payload_wordlist);
-      option.textContent = d.payload_wordlist === 'default'
-        ? d.display_name.replace('default', 'default (' + resolvedWl + ')')
-        : d.display_name;
-      optgroup.appendChild(option);
-    });
-
-    select.appendChild(optgroup);
-  });
-}
-
-document.getElementById('dialect-select').addEventListener('change', (e) => {
-  const val = e.target.value;
-  if (!val) return;
-  const [lang, dialect] = val.split('|');
-  const meta = buildMetaForDialect(lang, dialect);
-  document.getElementById('meta-input').value = meta;
-  autoRunNow();
-});
-
-// ─── Preset tabs ─────────────────────────────────────────────────────
-
-document.querySelectorAll('.preset-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const tabName = tab.dataset.tab;
-    document.querySelectorAll('.preset-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
-    document.querySelectorAll('.preset-tab-content').forEach(c => c.classList.toggle('active', c.dataset.tab === tabName));
-  });
-});
-
-// ─── Help popover ────────────────────────────────────────────────────
-
-document.getElementById('help-toggle').addEventListener('click', (e) => {
-  e.stopPropagation();
-  document.getElementById('help-popover').classList.toggle('visible');
-});
-document.addEventListener('click', (e) => {
-  const popover = document.getElementById('help-popover');
-  if (!popover.contains(e.target) && e.target.id !== 'help-toggle') {
-    popover.classList.remove('visible');
-  }
-});
-
-// ─── Load preset (shared by catalog, pipeline guide, hero) ──────────
-
-window.loadPreset = function(meta) {
-  document.getElementById('meta-input').value = meta;
-  autoRunNow();
-  // Scroll to demo
-  const demo = document.getElementById('demo');
-  if (demo) {
-    demo.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-};
-
-
-// ─── Core transcode function ─────────────────────────────────────────
-
-function doTranscode() {
-  if (!ready) return;
-
-  const input = document.getElementById('input-area').value;
-  const instruction = document.getElementById('meta-input').value.trim();
-  const seed = parseInt(document.getElementById('seed').value) || 0;
-
-  if (!instruction) return;
-
-  // If result is an encode (not decode-from-image), restore textarea visibility
-  const isDecodeFromImage = instruction.toLowerCase().startsWith('decode from image');
-  if (!isDecodeFromImage) {
-    const preview = document.getElementById('input-image-preview');
-    if (preview && !preview.classList.contains('hidden')) {
-      preview.innerHTML = '';
-      preview.classList.add('hidden');
-      document.getElementById('input-area').style.display = '';
-    }
-  }
-
-  const errEl = document.getElementById('input-error');
-  errEl.classList.add('hidden');
-
-  // ── Image SVG decode: use hex colors extracted from the SVG ─────
-  if (isDecodeFromImage) {
-    const preview = document.getElementById('input-image-preview');
-    if (preview && preview.dataset.hexColors) {
-      try {
-        const hexColors = preview.dataset.hexColors;
-        const palette = preview.dataset.palette || 'viridis';
-        const decodeResult = JSON.parse(wasmDecodeImageFromColors(hexColors, palette));
-
-        if (decodeResult.error) {
-          errEl.textContent = decodeResult.error;
-          errEl.classList.remove('hidden');
-          return;
-        }
-
-        const outEl = document.getElementById('output-area');
-        outEl.classList.remove('empty');
-        outEl.textContent = decodeResult.decoded_text || '';
-        outEl.dataset.plainText = decodeResult.decoded_text || '';
-        document.getElementById('copy-btn').style.display = '';
-        document.getElementById('save-btn').style.display = 'none';
-
-        // Update labels
-        document.getElementById('input-dialect-label').textContent = 'Input: image/' + palette;
-        document.getElementById('output-dialect-label').textContent = 'Output: decoded';
-
-        // Show output bits info
-        const outputBitsEl = document.getElementById('output-bits-info');
-        if (decodeResult.bits_per_color) {
-          outputBitsEl.textContent = decodeResult.payload_words.length + ' colors x '
-            + decodeResult.bits_per_color.toFixed(2) + ' bits/color = '
-            + Math.floor(decodeResult.payload_words.length * decodeResult.bits_per_color) + ' bits';
-        }
-
-        // Show decode stats
-        document.getElementById('stat-payload').textContent = decodeResult.payload_words ? decodeResult.payload_words.length : 0;
-        document.getElementById('stat-cover').textContent = 0;
-        document.getElementById('stat-total').textContent = decodeResult.payload_words ? decodeResult.payload_words.length : 0;
-        document.getElementById('stat-ratio').textContent = '100.0%';
-        document.getElementById('stats-footer').style.display = '';
-
-        lastEncodedText = decodeResult.decoded_text || '';
-        lastPayloadWords = decodeResult.payload_words || [];
-        lastIsImageOutput = false;
-        lastImageDialect = '';
-        return;
-      } catch (e) {
-        errEl.textContent = 'Image decode error: ' + (e.message || String(e));
-        errEl.classList.remove('hidden');
-        return;
-      }
-    }
-  }
-
-  try {
-    const result = JSON.parse(wasmTranscode(input, instruction, BigInt(seed)));
-
-    if (result.error) {
-      errEl.textContent = result.error;
-      errEl.classList.remove('hidden');
-      const outEl = document.getElementById('output-area');
-      outEl.innerHTML = 'Output will appear here';
-      outEl.classList.add('empty');
-      outEl.dataset.plainText = '';
-      document.getElementById('copy-btn').style.display = 'none';
-      document.getElementById('save-btn').style.display = 'none';
-      document.getElementById('stats-footer').style.display = 'none';
-      document.getElementById('input-stats-footer').style.display = 'none';
-      return;
-    }
-
-    // Update panel labels from pipeline source/target
-    const inputLabel = document.getElementById('input-dialect-label');
-    const outputLabel = document.getElementById('output-dialect-label');
-    inputLabel.textContent = 'Input: ' + friendlySourceName(result.resolved_source || result.source || 'auto');
-    outputLabel.textContent = 'Output: ' + (result.target || 'auto');
-
-    // Store result for cover word toggle — convert newlines to <br> for HTML rendering
-    lastEncodedText = (result.output || '').replace(/\n/g, ' <br> ');
-    lastPayloadWords = result.payload_words || [];
-    lastStats = result.stats || {};
-    lastDataMode = result.data_mode || null;
-    lastSource = result.source || null;
-    lastTarget = result.target || null;
-    lastResolvedSource = result.resolved_source || null;
-
-    // Detect image output from target endpoint (e.g. "image/plasma/voronoi")
-    const target = result.target || '';
-    if (target.startsWith('image/') || target === 'image') {
-      lastIsImageOutput = true;
-      const parts = target.split('/');
-      lastImageDialect = parts.length >= 3 ? parts[2] : (parts[1] || 'voronoi');
-      const detectedPalette = parts.length >= 3 ? parts[1] : 'default';
-      // Sync button highlights
-      if (detectedPalette !== 'default') {
-        imagePalette = detectedPalette;
-        document.querySelectorAll('.image-palette-btn').forEach(b => b.classList.toggle('active', b.dataset.palette === imagePalette));
-      }
-      imageLayout = lastImageDialect;
-      document.querySelectorAll('.image-layout-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === imageLayout));
-    } else {
-      lastIsImageOutput = false;
-      lastImageDialect = '';
-    }
-
-    // Update output display
-    const outEl = document.getElementById('output-area');
-    outEl.classList.remove('empty');
-    document.getElementById('copy-btn').style.display = lastIsImageOutput ? 'none' : '';
-    document.getElementById('save-btn').style.display = lastIsImageOutput ? '' : 'none';
-
-    if (lastStats.payload_count !== undefined) {
-      document.getElementById('stats-footer').style.display = '';
-    }
-
-    updateOutputDisplay();
-    updateBitCounts();
-  } catch (e) {
-    errEl.textContent = e.message || String(e);
-    errEl.classList.remove('hidden');
-  }
-}
-
-// ─── Output display (cover word toggle) ──────────────────────────────
-
-function updateOutputDisplay() {
-  if (!lastEncodedText) return;
-
-  const outEl = document.getElementById('output-area');
-
-  // ── Image SVG rendering ──────────────────────────────────────────
-  if (lastIsImageOutput) {
-    const textNotation = lastEncodedText.replace(/ <br> /g, '\n').replace(/<br>/g, '\n');
-    const seed = parseInt(document.getElementById('seed').value) || 42;
-    let svgHtml = '';
-    try {
-      const svgResult = wasmRenderImageSvg(textNotation, lastImageDialect, 400, 400, BigInt(seed), imageShape === 'disk');
-      if (svgResult.startsWith('<')) {
-        svgHtml = svgResult;
-      } else {
-        const parsed = JSON.parse(svgResult);
-        svgHtml = '<div class="error-msg">' + escapeHtml(parsed.error || 'SVG render failed') + '</div>';
-      }
-    } catch (e) {
-      svgHtml = '<div class="error-msg">SVG render error: ' + escapeHtml(e.message || String(e)) + '</div>';
-    }
-    outEl.innerHTML = svgHtml;
-    outEl.dataset.plainText = textNotation;
-
-    // Show image-specific stats: color count and bits/color
-    if (lastStats.payload_count !== undefined) {
-      const nColors = lastStats.payload_count || 0;
-      document.getElementById('stat-payload').textContent = nColors + ' colors';
-      document.getElementById('stat-cover').textContent = '';
-      document.getElementById('stat-total').textContent = '';
-      // Compute bits per color from target wordlist
-      let bpc = 0;
-      try {
-        const target = lastTarget || '';
-        const parts = target.split('/');
-        if (parts.length >= 2) {
-          const bpcResult = JSON.parse(wasmGetBitsPerWord('image', parts[1]));
-          if (bpcResult.bits_per_word) bpc = bpcResult.bits_per_word;
-        }
-      } catch (e) { /* ignore */ }
-      const totalBits = Math.floor(nColors * bpc);
-      document.getElementById('stat-ratio').textContent = bpc.toFixed(1) + ' bits/color = ' + totalBits + ' bits';
-      document.getElementById('stats-footer').style.display = '';
-    }
-    return;
-  }
-
-  if (lastPayloadWords.length > 0 && lastStats.payload_count !== undefined) {
-    if (showCoverWords) {
-      const payloadSet = new Set(lastPayloadWords.map(w => w.toLowerCase()));
-      const words = lastEncodedText.split(/\s+/);
-      const html = words.map(w => {
-        if (w === '<br>') return '<br>';
-        const clean = w.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        if (payloadSet.has(clean)) {
-          return '<mark>' + escapeHtml(w) + '</mark>';
-        }
-        return escapeHtml(w);
-      }).join(' ');
-      outEl.innerHTML = html;
-      outEl.dataset.plainText = lastEncodedText.replace(/<br>/g, '\n');
-    } else {
-      const payloadOnly = lastPayloadWords.join(' ');
-      const html = lastPayloadWords.map(w => '<mark>' + escapeHtml(w) + '</mark>').join(' ');
-      outEl.innerHTML = html;
-      outEl.dataset.plainText = payloadOnly;
-    }
-
-    document.getElementById('stat-payload').textContent = lastStats.payload_count || 0;
-    document.getElementById('stat-cover').textContent = showCoverWords ? (lastStats.cover_count || 0) : 0;
-    document.getElementById('stat-total').textContent = showCoverWords ? (lastStats.total_words || 0) : (lastStats.payload_count || 0);
-    const ratio = showCoverWords
-      ? (lastStats.ratio || 0)
-      : 1.0;
-    document.getElementById('stat-ratio').textContent = (ratio * 100).toFixed(1) + '%';
-    document.getElementById('stats-footer').style.display = '';
-  } else {
-    outEl.innerHTML = escapeHtml(lastEncodedText || '(empty)').replace(/&lt;br&gt;/g, '<br>');
-    outEl.dataset.plainText = lastEncodedText.replace(/ <br> /g, '\n');
-
-    if (lastPayloadWords.length > 0) {
-      document.getElementById('stat-payload').textContent = lastPayloadWords.length;
-      document.getElementById('stat-cover').textContent = '-';
-      document.getElementById('stat-total').textContent = '-';
-      document.getElementById('stat-ratio').textContent = '-';
-      document.getElementById('stats-footer').style.display = '';
-    } else {
-      document.getElementById('stats-footer').style.display = 'none';
-    }
-  }
-}
-
-// ─── Bit count display ───────────────────────────────────────────────
-
-function updateBitCounts() {
-  const inputBitsEl = document.getElementById('input-bits-info');
-  const outputBitsEl = document.getElementById('output-bits-info');
-  const inputStatsFooter = document.getElementById('input-stats-footer');
-  if (!inputBitsEl || !outputBitsEl) return;
-
-  const input = document.getElementById('input-area').value.trim();
-
-  if (input) {
-    let inputBits = 0;
-    let inputBytes = 0;
-    let inputWords = input.split(/\s+/).filter(w => w.length > 0).length;
-    let formatLabel = lastDataMode || 'text';
-
-    // First, check if input matches a known wordlist
-    let detected = null;
-    try {
-      const matches = JSON.parse(wasmDetectDialect(input));
-      if (matches.length > 0 && matches[0].hit_rate > 0.5) {
-        detected = matches[0];
-      }
-    } catch (e) { /* ignore detection errors */ }
-
-    if (detected) {
-      formatLabel = detected.language + '/' + detected.wordlist;
-      let bitsPerWord = 11;
-      try {
-        const bpw = JSON.parse(wasmGetBitsPerWord(detected.language, detected.wordlist));
-        if (typeof bpw === 'number') bitsPerWord = bpw;
-      } catch (e) { /* fallback to 11 */ }
-      inputBits = Math.floor(detected.hits * bitsPerWord);
-      inputBytes = Math.ceil(inputBits / 8);
-    } else if (lastDataMode === 'hex') {
-      inputBytes = Math.floor(input.replace(/\s+/g, '').length / 2);
-      inputBits = inputBytes * 8;
-      formatLabel = 'hex';
-    } else if (lastDataMode === 'base64') {
-      inputBytes = Math.floor(input.replace(/\s+/g, '').length / 4) * 3;
-      inputBits = inputBytes * 8;
-      formatLabel = 'base64';
-    } else if (lastDataMode === 'ascii7') {
-      inputBytes = input.length;
-      inputBits = input.length * 7;
-      formatLabel = 'ascii7';
-    } else if (lastDataMode === 'bytes8') {
-      inputBytes = new TextEncoder().encode(input).length;
-      inputBits = inputBytes * 8;
-      formatLabel = 'bytes';
-    }
-
-    document.getElementById('stat-input-format').textContent = formatLabel;
-    document.getElementById('stat-input-words').textContent = inputWords;
-    document.getElementById('stat-input-bytes').textContent = inputBytes;
-    inputBitsEl.textContent = inputBits > 0 ? inputBits + ' bits' : '';
-    if (inputStatsFooter) inputStatsFooter.style.display = '';
-  } else {
-    inputBitsEl.textContent = '';
-    if (inputStatsFooter) inputStatsFooter.style.display = 'none';
-  }
-
-  if (lastPayloadWords.length > 0 && lastStats.payload_count !== undefined) {
-    // Derive bits per word from the target endpoint (e.g. "english/bip39/body")
-    let bitsPerWord = 11;
-    let unitLabel = 'bits/word';
-    if (lastTarget) {
-      const tParts = lastTarget.split('/');
-      if (tParts.length >= 2) {
-        try {
-          const bpw = JSON.parse(wasmGetBitsPerWord(tParts[0], tParts[1]));
-          if (bpw && typeof bpw.bits_per_word === 'number') bitsPerWord = bpw.bits_per_word;
-        } catch (e) { /* keep default */ }
-      }
-      // For image output, label as bits/color
-      if (lastIsImageOutput) unitLabel = 'bits/color';
-    }
-    const outputBits = Math.floor(lastPayloadWords.length * bitsPerWord);
-    outputBitsEl.textContent = lastPayloadWords.length + ' x '
-      + bitsPerWord.toFixed(2) + ' ' + unitLabel + ' = ~' + outputBits + ' bits';
-  } else {
-    outputBitsEl.textContent = '';
-  }
-}
-
-// ─── Debounced auto-run ──────────────────────────────────────────────
-
-let autoRunTimer = null;
-
-function autoRun(delay = 300) {
-  clearTimeout(autoRunTimer);
-  autoRunTimer = setTimeout(() => {
-    if (!ready) return;
-    doTranscode();
-  }, delay);
-}
-
-function autoRunNow() { autoRun(0); }
-
-// ─── Event listeners ─────────────────────────────────────────────────
-
-document.getElementById('input-area')?.addEventListener('input', () => autoRun(300));
-document.getElementById('seed')?.addEventListener('input', () => autoRun());
-document.getElementById('meta-input')?.addEventListener('input', () => autoRun(300));
-
-// Preset buttons
-document.querySelectorAll('.preset-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const meta = btn.dataset.meta;
-    document.getElementById('meta-input').value = meta;
-    autoRunNow();
-  });
-});
-
-// ─── SVG color extraction for image decode ────────────────────────
-
-function extractColorsFromSvg(svgEl) {
-  // Extract fill colors from SVG elements with data-idx attributes.
-  // data-idx preserves the original payload order regardless of spatial permutation.
-  const entries = [];
-  const elements = svgEl.querySelectorAll('[data-idx][fill]');
-  for (const el of elements) {
-    const fill = el.getAttribute('fill');
-    const idx = parseInt(el.getAttribute('data-idx'), 10);
-    if (fill && fill.startsWith('#') && fill.length === 7 && !isNaN(idx)) {
-      entries.push({ idx, fill });
-    }
-  }
-  // Sort by original payload index to recover encode order
-  entries.sort((a, b) => a.idx - b.idx);
-  return entries.map(e => e.fill);
-}
-
-// ─── Image layout/palette buttons ─────────────────────────────────
-
-let imageLayout = 'voronoi';
-let imagePalette = 'viridis';
-let imageShape = 'rect';
-
-function buildImageMeta() {
-  return 'encode into image ' + imagePalette + ' ' + imageLayout;
-}
-
-document.querySelectorAll('.image-layout-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    imageLayout = btn.dataset.layout;
-    document.querySelectorAll('.image-layout-btn').forEach(b => b.classList.toggle('active', b.dataset.layout === imageLayout));
-    document.getElementById('meta-input').value = buildImageMeta();
-    autoRunNow();
-  });
-});
-
-document.querySelectorAll('.image-palette-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    imagePalette = btn.dataset.palette;
-    document.querySelectorAll('.image-palette-btn').forEach(b => b.classList.toggle('active', b.dataset.palette === imagePalette));
-    document.getElementById('meta-input').value = buildImageMeta();
-    autoRunNow();
-  });
-});
-
-document.querySelectorAll('.image-shape-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    imageShape = btn.dataset.shape;
-    document.querySelectorAll('.image-shape-btn').forEach(b => b.classList.toggle('active', b.dataset.shape === imageShape));
-    // Shape only affects rendering, not encoding — just re-render
-    if (lastIsImageOutput && lastEncodedText) updateOutputDisplay();
-  });
-});
-
-// Cover word toggle
-document.getElementById('cover-toggle')?.addEventListener('click', (e) => {
-  e.preventDefault();
-  showCoverWords = !showCoverWords;
-  const btn = document.getElementById('cover-toggle');
-  if (showCoverWords) {
-    btn.classList.remove('off');
-    btn.innerHTML = '&#9745; Cover';
-  } else {
-    btn.classList.add('off');
-    btn.innerHTML = '&#9744; Cover';
-  }
-  updateOutputDisplay();
-});
-
-// Swap button
-document.getElementById('swap-btn').addEventListener('click', () => {
-  const inputArea = document.getElementById('input-area');
-  const outputArea = document.getElementById('output-area');
-  const metaInput = document.getElementById('meta-input');
-  const preview = document.getElementById('input-image-preview');
-
-  const instruction = metaInput.value.trim();
-  // If the encode step auto-detected a structured source (e.g. BIP39 mnemonic
-  // as english/bip39/raw, or a bc1q address as crypto/btc/bip173), construct a
-  // transcode back to the original format instead of a plain decode.
-  // When swapping back from such a transcode, restore the "encode into" form.
-  let reversed;
-  const lower = instruction.toLowerCase().trim();
-  const isResolvedLanguage = lastResolvedSource && lastResolvedSource.includes('/');
-  if (isResolvedLanguage && lower.startsWith('encode into ')) {
-    const targetLang = instruction.substring('encode into '.length);
-    reversed = 'translate from ' + targetLang + ' into ' + lastResolvedSource;
-  } else if (lower.match(/^translate\s+from\s+(.+?)\s+into\s+(\S+\/\S+)$/)) {
-    // Reverse of a resolved-source transcode: restore "encode into <source-lang>"
-    const m = lower.match(/^translate\s+from\s+(.+?)\s+into\s+(\S+\/\S+)$/);
-    if (m) {
-      reversed = 'encode into ' + m[1];
-    } else {
-      reversed = reverseMetaInstruction(instruction);
-    }
-  } else {
-    reversed = reverseMetaInstruction(instruction);
-  }
-  metaInput.value = reversed;
-
-  // For image output, move the SVG into the left panel preview and extract colors for decode
-  if (lastIsImageOutput) {
-    const svgEl = outputArea.querySelector('svg');
-    if (svgEl) {
-      // Extract fill colors from SVG payload elements (not background rects)
-      const hexColors = extractColorsFromSvg(svgEl);
-      preview.innerHTML = svgEl.outerHTML;
-      preview.classList.remove('hidden');
-      inputArea.style.display = 'none';
-      // Store hex colors as JSON on the preview element for decode
-      preview.dataset.hexColors = JSON.stringify(hexColors);
-      preview.dataset.palette = imagePalette;
-    }
-    // Keep text notation in textarea as fallback
-    inputArea.value = outputArea.dataset.plainText || '';
-  } else {
-    const currentOutput = outputArea.dataset.plainText || outputArea.textContent.trim();
-    inputArea.value = currentOutput;
-    preview.innerHTML = '';
-    preview.classList.add('hidden');
-    inputArea.style.display = '';
-  }
-
-  outputArea.innerHTML = 'Output will appear here';
-  outputArea.classList.add('empty');
-  outputArea.dataset.plainText = '';
-  document.getElementById('copy-btn').style.display = 'none';
-  document.getElementById('stats-footer').style.display = 'none';
-  document.getElementById('input-stats-footer').style.display = 'none';
-  document.getElementById('input-error').classList.add('hidden');
-  document.getElementById('input-bits-info').textContent = '';
-  document.getElementById('output-bits-info').textContent = '';
-
-  lastEncodedText = '';
-  lastPayloadWords = [];
-  lastStats = {};
-  lastDataMode = null;
-  lastSource = null;
-  lastTarget = null;
-  lastResolvedSource = null;
-  lastIsImageOutput = false;
-  lastImageDialect = '';
-
-  autoRunNow();
-});
-
-function friendlySourceName(source) {
-  if (!source || source === 'auto') return 'auto';
-  const map = {
-    'crypto/btc/bech32/bip173': 'btc address (bc1q)',
-    'crypto/btc/bech32/bip173-test': 'btc testnet (tb1q)',
-    'crypto/btc/bech32/bip350': 'btc taproot (bc1p)',
-    'crypto/btc/bech32/bip350-test': 'btc taproot testnet (tb1p)',
-    'crypto/nostr/bech32/pub': 'nostr pubkey (npub)',
-    'crypto/nostr/bech32/sec': 'nostr secret (nsec)',
-    'crypto/nostr/bech32/note': 'nostr note',
-    'crypto/ln/bech32/main': 'lightning invoice',
-    'crypto/ln/bech32/test': 'lightning testnet',
-    'crypto/cashu/base64url/a': 'cashu token',
-    'crypto/cashu/base64url/b': 'cashu token v2',
-  };
-  if (map[source]) return map[source];
-  // english/bip39/raw → "bip39 mnemonic"
-  if (source.endsWith('/raw')) {
-    const parts = source.split('/');
-    return parts[1] + ' mnemonic';
-  }
-  return source;
-}
-
-function reverseMetaInstruction(instruction) {
-  const lower = instruction.toLowerCase().trim();
-  if (lower.startsWith('encode into ')) {
-    return 'decode from ' + instruction.substring('encode into '.length);
-  }
-  if (lower.startsWith('decode from ')) {
-    return 'encode into ' + instruction.substring('decode from '.length);
-  }
-  const translateMatch = lower.match(/^translate\s+from\s+(.+?)\s+into\s+(.+)$/);
-  if (translateMatch) {
-    return 'translate from ' + translateMatch[2] + ' into ' + translateMatch[1];
-  }
-  return instruction
-    .replace(/\binto\b/gi, '__INTO__')
-    .replace(/\bfrom\b/gi, 'into')
-    .replace(/__INTO__/g, 'from');
-}
-
-// ─── Random input generators ─────────────────────────────────────────
-
-function parseTargetLanguage() {
-  const instruction = document.getElementById('meta-input').value.trim().toLowerCase();
-  const match = instruction.match(/(?:into|as|to)\s+(english|latin|czech)/);
-  if (match) return match[1];
-  if (instruction.includes('english')) return 'english';
-  if (instruction.includes('latin')) return 'latin';
-  if (instruction.includes('czech')) return 'czech';
-  return 'english';
-}
-
-function targetWordlist() {
-  const lang = parseTargetLanguage();
-  // Languages whose default payload lives in payload.yaml (not payload_bip39.yaml)
-  if (lang === 'latin' || lang === 'czech') return 'default';
-  return 'bip39';
-}
-
-window.randomWords = function(count) {
-  if (!ready) return;
-  // BIP39 always uses the English BIP39 wordlist regardless of selected dialect
-  const lang = 'english';
-  const wl = 'bip39';
-  const seed = Date.now();
-  const errEl = document.getElementById('input-error');
-  errEl.classList.add('hidden');
-  try {
-    const words = JSON.parse(wasmRandomWords(count, lang, wl, BigInt(seed)));
-    if (words.error) {
-      errEl.textContent = words.error;
-      errEl.classList.remove('hidden');
-      return;
-    }
-    document.getElementById('input-area').value = words.join(' ');
-    autoRunNow();
-  } catch (e) {
-    errEl.textContent = e.message || String(e);
-    errEl.classList.remove('hidden');
-  }
-};
-
-window.randomHex = function() {
-  const bytes = 32;
-  const hex = Array.from(crypto.getRandomValues(new Uint8Array(bytes)))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('');
-  document.getElementById('input-area').value = hex.toUpperCase();
-  autoRunNow();
-};
-
-window.randomBase64 = function() {
-  const bytes = 32;
-  const randomBytes = crypto.getRandomValues(new Uint8Array(bytes));
-  const base64 = btoa(String.fromCharCode(...randomBytes));
-  document.getElementById('input-area').value = base64;
-  autoRunNow();
-};
-
-window.randomBitcoinKey = function() {
-  const bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-  const length = 39;
-  const randomValues = crypto.getRandomValues(new Uint8Array(length));
-  const chars = Array.from(randomValues)
-    .map(v => bech32Alphabet[v % bech32Alphabet.length])
-    .join('');
-  document.getElementById('input-area').value = 'bc1' + chars;
-  autoRunNow();
-};
-
-window.randomNostrKey = function() {
-  const bech32Alphabet = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-  const length = 59;
-  const randomValues = crypto.getRandomValues(new Uint8Array(length));
-  const chars = Array.from(randomValues)
-    .map(v => bech32Alphabet[v % bech32Alphabet.length])
-    .join('');
-  document.getElementById('input-area').value = 'npub' + chars;
-  autoRunNow();
-};
-
-// ─── Utilities ───────────────────────────────────────────────────────
-
-window.copyOutput = function() {
-  const el = document.getElementById('output-area');
-  const text = el.dataset.plainText || el.textContent;
-  navigator.clipboard.writeText(text).catch(() => {});
-};
-
-window.saveImage = function() {
-  const svgEl = document.getElementById('output-area').querySelector('svg');
-  if (!svgEl) return;
-  const svgData = new XMLSerializer().serializeToString(svgEl);
-  const blob = new Blob([svgData], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'glossia.svg';
-  a.click();
-  URL.revokeObjectURL(url);
-};
+let mode = 'encode';            // 'encode' (seed -> prose) or 'decode' (prose -> seed words)
+let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
+let detectedLang = 'english';   // SOURCE language auto-detected from the left box (both modes)
+let inputTimer = null;
+const SEED = 42n;               // fixed seed -> deterministic prose
+
+// Languages offered for the BIP39 panel. Each has a word-preserving base_n
+// "bip39" dialect, so the seed round-trips byte-for-byte. English and Czech use
+// 2^11 (2048-word) lists — same word count as the seed; English even shares the
+// BIP39 wordlist, so the seed words appear verbatim in the prose. Latin uses a
+// 2^15 list, so the same 12-word seed becomes ~9 Latin words.
+//   source    : prose endpoint  — bip39-dialect prose in this language
+//   rawTarget : bare endpoint   — bare payload words in this language
+const LANGS = [
+  { id: 'english', label: 'English', source: 'english/bip39/bip39', rawTarget: 'english/bip39/raw' },
+  { id: 'latin',   label: 'Latin',   source: 'latin/default/bip39', rawTarget: 'latin/default/raw' },
+  { id: 'czech',   label: 'Czech',   source: 'czech/default/bip39', rawTarget: 'czech/default/raw' },
+];
+
+function langById(id) { return LANGS.find(l => l.id === id) || LANGS[0]; }
 
 function escapeHtml(s) {
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 
-// Theme toggle
+// Normalize a word for payload-set membership: lowercase, strip non-alphanumerics
+// (Unicode-aware, so Czech/Latin accents are kept).
+function norm(w) { return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+function normSet(words) { return new Set((words || []).map(norm).filter(Boolean)); }
+
+// Wrap each prose word that is a payload word in <u>…</u>; whitespace preserved.
+function underlineProse(text, payloadSet) {
+  return text.split(/(\s+)/).map(tok => {
+    if (tok === '') return '';
+    if (/^\s+$/.test(tok)) return tok.replace(/\n/g, '<br>');
+    const n = norm(tok);
+    const esc = escapeHtml(tok);
+    return (n && payloadSet.has(n)) ? '<u>' + esc + '</u>' : esc;
+  }).join('');
+}
+
+function placeCaretEnd(el) {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  r.collapse(false);
+  const s = window.getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
+}
+
+// Cover-word visibility for the prose output (shared by both panels).
+let showCover = true;
+
+// The cleaned payload words present in prose, in order (cover words dropped).
+function payloadTokens(text, set) {
+  return text.split(/\s+/)
+    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(t => t && set.has(norm(t)));
+}
+function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
+
+// Render prose either in full (cover words present, payload underlined) or
+// payload-only (cover words removed, payload underlined).
+function renderProse(text, set) {
+  if (showCover) return underlineProse(text, set);
+  return payloadTokens(text, set).map(t => '<u>' + escapeHtml(t) + '</u>').join(' ');
+}
+
+// ─── Left box (contenteditable) accessors ────────────────────────────
+
+function leftText() { return document.getElementById('left-box').innerText; }
+function setLeftPlain(text) { document.getElementById('left-box').textContent = text; }
+
+function showError(msg) {
+  const e = document.getElementById('demo-error');
+  e.textContent = msg;
+  e.classList.remove('hidden');
+}
+function clearError() {
+  document.getElementById('demo-error').classList.add('hidden');
+}
+
+function setOutput(text, html) {
+  const el = document.getElementById('right-box');
+  if (!text) {
+    el.classList.add('empty');
+    el.textContent = 'Output will appear here';
+    el.dataset.plainText = '';
+    return;
+  }
+  el.classList.remove('empty');
+  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
+  el.dataset.plainText = text;
+}
+
+// ─── Language buttons ────────────────────────────────────────────────
+
+function buildLangButtons() {
+  const row = document.getElementById('right-langs');
+  row.innerHTML = '';
+  for (const l of LANGS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.lang = l.id;
+    b.textContent = l.label;
+    b.title = l.label + ' prose';
+    b.addEventListener('click', () => selectLang(l.id));
+    row.appendChild(b);
+  }
+}
+
+function updateLangHighlights() {
+  document.querySelectorAll('#right-langs .lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === currentLang);
+  });
+}
+
+function selectLang(id) {
+  currentLang = id;
+  updateChrome();
+  run();
+}
+
+// Auto-detect the SOURCE language of the left box (both modes), restricted to
+// the languages this panel supports. Sets detectedLang; the TARGET language
+// (currentLang / right buttons) is left untouched.
+function detectLeftLanguage() {
+  const text = leftText().trim();
+  if (!text) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(text));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => LANGS.some(l => l.id === m.language));
+      if (best) detectedLang = best.language;
+    }
+  } catch (e) { /* keep detected language */ }
+}
+
+// ─── Chrome (labels, hint) ───────────────────────────────────────────
+
+function updateChrome() {
+  const target = langById(currentLang);
+  const source = langById(detectedLang);
+  const genBtn = document.getElementById('gen-btn');
+  const hint = document.getElementById('demo-hint');
+
+  // Buttons live above the right box in both modes and always name the TARGET
+  // language (Google-Translate style). The left box is the SOURCE, whose
+  // language is auto-detected in both modes.
+  const srcSeedLabel = detectedLang === 'english' ? 'BIP39 seed' : (source.label + ' seed words');
+  const tgtSeedLabel = currentLang === 'english' ? 'BIP39 seed' : (target.label + ' seed words');
+  if (mode === 'encode') {
+    // bare seed words (left, source) -> prose (right, target language).
+    document.getElementById('left-label').textContent = srcSeedLabel;
+    document.getElementById('right-label').textContent = target.label + ' sentences';
+    genBtn.classList.remove('hidden');
+    hint.textContent = 'Generates a 12-word seed and weaves it into ' + target.label +
+      ' prose (payload words underlined). Pick the target language on the right; press ⇄ to decode.';
+  } else {
+    // prose (left, source auto-detected) -> seed words (right, target language).
+    document.getElementById('left-label').textContent = source.label + ' sentences (detected)';
+    document.getElementById('right-label').textContent = tgtSeedLabel;
+    genBtn.classList.add('hidden');
+    hint.textContent = 'Detected ' + source.label + ' on the left (payload words underlined); showing the seed as ' +
+      target.label + (currentLang === 'english' ? ' (BIP39).' : ' words.') +
+      ' Pick the target language on the right; press ⇄ to go back to encoding.';
+  }
+  // Cover toggle only applies to the prose output (right box in encode mode).
+  const coverBtn = document.getElementById('cover-btn');
+  if (mode === 'encode') {
+    coverBtn.classList.remove('hidden');
+    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+  } else {
+    coverBtn.classList.add('hidden');
+  }
+  updateLangHighlights();
+}
+
+// ─── Core encode / decode ────────────────────────────────────────────
+
+// Extract the payload words actually present in a piece of prose, in its own
+// language (source==target), so they can be underlined.
+function prosePayloadSet(proseText, langId) {
+  const l = langById(langId);
+  try {
+    const r = JSON.parse(wasmTranscode(proseText, 'transcode from ' + l.source + ' into ' + l.rawTarget, SEED));
+    if (r.error) return new Set();
+    return normSet((r.output || '').split(/\s+/).filter(Boolean));
+  } catch (e) { return new Set(); }
+}
+
+// Re-render the left box with payload words underlined (decode: left holds prose).
+function underlineLeft(proseText) {
+  const set = prosePayloadSet(proseText, detectedLang);
+  const el = document.getElementById('left-box');
+  const focused = (document.activeElement === el);
+  el.innerHTML = underlineProse(proseText, set);
+  if (focused) placeCaretEnd(el);
+}
+
+function run() {
+  if (!ready) return;
+  clearError();
+  const text = leftText().trim();
+  if (!text) { setOutput(''); return; }
+
+  // currentLang is the TARGET (right buttons); detectedLang is the SOURCE
+  // (auto-detected from the left box). Encode and decode are mirror transcodes.
+  const src = langById(detectedLang);
+  const tgt = langById(currentLang);
+  const meta = (mode === 'encode')
+    ? 'transcode from ' + src.rawTarget + ' into ' + tgt.source   // bare seed words -> prose
+    : 'transcode from ' + src.source + ' into ' + tgt.rawTarget;  // prose -> bare seed words
+
+  try {
+    const result = JSON.parse(wasmTranscode(text, meta, SEED));
+    if (result.error) { showError(result.error); setOutput(''); return; }
+    const out = (result.output || '').trim();
+    if (mode === 'encode') {
+      // Right box holds the prose — underline payload words, honor cover toggle.
+      const set = normSet(result.payload_words || []);
+      setOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+    } else {
+      // Right box holds bare seed words (no underline); left box holds the
+      // prose — underline its payload words.
+      setOutput(out);
+      underlineLeft(text);
+    }
+  } catch (e) {
+    showError(e.message || String(e));
+    setOutput('');
+  }
+}
+
+// ─── Actions (called from inline onclick) ─────────────────────────────
+
+window.generateSeed = function() {
+  if (!ready) return;
+  if (mode !== 'encode') { mode = 'encode'; }
+  clearError();
+  try {
+    const words = JSON.parse(wasmRandomWords(12, 'english', 'bip39', BigInt(Date.now())));
+    if (words.error) { showError(words.error); return; }
+    setLeftPlain(words.join(' '));
+    detectLeftLanguage();   // a freshly generated seed detects as English
+    updateChrome();
+    run();
+  } catch (e) {
+    showError(e.message || String(e));
+  }
+};
+
+window.toggleMode = function() {
+  // Move the current output into the input box, then flip direction.
+  const out = document.getElementById('right-box').dataset.plainText || '';
+  mode = (mode === 'encode') ? 'decode' : 'encode';
+  setLeftPlain(out);
+  detectLeftLanguage();   // pick up the source language of whatever's now on the left
+  updateChrome();
+  run();
+};
+
+window.copyOutput = function() {
+  const el = document.getElementById('right-box');
+  navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
+};
+
+window.toggleCover = function() {
+  showCover = !showCover;
+  run();          // re-encode from the (stable) seed and re-render per showCover
+  updateChrome();
+};
+
+// ═══ API Key panel ═══════════════════════════════════════════════════
+//
+// Symmetric Google-Translate model, but the two sides are different domains:
+//   encode: key (format auto-detected) -> prose; right buttons pick the LANGUAGE
+//   decode: prose (language auto-detected) -> key; right buttons pick the FORMAT
+
+let akMode = 'encode';
+let akLang = 'english';      // TARGET language (right buttons, encode), persists
+let akFormat = 'ascii7';     // TARGET format (right buttons, decode), persists
+let akDetLang = 'english';   // SOURCE language auto-detected from left prose (decode)
+let akDetFmt = '';           // SOURCE format auto-detected from the key (encode), display only
+let akTimer = null;
+
+const AK_LANGS = [
+  { id: 'english', label: 'English', source: 'english/bip39/body' },
+  { id: 'latin',   label: 'Latin',   source: 'latin/default/body' },
+  { id: 'czech',   label: 'Czech',   source: 'czech/default/body' },
+];
+const AK_FORMATS = [
+  { id: 'ascii7', label: 'ASCII',  word: 'ascii7' },
+  { id: 'hex',    label: 'Hex',    word: 'hex' },
+  { id: 'base64', label: 'Base64', word: 'base64' },
+];
+const AK_FMT_LABEL = { ascii7: 'ASCII', bytes8: 'bytes', hex: 'hex', base64: 'base64' };
+function akLangById(id) { return AK_LANGS.find(l => l.id === id) || AK_LANGS[0]; }
+function akFmtById(id) { return AK_FORMATS.find(f => f.id === id) || AK_FORMATS[0]; }
+
+function akLeftText() { return document.getElementById('ak-left-box').innerText; }
+function akSetLeftPlain(t) { document.getElementById('ak-left-box').textContent = t; }
+function akShowError(m) { const e = document.getElementById('ak-error'); e.textContent = m; e.classList.remove('hidden'); }
+function akClearError() { document.getElementById('ak-error').classList.add('hidden'); }
+
+function akSetOutput(text, html) {
+  const el = document.getElementById('ak-right-box');
+  if (!text) { el.classList.add('empty'); el.textContent = 'Output will appear here'; el.dataset.plainText = ''; return; }
+  el.classList.remove('empty');
+  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
+  el.dataset.plainText = text;
+}
+
+function akBuildButtons() {
+  const langRow = document.getElementById('ak-langs');
+  langRow.innerHTML = '';
+  for (const l of AK_LANGS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.akLang = l.id;
+    b.textContent = l.label;
+    b.title = l.label + ' prose';
+    b.addEventListener('click', () => { akLang = l.id; akRun(); });
+    langRow.appendChild(b);
+  }
+  const fmtRow = document.getElementById('ak-fmts');
+  fmtRow.innerHTML = '';
+  for (const f of AK_FORMATS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.akFmt = f.id;
+    b.textContent = f.label;
+    b.title = 'Decode to ' + f.label;
+    b.addEventListener('click', () => { akFormat = f.id; akRun(); });
+    fmtRow.appendChild(b);
+  }
+}
+
+function akUpdateHighlights() {
+  document.querySelectorAll('#ak-langs .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.akLang === akLang));
+  document.querySelectorAll('#ak-fmts .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.akFmt === akFormat));
+}
+
+// Decode mode: auto-detect the SOURCE language of the left prose.
+function akDetectLeftLang() {
+  const text = akLeftText().trim();
+  if (!text) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(text));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => AK_LANGS.some(l => l.id === m.language));
+      if (best) akDetLang = best.language;
+    }
+  } catch (e) { /* keep detected language */ }
+}
+
+function akUpdateChrome() {
+  const genBtn = document.getElementById('ak-gen-btn');
+  const hint = document.getElementById('ak-hint');
+  const langRow = document.getElementById('ak-langs');
+  const fmtRow = document.getElementById('ak-fmts');
+  if (akMode === 'encode') {
+    // key (left, source) -> prose (right, target language).
+    const fmt = akDetFmt ? (AK_FMT_LABEL[akDetFmt] || akDetFmt) : '';
+    document.getElementById('ak-left-label').textContent = 'API key' + (fmt ? ' · ' + fmt : '');
+    document.getElementById('ak-right-label').textContent = akLangById(akLang).label + ' sentences';
+    langRow.classList.remove('hidden');
+    fmtRow.classList.add('hidden');
+    genBtn.classList.remove('hidden');
+    hint.textContent = 'Encodes the key into ' + akLangById(akLang).label +
+      ' prose (payload words underlined). Pick the target language on the right; press ⇄ to decode.';
+  } else {
+    // prose (left, source auto-detected) -> key (right, target format).
+    document.getElementById('ak-left-label').textContent = akLangById(akDetLang).label + ' sentences (detected)';
+    document.getElementById('ak-right-label').textContent = 'Key · ' + akFmtById(akFormat).label;
+    langRow.classList.add('hidden');
+    fmtRow.classList.remove('hidden');
+    genBtn.classList.add('hidden');
+    hint.textContent = 'Detected ' + akLangById(akDetLang).label +
+      ' prose (payload words underlined); recovering the key as ' + akFmtById(akFormat).label +
+      '. Pick the output format on the right; press ⇄ to encode.';
+  }
+  // Cover toggle only applies to the prose output (right box in encode mode).
+  const coverBtn = document.getElementById('ak-cover-btn');
+  if (akMode === 'encode') {
+    coverBtn.classList.remove('hidden');
+    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+  } else {
+    coverBtn.classList.add('hidden');
+  }
+  akUpdateHighlights();
+}
+
+function akUnderlineLeft(prose, words) {
+  const el = document.getElementById('ak-left-box');
+  const focused = (document.activeElement === el);
+  el.innerHTML = underlineProse(prose, normSet(words));
+  if (focused) placeCaretEnd(el);
+}
+
+function akRun() {
+  if (!ready) return;
+  akClearError();
+  akUpdateChrome();
+  const text = akLeftText().trim();
+  if (!text) { akSetOutput(''); return; }
+  try {
+    if (akMode === 'encode') {
+      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLang + ' naturally', SEED));
+      if (r.error) { akShowError(r.error); akSetOutput(''); return; }
+      akDetFmt = r.data_mode || '';
+      const out = (r.output || '').trim();
+      const set = normSet(r.payload_words || []);
+      akSetOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+      akUpdateChrome();   // refresh the detected-format chip
+    } else {
+      const meta = 'transcode from ' + akLangById(akDetLang).source + ' into ' + akFmtById(akFormat).word;
+      const r = JSON.parse(wasmTranscode(text, meta, SEED));
+      if (r.error) { akShowError(r.error); akSetOutput(''); return; }
+      akSetOutput((r.output || '').trim());
+      akUnderlineLeft(text, r.payload_words || []);   // payload words of the source prose
+    }
+  } catch (e) {
+    akShowError(e.message || String(e));
+    akSetOutput('');
+  }
+}
+
+function akRandomKey() {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const rv = crypto.getRandomValues(new Uint8Array(32));
+  let s = 'sk-';
+  for (const v of rv) s += alphabet[v % alphabet.length];
+  return s;
+}
+
+window.akGenerate = function() {
+  if (!ready) return;
+  if (akMode !== 'encode') { akMode = 'encode'; }
+  akClearError();
+  akSetLeftPlain(akRandomKey());
+  akRun();
+};
+
+window.akToggle = function() {
+  const out = document.getElementById('ak-right-box').dataset.plainText || '';
+  akMode = (akMode === 'encode') ? 'decode' : 'encode';
+  akSetLeftPlain(out);
+  if (akMode === 'decode') akDetectLeftLang();
+  akRun();
+};
+
+window.akCopy = function() {
+  const el = document.getElementById('ak-right-box');
+  navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
+};
+
+window.akToggleCover = function() {
+  showCover = !showCover;
+  akRun();        // re-encode from the (stable) key and re-render per showCover
+};
+
+// ═══ Use-case selector ═══════════════════════════════════════════════
+
+window.selectUseCase = function(uc) {
+  document.querySelectorAll('.usecase-tab').forEach(t => t.classList.toggle('active', t.dataset.uc === uc));
+  document.getElementById('panel-bip39').classList.toggle('hidden', uc !== 'bip39');
+  document.getElementById('panel-apikey').classList.toggle('hidden', uc !== 'apikey');
+  // Re-render the shown panel so labels, highlights, and cover state are current.
+  if (uc === 'apikey') { akRun(); } else { updateChrome(); run(); }
+};
+// ─── Theme toggle ────────────────────────────────────────────────────
+
 const toggleBtn = document.getElementById('theme-toggle');
 function updateToggleIcon() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -1803,17 +1415,6 @@ toggleBtn.addEventListener('click', () => {
 });
 updateToggleIcon();
 
-// Smooth scroll for anchor links
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-  anchor.addEventListener('click', function (e) {
-    e.preventDefault();
-    const target = document.querySelector(this.getAttribute('href'));
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  });
-});
-
 // ─── Startup ─────────────────────────────────────────────────────────
 
 async function startup() {
@@ -1824,9 +1425,30 @@ async function startup() {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    // Initialize dynamic content
-    buildDialectCatalog();
-    autoRunNow();
+    buildLangButtons();
+    document.getElementById('left-box').addEventListener('input', () => {
+      clearTimeout(inputTimer);
+      inputTimer = setTimeout(() => {
+        detectLeftLanguage();   // re-detect the source language as the user edits/pastes
+        updateChrome();
+        run();
+      }, 250);
+    });
+    updateChrome();
+    generateSeed();
+
+    // API Key panel
+    akBuildButtons();
+    document.getElementById('ak-left-box').addEventListener('input', () => {
+      clearTimeout(akTimer);
+      akTimer = setTimeout(() => {
+        if (akMode === 'decode') akDetectLeftLang();
+        akRun();
+      }, 250);
+    });
+    document.querySelectorAll('.usecase-tab').forEach(t =>
+      t.addEventListener('click', () => selectUseCase(t.dataset.uc)));
+    akGenerate();
   } catch (e) {
     console.error('Failed to load WASM:', e);
     document.getElementById('loading').innerHTML =

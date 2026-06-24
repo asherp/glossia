@@ -933,11 +933,14 @@ pub struct DialectMatch {
     pub wordlist: String,
     /// Available dialects for this language (e.g., ["body", "subject", "prose"]).
     pub dialects: Vec<String>,
-    /// Number of input words that matched this payload wordlist.
+    /// Number of input word tokens that matched this payload wordlist, counted
+    /// **with multiplicity** (a payload word appearing 3 times counts as 3).
     pub hits: usize,
-    /// Total number of input words tested.
+    /// Total number of input word tokens tested (with duplicates).
     pub total: usize,
-    /// Hit rate: `hits / total` (0.0 to 1.0).
+    /// Hit rate: `hits / total` (0.0 to 1.0). Because both numerator and
+    /// denominator count tokens with multiplicity, this is length-invariant —
+    /// it does not decay as the input grows (see issue #26).
     pub hit_rate: f64,
     /// Size of the payload wordlist.
     pub wordlist_size: usize,
@@ -1254,7 +1257,14 @@ pub fn detect_dialect_with(input_words: &[String], filter: &DialectFilter) -> Ve
         .collect();
 
     let total = normalized.len();
-    let input_set: HashSet<&str> = normalized.iter().map(|s| s.as_str()).collect();
+
+    // Count occurrences of each distinct word. The binary searches run once per
+    // *distinct* word (the keys), but `hit_rate` is scored with *multiplicity*
+    // (see the loop below), so we keep the per-word counts here.
+    let mut input_counts: HashMap<&str, usize> = HashMap::new();
+    for w in &normalized {
+        *input_counts.entry(w.as_str()).or_insert(0) += 1;
+    }
 
     let mut results: Vec<DialectMatch> = Vec::new();
 
@@ -1277,10 +1287,18 @@ pub fn detect_dialect_with(input_words: &[String], filter: &DialectFilter) -> Ve
                 None => continue,
             };
 
+            // Count matched words *with multiplicity*: every input token that is
+            // a payload word counts, not just the distinct ones. Scoring distinct
+            // matches over a with-duplicates total (the old behavior) made
+            // `hit_rate` decay as ~1/length, so long-but-valid encoded bodies sank
+            // below downstream thresholds purely as a function of length (issue
+            // #26). An occurrence-over-total ratio is length- and entropy-
+            // invariant, which is what makes the issue #14 `min_hit_rate` filter a
+            // trustworthy confidence signal rather than a length-sensitive one.
             let mut hits = 0usize;
-            for word in &input_set {
+            for (word, &count) in &input_counts {
                 if binary_search_sorted_words(sorted_words, word) {
-                    hits += 1;
+                    hits += count;
                 }
             }
 
@@ -1463,6 +1481,40 @@ mod tests {
         assert_eq!(best.language, "english", "Best match should be English");
         assert_eq!(best.hits, 5, "All 5 words should be hits");
         assert!((best.hit_rate - 1.0).abs() < 0.001, "Hit rate should be 1.0");
+    }
+
+    #[test]
+    fn test_detect_dialect_hit_rate_length_invariant() {
+        // Regression for issue #26: `hit_rate` must not decay with input length.
+        // The old metric (distinct matches ÷ total-with-duplicates) fell as
+        // ~1/length; the occurrence-based metric stays flat. Repeating an
+        // all-payload-word input lengthens it without diluting the rate.
+        let base = ["abandon", "ability", "able"];
+        let short: Vec<String> = base.iter().map(|s| s.to_string()).collect();
+        let long: Vec<String> = base
+            .iter()
+            .cycle()
+            .take(base.len() * 20)
+            .map(|s| s.to_string())
+            .collect();
+
+        let short_best = detect_dialect_best(&short).expect("short input should detect");
+        let long_best = detect_dialect_best(&long).expect("long input should detect");
+
+        // Every token is a payload word, so the rate is 1.0 regardless of length.
+        assert!(
+            (short_best.hit_rate - 1.0).abs() < 1e-9,
+            "short hit_rate should be 1.0, got {}",
+            short_best.hit_rate
+        );
+        assert!(
+            (long_best.hit_rate - 1.0).abs() < 1e-9,
+            "long hit_rate should be 1.0, got {} — metric decayed with length",
+            long_best.hit_rate
+        );
+        // hits counts with multiplicity: 60 tokens, all matching.
+        assert_eq!(long_best.hits, base.len() * 20);
+        assert_eq!(long_best.total, base.len() * 20);
     }
 
     #[test]

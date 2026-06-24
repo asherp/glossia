@@ -301,6 +301,14 @@ grammar:
               weight: 1.0
               lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
 
+    # BIP39 transcode: re-express a BIP39 seed as Czech prose.
+    # Uses base_n (rebase) instead of bitpack to avoid padding-word overhead;
+    # inherits the base (body) prose rules. Mirror of English/Latin bip39 dialect.
+    bip39:
+      codec: base_n
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+
     payload_only:
       payload_wordlist: "default"
       cover_wordlist: "default"

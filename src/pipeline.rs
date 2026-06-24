@@ -873,11 +873,12 @@ impl Pipeline {
                 .map_err(|e| PipelineError::EncodeError(e))?;
             let payload_tree = WordlistTree::new(payload_words);
 
-            let codec = Grammar::from_language_dialect(language, "body")
-                .map(|g| g.codec().to_string())
-                .unwrap_or_else(|_| "bitpack".to_string());
+            // Raw output is bare payload words with no padding header, so it must
+            // use base-N — the same codec the raw decode path uses. (bitpack would
+            // prepend a padding-count word that the bare-word decoder doesn't
+            // expect, breaking the round-trip.)
             let (_, data) = codec::detect_mode(input);
-            let words = codec::encode_base_n(&data, &payload_tree, &codec)
+            let words = codec::encode_base_n(&data, &payload_tree, "base_n")
                 .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
 
             return Ok(words.join(" "));
@@ -917,11 +918,12 @@ impl Pipeline {
                 .map_err(|e| PipelineError::EncodeError(e))?;
             let payload_tree = WordlistTree::new(payload_words);
 
-            let codec = Grammar::from_language_dialect(language, "body")
-                .map(|g| g.codec().to_string())
-                .unwrap_or_else(|_| "bitpack".to_string());
+            // Raw output is bare payload words with no padding header, so it must
+            // use base-N — the same codec the raw decode path uses. (bitpack would
+            // prepend a padding-count word that the bare-word decoder doesn't
+            // expect, breaking the round-trip.)
             let (_, data) = codec::detect_mode(input);
-            let words = codec::encode_base_n(&data, &payload_tree, &codec)
+            let words = codec::encode_base_n(&data, &payload_tree, "base_n")
                 .map_err(|e| PipelineError::EncodeError(format!("{}", e)))?;
 
             let output = words.join(" ");
@@ -993,6 +995,67 @@ impl Pipeline {
         })
     }
 
+    /// Decode bare/raw payload words (e.g. a BIP39 mnemonic) into hex bytes.
+    ///
+    /// Raw input carries no Glossia header or cover words, so every payload word
+    /// is data and decoding is a plain base-N integer (no bitpack padding word).
+    /// Returns the hex-encoded bytes and the extracted payload words. Shared by
+    /// [`Self::do_decode`] and [`Self::do_decode_rich`] so both agree.
+    fn decode_raw_words(
+        &self,
+        input: &str,
+        language: &str,
+        wordlist: &str,
+    ) -> Result<(String, Vec<String>), PipelineError> {
+        let wordlist_name = if wordlist == "default" {
+            let dw = crate::generator::default_wordlist(language);
+            if dw == "default" { wordlist } else { dw }
+        } else {
+            wordlist
+        };
+        let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
+            .map_err(|e| PipelineError::DecodeError(e))?;
+        let payload_tree = WordlistTree::new(payload_words);
+
+        let words: Vec<String> = input
+            .split_whitespace()
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+            .filter(|w| !w.is_empty() && payload_tree.contains(w))
+            .collect();
+
+        if words.is_empty() {
+            return Err(PipelineError::DecodeError(
+                "no payload words found in input".to_string(),
+            ));
+        }
+
+        if self.verbose {
+            eprintln!("Raw decode: {} payload words via base-N", words.len());
+        }
+
+        // Raw mnemonics have no bitpack header — always use base_n.
+        let bytes = codec::decode_base_n(&words, &payload_tree, "base_n")
+            .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+        // Raw output defaults to hex (back-compat); honor an explicit format target.
+        let output = match self.target_format() {
+            Some(fmt) => render_decoded_bytes(&bytes, Some(fmt)),
+            None => codec::hex_encode(&bytes),
+        };
+        Ok((output, words))
+    }
+
+    /// The explicit output format requested by the pipeline target, if any.
+    ///
+    /// `Some(mode)` when the target is a `Format` endpoint (e.g. `… into hex`);
+    /// `None` for an `Auto` or `Language` target, so each decode path keeps its
+    /// own default rendering.
+    fn target_format(&self) -> Option<DataMode> {
+        match &self.target {
+            Endpoint::Format(mode) => Some(*mode),
+            _ => None,
+        }
+    }
+
     /// Decode: language prose → extract payload words → binary → data string.
     fn do_decode(&self, input: &str, source: &Endpoint) -> Result<String, PipelineError> {
         let (language, wordlist, dialect) = match source {
@@ -1012,36 +1075,8 @@ impl Pipeline {
         // "raw" dialect: input is raw payload words (e.g. BIP39 mnemonic) without
         // Glossia header or cover words. Decode directly via base-N.
         if dialect == "raw" {
-            let wordlist_name = if wordlist == "default" {
-                let dw = crate::generator::default_wordlist(language);
-                if dw == "default" { wordlist } else { dw }
-            } else {
-                wordlist
-            };
-            let payload_words = load_payload_words_for_wordlist(language, wordlist_name)
-                .map_err(|e| PipelineError::DecodeError(e))?;
-            let payload_tree = WordlistTree::new(payload_words);
-
-            let words: Vec<String> = input
-                .split_whitespace()
-                .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-                .filter(|w| !w.is_empty() && payload_tree.contains(w))
-                .collect();
-
-            if words.is_empty() {
-                return Err(PipelineError::DecodeError(
-                    "no payload words found in input".to_string(),
-                ));
-            }
-
-            if self.verbose {
-                eprintln!("Raw decode: {} payload words via base-N", words.len());
-            }
-
-            // Raw mnemonics have no bitpack header — always use base_n.
-            let bytes = codec::decode_base_n(&words, &payload_tree, "base_n")
-                .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-            return Ok(codec::hex_encode(&bytes));
+            let (output, _) = self.decode_raw_words(input, language, wordlist)?;
+            return Ok(output);
         }
 
         // Resolve payload_language: if the dialect declares a different language
@@ -1050,7 +1085,7 @@ impl Pipeline {
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
-        decode_from_language_with_payload_lang(input, language, &payload_lang, wordlist, self.verbose, dialect)
+        decode_from_language_with_payload_lang(input, language, &payload_lang, wordlist, self.verbose, dialect, self.target_format())
     }
 
     /// Transcode: source prose → binary → target prose.
@@ -1142,13 +1177,32 @@ impl Pipeline {
             });
         }
 
+        // "raw" dialect: bare payload words (e.g. BIP39 mnemonic), all payload and
+        // no cover — decode via base-N, same as the plain do_decode raw branch.
+        if dialect == "raw" {
+            let (output, words) = self.decode_raw_words(input, language, wordlist)?;
+            let payload_count = words.len();
+            return Ok(PipelineResult {
+                output,
+                payload_words: words,
+                data_mode: None,
+                stats: Some(PipelineStats {
+                    payload_count,
+                    cover_count: 0,
+                    total_words: payload_count,
+                    ratio: 1.0,
+                }),
+                resolved_source: None,
+            });
+        }
+
         // Resolve payload_language for cross-language payload (e.g., sig_bip39).
         let payload_lang = DialectConfig::from_language_dialect(language, dialect)
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
         let (decoded, extracted) = decode_from_language_rich_with_payload_lang(
-            input, language, &payload_lang, wordlist, self.verbose, dialect)?;
+            input, language, &payload_lang, wordlist, self.verbose, dialect, self.target_format())?;
 
         Ok(PipelineResult {
             output: decoded,
@@ -1706,6 +1760,23 @@ fn strip_email_header_labels(text: &str) -> String {
     result
 }
 
+/// Render decoded bytes into a textual representation.
+///
+/// `Some(mode)` forces the representation requested by the pipeline target:
+/// `Hex` → lowercase hex, `Base64` → base64, `Ascii7`/`Bytes8` → UTF-8 (lossy).
+/// `None` keeps the back-compatible auto behavior: the UTF-8 string when the
+/// bytes are valid UTF-8, otherwise lowercase hex.
+fn render_decoded_bytes(bytes: &[u8], format: Option<DataMode>) -> String {
+    match format {
+        Some(DataMode::Hex) => codec::hex_encode(bytes),
+        Some(DataMode::Base64) => codec::base64_encode(bytes),
+        Some(DataMode::Ascii7) | Some(DataMode::Bytes8) => {
+            String::from_utf8_lossy(bytes).into_owned()
+        }
+        None => String::from_utf8(bytes.to_vec()).unwrap_or_else(|_| codec::hex_encode(bytes)),
+    }
+}
+
 /// Decode language prose back to the original data string.
 ///
 /// Prose → extract payload words (filter out cover words) → binary → string.
@@ -1715,7 +1786,46 @@ pub fn decode_from_language(
     wordlist: &str,
     verbose: bool,
 ) -> Result<String, PipelineError> {
-    decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body")
+    decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body", None)
+}
+
+/// Choose the decode codec for a sequence of extracted payload words.
+///
+/// Framed Glossia prose carries a leading padding-count word and is interspersed
+/// with cover/function words, so it round-trips through the grammar's declared
+/// codec (`bitpack` for power-of-two wordlists). A *bare* payload sequence — e.g.
+/// a raw BIP39 mnemonic typed directly rather than produced by Glossia's encoder
+/// — has no padding word and no cover words: every input token is a payload word.
+/// Handing such input to `bitpack` misreads the first word as a padding count,
+/// leaving `(N-1) * bits_per_word` data bits that are almost never byte-aligned,
+/// so the decode aborts with "data_bits not byte-aligned" (issue #23).
+///
+/// When every input token is a payload word (`payload_words == total_tokens`) the
+/// input is unframed; decode it as a plain base-N integer instead — the same
+/// interpretation the `raw` dialect path uses for bare mnemonics. Only `bitpack`
+/// is rerouted; `base_n` already handles unframed input.
+fn decode_codec_for_input<'a>(
+    grammar_codec: &'a str,
+    total_tokens: usize,
+    payload_words: usize,
+) -> &'a str {
+    if grammar_codec == "bitpack" && payload_words > 0 && payload_words == total_tokens {
+        "base_n"
+    } else {
+        grammar_codec
+    }
+}
+
+/// Count whitespace-delimited input tokens that survive alphanumeric trimming.
+///
+/// Used to detect bare/unframed payload input: when this equals the number of
+/// extracted payload words, the input carries no cover words (see
+/// [`decode_codec_for_input`]).
+fn alnum_token_count(text: &str) -> usize {
+    text.split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
+        .filter(|w| !w.is_empty())
+        .count()
 }
 
 /// Internal decode with separate grammar language and payload language.
@@ -1730,6 +1840,7 @@ fn decode_from_language_with_payload_lang(
     wordlist: &str,
     verbose: bool,
     grammar_dialect: &str,
+    format: Option<DataMode>,
 ) -> Result<String, PipelineError> {
     // Strip email header labels if the input looks like an RFC 5322 message.
     // This prevents header names like "Subject" from colliding with payload words.
@@ -1808,12 +1919,16 @@ fn decode_from_language_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    let bytes = codec::decode_base_n(&extracted, &*payload_tree, grammar.codec())
+    // Bare/unframed input (a raw mnemonic: all tokens are payload words) has no
+    // bitpack padding header, so decode it as base-N instead (issue #23).
+    let codec_name = if payload_separator.is_empty() {
+        grammar.codec()
+    } else {
+        decode_codec_for_input(grammar.codec(), alnum_token_count(text), extracted.len())
+    };
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-    match String::from_utf8(bytes.clone()) {
-        Ok(s) => Ok(s),
-        Err(_) => Ok(codec::hex_encode(&bytes)),
-    }
+    Ok(render_decoded_bytes(&bytes, format))
 }
 
 /// Decode language prose, returning both the decoded text and extracted payload words.
@@ -1823,7 +1938,7 @@ pub fn decode_from_language_rich(
     wordlist: &str,
     verbose: bool,
 ) -> Result<(String, Vec<String>), PipelineError> {
-    decode_from_language_rich_with_payload_lang(text, language, language, wordlist, verbose, "body")
+    decode_from_language_rich_with_payload_lang(text, language, language, wordlist, verbose, "body", None)
 }
 
 /// Internal rich decode with separate grammar language and payload language.
@@ -1834,6 +1949,7 @@ fn decode_from_language_rich_with_payload_lang(
     wordlist: &str,
     verbose: bool,
     grammar_dialect: &str,
+    format: Option<DataMode>,
 ) -> Result<(String, Vec<String>), PipelineError> {
     // Strip email header labels if the input looks like an RFC 5322 message.
     let text = strip_email_header_labels(text);
@@ -1906,12 +2022,16 @@ fn decode_from_language_rich_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    let bytes = codec::decode_base_n(&extracted, &*payload_tree, grammar.codec())
-        .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
-    let decoded = match String::from_utf8(bytes.clone()) {
-        Ok(s) => s,
-        Err(_) => codec::hex_encode(&bytes),
+    // Bare/unframed input (a raw mnemonic: all tokens are payload words) has no
+    // bitpack padding header, so decode it as base-N instead (issue #23).
+    let codec_name = if payload_separator.is_empty() {
+        grammar.codec()
+    } else {
+        decode_codec_for_input(grammar.codec(), alnum_token_count(text), extracted.len())
     };
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
+        .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
+    let decoded = render_decoded_bytes(&bytes, format);
 
     Ok((decoded, extracted))
 }
@@ -2244,6 +2364,202 @@ mod tests {
         );
         let decoded = decode_pipeline.execute(&latin_prose).unwrap();
         assert_eq!(decoded, input, "Transcode round-trip should recover original");
+    }
+
+    #[test]
+    fn test_decode_codec_for_input_detects_bare_vs_framed() {
+        // Every input token is a payload word → unframed bare mnemonic → base_n.
+        assert_eq!(decode_codec_for_input("bitpack", 4, 4), "base_n");
+        // Cover words present (more tokens than payload words) → framed → bitpack.
+        assert_eq!(decode_codec_for_input("bitpack", 9, 4), "bitpack");
+        // Non-bitpack codecs already handle unframed input and are never rerouted.
+        assert_eq!(decode_codec_for_input("base_n", 4, 4), "base_n");
+        // No payload words extracted → keep the declared codec.
+        assert_eq!(decode_codec_for_input("bitpack", 0, 0), "bitpack");
+    }
+
+    #[test]
+    fn test_raw_encode_decode_round_trip() {
+        // Regression: the "raw" dialect must use the SAME codec on encode and
+        // decode. Previously raw-encode used bitpack (prepending a padding-count
+        // word) while raw-decode used base_n, so the bytes did not survive the
+        // round-trip and the output carried a spurious leading word.
+        let input = "cafe"; // hex → bytes 0xca 0xfe
+
+        let encode = Pipeline::from_params(
+            Endpoint::Format(DataMode::Hex),
+            Endpoint::language_full("english", "bip39", "raw"),
+        );
+        let bare_words = encode.execute(input).unwrap();
+
+        // base-N of 0xcafe is exactly 2 words; bitpack would add a 3rd padding
+        // word. Asserting the count locks in the "no header" property.
+        assert_eq!(
+            bare_words.split_whitespace().count(),
+            2,
+            "raw output must be bare data words with no padding header, got: {bare_words:?}"
+        );
+
+        let decode = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "raw"),
+            Endpoint::Format(DataMode::Hex),
+        );
+        let decoded = decode.execute(&bare_words).unwrap();
+        assert_eq!(decoded, input, "raw encode/decode must round-trip");
+    }
+
+    #[test]
+    fn test_raw_decode_rich_returns_stats() {
+        // Regression: do_decode_rich had no `raw` branch, so a rich decode of bare
+        // payload words fell through to the prose decoder. It now decodes via
+        // base-N and reports all-payload stats, agreeing with the plain do_decode.
+        let bare = "add garlic"; // base-N of 0xcafe in english/bip39
+
+        let pipeline = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "raw"),
+            Endpoint::Format(DataMode::Hex),
+        );
+
+        let plain = pipeline.execute(bare).unwrap();
+        let rich = pipeline.execute_rich(bare).unwrap();
+
+        assert_eq!(rich.output, plain, "rich and plain raw decode must agree");
+        assert_eq!(rich.output, "cafe");
+        assert_eq!(rich.payload_words, vec!["add".to_string(), "garlic".to_string()]);
+        let stats = rich.stats.expect("raw decode should report stats");
+        assert_eq!(stats.payload_count, 2);
+        assert_eq!(stats.cover_count, 0);
+        assert_eq!(stats.total_words, 2);
+        assert_eq!(stats.ratio, 1.0);
+    }
+
+    #[test]
+    fn test_english_bip39_dialect_preserves_seed_words() {
+        // The english "bip39" dialect uses base_n, so encoding a BIP39 seed weaves
+        // the exact seed words into prose (with cover words) instead of re-chunking
+        // them via bitpack. Verify every seed word survives and the seed round-trips.
+        let seed = "abandon ability able about above absent absorb access accident account accuse achieve";
+
+        let encode = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "raw"),
+            Endpoint::language_full("english", "bip39", "bip39"),
+        )
+        .with_seed(42);
+        let prose = encode.execute(seed).unwrap();
+
+        // Every seed word appears verbatim in the prose (interspersed with cover).
+        for w in seed.split_whitespace() {
+            assert!(
+                prose.split_whitespace().any(|t| {
+                    t.trim_matches(|c: char| !c.is_alphanumeric())
+                        .eq_ignore_ascii_case(w)
+                }),
+                "seed word {w:?} missing from english bip39 prose: {prose:?}"
+            );
+        }
+
+        // Round-trips back to the exact seed (prose → bytes → raw seed words).
+        let recovered = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "bip39"),
+            Endpoint::language_full("english", "bip39", "raw"),
+        )
+        .execute(&prose)
+        .unwrap();
+        assert_eq!(
+            recovered.split_whitespace().collect::<Vec<_>>(),
+            seed.split_whitespace().collect::<Vec<_>>(),
+            "english bip39 dialect must round-trip to the original seed"
+        );
+    }
+
+    #[test]
+    fn test_decode_honors_target_format() {
+        // Regression for #28: decode into a Format endpoint must render the
+        // recovered bytes in that format, not always UTF-8-else-hex.
+        let key = "sk-test-ABC123xyz";
+
+        let prose = Pipeline::from_params(
+            Endpoint::Auto,
+            Endpoint::language_full("english", "bip39", "body"),
+        )
+        .with_seed(42)
+        .execute(key)
+        .unwrap();
+
+        let decode = |fmt: DataMode| {
+            Pipeline::from_params(
+                Endpoint::language_full("english", "bip39", "body"),
+                Endpoint::Format(fmt),
+            )
+            .execute(&prose)
+            .unwrap()
+        };
+
+        // hex target -> hex of the bytes (and decodes back to the key)
+        let hex = decode(DataMode::Hex);
+        assert_eq!(
+            codec::hex_decode(&hex).expect("valid hex"),
+            key.as_bytes(),
+            "into hex must yield hex of the bytes, got {hex:?}"
+        );
+
+        // base64 target -> base64 of the bytes (and decodes back to the key)
+        let b64 = decode(DataMode::Base64);
+        assert_eq!(
+            codec::base64_decode(&b64).expect("valid base64"),
+            key.as_bytes(),
+            "into base64 must yield base64 of the bytes, got {b64:?}"
+        );
+
+        // ascii target -> the original string
+        assert_eq!(decode(DataMode::Ascii7), key, "into ascii must yield the string");
+
+        // Auto (no explicit format) keeps the UTF-8-else-hex behavior.
+        let auto = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "body"),
+            Endpoint::Auto,
+        )
+        .execute(&prose)
+        .unwrap();
+        assert_eq!(auto, key, "Auto decode must be unchanged");
+    }
+
+    #[test]
+    fn test_transcode_bare_mnemonic_english_to_latin() {
+        // Regression for issue #23: bare payload words (a raw BIP39 mnemonic, not
+        // Glossia-encoded prose) carry no bitpack padding header, so transcoding
+        // them must not fail with "data_bits not byte-aligned". They decode as a
+        // plain base-N integer, matching the `raw` dialect path.
+        let bare = "abandon ability able about";
+
+        let transcode = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "body"),
+            Endpoint::language("latin"),
+        )
+        .with_seed(42);
+        let latin = transcode
+            .execute(bare)
+            .expect("bare-word transcode should succeed, not error on byte alignment");
+        assert!(!latin.is_empty(), "Latin prose should not be empty");
+
+        // Byte-lossless: the Latin output must decode to the same bytes the bare
+        // English words decode to directly.
+        let from_english = Pipeline::from_params(
+            Endpoint::language_full("english", "bip39", "body"),
+            Endpoint::Auto,
+        )
+        .execute(bare)
+        .unwrap();
+        let from_latin = Pipeline::from_params(
+            Endpoint::language("latin"),
+            Endpoint::Auto,
+        )
+        .execute(&latin)
+        .unwrap();
+        assert_eq!(
+            from_english, from_latin,
+            "bare-word transcode must be byte-lossless"
+        );
     }
 
     #[test]
