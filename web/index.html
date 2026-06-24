@@ -771,6 +771,7 @@ footer a:hover { text-decoration: underline; }
               <div class="output-area empty" id="right-box">Output will appear here</div>
             </div>
             <div class="panel-footer">
+              <button class="btn-sm" id="cover-btn" onclick="toggleCover()" title="Show or hide the cover words">Hide cover</button>
               <button class="btn-sm" id="copy-btn" onclick="copyOutput()">Copy</button>
             </div>
           </div>
@@ -814,6 +815,7 @@ footer a:hover { text-decoration: underline; }
               <div class="output-area empty" id="ak-right-box">Output will appear here</div>
             </div>
             <div class="panel-footer">
+              <button class="btn-sm" id="ak-cover-btn" onclick="akToggleCover()" title="Show or hide the cover words">Hide cover</button>
               <button class="btn-sm" id="ak-copy-btn" onclick="akCopy()">Copy</button>
             </div>
           </div>
@@ -976,6 +978,24 @@ function placeCaretEnd(el) {
   s.addRange(r);
 }
 
+// Cover-word visibility for the prose output (shared by both panels).
+let showCover = true;
+
+// The cleaned payload words present in prose, in order (cover words dropped).
+function payloadTokens(text, set) {
+  return text.split(/\s+/)
+    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(t => t && set.has(norm(t)));
+}
+function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
+
+// Render prose either in full (cover words present, payload underlined) or
+// payload-only (cover words removed, payload underlined).
+function renderProse(text, set) {
+  if (showCover) return underlineProse(text, set);
+  return payloadTokens(text, set).map(t => '<u>' + escapeHtml(t) + '</u>').join(' ');
+}
+
 // ─── Left box (contenteditable) accessors ────────────────────────────
 
 function leftText() { return document.getElementById('left-box').innerText; }
@@ -1075,6 +1095,14 @@ function updateChrome() {
       target.label + (currentLang === 'english' ? ' (BIP39).' : ' words.') +
       ' Pick the target language on the right; press ⇄ to go back to encoding.';
   }
+  // Cover toggle only applies to the prose output (right box in encode mode).
+  const coverBtn = document.getElementById('cover-btn');
+  if (mode === 'encode') {
+    coverBtn.classList.remove('hidden');
+    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+  } else {
+    coverBtn.classList.add('hidden');
+  }
   updateLangHighlights();
 }
 
@@ -1119,8 +1147,9 @@ function run() {
     if (result.error) { showError(result.error); setOutput(''); return; }
     const out = (result.output || '').trim();
     if (mode === 'encode') {
-      // Right box holds the prose — underline its payload words.
-      setOutput(out, underlineProse(out, normSet(result.payload_words || [])));
+      // Right box holds the prose — underline payload words, honor cover toggle.
+      const set = normSet(result.payload_words || []);
+      setOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
     } else {
       // Right box holds bare seed words (no underline); left box holds the
       // prose — underline its payload words.
@@ -1164,6 +1193,12 @@ window.toggleMode = function() {
 window.copyOutput = function() {
   const el = document.getElementById('right-box');
   navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
+};
+
+window.toggleCover = function() {
+  showCover = !showCover;
+  run();          // re-encode from the (stable) seed and re-render per showCover
+  updateChrome();
 };
 
 // ═══ API Key panel ═══════════════════════════════════════════════════
@@ -1275,6 +1310,14 @@ function akUpdateChrome() {
       ' prose (payload words underlined); recovering the key as ' + akFmtById(akFormat).label +
       '. Pick the output format on the right; press ⇄ to encode.';
   }
+  // Cover toggle only applies to the prose output (right box in encode mode).
+  const coverBtn = document.getElementById('ak-cover-btn');
+  if (akMode === 'encode') {
+    coverBtn.classList.remove('hidden');
+    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+  } else {
+    coverBtn.classList.add('hidden');
+  }
   akUpdateHighlights();
 }
 
@@ -1297,7 +1340,8 @@ function akRun() {
       if (r.error) { akShowError(r.error); akSetOutput(''); return; }
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
-      akSetOutput(out, underlineProse(out, normSet(r.payload_words || [])));
+      const set = normSet(r.payload_words || []);
+      akSetOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
       akUpdateChrome();   // refresh the detected-format chip
     } else {
       const meta = 'transcode from ' + akLangById(akDetLang).source + ' into ' + akFmtById(akFormat).word;
@@ -1341,14 +1385,19 @@ window.akCopy = function() {
   navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
 };
 
+window.akToggleCover = function() {
+  showCover = !showCover;
+  akRun();        // re-encode from the (stable) key and re-render per showCover
+};
+
 // ═══ Use-case selector ═══════════════════════════════════════════════
 
 window.selectUseCase = function(uc) {
   document.querySelectorAll('.usecase-tab').forEach(t => t.classList.toggle('active', t.dataset.uc === uc));
   document.getElementById('panel-bip39').classList.toggle('hidden', uc !== 'bip39');
   document.getElementById('panel-apikey').classList.toggle('hidden', uc !== 'apikey');
-  // Re-sync the shown panel's labels/highlights.
-  if (uc === 'apikey') { akUpdateChrome(); } else { updateChrome(); }
+  // Re-render the shown panel so labels, highlights, and cover state are current.
+  if (uc === 'apikey') { akRun(); } else { updateChrome(); run(); }
 };
 // ─── Theme toggle ────────────────────────────────────────────────────
 
