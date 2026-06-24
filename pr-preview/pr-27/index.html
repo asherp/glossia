@@ -730,7 +730,6 @@ footer a:hover { text-decoration: underline; }
         <div class="panel panel-left">
           <div class="panel-header">
             <span class="dialect-label" id="left-label">BIP39 seed</span>
-            <div class="lang-row hidden" id="left-langs"></div>
           </div>
           <div class="panel-body">
             <textarea id="left-box" placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></textarea>
@@ -913,19 +912,31 @@ function setOutput(text) {
 // ─── Language buttons ────────────────────────────────────────────────
 
 function buildLangButtons() {
-  for (const rowId of ['left-langs', 'right-langs']) {
-    const row = document.getElementById(rowId);
-    row.innerHTML = '';
-    for (const l of LANGS) {
-      const b = document.createElement('button');
-      b.className = 'btn-sm lang-btn';
-      b.dataset.lang = l.id;
-      b.textContent = l.label;
-      b.title = l.label + ' prose';
-      b.addEventListener('click', () => selectLang(l.id));
-      row.appendChild(b);
-    }
+  const row = document.getElementById('right-langs');
+  row.innerHTML = '';
+  for (const l of LANGS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.lang = l.id;
+    b.textContent = l.label;
+    b.title = l.label + ' prose';
+    b.addEventListener('click', () => selectLang(l.id));
+    row.appendChild(b);
   }
+}
+
+// Auto-detect which language the left-box prose is written in (decode mode),
+// restricted to the languages this panel supports.
+function detectLeftLanguage() {
+  const text = document.getElementById('left-box').value.trim();
+  if (!text) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(text));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => LANGS.some(l => l.id === m.language));
+      if (best) currentLang = best.language;
+    }
+  } catch (e) { /* keep current language */ }
 }
 
 function updateLangHighlights() {
@@ -944,29 +955,26 @@ function selectLang(id) {
 
 function updateChrome() {
   const lang = langById(currentLang);
-  const leftLangs = document.getElementById('left-langs');
-  const rightLangs = document.getElementById('right-langs');
   const genBtn = document.getElementById('gen-btn');
   const hint = document.getElementById('demo-hint');
 
+  // The language buttons live above the right box in both modes and always
+  // name the *prose* language.
   if (mode === 'encode') {
-    // seed (left) -> prose (right); language sits above the prose (right).
+    // seed (left) -> prose (right); buttons pick the prose language.
     document.getElementById('left-label').textContent = 'BIP39 seed';
     document.getElementById('right-label').textContent = lang.label + ' sentences';
-    leftLangs.classList.add('hidden');
-    rightLangs.classList.remove('hidden');
     genBtn.classList.remove('hidden');
     hint.textContent = 'Generates a 12-word seed and weaves it into ' + lang.label +
       ' prose. Pick a language above the sentence; press ⇄ to decode a sentence back into the seed.';
   } else {
-    // prose (left) -> seed (right); language sits above the prose (left).
+    // prose (left, auto-detected) -> mnemonic (right). Buttons highlight the
+    // detected prose language; click one to re-read the prose as that language.
     document.getElementById('left-label').textContent = lang.label + ' sentences';
     document.getElementById('right-label').textContent = 'BIP39 seed';
-    leftLangs.classList.remove('hidden');
-    rightLangs.classList.add('hidden');
     genBtn.classList.add('hidden');
-    hint.textContent = 'Decoding ' + lang.label + ' prose back into the BIP39 seed. ' +
-      'Edit the sentence on the left, or press ⇄ to go back to encoding.';
+    hint.textContent = 'Detected ' + lang.label + ' prose on the left and recovered the BIP39 seed. ' +
+      'Paste any sentence to decode it; press ⇄ to go back to encoding.';
   }
   updateLangHighlights();
 }
@@ -1015,6 +1023,7 @@ window.toggleMode = function() {
   const out = document.getElementById('right-box').dataset.plainText || '';
   mode = (mode === 'encode') ? 'decode' : 'encode';
   document.getElementById('left-box').value = out;
+  if (mode === 'decode') detectLeftLanguage();  // pick up the prose's language
   updateChrome();
   run();
 };
@@ -1037,7 +1046,10 @@ async function startup() {
     buildLangButtons();
     document.getElementById('left-box').addEventListener('input', () => {
       clearTimeout(inputTimer);
-      inputTimer = setTimeout(run, 250);
+      inputTimer = setTimeout(() => {
+        if (mode === 'decode') { detectLeftLanguage(); updateChrome(); }
+        run();
+      }, 250);
     });
     updateChrome();
     generateSeed();
