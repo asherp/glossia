@@ -835,6 +835,11 @@ footer a:hover { text-decoration: underline; }
           text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
         .enc-password-row label .req { color: var(--error); }
         .enc-password-row input { min-width: 260px; }
+        .enc-note-ref { color: var(--accent); text-decoration: none; font-weight: 700; }
+        .enc-note { max-width: 700px; margin: 1rem auto 0; font-size: 0.75rem; line-height: 1.6;
+          color: var(--text-dim); text-align: center; scroll-margin-top: 2rem; }
+        .enc-note strong { color: var(--accent); }
+        .enc-note a { color: var(--accent); }
       </style>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
@@ -928,7 +933,7 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-encrypt">
         <div class="section-header">
           <h3>Encrypted Message</h3>
-          <p>Compress and password-encrypt any text, then hide the ciphertext in readable prose &mdash; decode it back byte-for-byte with the same password</p>
+          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text, then hide the ciphertext in readable prose &mdash; decode it back byte-for-byte with the same password</p>
         </div>
 
         <div class="enc-password-row">
@@ -970,6 +975,15 @@ footer a:hover { text-decoration: underline; }
         </div>
 
         <p class="demo-hint" id="enc-hint"></p>
+
+        <p class="enc-note" id="enc-note">
+          <strong>*</strong> AES-CTR keeps your message confidential but is <em>not</em> authenticated &mdash; it
+          can&rsquo;t detect tampering. In principle, someone who intercepts the ciphertext could flip bits to
+          alter the decoded message in controlled ways, without ever knowing the password. That&rsquo;s
+          impractical here, where messages are copy-pasted by hand into chats and posts, but it&rsquo;s a real
+          property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a signed
+          protocol like <a href="https://nostr.com" target="_blank" rel="noopener">nostr</a>.
+        </p>
       </div>
     </section>
 
@@ -1569,7 +1583,7 @@ window.akToggleCover = function() {
 // ═══ Encrypted Message panel ═════════════════════════════════════════
 //
 // Symmetric Google-Translate model with a shared password:
-//   encode: message + password -> compress -> AES-GCM encrypt -> language prose
+//   encode: message + password -> compress -> AES-CTR encrypt -> language prose
 //   decode: language prose + password -> decrypt -> decompress -> message
 //
 // The ciphertext is random per encryption, so the cover toggle and language
@@ -1605,7 +1619,7 @@ function encSetOutput(text, html) {
   el.dataset.plainText = text;
 }
 
-// ─── compression (CompressionStream) + AES-GCM (WebCrypto) helpers ────
+// ─── compression (CompressionStream) + AES-CTR (WebCrypto) helpers ────
 const ENC_TE = new TextEncoder();
 const ENC_TD = new TextDecoder();
 
@@ -1678,16 +1692,23 @@ async function expand(bytes, flag) {
   return bytes;
 }
 
-// Derive BOTH the AES-GCM key and its nonce from password + salt, so the
-// nonce never has to be transmitted. Each message uses a fresh random salt,
-// making (key, nonce) unique per message — the only thing GCM requires — so a
-// derived nonce is as safe as a random one while saving 12 bytes on the wire.
+// Derive BOTH the AES key and its nonce from password + salt, so the nonce
+// never has to be transmitted. Each message uses a fresh random salt, making
+// the (key, nonce) pair unique per message — which is what keeps the CTR
+// keystream from ever being reused — while saving bytes on the wire.
 async function encDeriveKeyNonce(password, salt) {
   const baseKey = await crypto.subtle.importKey('raw', ENC_TE.encode(password), 'PBKDF2', false, ['deriveBits']);
   const bits = new Uint8Array(await crypto.subtle.deriveBits(
     { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, baseKey, (32 + 12) * 8));
-  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: 'AES-CTR' }, false, ['encrypt', 'decrypt']);
   return { key, nonce: bits.subarray(32, 44) };
+}
+// 16-byte CTR counter block: 96-bit derived nonce in the high bytes, a 32-bit
+// counter (the low 4 bytes) starting at 0. 2^32 blocks = 64 GB per message.
+function ctrCounter(nonce) {
+  const c = new Uint8Array(16);
+  c.set(nonce, 0);
+  return c;
 }
 
 // Unsigned LEB128 varint (modulo/multiply math, so lengths above 2^31 are safe).
@@ -1702,15 +1723,19 @@ function varintDecode(bytes, pos) {
   return { value, next: p };
 }
 
-// Framed blob: [blobLen:varint][flag:1][salt:12][ciphertext+tag]. The nonce is
-// derived (not stored). flag selects how the message bytes were reduced
-// (raw/gzip/ascii7). The length prefix lets decoding drop any trailing
-// bit-packing padding the codec adds, so AES-GCM sees exactly the encrypted bytes.
+// Framed blob: [blobLen:varint][flag:1][salt:12][ciphertext]. The nonce is
+// derived (not stored), and AES-CTR is a stream cipher, so the ciphertext is
+// exactly as long as the (reduced) message — no tag, no padding. flag selects
+// how the message bytes were reduced (raw/gzip/ascii7). The length prefix lets
+// decoding drop any trailing bit-packing padding the codec adds.
+//
+// NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
+// cannot detect tampering (see the asterisk note under the demo panel).
 async function encryptToHex(message, password) {
   const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
   const salt = crypto.getRandomValues(new Uint8Array(12));
   const { key, nonce } = await encDeriveKeyNonce(password, salt);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, reduced));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
   const blob = new Uint8Array(1 + 12 + ct.length);
   blob[0] = flag;
   blob.set(salt, 1);
@@ -1726,18 +1751,20 @@ async function decryptFromHex(hexStr, password) {
   if (all.length < 1) throw new Error('Ciphertext too short.');
   const { value: blobLen, next } = varintDecode(all, 0);
   const blob = all.subarray(next, next + blobLen);
-  if (blob.length < 1 + 12 + 16) throw new Error('Ciphertext too short or corrupted.');
+  if (blob.length < 1 + 12) throw new Error('Ciphertext too short or corrupted.');
   const flag = blob[0];
   const salt = blob.subarray(1, 13);
   const ct = blob.subarray(13);
   const { key, nonce } = await encDeriveKeyNonce(password, salt);
-  let plain;
+  // CTR is unauthenticated: a wrong password yields a different keystream and
+  // therefore garbled bytes rather than a clean failure. We can only surface an
+  // error when the reduction stage (e.g. gunzip) chokes on the garbage.
   try {
-    plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, ct));
+    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, ct));
+    return ENC_TD.decode(await expand(plain, flag));
   } catch (e) {
-    throw new Error('Wrong password or corrupted message.');
+    throw new Error('Could not decode — check the password.');
   }
-  return ENC_TD.decode(await expand(plain, flag));
 }
 
 // ─── Language buttons ────────────────────────────────────────────────
@@ -1790,7 +1817,7 @@ function encUpdateChrome() {
     genBtn.classList.remove('hidden');
     coverBtn.classList.remove('hidden');
     coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
-    hint.textContent = 'Compresses and AES-GCM-encrypts your message with the password, then hides the ' +
+    hint.textContent = 'Compresses and AES-CTR-encrypts your message with the password, then hides the ' +
       'ciphertext in ' + encLangById(encLang).label + ' prose (payload words underlined). ' +
       'Pick the target language on the right; press ⇄ to decode.';
   } else {
