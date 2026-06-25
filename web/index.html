@@ -2095,8 +2095,7 @@ window.encSample = function() {
   if (ENC_SAMPLES.length > 1 && i === encLastSample) i = (i + 1) % ENC_SAMPLES.length;
   encLastSample = i;
   encSetLeftPlain(ENC_SAMPLES[i]);
-  if (!encPassword()) { encGenPassword(); return; }   // seed a strong Latin passphrase
-  encRun();
+  encRun();   // leave the passphrase as-is (blank by default => encode without encryption)
 };
 
 window.encToggle = function() {
