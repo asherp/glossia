@@ -1,6 +1,10 @@
 # Glossia
 
-Glossia encodes binary data (BIP39 mnemonics, API keys, arbitrary payloads) into grammatically correct natural language. It combines context-free grammars with Montague Grammar (lambda calculus) so that payload words are hidden as grammatically valid constituents within natural-looking prose. Decoding is trivial: filter output against the payload wordlist.
+Glossia encodes binary data (BIP39 mnemonics, API keys, arbitrary payloads) into grammatically correct natural language. It combines context-free grammars with Montague Grammar (lambda calculus) so that payload words are embedded as grammatically valid constituents within natural-looking prose. Decoding is trivial: filter output against the payload wordlist.
+
+## Positioning (keep this framing)
+
+Glossia is **a readable encoding, not steganography**. The goal is not to hide that data is present — it is to make machine data (ciphertext, keys, signatures, hashes, mnemonics) *human-friendly*: readable, speakable, transcribable, verifiable. Because it hides nothing, every payload word carries its full ~11–15 bits, where steganography nets <1 bit per symbol. When iterating, optimize for legibility and density, not concealment, and make machine data human-friendly **without sacrificing too much security**. Avoid "hide/hidden/conceal" framing in copy and docs.
 
 ## Architecture
 

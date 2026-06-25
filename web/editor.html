@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glossia Editor</title>
-<meta name="description" content="Full-screen Glossia editor — encode and decode text in real time across all modalities.">
+<meta name="description" content="Full-screen Glossia editor — encode and decode text and ASCII armor in real time.">
 
 <style>
 :root {
@@ -499,8 +499,6 @@ mark {
       <div class="preset-tabs">
         <button class="preset-tab active" data-tab="text">Text</button>
         <button class="preset-tab" data-tab="crypto">Crypto</button>
-        <button class="preset-tab" data-tab="music">Music</button>
-        <button class="preset-tab" data-tab="image">Image</button>
         <button class="preset-tab" data-tab="pipelines">Pipelines</button>
       </div>
       <div class="preset-tab-content active" data-tab="text">
@@ -527,36 +525,6 @@ mark {
         <button class="btn-sm preset-btn" data-meta="encode into ascii7" title="Plain ASCII message">ASCII7</button>
         <button class="btn-sm preset-btn" data-meta="encode into cs raw" title="Raw encoding, no armor">Raw</button>
       </div>
-      <div class="preset-tab-content" data-tab="music">
-        <button class="btn-sm preset-btn" data-meta="encode into music" title="Chromatic scored notation">Chromatic</button>
-        <button class="btn-sm preset-btn" data-meta="encode into music pentatonic" title="Pentatonic scale notation">Pentatonic</button>
-        <button class="btn-sm preset-btn" data-meta="encode into music blues" title="Blues scale notation">Blues</button>
-      </div>
-      <div class="preset-tab-content" data-tab="image" style="flex-direction:column; gap:0.25rem;">
-        <div class="image-row">
-          <span class="image-group-label">Layout</span>
-          <button class="btn-sm image-layout-btn active" data-layout="voronoi" title="Voronoi mosaic layout">Voronoi</button>
-          <button class="btn-sm image-layout-btn" data-layout="grid" title="Rectangular grid layout">Grid</button>
-          <button class="btn-sm image-layout-btn" data-layout="constellation" title="Circular dots on dark background">Constellation</button>
-          <button class="btn-sm image-layout-btn" data-layout="patches" title="4-column patch grid">Patches</button>
-        </div>
-        <div class="image-row">
-          <span class="image-group-label">Shape</span>
-          <button class="btn-sm image-shape-btn active" data-shape="rect" title="Rectangular canvas">Rect</button>
-          <button class="btn-sm image-shape-btn" data-shape="disk" title="Circular clipping">Disk</button>
-        </div>
-        <div class="image-row">
-          <span class="image-group-label">Palette</span>
-          <button class="btn-sm image-palette-btn active" data-palette="viridis" title="Deep purple through teal to yellow-green (128 colors)">viridis</button>
-          <button class="btn-sm image-palette-btn" data-palette="plasma" title="Dark purple through magenta to orange-yellow (128 colors)">plasma</button>
-          <button class="btn-sm image-palette-btn" data-palette="inferno" title="Near-black through red-orange to bright yellow (128 colors)">inferno</button>
-          <button class="btn-sm image-palette-btn" data-palette="magma" title="Near-black through purple-pink to pale white (64 colors)">magma</button>
-          <button class="btn-sm image-palette-btn" data-palette="cividis" title="Dark blue through olive-grey to yellow, CVD-safe (128 colors)">cividis</button>
-          <button class="btn-sm image-palette-btn" data-palette="turbo" title="Dark blue through rainbow to dark red (8 colors)">turbo</button>
-          <button class="btn-sm image-palette-btn" data-palette="mako" title="Deep purple-black through teal to pale cyan (64 colors)">mako</button>
-          <button class="btn-sm image-palette-btn" data-palette="rocket" title="Near-black through magenta to pale white (32 colors)">rocket</button>
-        </div>
-      </div>
       <div class="preset-tab-content" data-tab="pipelines">
         <button class="btn-sm preset-btn" data-meta="transcode from latin into english" title="Translate Latin prose to English prose">Latin &rarr; English</button>
         <button class="btn-sm preset-btn" data-meta="transcode from english into latin" title="Translate English prose to Latin prose">English &rarr; Latin</button>
@@ -582,7 +550,7 @@ mark {
             <code>transcode from &lt;source&gt; into &lt;target&gt;</code>
           </div>
           <div style="margin-bottom:0.5rem;">
-            <strong style="color:var(--text);">Targets:</strong> english, latin, czech, pgp, nostr, music, hex, base64, ascii7
+            <strong style="color:var(--text);">Targets:</strong> english, latin, czech, pgp, nostr, hex, base64, ascii7
           </div>
           <div>
             <strong style="color:var(--text);">Modifiers:</strong> naturally, compactly, minimally, optimally

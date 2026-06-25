@@ -1588,6 +1588,37 @@ mod tests {
     }
 
     #[test]
+    fn roundtrip_prose_arbitrary_len_prefix_recoverable() {
+        // The encryption demo tab frames its ciphertext as [len:u32][blob] and
+        // decodes prose with expected_byte_count = 0 (unknown length), relying on
+        // the decoded hex PREFIX matching the encoded bytes (trailing bit-pack
+        // padding is dropped via the length prefix). Verify that assumption for
+        // several odd payload lengths and both prose-wrapped and bare output.
+        for len in [29usize, 41, 60, 73, 128] {
+            let bytes: Vec<u8> = (0..len).map(|i| (i as u32 * 37 + 11) as u8).collect();
+            let hex_in = codec::hex_encode(&bytes);
+
+            for dialect in ["", "body"] {
+                let enc_json = encode_raw_base_n(&hex_in, "english", "bip39", dialect, 42);
+                let enc: serde_json::Value = serde_json::from_str(&enc_json).unwrap();
+                assert!(enc.get("error").is_none(), "encode error (len {}, dialect {:?}): {}", len, dialect, enc_json);
+                let text = enc["encoded_text"].as_str().unwrap();
+
+                let dec_json = decode_raw_base_n(text, "english", "bip39", 0);
+                let dec: serde_json::Value = serde_json::from_str(&dec_json).unwrap();
+                assert!(dec.get("error").is_none(), "decode error (len {}, dialect {:?}): {}", len, dialect, dec_json);
+                let hex_out = dec["decoded_hex"].as_str().unwrap();
+
+                assert!(
+                    hex_out.starts_with(&hex_in),
+                    "len {} dialect {:?}: decoded hex prefix mismatch\n  in : {}\n  out: {}",
+                    len, dialect, hex_in, hex_out
+                );
+            }
+        }
+    }
+
+    #[test]
     fn empty_dialect_has_no_cover_words() {
         let encoded_json = encode_raw_base_n(SIG_HEX_64, "latin", "default", "", 42);
         let enc: serde_json::Value = serde_json::from_str(&encoded_json).unwrap();
