@@ -46,6 +46,10 @@ body {
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
+  /* Auto-growing demo boxes change height when output length changes (e.g.
+     switching language); scroll anchoring would otherwise keep a lower element
+     fixed and push the box top up out of view. Disable it so the box top stays. */
+  overflow-anchor: none;
 }
 .container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem; position: relative; }
 
@@ -837,7 +841,7 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-bip39">
         <div class="section-header">
           <h3>BIP39 Seed Phrase</h3>
-          <p>Turn a recovery phrase into a readable sentence &mdash; and back again, byte-for-byte</p>
+          <p>Turn a seed phrase into a memorable madlib or latin proverb &mdash; check that either decodes into the original.</p>
         </div>
 
         <div class="panels">
