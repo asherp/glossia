@@ -846,11 +846,17 @@ footer a:hover { text-decoration: underline; }
         .enc-entropy { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); white-space: nowrap; }
         .enc-entropy.strong { color: var(--success); }
         .enc-key { color: var(--text-dim); word-break: break-all; }
-        .enc-note-ref { color: var(--accent); text-decoration: none; font-weight: 700; }
-        .enc-note { max-width: 700px; margin: 1rem auto 0; font-size: 0.75rem; line-height: 1.6;
-          color: var(--text-dim); text-align: center; scroll-margin-top: 2rem; }
-        .enc-note strong { color: var(--accent); }
-        .enc-note a { color: var(--accent); }
+        .enc-how { max-width: 700px; margin: 1.25rem auto 0; scroll-margin-top: 2rem; }
+        .enc-how summary { cursor: pointer; width: fit-content; margin: 0 auto;
+          font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase;
+          letter-spacing: 0.05em; color: var(--text-dim); }
+        .enc-how summary:hover { color: var(--accent); }
+        .enc-how[open] summary { margin-bottom: 0.75rem; }
+        .enc-how-body { font-size: 0.78rem; line-height: 1.6; color: var(--text-dim); text-align: left; }
+        .enc-how-body p { margin: 0 0 0.7rem; }
+        .enc-how-body p:last-child { margin-bottom: 0; }
+        .enc-how-body strong { color: var(--accent); }
+        .enc-how-body a { color: var(--accent); }
       </style>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
@@ -944,7 +950,7 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-encrypt">
         <div class="section-header">
           <h3>Madlib Encoding</h3>
-          <p>Compress and optionally password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into readable prose &mdash; encrypting adds a compact <code>key:</code> prefix carrying the salt &mdash; and decode it back byte-for-byte (with the same passphrase, if one was set)</p>
+          <p>Turn any text into readable prose &mdash; add a passphrase to encrypt it, or leave it blank to just encode. Decodes back byte-for-byte.</p>
         </div>
 
         <div class="enc-password-row">
@@ -989,18 +995,28 @@ footer a:hover { text-decoration: underline; }
 
         <p class="demo-hint" id="enc-hint"></p>
 
-        <p class="enc-note" id="enc-note">
-          <strong>*</strong> AES-CTR keeps your message confidential but is <em>not</em> authenticated &mdash; it
-          can&rsquo;t detect tampering. In principle, someone who intercepts the ciphertext could flip bits to
-          alter the decoded message in controlled ways, without ever knowing the passphrase. That&rsquo;s
-          impractical here, where messages are copy-pasted by hand into chats and posts, but it&rsquo;s a real
-          property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a signed
-          protocol like <a href="https://nostr-mail.com" target="_blank" rel="noopener">nostr-mail</a>.
-          The base64 <code>key:</code> is plaintext metadata &mdash; the payload length, plus a per-message
-          salt when a passphrase is set &mdash; not a secret and not part of the passphrase; only the
-          passphrase unlocks an encrypted message. With no passphrase, the text is encoded (and possibly
-          compressed) but <em>not</em> encrypted, and there is no salt.
-        </p>
+        <details class="enc-how" id="enc-how">
+          <summary>How it works</summary>
+          <div class="enc-how-body">
+            <p><strong>Encoding.</strong> Your text is compressed (gzip or a 7-bit ASCII pack, whichever is
+            smaller) and bit-packed into payload words, which are woven into grammatically valid prose.
+            Decoding filters the prose back down to those words and reverses the packing &mdash;
+            byte-for-byte. With no passphrase the output is pure prose; a tiny <code>[flag][length]</code>
+            header rides along inside the payload, so there&rsquo;s nothing else to carry.</p>
+            <p><strong>Encryption.</strong> Add a passphrase and the compressed bytes are encrypted with
+            AES-CTR before encoding. The passphrase is stretched with PBKDF2 (SHA-256, 200k iterations) to
+            derive both the key and the nonce from a fresh per-message salt, so the nonce never has to be
+            transmitted. The artifact gains a compact <code>key:</code> prefix &mdash; base64url plaintext
+            metadata holding the salt and ciphertext length, not a secret. Only the passphrase unlocks the
+            message.</p>
+            <p><strong>Caveat.</strong> AES-CTR keeps your message confidential but is <em>not</em>
+            authenticated &mdash; it can&rsquo;t detect tampering. Someone who intercepts the ciphertext could
+            flip bits to alter the decoded message in controlled ways without ever knowing the passphrase.
+            That&rsquo;s impractical for messages copy-pasted by hand into chats and posts, but it&rsquo;s a
+            real property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a
+            signed protocol like <a href="https://nostr-mail.com" target="_blank" rel="noopener">nostr-mail</a>.</p>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -1921,21 +1937,15 @@ function encUpdateChrome() {
     coverBtn.classList.remove('hidden');
     coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
     hint.textContent = encPassword()
-      ? 'Compresses and AES-CTR-encrypts your message, then writes a “key: value” pair — the ' +
-        'base64 key holds the per-message salt, the ' + encLangById(encLang).label + ' prose holds the ciphertext ' +
-        '(payload words underlined). Pick the target language on the right; press ⇄ to decode.'
-      : 'No passphrase — compresses and encodes your message (not encrypted) into ' +
-        encLangById(encLang).label + ' prose (payload words underlined). Add a passphrase to encrypt; ' +
-        'press ⇄ to decode.';
+      ? 'Encrypting, then encoding as ' + encLangById(encLang).label + ' prose. Press ⇄ to decode.'
+      : 'Encoding as ' + encLangById(encLang).label + ' prose — no passphrase, not encrypted. Press ⇄ to decode.';
   } else {
     document.getElementById('enc-left-label').textContent = encLangById(encDetLang).label + ' sentences (detected)';
     document.getElementById('enc-right-label').textContent = 'Decoded message';
     langRow.classList.add('hidden');
     genBtn.classList.add('hidden');
     coverBtn.classList.add('hidden');
-    hint.textContent = 'Detected ' + encLangById(encDetLang).label + ' prose (payload words underlined); ' +
-      'decoding to recover the original message (a passphrase is needed only if it was encrypted). ' +
-      'Press ⇄ to go back to encoding.';
+    hint.textContent = 'Decoding ' + encLangById(encDetLang).label + ' prose back to your message. Press ⇄ to encode.';
   }
   encUpdateHighlights();
 }
