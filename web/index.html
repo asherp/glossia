@@ -995,6 +995,8 @@ footer a:hover { text-decoration: underline; }
           impractical here, where messages are copy-pasted by hand into chats and posts, but it&rsquo;s a real
           property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a signed
           protocol like <a href="https://nostr.com" target="_blank" rel="noopener">nostr</a>.
+          The base64 <code>key:</code> is plaintext metadata &mdash; a per-message salt and the ciphertext
+          length &mdash; not a secret and not part of the password; only the password unlocks the message.
         </p>
       </div>
     </section>
@@ -1799,7 +1801,7 @@ function encSplitArtifact(text) {
 // ctHex separately (so language/cover changes don't re-encrypt).
 async function encEncrypt(message, password) {
   const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
-  const salt = crypto.getRandomValues(new Uint8Array(12));
+  const salt = crypto.getRandomValues(new Uint8Array(8));
   const { key, nonce } = await encDeriveKeyNonce(password, salt);
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
   return { header: encBuildHeader(flag, ct.length, salt), ctHex: toHex(ct) };
