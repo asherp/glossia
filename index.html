@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glossia - A Lossless Linguistic Codec</title>
-<meta name="description" content="Glossia encodes binary data into natural language, ASCII armor, note sequences, and color palettes — all composed through natural-language pipeline specifications and unified by formal grammar theory.">
+<meta name="description" content="Glossia transforms machine data — cryptographic keys, signatures, hashes, encrypted messages — into structured language and other human-friendly forms, with perfect round-trip fidelity. Human interfaces for machine data.">
 
 <style>
 :root {
@@ -46,6 +46,10 @@ body {
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
+  /* Auto-growing demo boxes change height when output length changes (e.g.
+     switching language); scroll anchoring would otherwise keep a lower element
+     fixed and push the box top up out of view. Disable it so the box top stays. */
+  overflow-anchor: none;
 }
 .container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem; position: relative; }
 
@@ -132,7 +136,7 @@ body {
 .control-group label input[type="checkbox"] {
   cursor: pointer;
 }
-select, input[type="number"], input[type="text"] {
+select, input[type="number"], input[type="text"], input[type="password"] {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
@@ -161,7 +165,7 @@ input[type="number"] { width: 80px; }
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  min-height: 260px;
+  min-height: 0;
   overflow: hidden;
 }
 .panel-left { border-radius: 8px; }
@@ -229,7 +233,7 @@ textarea::placeholder { color: var(--text-dim); }
   line-height: 1.8;
   word-wrap: break-word;
   font-family: var(--font-mono);
-  overflow-y: auto;
+  min-height: 64px;
   color: var(--text);
 }
 .output-area svg, #input-image-preview svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
@@ -618,6 +622,79 @@ footer a:hover { text-decoration: underline; }
 .branching-diagram .highlight { color: var(--accent); font-weight: 600; }
 
 
+/* Problem section: ciphertext vs. language */
+.cipher-demo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem auto 0;
+  max-width: 760px;
+}
+.cipher-demo code {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.cipher-demo .ciphertext {
+  color: var(--error);
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  word-break: break-all;
+}
+.cipher-demo .plaintext {
+  color: var(--success);
+  background: rgba(34, 197, 94, 0.08);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+.cipher-demo .cipher-arrow {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.problem-note, .guarantee {
+  max-width: 720px;
+  margin: 1.5rem auto 0;
+  text-align: center;
+  font-size: 0.95rem;
+  color: var(--text-dim);
+  line-height: 1.75;
+}
+.guarantee strong { color: var(--text); }
+.problem-note strong { color: var(--accent); }
+
+/* What Glossia does: application list */
+.applications {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.75rem;
+  max-width: 760px;
+  margin: 1.5rem auto 0;
+}
+.applications li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.85rem 1rem 0.85rem 2.1rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  box-shadow: var(--shadow);
+  position: relative;
+}
+.applications li::before {
+  content: "\2192";
+  position: absolute;
+  left: 0.9rem;
+  color: var(--accent);
+  font-weight: 700;
+}
+
 /* Animations */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
@@ -681,7 +758,7 @@ footer a:hover { text-decoration: underline; }
   <div class="top-bar">
     <div class="top-bar-title">
       <h1>GLOSSIA:</h1>
-      <span class="tagline">a universal linguistic codec</span>
+      <span class="tagline">human interfaces for machine data</span>
     </div>
     <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9790;</button>
   </div>
@@ -696,16 +773,47 @@ footer a:hover { text-decoration: underline; }
          1. HERO (Revised)
          ═══════════════════════════════════════════════════════════ -->
     <section class="hero animate-in">
-      <h2>One Grammar, Many Modalities</h2>
+      <h2>Computers Speak in Hex.<br>Humans Speak in Language.</h2>
       <p class="subtitle">
-        Prose, ASCII armor, note sequences, color palettes
-        — mix and match modalities through pipeline composition, all unified by formal grammar theory.
+        Glossia bridges the gap. Keys, signatures, hashes, encrypted messages, wallet addresses,
+        access tokens — the things we're asked to copy, verify, and trust are built for machines,
+        not people. Glossia transforms that data into structured language and other human-friendly
+        forms, with perfect round-trip fidelity.
       </p>
 
       <div class="cta">
         <a href="#demo">Try the Demo</a>
         <a href="editor.html" style="background:transparent; color:var(--accent); border:2px solid var(--accent); margin-left:0.75rem;">Open Editor</a>
       </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         THE PROBLEM IS PRESENTATION
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="section-header">
+        <h3>The Problem Isn't Encryption. It's Presentation.</h3>
+        <p>Most people recoil at ciphertext — even when the data is perfectly secure, it feels foreign and inaccessible.</p>
+      </div>
+      <div class="cipher-demo">
+        <code class="ciphertext">f4b7c912e8a1d0f3a6b2&hellip;</code>
+        <span class="cipher-arrow">same bytes&nbsp;&rarr;</span>
+        <code class="plaintext">the quiet harbor keeps every distant sail</code>
+      </div>
+      <p class="problem-note">
+        Humans assign meaning and legitimacy to familiar forms of communication. A passage of
+        Latin carries different weight than a block of hexadecimal, even when neither is understood
+        by the reader. Glossia exploits this: the same payload can be represented as structured
+        English, Latin prose, ASCII armor, and other human-friendly forms — without changing a
+        single bit. The goal isn't compression or secrecy — it's reducing the language barrier
+        between humans and digital systems.
+      </p>
+      <p class="problem-note">
+        And to be clear, this <strong>isn't steganography</strong>. Glossia doesn't hide that data is
+        present — it makes the data itself legible, meant to be seen and decoded. Freed from spending
+        capacity on concealment, every payload word carries its full 11–15 bits, where hiding data
+        inside text nets well under one per symbol.
+      </p>
     </section>
 
     <!-- ═══════════════════════════════════════════════════════════
@@ -719,29 +827,36 @@ footer a:hover { text-decoration: underline; }
         .demo-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; margin-top: 0.85rem; }
         #demo .panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         #demo .panel-header .lang-row { margin-left: auto; }
-        .io-input { flex: 1; min-height: 160px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
+        .io-input { flex: 1; min-height: 64px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
           font-family: var(--font-mono); line-height: 1.7; color: var(--text); outline: none;
-          white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
+          white-space: pre-wrap; overflow-wrap: anywhere; }
         .io-input:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
         .io-input u, .output-area u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
-        .usecase-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1rem; }
-        .usecase-tab { padding: 0.5rem 1rem; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500;
-          color: var(--text-dim); cursor: pointer; border: none; background: none;
-          border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; }
-        .usecase-tab:hover { color: var(--text); }
-        .usecase-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        /* Stacked demos (no tabs): encryption first, each visually separated. */
+        .demo-section { display: flex; flex-direction: column; }
+        #panel-encrypt { order: -1; }
+        #panel-bip39, #panel-apikey { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+        .enc-password-row { display: flex; align-items: center; justify-content: center;
+          gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .enc-password-row label { font-family: var(--font-mono); font-size: 0.65rem;
+          text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+        .enc-password-row label .req { color: var(--error); }
+        .enc-password-row input { min-width: 260px; }
+        .enc-entropy { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); white-space: nowrap; }
+        .enc-entropy.strong { color: var(--success); }
+        .enc-key { color: var(--text-dim); word-break: break-all; }
+        .enc-note-ref { color: var(--accent); text-decoration: none; font-weight: 700; }
+        .enc-note { max-width: 700px; margin: 1rem auto 0; font-size: 0.75rem; line-height: 1.6;
+          color: var(--text-dim); text-align: center; scroll-margin-top: 2rem; }
+        .enc-note strong { color: var(--accent); }
+        .enc-note a { color: var(--accent); }
       </style>
-
-      <div class="usecase-tabs">
-        <button class="usecase-tab active" data-uc="bip39">BIP39 Seed</button>
-        <button class="usecase-tab" data-uc="apikey">API Key</button>
-      </div>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
       <div id="panel-bip39">
         <div class="section-header">
           <h3>BIP39 Seed Phrase</h3>
-          <p>Turn a recovery phrase into a readable sentence &mdash; and back again, byte-for-byte</p>
+          <p>Turn a seed phrase into a memorable madlib or latin proverb &mdash; check that either decodes into the original.</p>
         </div>
 
         <div class="panels">
@@ -781,7 +896,7 @@ footer a:hover { text-decoration: underline; }
       </div>
 
       <!-- ─── API Key panel ───────────────────────────────────────── -->
-      <div id="panel-apikey" class="hidden">
+      <div id="panel-apikey">
         <div class="section-header">
           <h3>API Key / Secret Token</h3>
           <p>Turn an opaque key into a readable sentence &mdash; dictate it, paste it, decode it back byte-for-byte</p>
@@ -823,14 +938,96 @@ footer a:hover { text-decoration: underline; }
 
         <p class="demo-hint" id="ak-hint"></p>
       </div>
+
+      <!-- ─── Encrypted Message panel ─────────────────────────────── -->
+      <div id="panel-encrypt">
+        <div class="section-header">
+          <h3>Madlib Encryption</h3>
+          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into a <code>key:&nbsp;value</code> pair &mdash; a compact salt key, the ciphertext as readable prose &mdash; and decode it back byte-for-byte with the same password</p>
+        </div>
+
+        <div class="enc-password-row">
+          <label for="enc-pass">Password <span class="req" title="required">*</span></label>
+          <input type="text" id="enc-pass" placeholder="Type a password, or generate a Latin seed phrase &rarr;" autocomplete="off" spellcheck="false" required aria-required="true">
+          <button class="btn-sm" id="enc-genpass-btn" onclick="encGenPassword()" title="Generate a strong, high-entropy Latin seed phrase">&#127922; Latin seed phrase</button>
+          <span class="enc-entropy" id="enc-entropy"></span>
+        </div>
+
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="enc-left-label">Message</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="enc-left-box" class="io-input" data-placeholder="Type a secret message&hellip;"></div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="enc-gen-btn" onclick="encSample()" title="Insert a random sample quote">&#127922; Random quote</button>
+              <div id="enc-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
+          </div>
+
+          <button class="swap-btn" id="enc-swap-btn" onclick="encToggle()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="enc-right-label">English sentences</span>
+              <div class="lang-row" id="enc-langs"></div>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="enc-right-box">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="enc-cover-btn" onclick="encToggleCover()" title="Show or hide the cover words">Hide cover</button>
+              <button class="btn-sm" id="enc-copy-btn" onclick="encCopy()">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="demo-hint" id="enc-hint"></p>
+
+        <p class="enc-note" id="enc-note">
+          <strong>*</strong> AES-CTR keeps your message confidential but is <em>not</em> authenticated &mdash; it
+          can&rsquo;t detect tampering. In principle, someone who intercepts the ciphertext could flip bits to
+          alter the decoded message in controlled ways, without ever knowing the password. That&rsquo;s
+          impractical here, where messages are copy-pasted by hand into chats and posts, but it&rsquo;s a real
+          property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a signed
+          protocol like <a href="https://nostr-mail.com" target="_blank" rel="noopener">nostr-mail</a>.
+          The base64 <code>key:</code> is plaintext metadata &mdash; a per-message salt and the ciphertext
+          length &mdash; not a secret and not part of the password; only the password unlocks the message.
+        </p>
+      </div>
     </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         WHAT GLOSSIA DOES
+         ═══════════════════════════════════════════════════════════ -->
+    <div class="section-header">
+      <h3>What Glossia Does</h3>
+      <p>A lossless framework that converts binary data into human-oriented representations.</p>
+    </div>
+    <ul class="applications">
+      <li>Human-friendly cryptographic messages</li>
+      <li>Verifiable signatures and proofs</li>
+      <li>Mnemonic representations of keys and identifiers</li>
+      <li>Machine-readable text that survives email, chat, and documents</li>
+      <li>Accessible interfaces for complex technical systems</li>
+      <li>Alternative representations across other human-friendly forms</li>
+    </ul>
+    <p class="guarantee">
+      Every representation decodes back to the exact original bytes.
+      <strong>No approximation. No AI interpretation. No information loss.</strong>
+      Just a different language for the same data.
+    </p>
 
     <!-- ═══════════════════════════════════════════════════════════
          WHY GLOSSIA?
          ═══════════════════════════════════════════════════════════ -->
     <div class="section-header">
       <h3>Why Glossia?</h3>
-      <p>A composable codec algebra for every modality — not just text</p>
+      <p>The practical payoff of machine data that reads like language</p>
     </div>
     <div class="features">
       <div class="feature-card">
@@ -871,7 +1068,7 @@ footer a:hover { text-decoration: underline; }
     <section class="how-it-works">
       <div class="section-header">
         <h3>How It Works</h3>
-        <p>The encoding pipeline branches into four modalities — decoding reverses the same path</p>
+        <p>The encoding pipeline turns bytes into prose or ASCII armor — decoding reverses the same path</p>
       </div>
       <div class="branching-diagram">
               <span class="highlight">Input bytes</span>
@@ -881,14 +1078,14 @@ footer a:hover { text-decoration: underline; }
           <span class="highlight">Payload tokens</span>
                   |
          CFG + Montague Types
-           /    |    \     \
-          /     |     \     \
-     <span class="highlight">Text</span>  <span class="highlight">Crypto</span>  <span class="highlight">Music</span>  <span class="highlight">Image</span>
-       |      |       |      |
-     Prose  Armor   Score  Colors</div>
+                /      \
+               /        \
+          <span class="highlight">Text</span>        <span class="highlight">Crypto</span>
+            |             |
+          Prose         Armor</div>
       <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);text-align:center;max-width:700px;margin-left:auto;margin-right:auto;">
-        <strong>Decoding is the same principle for every modality:</strong> filter the output against the payload wordlist
-        (or palette, or note set) to recover encoded tokens, then reverse the codec to get the original bytes.
+        <strong>Decoding follows the same principle:</strong> filter the output against the payload wordlist
+        to recover the encoded tokens, then reverse the codec to get the original bytes.
       </p>
     </section>
 
@@ -923,6 +1120,8 @@ import init, {
   render_image_svg as wasmRenderImageSvg,
   decode_image_from_colors as wasmDecodeImageFromColors,
   get_default_wordlist as wasmGetDefaultWordlist,
+  encode_raw_base_n as wasmEncodeRawBaseN,
+  decode_raw_base_n as wasmDecodeRawBaseN,
 } from './glossia.js';
 
 let ready = false;
@@ -978,22 +1177,27 @@ function placeCaretEnd(el) {
   s.addRange(r);
 }
 
-// Cover-word visibility for the prose output (shared by both panels).
-let showCover = true;
+// Cover-word visibility is tracked independently per demo panel.
+let coverBip = true;   // BIP39 panel
+let coverAk = true;    // API Key panel
+let coverEnc = true;   // Encrypted Message panel
 
 // The cleaned payload words present in prose, in order (cover words dropped).
+// Payload words are case-insensitive (and BIP39 words are canonically
+// lowercase), so the payload-only view normalizes them to lowercase.
 function payloadTokens(text, set) {
   return text.split(/\s+/)
     .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
-    .filter(t => t && set.has(norm(t)));
+    .filter(t => t && set.has(norm(t)))
+    .map(t => t.toLowerCase());
 }
 function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
 
 // Render prose either in full (cover words present, payload underlined) or
-// payload-only (cover words removed, payload underlined).
-function renderProse(text, set) {
-  if (showCover) return underlineProse(text, set);
-  return payloadTokens(text, set).map(t => '<u>' + escapeHtml(t) + '</u>').join(' ');
+// payload-only (cover words removed, shown plain — no underline).
+function renderProse(text, set, cover) {
+  if (cover) return underlineProse(text, set);
+  return payloadTokens(text, set).map(t => escapeHtml(t)).join(' ');
 }
 
 // ─── Left box (contenteditable) accessors ────────────────────────────
@@ -1099,7 +1303,7 @@ function updateChrome() {
   const coverBtn = document.getElementById('cover-btn');
   if (mode === 'encode') {
     coverBtn.classList.remove('hidden');
-    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+    coverBtn.textContent = coverBip ? 'Hide cover' : 'Show cover';
   } else {
     coverBtn.classList.add('hidden');
   }
@@ -1149,7 +1353,7 @@ function run() {
     if (mode === 'encode') {
       // Right box holds the prose — underline payload words, honor cover toggle.
       const set = normSet(result.payload_words || []);
-      setOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+      setOutput(coverBip ? out : payloadOnlyText(out, set), renderProse(out, set, coverBip));
     } else {
       // Right box holds bare seed words (no underline); left box holds the
       // prose — underline its payload words.
@@ -1196,8 +1400,8 @@ window.copyOutput = function() {
 };
 
 window.toggleCover = function() {
-  showCover = !showCover;
-  run();          // re-encode from the (stable) seed and re-render per showCover
+  coverBip = !coverBip;
+  run();          // re-encode from the (stable) seed and re-render per coverBip
   updateChrome();
 };
 
@@ -1314,7 +1518,7 @@ function akUpdateChrome() {
   const coverBtn = document.getElementById('ak-cover-btn');
   if (akMode === 'encode') {
     coverBtn.classList.remove('hidden');
-    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+    coverBtn.textContent = coverAk ? 'Hide cover' : 'Show cover';
   } else {
     coverBtn.classList.add('hidden');
   }
@@ -1341,7 +1545,7 @@ function akRun() {
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
       const set = normSet(r.payload_words || []);
-      akSetOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+      akSetOutput(coverAk ? out : payloadOnlyText(out, set), renderProse(out, set, coverAk));
       akUpdateChrome();   // refresh the detected-format chip
     } else {
       const meta = 'transcode from ' + akLangById(akDetLang).source + ' into ' + akFmtById(akFormat).word;
@@ -1386,19 +1590,462 @@ window.akCopy = function() {
 };
 
 window.akToggleCover = function() {
-  showCover = !showCover;
-  akRun();        // re-encode from the (stable) key and re-render per showCover
+  coverAk = !coverAk;
+  akRun();        // re-encode from the (stable) key and re-render per coverAk
 };
 
-// ═══ Use-case selector ═══════════════════════════════════════════════
+// ═══ Encrypted Message panel ═════════════════════════════════════════
+//
+// Symmetric Google-Translate model with a shared password:
+//   encode: message + password -> compress -> AES-CTR encrypt -> "<key>: prose"
+//   decode: "<key>: prose" + password -> decrypt -> decompress -> message
+//
+// The artifact is a key:value pair — the base64url <key> carries the plumbing
+// (flag + ciphertext length + salt), and the prose value carries only the
+// Glossia-encoded ciphertext. The ciphertext is random per encryption, so the
+// cover toggle and language buttons re-render from the cached cipher (encCipher)
+// rather than re-encrypting; encode_raw_base_n uses the fixed SEED, so
+// re-rendering the same ciphertext into the same language is deterministic.
 
-window.selectUseCase = function(uc) {
-  document.querySelectorAll('.usecase-tab').forEach(t => t.classList.toggle('active', t.dataset.uc === uc));
-  document.getElementById('panel-bip39').classList.toggle('hidden', uc !== 'bip39');
-  document.getElementById('panel-apikey').classList.toggle('hidden', uc !== 'apikey');
-  // Re-render the shown panel so labels, highlights, and cover state are current.
-  if (uc === 'apikey') { akRun(); } else { updateChrome(); run(); }
+const ENC_LANGS = [
+  { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
+  { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
+  { id: 'czech',   label: 'Czech',   language: 'czech',   wordlist: 'default', dialect: 'body' },
+];
+function encLangById(id) { return ENC_LANGS.find(l => l.id === id) || ENC_LANGS[0]; }
+
+let encMode = 'encode';       // 'encode' (message -> prose) or 'decode' (prose -> message)
+let encLang = 'english';      // TARGET language (right buttons, encode), persists
+let encDetLang = 'english';   // SOURCE language auto-detected from left prose (decode)
+let encCipher = null;         // last { header, ctHex } (encode), drives re-render
+let encTimer = null;
+let encRunId = 0;             // guards against stale async renders
+
+function encLeftText() { return document.getElementById('enc-left-box').innerText; }
+function encSetLeftPlain(t) { document.getElementById('enc-left-box').textContent = t; }
+function encPassword() { return document.getElementById('enc-pass').value; }
+function encShowError(m) { const e = document.getElementById('enc-error'); e.textContent = m; e.classList.remove('hidden'); }
+function encClearError() { document.getElementById('enc-error').classList.add('hidden'); }
+
+function encSetOutput(text, html) {
+  const el = document.getElementById('enc-right-box');
+  if (!text) { el.classList.add('empty'); el.textContent = 'Output will appear here'; el.dataset.plainText = ''; return; }
+  el.classList.remove('empty');
+  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
+  el.dataset.plainText = text;
+}
+
+// Render the "<key>: prose" artifact: dim base64url key, then the prose value.
+function encSetArtifact(header, prosePlain, proseHtml) {
+  const el = document.getElementById('enc-right-box');
+  el.classList.remove('empty');
+  el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + proseHtml;
+  el.dataset.plainText = header + ': ' + prosePlain;
+}
+
+// ─── compression (CompressionStream) + AES-CTR (WebCrypto) helpers ────
+const ENC_TE = new TextEncoder();
+const ENC_TD = new TextDecoder();
+
+function toHex(bytes) { return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''); }
+function fromHex(h) {
+  const clean = h.trim().toLowerCase().replace(/[^0-9a-f]/g, '');
+  const out = new Uint8Array(clean.length >> 1);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
+  return out;
+}
+
+async function gzipBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function gunzipBytes(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+// Pack pure-ASCII bytes 7-bits-wide: [charCount:u16 BE][7-bit packed stream].
+// Returns null if any byte is >= 128 (needs the full 8th bit) or the message
+// is too long for the u16 count. Saves ~12.5% over raw bytes, with no
+// gzip-style fixed overhead — useful for short ASCII the compressor can't help.
+function asciiPack7(bytes) {
+  const L = bytes.length;
+  if (L > 0xffff) return null;
+  for (let i = 0; i < L; i++) if (bytes[i] > 0x7f) return null;
+  const out = new Uint8Array(2 + Math.ceil(L * 7 / 8));
+  out[0] = (L >> 8) & 0xff; out[1] = L & 0xff;
+  let acc = 0, bits = 0, pos = 2;
+  for (let i = 0; i < L; i++) {
+    acc = (acc << 7) | bytes[i];
+    bits += 7;
+    while (bits >= 8) { bits -= 8; out[pos++] = (acc >> bits) & 0xff; }
+  }
+  if (bits > 0) out[pos++] = (acc << (8 - bits)) & 0xff;
+  return out;
+}
+function asciiUnpack7(packed) {
+  const L = (packed[0] << 8) | packed[1];
+  const out = new Uint8Array(L);
+  let acc = 0, bits = 0, pos = 2, n = 0;
+  while (n < L) {
+    acc = (acc << 8) | (packed[pos++] || 0);
+    bits += 8;
+    while (bits >= 7 && n < L) { bits -= 7; out[n++] = (acc >> bits) & 0x7f; }
+  }
+  return out;
+}
+
+// Pick the smallest representation and record it in the flag byte:
+//   0 = raw UTF-8   1 = gzip   2 = 7-bit ASCII pack
+// gzip wins on longer/repetitive text; 7-bit packing wins on short ASCII
+// where gzip's ~18-byte overhead would make things bigger.
+async function maybeReduce(bytes) {
+  let best = { data: bytes, flag: 0 };
+  const a7 = asciiPack7(bytes);
+  if (a7 && a7.length < best.data.length) best = { data: a7, flag: 2 };
+  if (typeof CompressionStream !== 'undefined') {
+    try {
+      const gz = await gzipBytes(bytes);
+      if (gz.length < best.data.length) best = { data: gz, flag: 1 };
+    } catch (e) { /* keep current best */ }
+  }
+  return best;
+}
+async function expand(bytes, flag) {
+  if (flag === 1) return gunzipBytes(bytes);
+  if (flag === 2) return asciiUnpack7(bytes);
+  return bytes;
+}
+
+// Derive BOTH the AES key and its nonce from password + salt, so the nonce
+// never has to be transmitted. Each message uses a fresh random salt, making
+// the (key, nonce) pair unique per message — which is what keeps the CTR
+// keystream from ever being reused — while saving bytes on the wire.
+async function encDeriveKeyNonce(password, salt) {
+  const baseKey = await crypto.subtle.importKey('raw', ENC_TE.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = new Uint8Array(await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, baseKey, (32 + 12) * 8));
+  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: 'AES-CTR' }, false, ['encrypt', 'decrypt']);
+  return { key, nonce: bits.subarray(32, 44) };
+}
+// 16-byte CTR counter block: 96-bit derived nonce in the high bytes, a 32-bit
+// counter (the low 4 bytes) starting at 0. 2^32 blocks = 64 GB per message.
+function ctrCounter(nonce) {
+  const c = new Uint8Array(16);
+  c.set(nonce, 0);
+  return c;
+}
+
+// Unsigned LEB128 varint (modulo/multiply math, so lengths above 2^31 are safe).
+function varintEncode(n) {
+  const out = [];
+  do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 0x80; out.push(b); } while (n > 0);
+  return new Uint8Array(out);
+}
+function varintDecode(bytes, pos) {
+  let value = 0, mult = 1, p = pos, b;
+  do { b = bytes[p++]; value += (b & 0x7f) * mult; mult *= 128; } while (b & 0x80);
+  return { value, next: p };
+}
+
+// base64url (no padding) for the compact header.
+function b64urlEncode(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(str) {
+  const s = str.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
+  const bin = atob(s + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// Artifact format: "<key>: <prose>".
+//   key   = base64url( [flag:1][ctlen:varint][salt:12] )  — the machine plumbing
+//   prose = Glossia-encoded ciphertext only                — the human-readable value
+// The salt is the unique-per-message key; the ciphertext is the value. AES-CTR is
+// a stream cipher (no tag/padding), so the prose carries exactly the ciphertext.
+//
+// NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
+// cannot detect tampering (see the asterisk note under the demo panel).
+function encBuildHeader(flag, ctlen, salt) {
+  const lp = varintEncode(ctlen);
+  const h = new Uint8Array(1 + lp.length + salt.length);
+  h[0] = flag;
+  h.set(lp, 1);
+  h.set(salt, 1 + lp.length);
+  return b64urlEncode(h);
+}
+function encParseHeader(b64) {
+  const h = b64urlDecode(b64);
+  if (h.length < 2) throw new Error('bad header');
+  const flag = h[0];
+  const { value: ctlen, next } = varintDecode(h, 1);
+  const salt = h.subarray(next);
+  if (salt.length < 8) throw new Error('bad header');
+  return { flag, ctlen, salt };
+}
+// Split "<key>: <prose>" on the first colon (base64url has no ':').
+function encSplitArtifact(text) {
+  const i = text.indexOf(':');
+  if (i < 0) return null;
+  const header = text.slice(0, i).trim();
+  const prose = text.slice(i + 1).trim();
+  if (!header || !prose) return null;
+  return { header, prose };
+}
+
+// Encrypt: message + password -> { header, ctHex }. The prose is rendered from
+// ctHex separately (so language/cover changes don't re-encrypt).
+async function encEncrypt(message, password) {
+  const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
+  const salt = crypto.getRandomValues(new Uint8Array(8));
+  const { key, nonce } = await encDeriveKeyNonce(password, salt);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
+  return { header: encBuildHeader(flag, ct.length, salt), ctHex: toHex(ct) };
+}
+// Decrypt: parsed header + ciphertext bytes + password -> message.
+async function encDecrypt(hdr, ctBytes, password) {
+  const ct = ctBytes.subarray(0, hdr.ctlen);
+  const { key, nonce } = await encDeriveKeyNonce(password, hdr.salt);
+  // CTR is unauthenticated: a wrong password yields a different keystream and
+  // therefore garbled bytes rather than a clean failure. We can only surface an
+  // error when the reduction stage (e.g. gunzip) chokes on the garbage.
+  try {
+    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, ct));
+    return ENC_TD.decode(await expand(plain, hdr.flag));
+  } catch (e) {
+    throw new Error('Could not decode — check the password.');
+  }
+}
+
+// ─── Language buttons ────────────────────────────────────────────────
+function encBuildButtons() {
+  const row = document.getElementById('enc-langs');
+  row.innerHTML = '';
+  for (const l of ENC_LANGS) {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn';
+    b.dataset.encLang = l.id;
+    b.textContent = l.label;
+    b.title = l.label + ' prose';
+    b.addEventListener('click', () => {
+      encLang = l.id;
+      // In encode mode, just re-encode the cached ciphertext into the new
+      // language — no need to re-encrypt (which would change the ciphertext).
+      if (encMode === 'encode' && encCipher) { encUpdateChrome(); encRenderCipher(encCipher); }
+      else { encRun(); }
+    });
+    row.appendChild(b);
+  }
+}
+function encUpdateHighlights() {
+  document.querySelectorAll('#enc-langs .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.encLang === encLang));
+}
+
+// Auto-detect the SOURCE language of the prose value (decode), restricted to
+// the languages this panel supports. Detects on the prose, not the base64 key.
+function encDetectLeftLang() {
+  const parsed = encSplitArtifact(encLeftText().trim());
+  const prose = parsed ? parsed.prose : encLeftText().trim();
+  if (!prose) return;
+  try {
+    const matches = JSON.parse(wasmDetectDialect(prose));
+    if (Array.isArray(matches)) {
+      const best = matches.find(m => ENC_LANGS.some(l => l.language === m.language));
+      if (best) encDetLang = (ENC_LANGS.find(l => l.language === best.language) || {}).id || encDetLang;
+    }
+  } catch (e) { /* keep detected language */ }
+}
+
+function encUpdateChrome() {
+  const langRow = document.getElementById('enc-langs');
+  const genBtn = document.getElementById('enc-gen-btn');
+  const coverBtn = document.getElementById('enc-cover-btn');
+  const hint = document.getElementById('enc-hint');
+  if (encMode === 'encode') {
+    document.getElementById('enc-left-label').textContent = 'Message';
+    document.getElementById('enc-right-label').textContent = encLangById(encLang).label + ' sentences';
+    langRow.classList.remove('hidden');
+    genBtn.classList.remove('hidden');
+    coverBtn.classList.remove('hidden');
+    coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
+    hint.textContent = 'Compresses and AES-CTR-encrypts your message, then writes a “key: value” pair — the ' +
+      'base64 key holds the per-message salt, the ' + encLangById(encLang).label + ' prose holds the ciphertext ' +
+      '(payload words underlined). Pick the target language on the right; press ⇄ to decode.';
+  } else {
+    document.getElementById('enc-left-label').textContent = encLangById(encDetLang).label + ' sentences (detected)';
+    document.getElementById('enc-right-label').textContent = 'Decrypted message';
+    langRow.classList.add('hidden');
+    genBtn.classList.add('hidden');
+    coverBtn.classList.add('hidden');
+    hint.textContent = 'Detected ' + encLangById(encDetLang).label + ' prose (payload words underlined); ' +
+      'decrypting with the password to recover the original message. Press ⇄ to go back to encrypting.';
+  }
+  encUpdateHighlights();
+}
+
+// Re-underline the left box's prose value (decode), preserving the "<key>: "
+// prefix and underlining only payload words in the prose.
+function encUnderlineLeftArtifact(header, prose, words) {
+  const el = document.getElementById('enc-left-box');
+  const focused = (document.activeElement === el);
+  el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + underlineProse(prose, normSet(words));
+  if (focused) placeCaretEnd(el);
+}
+
+// Render the cached ciphertext as "<key>: prose" in the current target language
+// (deterministic under the fixed SEED).
+function encRenderCipher(cipher) {
+  if (!ready || !cipher) { encSetOutput(''); return; }
+  const tgt = encLangById(encLang);
+  try {
+    const r = JSON.parse(wasmEncodeRawBaseN(cipher.ctHex, tgt.language, tgt.wordlist, tgt.dialect, SEED));
+    if (r.error) { encShowError(r.error); encSetOutput(''); return; }
+    const prose = (r.encoded_text || '').trim();
+    const set = normSet(r.payload_words || []);
+    const prosePlain = coverEnc ? prose : payloadOnlyText(prose, set);
+    encSetArtifact(cipher.header, prosePlain, renderProse(prose, set, coverEnc));
+  } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); }
+}
+
+async function encRun() {
+  if (!ready) return;
+  const myId = ++encRunId;
+  encClearError();
+  encUpdateChrome();
+  const text = encLeftText().trim();
+  const pw = encPassword();
+
+  if (encMode === 'encode') {
+    if (!text) { encCipher = null; encSetOutput(''); return; }
+    if (!pw) { encSetOutput(''); encShowError('Enter a password to encrypt.'); return; }
+    let cipher;
+    try { cipher = await encEncrypt(text, pw); }
+    catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
+    if (myId !== encRunId) return;   // a newer run superseded this one
+    encCipher = cipher;
+    encRenderCipher(encCipher);
+  } else {
+    if (!text) { encSetOutput(''); return; }
+    const parsed = encSplitArtifact(text);
+    if (!parsed) { encSetOutput(''); encShowError('Expected "key: message" format.'); return; }
+    encDetectLeftLang();
+    encUpdateChrome();
+    const src = encLangById(encDetLang);
+    let hdr, ctBytes;
+    try { hdr = encParseHeader(parsed.header); }
+    catch (e) { encSetOutput(''); encShowError('Malformed key.'); return; }
+    try {
+      const r = JSON.parse(wasmDecodeRawBaseN(parsed.prose, src.language, src.wordlist, hdr.ctlen));
+      if (r.error) { encShowError(r.error); encSetOutput(''); return; }
+      ctBytes = fromHex(r.decoded_hex || '');
+      encUnderlineLeftArtifact(parsed.header, parsed.prose, r.payload_words || []);
+    } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); return; }
+    if (!ctBytes.length) { encSetOutput(''); return; }
+    if (!pw) { encSetOutput(''); encShowError('Enter the password to decrypt.'); return; }
+    let message;
+    try { message = await encDecrypt(hdr, ctBytes, pw); }
+    catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
+    if (myId !== encRunId) return;
+    encSetOutput(message);
+  }
+}
+
+// Generated passwords are Latin seed phrases drawn from Glossia's own Latin
+// payload wordlist (~15 bits/word), targeting >=128 bits so the password is
+// strong enough that offline guessing / precomputation is infeasible — the
+// only way to actually *enforce* password entropy is to generate it.
+const ENC_PASS_LANG = { language: 'latin', wordlist: 'default' };
+const ENC_PASS_TARGET_BITS = 128;
+
+function encBitsPerWord(lang) {
+  try { return JSON.parse(wasmGetBitsPerWord(lang.language, lang.wordlist)).bits_per_word || 0; }
+  catch (e) { return 0; }
+}
+function encShowEntropy(wordCount) {
+  const el = document.getElementById('enc-entropy');
+  if (!el) return;
+  const bpw = encBitsPerWord(ENC_PASS_LANG);
+  if (!bpw || !wordCount) { el.textContent = ''; el.classList.remove('strong'); return; }
+  const bits = Math.round(wordCount * bpw);
+  el.textContent = '≈ ' + bits + '-bit';
+  el.classList.toggle('strong', bits >= 80);
+}
+
+window.encGenPassword = function() {
+  if (!ready) return;
+  const bpw = encBitsPerWord(ENC_PASS_LANG) || 15;
+  const count = Math.max(1, Math.ceil(ENC_PASS_TARGET_BITS / bpw));
+  try {
+    const words = JSON.parse(wasmRandomWords(count, ENC_PASS_LANG.language, ENC_PASS_LANG.wordlist, BigInt(Date.now())));
+    if (words.error) { encShowError(words.error); return; }
+    document.getElementById('enc-pass').value = words.join(' ');
+    encShowEntropy(words.length);
+    encRun();   // re-encrypt under the new password
+  } catch (e) { encShowError(e.message || String(e)); }
 };
+
+// Sample messages: well-known aphorisms, picked at random for the demo input.
+const ENC_SAMPLES = [
+  'Knowledge is power.',
+  'Time is money.',
+  'Less is more.',
+  'The truth hurts.',
+  'Practice makes perfect.',
+  'Actions speak louder than words.',
+  'Better late than never.',
+  'Curiosity killed the cat.',
+  'Beauty is in the eye of the beholder.',
+  'The pen is mightier than the sword.',
+  'United we stand.',
+  'Divide and conquer.',
+  'Trust, but verify.',
+  'Live and let live.',
+  'Keep calm and carry on.',
+  'Seize the day.',
+  'Measure twice, cut once.',
+  'Look before you leap.',
+  'Seeing is believing.',
+  'Knowledge speaks, wisdom listens.',
+];
+let encLastSample = -1;
+
+window.encSample = function() {
+  if (!ready) return;
+  if (encMode !== 'encode') encMode = 'encode';
+  encClearError();
+  let i = Math.floor(Math.random() * ENC_SAMPLES.length);
+  if (ENC_SAMPLES.length > 1 && i === encLastSample) i = (i + 1) % ENC_SAMPLES.length;
+  encLastSample = i;
+  encSetLeftPlain(ENC_SAMPLES[i]);
+  if (!encPassword()) { encGenPassword(); return; }   // seed a strong Latin pass-phrase
+  encRun();
+};
+
+window.encToggle = function() {
+  // Move the current output into the input box, then flip direction.
+  const out = document.getElementById('enc-right-box').dataset.plainText || '';
+  encMode = (encMode === 'encode') ? 'decode' : 'encode';
+  encSetLeftPlain(out);
+  if (encMode === 'decode') encDetectLeftLang();
+  encRun();
+};
+
+window.encCopy = function() {
+  const el = document.getElementById('enc-right-box');
+  navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
+};
+
+window.encToggleCover = function() {
+  coverEnc = !coverEnc;
+  // Re-render the cached ciphertext rather than re-encrypting.
+  if (encMode === 'encode' && encCipher) { encUpdateChrome(); encRenderCipher(encCipher); }
+  else encUpdateChrome();
+};
+
 // ─── Theme toggle ────────────────────────────────────────────────────
 
 const toggleBtn = document.getElementById('theme-toggle');
@@ -1446,9 +2093,24 @@ async function startup() {
         akRun();
       }, 250);
     });
-    document.querySelectorAll('.usecase-tab').forEach(t =>
-      t.addEventListener('click', () => selectUseCase(t.dataset.uc)));
+    // Encrypted Message panel
+    encBuildButtons();
+    document.getElementById('enc-left-box').addEventListener('input', () => {
+      clearTimeout(encTimer);
+      encTimer = setTimeout(() => {
+        if (encMode === 'decode') encDetectLeftLang();
+        encRun();
+      }, 300);
+    });
+    document.getElementById('enc-pass').addEventListener('input', () => {
+      encShowEntropy(0);   // typed password: clear the generated-phrase entropy badge
+      clearTimeout(encTimer);
+      encTimer = setTimeout(() => { encRun(); }, 300);
+    });
+
     akGenerate();
+    encUpdateChrome();
+    encSample();
   } catch (e) {
     console.error('Failed to load WASM:', e);
     document.getElementById('loading').innerHTML =
