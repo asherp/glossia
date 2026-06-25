@@ -962,7 +962,7 @@ footer a:hover { text-decoration: underline; }
               <div contenteditable="true" spellcheck="false" id="enc-left-box" class="io-input" data-placeholder="Type a secret message&hellip;"></div>
             </div>
             <div class="panel-footer">
-              <button class="btn-sm" id="enc-gen-btn" onclick="encSample()" title="Insert a sample message">&#10024; Sample message</button>
+              <button class="btn-sm" id="enc-gen-btn" onclick="encSample()" title="Insert a random sample quote">&#127922; Random quote</button>
               <div id="enc-error" class="error-msg hidden" style="padding:0;"></div>
             </div>
           </div>
@@ -1988,11 +1988,39 @@ window.encGenPassword = function() {
   } catch (e) { encShowError(e.message || String(e)); }
 };
 
+// Sample messages: well-known aphorisms, picked at random for the demo input.
+const ENC_SAMPLES = [
+  'Knowledge is power.',
+  'Time is money.',
+  'Less is more.',
+  'The truth hurts.',
+  'Practice makes perfect.',
+  'Actions speak louder than words.',
+  'Better late than never.',
+  'Curiosity killed the cat.',
+  'Beauty is in the eye of the beholder.',
+  'The pen is mightier than the sword.',
+  'United we stand.',
+  'Divide and conquer.',
+  'Trust, but verify.',
+  'Live and let live.',
+  'Keep calm and carry on.',
+  'Seize the day.',
+  'Measure twice, cut once.',
+  'Look before you leap.',
+  'Seeing is believing.',
+  'Knowledge speaks, wisdom listens.',
+];
+let encLastSample = -1;
+
 window.encSample = function() {
   if (!ready) return;
   if (encMode !== 'encode') encMode = 'encode';
   encClearError();
-  encSetLeftPlain('Meet me at the old harbor at midnight. Bring the charts.');
+  let i = Math.floor(Math.random() * ENC_SAMPLES.length);
+  if (ENC_SAMPLES.length > 1 && i === encLastSample) i = (i + 1) % ENC_SAMPLES.length;
+  encLastSample = i;
+  encSetLeftPlain(ENC_SAMPLES[i]);
   if (!encPassword()) { encGenPassword(); return; }   // seed a strong Latin pass-phrase
   encRun();
 };
