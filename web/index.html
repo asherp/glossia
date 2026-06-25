@@ -132,7 +132,7 @@ body {
 .control-group label input[type="checkbox"] {
   cursor: pointer;
 }
-select, input[type="number"], input[type="text"] {
+select, input[type="number"], input[type="text"], input[type="password"] {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text);
@@ -161,7 +161,7 @@ input[type="number"] { width: 80px; }
   box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  min-height: 260px;
+  min-height: 0;
   overflow: hidden;
 }
 .panel-left { border-radius: 8px; }
@@ -229,7 +229,7 @@ textarea::placeholder { color: var(--text-dim); }
   line-height: 1.8;
   word-wrap: break-word;
   font-family: var(--font-mono);
-  overflow-y: auto;
+  min-height: 64px;
   color: var(--text);
 }
 .output-area svg, #input-image-preview svg { max-width: 100%; height: auto; display: block; margin: 0 auto; }
@@ -816,9 +816,9 @@ footer a:hover { text-decoration: underline; }
         .demo-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; margin-top: 0.85rem; }
         #demo .panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         #demo .panel-header .lang-row { margin-left: auto; }
-        .io-input { flex: 1; min-height: 160px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
+        .io-input { flex: 1; min-height: 64px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
           font-family: var(--font-mono); line-height: 1.7; color: var(--text); outline: none;
-          white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; }
+          white-space: pre-wrap; overflow-wrap: anywhere; }
         .io-input:empty::before { content: attr(data-placeholder); color: var(--text-dim); }
         .io-input u, .output-area u { text-decoration-color: var(--accent); text-underline-offset: 2px; }
         /* Stacked demos (no tabs): encryption first, each visually separated. */
@@ -829,6 +829,7 @@ footer a:hover { text-decoration: underline; }
           gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
         .enc-password-row label { font-family: var(--font-mono); font-size: 0.65rem;
           text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+        .enc-password-row label .req { color: var(--error); }
         .enc-password-row input { min-width: 260px; }
       </style>
 
@@ -927,8 +928,8 @@ footer a:hover { text-decoration: underline; }
         </div>
 
         <div class="enc-password-row">
-          <label for="enc-pass">Password</label>
-          <input type="password" id="enc-pass" placeholder="Shared secret&hellip;" autocomplete="off" spellcheck="false">
+          <label for="enc-pass">Password <span class="req" title="required">*</span></label>
+          <input type="text" id="enc-pass" placeholder="Shared secret (required)&hellip;" autocomplete="off" spellcheck="false" required aria-required="true">
         </div>
 
         <div class="panels">
@@ -1144,8 +1145,10 @@ function placeCaretEnd(el) {
   s.addRange(r);
 }
 
-// Cover-word visibility for the prose output (shared by both panels).
-let showCover = true;
+// Cover-word visibility is tracked independently per demo panel.
+let coverBip = true;   // BIP39 panel
+let coverAk = true;    // API Key panel
+let coverEnc = true;   // Encrypted Message panel
 
 // The cleaned payload words present in prose, in order (cover words dropped).
 // Payload words are case-insensitive (and BIP39 words are canonically
@@ -1159,10 +1162,10 @@ function payloadTokens(text, set) {
 function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
 
 // Render prose either in full (cover words present, payload underlined) or
-// payload-only (cover words removed, payload underlined).
-function renderProse(text, set) {
-  if (showCover) return underlineProse(text, set);
-  return payloadTokens(text, set).map(t => '<u>' + escapeHtml(t) + '</u>').join(' ');
+// payload-only (cover words removed, shown plain — no underline).
+function renderProse(text, set, cover) {
+  if (cover) return underlineProse(text, set);
+  return payloadTokens(text, set).map(t => escapeHtml(t)).join(' ');
 }
 
 // ─── Left box (contenteditable) accessors ────────────────────────────
@@ -1268,7 +1271,7 @@ function updateChrome() {
   const coverBtn = document.getElementById('cover-btn');
   if (mode === 'encode') {
     coverBtn.classList.remove('hidden');
-    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+    coverBtn.textContent = coverBip ? 'Hide cover' : 'Show cover';
   } else {
     coverBtn.classList.add('hidden');
   }
@@ -1318,7 +1321,7 @@ function run() {
     if (mode === 'encode') {
       // Right box holds the prose — underline payload words, honor cover toggle.
       const set = normSet(result.payload_words || []);
-      setOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+      setOutput(coverBip ? out : payloadOnlyText(out, set), renderProse(out, set, coverBip));
     } else {
       // Right box holds bare seed words (no underline); left box holds the
       // prose — underline its payload words.
@@ -1364,20 +1367,10 @@ window.copyOutput = function() {
   navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
 };
 
-// Cover visibility is shared across the three (now simultaneously visible)
-// demos, so a toggle re-renders all of them. None of these regenerate a
-// secret: BIP39/API-Key re-encode deterministically from the fixed SEED, and
-// the encryption panel re-renders from its cached ciphertext.
-function applyCoverToAll() {
-  updateChrome(); run();
-  akRun();
-  if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
-  else encUpdateChrome();
-}
-
 window.toggleCover = function() {
-  showCover = !showCover;
-  applyCoverToAll();
+  coverBip = !coverBip;
+  run();          // re-encode from the (stable) seed and re-render per coverBip
+  updateChrome();
 };
 
 // ═══ API Key panel ═══════════════════════════════════════════════════
@@ -1493,7 +1486,7 @@ function akUpdateChrome() {
   const coverBtn = document.getElementById('ak-cover-btn');
   if (akMode === 'encode') {
     coverBtn.classList.remove('hidden');
-    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+    coverBtn.textContent = coverAk ? 'Hide cover' : 'Show cover';
   } else {
     coverBtn.classList.add('hidden');
   }
@@ -1520,7 +1513,7 @@ function akRun() {
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
       const set = normSet(r.payload_words || []);
-      akSetOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+      akSetOutput(coverAk ? out : payloadOnlyText(out, set), renderProse(out, set, coverAk));
       akUpdateChrome();   // refresh the detected-format chip
     } else {
       const meta = 'transcode from ' + akLangById(akDetLang).source + ' into ' + akFmtById(akFormat).word;
@@ -1565,8 +1558,8 @@ window.akCopy = function() {
 };
 
 window.akToggleCover = function() {
-  showCover = !showCover;
-  applyCoverToAll();
+  coverAk = !coverAk;
+  akRun();        // re-encode from the (stable) key and re-render per coverAk
 };
 
 // ═══ Encrypted Message panel ═════════════════════════════════════════
@@ -1792,7 +1785,7 @@ function encUpdateChrome() {
     langRow.classList.remove('hidden');
     genBtn.classList.remove('hidden');
     coverBtn.classList.remove('hidden');
-    coverBtn.textContent = showCover ? 'Hide cover' : 'Show cover';
+    coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
     hint.textContent = 'Compresses and AES-GCM-encrypts your message with the password, then hides the ' +
       'ciphertext in ' + encLangById(encLang).label + ' prose (payload words underlined). ' +
       'Pick the target language on the right; press ⇄ to decode.';
@@ -1824,7 +1817,7 @@ function encRenderFromHex(hexStr) {
     if (r.error) { encShowError(r.error); encSetOutput(''); return; }
     const out = (r.encoded_text || '').trim();
     const set = normSet(r.payload_words || []);
-    encSetOutput(showCover ? out : payloadOnlyText(out, set), renderProse(out, set));
+    encSetOutput(coverEnc ? out : payloadOnlyText(out, set), renderProse(out, set, coverEnc));
   } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); }
 }
 
@@ -1891,8 +1884,10 @@ window.encCopy = function() {
 };
 
 window.encToggleCover = function() {
-  showCover = !showCover;
-  applyCoverToAll();
+  coverEnc = !coverEnc;
+  // Re-render the cached ciphertext rather than re-encrypting.
+  if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
+  else encUpdateChrome();
 };
 
 // ─── Theme toggle ────────────────────────────────────────────────────
