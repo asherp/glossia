@@ -46,6 +46,10 @@ body {
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
+  /* Auto-growing demo boxes change height when output length changes (e.g.
+     switching language); scroll anchoring would otherwise keep a lower element
+     fixed and push the box top up out of view. Disable it so the box top stays. */
+  overflow-anchor: none;
 }
 .container { max-width: 960px; margin: 0 auto; padding: 1.5rem 1.5rem; position: relative; }
 
