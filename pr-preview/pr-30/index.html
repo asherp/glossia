@@ -844,6 +844,7 @@ footer a:hover { text-decoration: underline; }
         .enc-password-row input { min-width: 260px; }
         .enc-entropy { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); white-space: nowrap; }
         .enc-entropy.strong { color: var(--success); }
+        .enc-key { color: var(--text-dim); word-break: break-all; }
         .enc-note-ref { color: var(--accent); text-decoration: none; font-weight: 700; }
         .enc-note { max-width: 700px; margin: 1rem auto 0; font-size: 0.75rem; line-height: 1.6;
           color: var(--text-dim); text-align: center; scroll-margin-top: 2rem; }
@@ -942,7 +943,7 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-encrypt">
         <div class="section-header">
           <h3>Encrypted Message</h3>
-          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text, then encode the ciphertext as readable prose &mdash; decode it back byte-for-byte with the same password</p>
+          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into a <code>key:&nbsp;value</code> pair &mdash; a compact salt key, the ciphertext as readable prose &mdash; and decode it back byte-for-byte with the same password</p>
         </div>
 
         <div class="enc-password-row">
@@ -1594,13 +1595,15 @@ window.akToggleCover = function() {
 // ═══ Encrypted Message panel ═════════════════════════════════════════
 //
 // Symmetric Google-Translate model with a shared password:
-//   encode: message + password -> compress -> AES-CTR encrypt -> language prose
-//   decode: language prose + password -> decrypt -> decompress -> message
+//   encode: message + password -> compress -> AES-CTR encrypt -> "<key>: prose"
+//   decode: "<key>: prose" + password -> decrypt -> decompress -> message
 //
-// The ciphertext is random per encryption, so the cover toggle and language
-// buttons re-render from the cached ciphertext (encCipherHex) rather than
-// re-encrypting. encode_raw_base_n uses the fixed SEED, so re-rendering the
-// same ciphertext into the same language is deterministic.
+// The artifact is a key:value pair — the base64url <key> carries the plumbing
+// (flag + ciphertext length + salt), and the prose value carries only the
+// Glossia-encoded ciphertext. The ciphertext is random per encryption, so the
+// cover toggle and language buttons re-render from the cached cipher (encCipher)
+// rather than re-encrypting; encode_raw_base_n uses the fixed SEED, so
+// re-rendering the same ciphertext into the same language is deterministic.
 
 const ENC_LANGS = [
   { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
@@ -1612,7 +1615,7 @@ function encLangById(id) { return ENC_LANGS.find(l => l.id === id) || ENC_LANGS[
 let encMode = 'encode';       // 'encode' (message -> prose) or 'decode' (prose -> message)
 let encLang = 'english';      // TARGET language (right buttons, encode), persists
 let encDetLang = 'english';   // SOURCE language auto-detected from left prose (decode)
-let encCipherHex = '';        // last framed ciphertext hex (encode), drives re-render
+let encCipher = null;         // last { header, ctHex } (encode), drives re-render
 let encTimer = null;
 let encRunId = 0;             // guards against stale async renders
 
@@ -1628,6 +1631,14 @@ function encSetOutput(text, html) {
   el.classList.remove('empty');
   el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
   el.dataset.plainText = text;
+}
+
+// Render the "<key>: prose" artifact: dim base64url key, then the prose value.
+function encSetArtifact(header, prosePlain, proseHtml) {
+  const el = document.getElementById('enc-right-box');
+  el.classList.remove('empty');
+  el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + proseHtml;
+  el.dataset.plainText = header + ': ' + prosePlain;
 }
 
 // ─── compression (CompressionStream) + AES-CTR (WebCrypto) helpers ────
@@ -1734,45 +1745,75 @@ function varintDecode(bytes, pos) {
   return { value, next: p };
 }
 
-// Framed blob: [blobLen:varint][flag:1][salt:12][ciphertext]. The nonce is
-// derived (not stored), and AES-CTR is a stream cipher, so the ciphertext is
-// exactly as long as the (reduced) message — no tag, no padding. flag selects
-// how the message bytes were reduced (raw/gzip/ascii7). The length prefix lets
-// decoding drop any trailing bit-packing padding the codec adds.
+// base64url (no padding) for the compact header.
+function b64urlEncode(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(str) {
+  const s = str.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
+  const bin = atob(s + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// Artifact format: "<key>: <prose>".
+//   key   = base64url( [flag:1][ctlen:varint][salt:12] )  — the machine plumbing
+//   prose = Glossia-encoded ciphertext only                — the human-readable value
+// The salt is the unique-per-message key; the ciphertext is the value. AES-CTR is
+// a stream cipher (no tag/padding), so the prose carries exactly the ciphertext.
 //
 // NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
 // cannot detect tampering (see the asterisk note under the demo panel).
-async function encryptToHex(message, password) {
+function encBuildHeader(flag, ctlen, salt) {
+  const lp = varintEncode(ctlen);
+  const h = new Uint8Array(1 + lp.length + salt.length);
+  h[0] = flag;
+  h.set(lp, 1);
+  h.set(salt, 1 + lp.length);
+  return b64urlEncode(h);
+}
+function encParseHeader(b64) {
+  const h = b64urlDecode(b64);
+  if (h.length < 2) throw new Error('bad header');
+  const flag = h[0];
+  const { value: ctlen, next } = varintDecode(h, 1);
+  const salt = h.subarray(next);
+  if (salt.length < 8) throw new Error('bad header');
+  return { flag, ctlen, salt };
+}
+// Split "<key>: <prose>" on the first colon (base64url has no ':').
+function encSplitArtifact(text) {
+  const i = text.indexOf(':');
+  if (i < 0) return null;
+  const header = text.slice(0, i).trim();
+  const prose = text.slice(i + 1).trim();
+  if (!header || !prose) return null;
+  return { header, prose };
+}
+
+// Encrypt: message + password -> { header, ctHex }. The prose is rendered from
+// ctHex separately (so language/cover changes don't re-encrypt).
+async function encEncrypt(message, password) {
   const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
   const salt = crypto.getRandomValues(new Uint8Array(12));
   const { key, nonce } = await encDeriveKeyNonce(password, salt);
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
-  const blob = new Uint8Array(1 + 12 + ct.length);
-  blob[0] = flag;
-  blob.set(salt, 1);
-  blob.set(ct, 13);
-  const lenPrefix = varintEncode(blob.length);
-  const framed = new Uint8Array(lenPrefix.length + blob.length);
-  framed.set(lenPrefix, 0);
-  framed.set(blob, lenPrefix.length);
-  return toHex(framed);
+  return { header: encBuildHeader(flag, ct.length, salt), ctHex: toHex(ct) };
 }
-async function decryptFromHex(hexStr, password) {
-  const all = fromHex(hexStr);
-  if (all.length < 1) throw new Error('Ciphertext too short.');
-  const { value: blobLen, next } = varintDecode(all, 0);
-  const blob = all.subarray(next, next + blobLen);
-  if (blob.length < 1 + 12) throw new Error('Ciphertext too short or corrupted.');
-  const flag = blob[0];
-  const salt = blob.subarray(1, 13);
-  const ct = blob.subarray(13);
-  const { key, nonce } = await encDeriveKeyNonce(password, salt);
+// Decrypt: parsed header + ciphertext bytes + password -> message.
+async function encDecrypt(hdr, ctBytes, password) {
+  const ct = ctBytes.subarray(0, hdr.ctlen);
+  const { key, nonce } = await encDeriveKeyNonce(password, hdr.salt);
   // CTR is unauthenticated: a wrong password yields a different keystream and
   // therefore garbled bytes rather than a clean failure. We can only surface an
   // error when the reduction stage (e.g. gunzip) chokes on the garbage.
   try {
     const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, ct));
-    return ENC_TD.decode(await expand(plain, flag));
+    return ENC_TD.decode(await expand(plain, hdr.flag));
   } catch (e) {
     throw new Error('Could not decode — check the password.');
   }
@@ -1792,7 +1833,7 @@ function encBuildButtons() {
       encLang = l.id;
       // In encode mode, just re-encode the cached ciphertext into the new
       // language — no need to re-encrypt (which would change the ciphertext).
-      if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
+      if (encMode === 'encode' && encCipher) { encUpdateChrome(); encRenderCipher(encCipher); }
       else { encRun(); }
     });
     row.appendChild(b);
@@ -1802,13 +1843,14 @@ function encUpdateHighlights() {
   document.querySelectorAll('#enc-langs .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.encLang === encLang));
 }
 
-// Auto-detect the SOURCE language of the left prose (decode), restricted to
-// the languages this panel supports.
+// Auto-detect the SOURCE language of the prose value (decode), restricted to
+// the languages this panel supports. Detects on the prose, not the base64 key.
 function encDetectLeftLang() {
-  const text = encLeftText().trim();
-  if (!text) return;
+  const parsed = encSplitArtifact(encLeftText().trim());
+  const prose = parsed ? parsed.prose : encLeftText().trim();
+  if (!prose) return;
   try {
-    const matches = JSON.parse(wasmDetectDialect(text));
+    const matches = JSON.parse(wasmDetectDialect(prose));
     if (Array.isArray(matches)) {
       const best = matches.find(m => ENC_LANGS.some(l => l.language === m.language));
       if (best) encDetLang = (ENC_LANGS.find(l => l.language === best.language) || {}).id || encDetLang;
@@ -1828,9 +1870,9 @@ function encUpdateChrome() {
     genBtn.classList.remove('hidden');
     coverBtn.classList.remove('hidden');
     coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
-    hint.textContent = 'Compresses and AES-CTR-encrypts your message with the password, then encodes the ' +
-      'ciphertext as ' + encLangById(encLang).label + ' prose (payload words underlined). ' +
-      'Pick the target language on the right; press ⇄ to decode.';
+    hint.textContent = 'Compresses and AES-CTR-encrypts your message, then writes a “key: value” pair — the ' +
+      'base64 key holds the per-message salt, the ' + encLangById(encLang).label + ' prose holds the ciphertext ' +
+      '(payload words underlined). Pick the target language on the right; press ⇄ to decode.';
   } else {
     document.getElementById('enc-left-label').textContent = encLangById(encDetLang).label + ' sentences (detected)';
     document.getElementById('enc-right-label').textContent = 'Decrypted message';
@@ -1843,23 +1885,27 @@ function encUpdateChrome() {
   encUpdateHighlights();
 }
 
-function encUnderlineLeft(prose, words) {
+// Re-underline the left box's prose value (decode), preserving the "<key>: "
+// prefix and underlining only payload words in the prose.
+function encUnderlineLeftArtifact(header, prose, words) {
   const el = document.getElementById('enc-left-box');
   const focused = (document.activeElement === el);
-  el.innerHTML = underlineProse(prose, normSet(words));
+  el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + underlineProse(prose, normSet(words));
   if (focused) placeCaretEnd(el);
 }
 
-// Render the cached ciphertext into the current target language (deterministic).
-function encRenderFromHex(hexStr) {
-  if (!ready || !hexStr) { encSetOutput(''); return; }
+// Render the cached ciphertext as "<key>: prose" in the current target language
+// (deterministic under the fixed SEED).
+function encRenderCipher(cipher) {
+  if (!ready || !cipher) { encSetOutput(''); return; }
   const tgt = encLangById(encLang);
   try {
-    const r = JSON.parse(wasmEncodeRawBaseN(hexStr, tgt.language, tgt.wordlist, tgt.dialect, SEED));
+    const r = JSON.parse(wasmEncodeRawBaseN(cipher.ctHex, tgt.language, tgt.wordlist, tgt.dialect, SEED));
     if (r.error) { encShowError(r.error); encSetOutput(''); return; }
-    const out = (r.encoded_text || '').trim();
+    const prose = (r.encoded_text || '').trim();
     const set = normSet(r.payload_words || []);
-    encSetOutput(coverEnc ? out : payloadOnlyText(out, set), renderProse(out, set, coverEnc));
+    const prosePlain = coverEnc ? prose : payloadOnlyText(prose, set);
+    encSetArtifact(cipher.header, prosePlain, renderProse(prose, set, coverEnc));
   } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); }
 }
 
@@ -1872,30 +1918,34 @@ async function encRun() {
   const pw = encPassword();
 
   if (encMode === 'encode') {
-    if (!text) { encCipherHex = ''; encSetOutput(''); return; }
+    if (!text) { encCipher = null; encSetOutput(''); return; }
     if (!pw) { encSetOutput(''); encShowError('Enter a password to encrypt.'); return; }
-    let hexStr;
-    try { hexStr = await encryptToHex(text, pw); }
+    let cipher;
+    try { cipher = await encEncrypt(text, pw); }
     catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
     if (myId !== encRunId) return;   // a newer run superseded this one
-    encCipherHex = hexStr;
-    encRenderFromHex(encCipherHex);
+    encCipher = cipher;
+    encRenderCipher(encCipher);
   } else {
     if (!text) { encSetOutput(''); return; }
+    const parsed = encSplitArtifact(text);
+    if (!parsed) { encSetOutput(''); encShowError('Expected "key: message" format.'); return; }
     encDetectLeftLang();
     encUpdateChrome();
     const src = encLangById(encDetLang);
-    let hexStr;
+    let hdr, ctBytes;
+    try { hdr = encParseHeader(parsed.header); }
+    catch (e) { encSetOutput(''); encShowError('Malformed key.'); return; }
     try {
-      const r = JSON.parse(wasmDecodeRawBaseN(text, src.language, src.wordlist, 0));
+      const r = JSON.parse(wasmDecodeRawBaseN(parsed.prose, src.language, src.wordlist, hdr.ctlen));
       if (r.error) { encShowError(r.error); encSetOutput(''); return; }
-      hexStr = r.decoded_hex || '';
-      encUnderlineLeft(text, r.payload_words || []);
+      ctBytes = fromHex(r.decoded_hex || '');
+      encUnderlineLeftArtifact(parsed.header, parsed.prose, r.payload_words || []);
     } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); return; }
-    if (!hexStr) { encSetOutput(''); return; }
+    if (!ctBytes.length) { encSetOutput(''); return; }
     if (!pw) { encSetOutput(''); encShowError('Enter the password to decrypt.'); return; }
     let message;
-    try { message = await decryptFromHex(hexStr, pw); }
+    try { message = await encDecrypt(hdr, ctBytes, pw); }
     catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
     if (myId !== encRunId) return;
     encSetOutput(message);
@@ -1962,7 +2012,7 @@ window.encCopy = function() {
 window.encToggleCover = function() {
   coverEnc = !coverEnc;
   // Re-render the cached ciphertext rather than re-encrypting.
-  if (encMode === 'encode' && encCipherHex) { encUpdateChrome(); encRenderFromHex(encCipherHex); }
+  if (encMode === 'encode' && encCipher) { encUpdateChrome(); encRenderCipher(encCipher); }
   else encUpdateChrome();
 };
 
