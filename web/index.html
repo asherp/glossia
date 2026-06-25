@@ -841,6 +841,7 @@ footer a:hover { text-decoration: underline; }
         .enc-password-row label { font-family: var(--font-mono); font-size: 0.65rem;
           text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
         .enc-password-row label .req { color: var(--error); }
+        .enc-password-row label .opt { color: var(--text-dim); opacity: 0.7; }
         .enc-password-row input { min-width: 260px; }
         .enc-entropy { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); white-space: nowrap; }
         .enc-entropy.strong { color: var(--success); }
@@ -943,13 +944,13 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-encrypt">
         <div class="section-header">
           <h3>Madlib Encryption</h3>
-          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into a <code>key:&nbsp;value</code> pair &mdash; a compact salt key, the ciphertext as readable prose &mdash; and decode it back byte-for-byte with the same password</p>
+          <p>Compress and optionally password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into a <code>key:&nbsp;value</code> pair &mdash; a compact key, the payload as readable prose &mdash; and decode it back byte-for-byte (with the same passphrase, if one was set)</p>
         </div>
 
         <div class="enc-password-row">
-          <label for="enc-pass">Password <span class="req" title="required">*</span></label>
-          <input type="text" id="enc-pass" placeholder="Type a password, or generate a Latin seed phrase &rarr;" autocomplete="off" spellcheck="false" required aria-required="true">
-          <button class="btn-sm" id="enc-genpass-btn" onclick="encGenPassword()" title="Generate a strong, high-entropy Latin seed phrase">&#127922; Latin seed phrase</button>
+          <label for="enc-pass">Passphrase <span class="opt" title="optional">(optional)</span></label>
+          <input type="text" id="enc-pass" placeholder="Type a passphrase to encrypt, or leave blank to just encode &rarr;" autocomplete="off" spellcheck="false">
+          <button class="btn-sm" id="enc-genpass-btn" onclick="encGenPassword()" title="Generate a strong, high-entropy Latin passphrase">&#127922; Latin passphrase</button>
           <span class="enc-entropy" id="enc-entropy"></span>
         </div>
 
@@ -991,12 +992,14 @@ footer a:hover { text-decoration: underline; }
         <p class="enc-note" id="enc-note">
           <strong>*</strong> AES-CTR keeps your message confidential but is <em>not</em> authenticated &mdash; it
           can&rsquo;t detect tampering. In principle, someone who intercepts the ciphertext could flip bits to
-          alter the decoded message in controlled ways, without ever knowing the password. That&rsquo;s
+          alter the decoded message in controlled ways, without ever knowing the passphrase. That&rsquo;s
           impractical here, where messages are copy-pasted by hand into chats and posts, but it&rsquo;s a real
           property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a signed
           protocol like <a href="https://nostr-mail.com" target="_blank" rel="noopener">nostr-mail</a>.
-          The base64 <code>key:</code> is plaintext metadata &mdash; a per-message salt and the ciphertext
-          length &mdash; not a secret and not part of the password; only the password unlocks the message.
+          The base64 <code>key:</code> is plaintext metadata &mdash; the payload length, plus a per-message
+          salt when a passphrase is set &mdash; not a secret and not part of the passphrase; only the
+          passphrase unlocks an encrypted message. With no passphrase, the text is encoded (and possibly
+          compressed) but <em>not</em> encrypted, and there is no salt.
         </p>
       </div>
     </section>
@@ -1596,13 +1599,17 @@ window.akToggleCover = function() {
 
 // ═══ Encrypted Message panel ═════════════════════════════════════════
 //
-// Symmetric Google-Translate model with a shared password:
-//   encode: message + password -> compress -> AES-CTR encrypt -> "<key>: prose"
-//   decode: "<key>: prose" + password -> decrypt -> decompress -> message
+// Symmetric Google-Translate model with a shared passphrase:
+//   encode: message + passphrase -> compress -> AES-CTR encrypt -> "<key>: prose"
+//   decode: "<key>: prose" + passphrase -> decrypt -> decompress -> message
+//
+// The passphrase is OPTIONAL. With no passphrase the message is compressed and
+// encoded but not encrypted, and the header carries no salt — the prose is the
+// reduced bytes verbatim, decodable by anyone (no passphrase required).
 //
 // The artifact is a key:value pair — the base64url <key> carries the plumbing
-// (flag + ciphertext length + salt), and the prose value carries only the
-// Glossia-encoded ciphertext. The ciphertext is random per encryption, so the
+// (flag + payload length + salt when encrypted), and the prose value carries only
+// the Glossia-encoded payload. The ciphertext is random per encryption, so the
 // cover toggle and language buttons re-render from the cached cipher (encCipher)
 // rather than re-encrypting; encode_raw_base_n uses the fixed SEED, so
 // re-rendering the same ciphertext into the same language is deterministic.
@@ -1763,29 +1770,35 @@ function b64urlDecode(str) {
 }
 
 // Artifact format: "<key>: <prose>".
-//   key   = base64url( [flag:1][ctlen:varint][salt:12] )  — the machine plumbing
-//   prose = Glossia-encoded ciphertext only                — the human-readable value
-// The salt is the unique-per-message key; the ciphertext is the value. AES-CTR is
-// a stream cipher (no tag/padding), so the prose carries exactly the ciphertext.
+//   key   = base64url( [flag:1][ctlen:varint][salt:8?] )  — the machine plumbing
+//   prose = Glossia-encoded payload only                   — the human-readable value
+// The flag's low bits (0x7f) hold the reduction method; the high bit (0x80) marks
+// an encrypted payload, in which case the per-message salt follows. With no
+// passphrase the high bit is clear and the salt is omitted entirely.
+// AES-CTR is a stream cipher (no tag/padding), so the prose carries exactly the
+// ciphertext.
 //
 // NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
 // cannot detect tampering (see the asterisk note under the demo panel).
+const ENC_FLAG_ENCRYPTED = 0x80;
 function encBuildHeader(flag, ctlen, salt) {
   const lp = varintEncode(ctlen);
-  const h = new Uint8Array(1 + lp.length + salt.length);
-  h[0] = flag;
+  const saltLen = salt ? salt.length : 0;
+  const h = new Uint8Array(1 + lp.length + saltLen);
+  h[0] = salt ? (flag | ENC_FLAG_ENCRYPTED) : flag;
   h.set(lp, 1);
-  h.set(salt, 1 + lp.length);
+  if (salt) h.set(salt, 1 + lp.length);
   return b64urlEncode(h);
 }
 function encParseHeader(b64) {
   const h = b64urlDecode(b64);
   if (h.length < 2) throw new Error('bad header');
-  const flag = h[0];
+  const encrypted = (h[0] & ENC_FLAG_ENCRYPTED) !== 0;
+  const flag = h[0] & 0x7f;
   const { value: ctlen, next } = varintDecode(h, 1);
   const salt = h.subarray(next);
-  if (salt.length < 8) throw new Error('bad header');
-  return { flag, ctlen, salt };
+  if (encrypted && salt.length < 8) throw new Error('bad header');
+  return { flag, ctlen, encrypted, salt: encrypted ? salt : null };
 }
 // Split "<key>: <prose>" on the first colon (base64url has no ':').
 function encSplitArtifact(text) {
@@ -1797,27 +1810,40 @@ function encSplitArtifact(text) {
   return { header, prose };
 }
 
-// Encrypt: message + password -> { header, ctHex }. The prose is rendered from
-// ctHex separately (so language/cover changes don't re-encrypt).
+// Encode: message + passphrase -> { header, ctHex }. The prose is rendered from
+// ctHex separately (so language/cover changes don't re-encrypt). With no
+// passphrase the reduced bytes are emitted verbatim — compressed but unencrypted,
+// and the header omits the salt.
 async function encEncrypt(message, password) {
   const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
+  if (!password) {
+    return { header: encBuildHeader(flag, reduced.length, null), ctHex: toHex(reduced) };
+  }
   const salt = crypto.getRandomValues(new Uint8Array(8));
   const { key, nonce } = await encDeriveKeyNonce(password, salt);
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
   return { header: encBuildHeader(flag, ct.length, salt), ctHex: toHex(ct) };
 }
-// Decrypt: parsed header + ciphertext bytes + password -> message.
+// Decode: parsed header + payload bytes + passphrase -> message. An unencrypted
+// payload (no salt in the header) just gets decompressed, no passphrase needed.
 async function encDecrypt(hdr, ctBytes, password) {
   const ct = ctBytes.subarray(0, hdr.ctlen);
+  if (!hdr.encrypted) {
+    try {
+      return ENC_TD.decode(await expand(ct, hdr.flag));
+    } catch (e) {
+      throw new Error('Could not decode the message.');
+    }
+  }
   const { key, nonce } = await encDeriveKeyNonce(password, hdr.salt);
-  // CTR is unauthenticated: a wrong password yields a different keystream and
+  // CTR is unauthenticated: a wrong passphrase yields a different keystream and
   // therefore garbled bytes rather than a clean failure. We can only surface an
   // error when the reduction stage (e.g. gunzip) chokes on the garbage.
   try {
     const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, ct));
     return ENC_TD.decode(await expand(plain, hdr.flag));
   } catch (e) {
-    throw new Error('Could not decode — check the password.');
+    throw new Error('Could not decode — check the passphrase.');
   }
 }
 
@@ -1872,17 +1898,22 @@ function encUpdateChrome() {
     genBtn.classList.remove('hidden');
     coverBtn.classList.remove('hidden');
     coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
-    hint.textContent = 'Compresses and AES-CTR-encrypts your message, then writes a “key: value” pair — the ' +
-      'base64 key holds the per-message salt, the ' + encLangById(encLang).label + ' prose holds the ciphertext ' +
-      '(payload words underlined). Pick the target language on the right; press ⇄ to decode.';
+    hint.textContent = encPassword()
+      ? 'Compresses and AES-CTR-encrypts your message, then writes a “key: value” pair — the ' +
+        'base64 key holds the per-message salt, the ' + encLangById(encLang).label + ' prose holds the ciphertext ' +
+        '(payload words underlined). Pick the target language on the right; press ⇄ to decode.'
+      : 'No passphrase — compresses and encodes your message (not encrypted) into ' +
+        encLangById(encLang).label + ' prose (payload words underlined). Add a passphrase to encrypt; ' +
+        'press ⇄ to decode.';
   } else {
     document.getElementById('enc-left-label').textContent = encLangById(encDetLang).label + ' sentences (detected)';
-    document.getElementById('enc-right-label').textContent = 'Decrypted message';
+    document.getElementById('enc-right-label').textContent = 'Decoded message';
     langRow.classList.add('hidden');
     genBtn.classList.add('hidden');
     coverBtn.classList.add('hidden');
     hint.textContent = 'Detected ' + encLangById(encDetLang).label + ' prose (payload words underlined); ' +
-      'decrypting with the password to recover the original message. Press ⇄ to go back to encrypting.';
+      'decoding to recover the original message (a passphrase is needed only if it was encrypted). ' +
+      'Press ⇄ to go back to encoding.';
   }
   encUpdateHighlights();
 }
@@ -1921,7 +1952,6 @@ async function encRun() {
 
   if (encMode === 'encode') {
     if (!text) { encCipher = null; encSetOutput(''); return; }
-    if (!pw) { encSetOutput(''); encShowError('Enter a password to encrypt.'); return; }
     let cipher;
     try { cipher = await encEncrypt(text, pw); }
     catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
@@ -1945,7 +1975,7 @@ async function encRun() {
       encUnderlineLeftArtifact(parsed.header, parsed.prose, r.payload_words || []);
     } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); return; }
     if (!ctBytes.length) { encSetOutput(''); return; }
-    if (!pw) { encSetOutput(''); encShowError('Enter the password to decrypt.'); return; }
+    if (hdr.encrypted && !pw) { encSetOutput(''); encShowError('Enter the passphrase to decrypt.'); return; }
     let message;
     try { message = await encDecrypt(hdr, ctBytes, pw); }
     catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
@@ -1954,10 +1984,10 @@ async function encRun() {
   }
 }
 
-// Generated passwords are Latin seed phrases drawn from Glossia's own Latin
-// payload wordlist (~15 bits/word), targeting >=128 bits so the password is
+// Generated passphrases are Latin word phrases drawn from Glossia's own Latin
+// payload wordlist (~15 bits/word), targeting >=128 bits so the passphrase is
 // strong enough that offline guessing / precomputation is infeasible — the
-// only way to actually *enforce* password entropy is to generate it.
+// only way to actually *enforce* passphrase entropy is to generate it.
 const ENC_PASS_LANG = { language: 'latin', wordlist: 'default' };
 const ENC_PASS_TARGET_BITS = 128;
 
@@ -2021,7 +2051,7 @@ window.encSample = function() {
   if (ENC_SAMPLES.length > 1 && i === encLastSample) i = (i + 1) % ENC_SAMPLES.length;
   encLastSample = i;
   encSetLeftPlain(ENC_SAMPLES[i]);
-  if (!encPassword()) { encGenPassword(); return; }   // seed a strong Latin pass-phrase
+  if (!encPassword()) { encGenPassword(); return; }   // seed a strong Latin passphrase
   encRun();
 };
 
