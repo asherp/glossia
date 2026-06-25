@@ -666,6 +666,7 @@ footer a:hover { text-decoration: underline; }
   line-height: 1.75;
 }
 .guarantee strong { color: var(--text); }
+.problem-note strong { color: var(--accent); }
 
 /* What Glossia does: application list */
 .applications {
@@ -804,8 +805,14 @@ footer a:hover { text-decoration: underline; }
         Latin carries different weight than a block of hexadecimal, even when neither is understood
         by the reader. Glossia exploits this: the same payload can be represented as structured
         English, Latin prose, ASCII armor, and other human-friendly forms — without changing a
-        single bit. The goal isn't compression or secrecy. It's reducing the language barrier
+        single bit. The goal isn't compression or secrecy — it's reducing the language barrier
         between humans and digital systems.
+      </p>
+      <p class="problem-note">
+        And to be clear, this <strong>isn't steganography</strong>. Glossia doesn't hide that data is
+        present — it makes the data itself legible, meant to be seen and decoded. Freed from spending
+        capacity on concealment, every payload word carries its full 11–15 bits, where hiding data
+        inside text nets well under one per symbol.
       </p>
     </section>
 
@@ -933,7 +940,7 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-encrypt">
         <div class="section-header">
           <h3>Encrypted Message</h3>
-          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text, then hide the ciphertext in readable prose &mdash; decode it back byte-for-byte with the same password</p>
+          <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text, then encode the ciphertext as readable prose &mdash; decode it back byte-for-byte with the same password</p>
         </div>
 
         <div class="enc-password-row">
@@ -1817,8 +1824,8 @@ function encUpdateChrome() {
     genBtn.classList.remove('hidden');
     coverBtn.classList.remove('hidden');
     coverBtn.textContent = coverEnc ? 'Hide cover' : 'Show cover';
-    hint.textContent = 'Compresses and AES-CTR-encrypts your message with the password, then hides the ' +
-      'ciphertext in ' + encLangById(encLang).label + ' prose (payload words underlined). ' +
+    hint.textContent = 'Compresses and AES-CTR-encrypts your message with the password, then encodes the ' +
+      'ciphertext as ' + encLangById(encLang).label + ' prose (payload words underlined). ' +
       'Pick the target language on the right; press ⇄ to decode.';
   } else {
     document.getElementById('enc-left-label').textContent = encLangById(encDetLang).label + ' sentences (detected)';
