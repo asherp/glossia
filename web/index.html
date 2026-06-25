@@ -842,6 +842,8 @@ footer a:hover { text-decoration: underline; }
           text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
         .enc-password-row label .req { color: var(--error); }
         .enc-password-row input { min-width: 260px; }
+        .enc-entropy { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); white-space: nowrap; }
+        .enc-entropy.strong { color: var(--success); }
         .enc-note-ref { color: var(--accent); text-decoration: none; font-weight: 700; }
         .enc-note { max-width: 700px; margin: 1rem auto 0; font-size: 0.75rem; line-height: 1.6;
           color: var(--text-dim); text-align: center; scroll-margin-top: 2rem; }
@@ -945,7 +947,9 @@ footer a:hover { text-decoration: underline; }
 
         <div class="enc-password-row">
           <label for="enc-pass">Password <span class="req" title="required">*</span></label>
-          <input type="text" id="enc-pass" placeholder="Shared secret (required)&hellip;" autocomplete="off" spellcheck="false" required aria-required="true">
+          <input type="text" id="enc-pass" placeholder="Type a password, or generate a Latin seed phrase &rarr;" autocomplete="off" spellcheck="false" required aria-required="true">
+          <button class="btn-sm" id="enc-genpass-btn" onclick="encGenPassword()" title="Generate a strong, high-entropy Latin seed phrase">&#127922; Latin seed phrase</button>
+          <span class="enc-entropy" id="enc-entropy"></span>
         </div>
 
         <div class="panels">
@@ -1898,12 +1902,46 @@ async function encRun() {
   }
 }
 
+// Generated passwords are Latin seed phrases drawn from Glossia's own Latin
+// payload wordlist (~15 bits/word), targeting >=128 bits so the password is
+// strong enough that offline guessing / precomputation is infeasible — the
+// only way to actually *enforce* password entropy is to generate it.
+const ENC_PASS_LANG = { language: 'latin', wordlist: 'default' };
+const ENC_PASS_TARGET_BITS = 128;
+
+function encBitsPerWord(lang) {
+  try { return JSON.parse(wasmGetBitsPerWord(lang.language, lang.wordlist)).bits_per_word || 0; }
+  catch (e) { return 0; }
+}
+function encShowEntropy(wordCount) {
+  const el = document.getElementById('enc-entropy');
+  if (!el) return;
+  const bpw = encBitsPerWord(ENC_PASS_LANG);
+  if (!bpw || !wordCount) { el.textContent = ''; el.classList.remove('strong'); return; }
+  const bits = Math.round(wordCount * bpw);
+  el.textContent = '≈ ' + bits + '-bit';
+  el.classList.toggle('strong', bits >= 80);
+}
+
+window.encGenPassword = function() {
+  if (!ready) return;
+  const bpw = encBitsPerWord(ENC_PASS_LANG) || 15;
+  const count = Math.max(1, Math.ceil(ENC_PASS_TARGET_BITS / bpw));
+  try {
+    const words = JSON.parse(wasmRandomWords(count, ENC_PASS_LANG.language, ENC_PASS_LANG.wordlist, BigInt(Date.now())));
+    if (words.error) { encShowError(words.error); return; }
+    document.getElementById('enc-pass').value = words.join(' ');
+    encShowEntropy(words.length);
+    encRun();   // re-encrypt under the new password
+  } catch (e) { encShowError(e.message || String(e)); }
+};
+
 window.encSample = function() {
   if (!ready) return;
   if (encMode !== 'encode') encMode = 'encode';
   encClearError();
   encSetLeftPlain('Meet me at the old harbor at midnight. Bring the charts.');
-  if (!encPassword()) document.getElementById('enc-pass').value = 'correct horse battery staple';
+  if (!encPassword()) { encGenPassword(); return; }   // seed a strong Latin pass-phrase
   encRun();
 };
 
@@ -1985,6 +2023,7 @@ async function startup() {
       }, 300);
     });
     document.getElementById('enc-pass').addEventListener('input', () => {
+      encShowEntropy(0);   // typed password: clear the generated-phrase entropy badge
       clearTimeout(encTimer);
       encTimer = setTimeout(() => { encRun(); }, 300);
     });
