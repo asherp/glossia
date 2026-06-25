@@ -6,6 +6,15 @@ A lossless linguistic codec for machine-to-human communication. Glossia generate
 
 This tool uses a small, controlled grammar to generate sentences that embed BIP39 words in their natural positions based on part-of-speech (POS) tags. The cover lexicon (non-payload words) is carefully constructed to avoid any BIP39 words, making decoding trivial: simply filter out all words that are not in the BIP39 word list.
 
+## A readable encoding, not steganography
+
+Glossia is **not** a steganographic tool. Its goal is not to hide that data is present, but to make machine data *human-friendly* — something a person can read, speak, transcribe, and verify. This distinction drives the design:
+
+- Steganography pays for concealment by spending nearly all of its capacity on cover text, typically netting **well under 1 bit per symbol**.
+- Glossia hides nothing, so every payload word carries its full information content — **~11 bits** with the 2048-word BIP39 list, up to **~15 bits** with larger wordlists.
+
+The payload is meant to be *seen and decoded*. The mission is to make ciphertext and other machine data — keys, signatures, hashes, mnemonics — human-friendly in a way existing formats (hex, Base64, fingerprints, ASCII armor) do not, **without sacrificing too much security**. When iterating on Glossia, optimize for legibility and density, not concealment.
+
 ## Features
 
 - **CFG-based sentence generation**: Uses a small context-free grammar to generate grammatically correct sentences

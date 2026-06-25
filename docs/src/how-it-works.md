@@ -38,6 +38,10 @@ A 12-word BIP39 seed phrase contains 11 × 12 = **132 bits** total:
 - Each of the 12 words encodes 11 bits of information
 - This provides 128 bits of cryptographic entropy (sufficient for 128-bit security)
 
+### Density vs. steganography
+
+This information density is what distinguishes Glossia from steganography, and the distinction is deliberate. A steganographic scheme hides the *existence* of data, and pays for that concealment by spending almost all of its capacity on cover — typically **well under 1 bit per symbol**. Glossia hides nothing: the payload is meant to be decoded, so every payload word carries its full `log2(word_count)` bits — **11 for BIP39, up to ~15** for larger lists. The goal is a *readable* encoding, not a *hidden* one — making machine data human-friendly without sacrificing too much security.
+
 ## Encoding and Decoding via Wordlist
 
 When encoding or decoding a payload, Glossia determines the **effective wordlist size** based on the actual words used in that payload.
