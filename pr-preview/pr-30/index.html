@@ -942,7 +942,7 @@ footer a:hover { text-decoration: underline; }
       <!-- ─── Encrypted Message panel ─────────────────────────────── -->
       <div id="panel-encrypt">
         <div class="section-header">
-          <h3>Encrypted Message</h3>
+          <h3>Madlib Encryption</h3>
           <p>Compress and password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into a <code>key:&nbsp;value</code> pair &mdash; a compact salt key, the ciphertext as readable prose &mdash; and decode it back byte-for-byte with the same password</p>
         </div>
 
@@ -994,7 +994,7 @@ footer a:hover { text-decoration: underline; }
           alter the decoded message in controlled ways, without ever knowing the password. That&rsquo;s
           impractical here, where messages are copy-pasted by hand into chats and posts, but it&rsquo;s a real
           property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a signed
-          protocol like <a href="https://nostr.com" target="_blank" rel="noopener">nostr</a>.
+          protocol like <a href="https://nostr-mail.com" target="_blank" rel="noopener">nostr-mail</a>.
           The base64 <code>key:</code> is plaintext metadata &mdash; a per-message salt and the ciphertext
           length &mdash; not a secret and not part of the password; only the password unlocks the message.
         </p>
