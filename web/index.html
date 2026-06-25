@@ -944,7 +944,7 @@ footer a:hover { text-decoration: underline; }
       <div id="panel-encrypt">
         <div class="section-header">
           <h3>Madlib Encryption</h3>
-          <p>Compress and optionally password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into a <code>key:&nbsp;value</code> pair &mdash; a compact key, the payload as readable prose &mdash; and decode it back byte-for-byte (with the same passphrase, if one was set)</p>
+          <p>Compress and optionally password-encrypt<a href="#enc-note" class="enc-note-ref">*</a> any text into readable prose &mdash; encrypting adds a compact <code>key:</code> prefix carrying the salt &mdash; and decode it back byte-for-byte (with the same passphrase, if one was set)</p>
         </div>
 
         <div class="enc-password-row">
@@ -1642,12 +1642,19 @@ function encSetOutput(text, html) {
   el.dataset.plainText = text;
 }
 
-// Render the "<key>: prose" artifact: dim base64url key, then the prose value.
+// Render the artifact. When encrypted it's "<key>: prose" (dim base64url key,
+// then the prose value); with no passphrase there is no key — just the prose,
+// which already carries its own [flag][length] header embedded in the payload.
 function encSetArtifact(header, prosePlain, proseHtml) {
   const el = document.getElementById('enc-right-box');
   el.classList.remove('empty');
-  el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + proseHtml;
-  el.dataset.plainText = header + ': ' + prosePlain;
+  if (header) {
+    el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + proseHtml;
+    el.dataset.plainText = header + ': ' + prosePlain;
+  } else {
+    el.innerHTML = proseHtml;
+    el.dataset.plainText = prosePlain;
+  }
 }
 
 // ─── compression (CompressionStream) + AES-CTR (WebCrypto) helpers ────
@@ -1769,13 +1776,19 @@ function b64urlDecode(str) {
   return out;
 }
 
-// Artifact format: "<key>: <prose>".
-//   key   = base64url( [flag:1][ctlen:varint][salt:8?] )  — the machine plumbing
-//   prose = Glossia-encoded payload only                   — the human-readable value
-// The flag's low bits (0x7f) hold the reduction method; the high bit (0x80) marks
-// an encrypted payload, in which case the per-message salt follows. With no
-// passphrase the high bit is clear and the salt is omitted entirely.
-// AES-CTR is a stream cipher (no tag/padding), so the prose carries exactly the
+// Two artifact shapes, depending on whether a passphrase was set:
+//
+//   encrypted:    "<key>: <prose>"
+//                 key   = base64url( [flag|0x80:1][ctlen:varint][salt:8] )
+//                 prose = Glossia-encoded ciphertext only
+//
+//   unencrypted:  "<prose>"   (no key — nothing secret to carry)
+//                 prose = Glossia-encoded [flag:1][len:varint][data] — the tiny
+//                         header rides along inside the payload, so the output is
+//                         pure readable prose.
+//
+// In both cases the flag's low bits (0x7f) hold the reduction method. AES-CTR is a
+// stream cipher (no tag/padding), so the encrypted prose carries exactly the
 // ciphertext.
 //
 // NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
@@ -1783,58 +1796,68 @@ function b64urlDecode(str) {
 const ENC_FLAG_ENCRYPTED = 0x80;
 function encBuildHeader(flag, ctlen, salt) {
   const lp = varintEncode(ctlen);
-  const saltLen = salt ? salt.length : 0;
-  const h = new Uint8Array(1 + lp.length + saltLen);
-  h[0] = salt ? (flag | ENC_FLAG_ENCRYPTED) : flag;
+  const h = new Uint8Array(1 + lp.length + salt.length);
+  h[0] = flag | ENC_FLAG_ENCRYPTED;
   h.set(lp, 1);
-  if (salt) h.set(salt, 1 + lp.length);
+  h.set(salt, 1 + lp.length);
   return b64urlEncode(h);
 }
 function encParseHeader(b64) {
   const h = b64urlDecode(b64);
   if (h.length < 2) throw new Error('bad header');
-  const encrypted = (h[0] & ENC_FLAG_ENCRYPTED) !== 0;
   const flag = h[0] & 0x7f;
   const { value: ctlen, next } = varintDecode(h, 1);
   const salt = h.subarray(next);
-  if (encrypted && salt.length < 8) throw new Error('bad header');
-  return { flag, ctlen, encrypted, salt: encrypted ? salt : null };
+  if (salt.length < 8) throw new Error('bad header');
+  return { flag, ctlen, salt };
 }
-// Split "<key>: <prose>" on the first colon (base64url has no ':').
-function encSplitArtifact(text) {
+// Prepend the [flag][len] header to (possibly compressed) bytes for the
+// unencrypted case, so the prose alone is enough to decode.
+function encBuildEmbedded(flag, data) {
+  const lp = varintEncode(data.length);
+  const out = new Uint8Array(1 + lp.length + data.length);
+  out[0] = flag & 0x7f;
+  out.set(lp, 1);
+  out.set(data, 1 + lp.length);
+  return out;
+}
+// Recover { flag, data } from bytes built by encBuildEmbedded (trailing
+// bit-padding from the bitpack codec is ignored via the explicit length).
+function encParseEmbedded(bytes) {
+  if (bytes.length < 2) throw new Error('bad payload');
+  const flag = bytes[0] & 0x7f;
+  const { value: len, next } = varintDecode(bytes, 1);
+  return { flag, data: bytes.subarray(next, next + len) };
+}
+// Recognize the artifact shape. An encrypted artifact starts with a base64url
+// key (no spaces) followed by a colon; anything else is treated as bare prose.
+function encParseArtifact(text) {
+  text = text.trim();
   const i = text.indexOf(':');
-  if (i < 0) return null;
-  const header = text.slice(0, i).trim();
-  const prose = text.slice(i + 1).trim();
-  if (!header || !prose) return null;
-  return { header, prose };
+  if (i > 0 && /^[A-Za-z0-9_-]+$/.test(text.slice(0, i))) {
+    const prose = text.slice(i + 1).trim();
+    if (prose) return { header: text.slice(0, i), prose };
+  }
+  return { header: null, prose: text };
 }
 
 // Encode: message + passphrase -> { header, ctHex }. The prose is rendered from
 // ctHex separately (so language/cover changes don't re-encrypt). With no
-// passphrase the reduced bytes are emitted verbatim — compressed but unencrypted,
-// and the header omits the salt.
+// passphrase there is no key (header = null) — the [flag][len] header is embedded
+// in the prose payload instead, so the artifact is pure prose.
 async function encEncrypt(message, password) {
   const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
   if (!password) {
-    return { header: encBuildHeader(flag, reduced.length, null), ctHex: toHex(reduced) };
+    return { header: null, ctHex: toHex(encBuildEmbedded(flag, reduced)) };
   }
   const salt = crypto.getRandomValues(new Uint8Array(8));
   const { key, nonce } = await encDeriveKeyNonce(password, salt);
   const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
   return { header: encBuildHeader(flag, ct.length, salt), ctHex: toHex(ct) };
 }
-// Decode: parsed header + payload bytes + passphrase -> message. An unencrypted
-// payload (no salt in the header) just gets decompressed, no passphrase needed.
+// Decrypt: parsed header + ciphertext bytes + passphrase -> message.
 async function encDecrypt(hdr, ctBytes, password) {
   const ct = ctBytes.subarray(0, hdr.ctlen);
-  if (!hdr.encrypted) {
-    try {
-      return ENC_TD.decode(await expand(ct, hdr.flag));
-    } catch (e) {
-      throw new Error('Could not decode the message.');
-    }
-  }
   const { key, nonce } = await encDeriveKeyNonce(password, hdr.salt);
   // CTR is unauthenticated: a wrong passphrase yields a different keystream and
   // therefore garbled bytes rather than a clean failure. We can only surface an
@@ -1874,8 +1897,7 @@ function encUpdateHighlights() {
 // Auto-detect the SOURCE language of the prose value (decode), restricted to
 // the languages this panel supports. Detects on the prose, not the base64 key.
 function encDetectLeftLang() {
-  const parsed = encSplitArtifact(encLeftText().trim());
-  const prose = parsed ? parsed.prose : encLeftText().trim();
+  const prose = encParseArtifact(encLeftText().trim()).prose;
   if (!prose) return;
   try {
     const matches = JSON.parse(wasmDetectDialect(prose));
@@ -1923,12 +1945,13 @@ function encUpdateChrome() {
 function encUnderlineLeftArtifact(header, prose, words) {
   const el = document.getElementById('enc-left-box');
   const focused = (document.activeElement === el);
-  el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + underlineProse(prose, normSet(words));
+  const body = underlineProse(prose, normSet(words));
+  el.innerHTML = header ? ('<span class="enc-key">' + escapeHtml(header) + '</span>: ' + body) : body;
   if (focused) placeCaretEnd(el);
 }
 
-// Render the cached ciphertext as "<key>: prose" in the current target language
-// (deterministic under the fixed SEED).
+// Render the cached payload as prose (with a "<key>: " prefix when encrypted) in
+// the current target language (deterministic under the fixed SEED).
 function encRenderCipher(cipher) {
   if (!ready || !cipher) { encSetOutput(''); return; }
   const tgt = encLangById(encLang);
@@ -1960,11 +1983,32 @@ async function encRun() {
     encRenderCipher(encCipher);
   } else {
     if (!text) { encSetOutput(''); return; }
-    const parsed = encSplitArtifact(text);
-    if (!parsed) { encSetOutput(''); encShowError('Expected "key: message" format.'); return; }
+    const parsed = encParseArtifact(text);
+    if (!parsed.prose) { encSetOutput(''); return; }
     encDetectLeftLang();
     encUpdateChrome();
     const src = encLangById(encDetLang);
+
+    // Unencrypted: no key — decode the prose, then read the embedded [flag][len]
+    // header (pass 0 so the codec returns every byte; trailing padding is sliced
+    // off by the embedded length). No passphrase required.
+    if (!parsed.header) {
+      let message;
+      try {
+        const r = JSON.parse(wasmDecodeRawBaseN(parsed.prose, src.language, src.wordlist, 0));
+        if (r.error) { encShowError(r.error); encSetOutput(''); return; }
+        const bytes = fromHex(r.decoded_hex || '');
+        encUnderlineLeftArtifact(null, parsed.prose, r.payload_words || []);
+        if (!bytes.length) { encSetOutput(''); return; }
+        const { flag, data } = encParseEmbedded(bytes);
+        message = ENC_TD.decode(await expand(data, flag));
+      } catch (e) { if (myId === encRunId) { encShowError('Could not decode the message.'); encSetOutput(''); } return; }
+      if (myId !== encRunId) return;
+      encSetOutput(message);
+      return;
+    }
+
+    // Encrypted: the key carries flag + ciphertext length + salt.
     let hdr, ctBytes;
     try { hdr = encParseHeader(parsed.header); }
     catch (e) { encSetOutput(''); encShowError('Malformed key.'); return; }
@@ -1975,7 +2019,7 @@ async function encRun() {
       encUnderlineLeftArtifact(parsed.header, parsed.prose, r.payload_words || []);
     } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); return; }
     if (!ctBytes.length) { encSetOutput(''); return; }
-    if (hdr.encrypted && !pw) { encSetOutput(''); encShowError('Enter the passphrase to decrypt.'); return; }
+    if (!pw) { encSetOutput(''); encShowError('Enter the passphrase to decrypt.'); return; }
     let message;
     try { message = await encDecrypt(hdr, ctBytes, pw); }
     catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
