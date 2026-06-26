@@ -1789,42 +1789,38 @@ pub fn decode_from_language(
     decode_from_language_with_payload_lang(text, language, language, wordlist, verbose, "body", None)
 }
 
-/// Decode extracted payload words to bytes, resolving the bare-vs-framed ambiguity.
+/// Choose the decode codec for a sequence of extracted payload words.
 ///
 /// Framed Glossia prose carries a leading padding-count word and is interspersed
-/// with cover/function words. When cover words are present (`payload_words <
-/// total_tokens`) the input is unambiguously framed and decodes through the
-/// grammar's declared codec (`bitpack` for power-of-two wordlists).
+/// with cover/function words, so it round-trips through the grammar's declared
+/// codec (`bitpack` for power-of-two wordlists). A *bare* payload sequence — e.g.
+/// a raw BIP39 mnemonic typed directly rather than produced by Glossia's encoder
+/// — has no padding word and no cover words: every input token is a payload word.
+/// Handing such input to `bitpack` misreads the first word as a padding count,
+/// leaving `(N-1) * bits_per_word` data bits that are almost never byte-aligned,
+/// so the decode aborts with "data_bits not byte-aligned" (issue #23).
 ///
-/// When *every* input token is a payload word (`payload_words == total_tokens`)
-/// the input is ambiguous: it may be a cover-hidden Glossia payload sequence —
-/// whose leading padding word still makes `bitpack` valid — or a *bare* mnemonic
-/// typed directly, which has no padding word. Crucially these are distinguishable
-/// at decode time: `bitpack` reads the first word as a padding count and rejects
-/// it unless it is `< bits_per_word` AND leaves byte-aligned data (see
-/// `decode_bitpack`). A bare mnemonic's first word is real data, so it almost
-/// always fails one of those checks. So we *try* `bitpack` first and fall back to
-/// `base_n` only when it genuinely can't decode — recovering cover-hidden payload
-/// sequences without breaking bare mnemonics (issue #23).
-fn decode_extracted_words(
-    extracted: &[String],
-    tree: &WordlistTree,
-    grammar_codec: &str,
-    all_payload: bool,
-) -> Result<Vec<u8>, codec::DecodeError> {
-    if grammar_codec == "bitpack" && all_payload && !extracted.is_empty() {
-        codec::decode_base_n(extracted, tree, "bitpack")
-            .or_else(|_| codec::decode_base_n(extracted, tree, "base_n"))
+/// When every input token is a payload word (`payload_words == total_tokens`) the
+/// input is unframed; decode it as a plain base-N integer instead — the same
+/// interpretation the `raw` dialect path uses for bare mnemonics. Only `bitpack`
+/// is rerouted; `base_n` already handles unframed input.
+fn decode_codec_for_input<'a>(
+    grammar_codec: &'a str,
+    total_tokens: usize,
+    payload_words: usize,
+) -> &'a str {
+    if grammar_codec == "bitpack" && payload_words > 0 && payload_words == total_tokens {
+        "base_n"
     } else {
-        codec::decode_base_n(extracted, tree, grammar_codec)
+        grammar_codec
     }
 }
 
 /// Count whitespace-delimited input tokens that survive alphanumeric trimming.
 ///
-/// Used to detect all-payload input: when this equals the number of extracted
-/// payload words, the input carries no cover words (see
-/// [`decode_extracted_words`]).
+/// Used to detect bare/unframed payload input: when this equals the number of
+/// extracted payload words, the input carries no cover words (see
+/// [`decode_codec_for_input`]).
 fn alnum_token_count(text: &str) -> usize {
     text.split_whitespace()
         .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
@@ -1923,12 +1919,14 @@ fn decode_from_language_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    // For the grammar's bitpack codec, an all-payload input (no cover words) may
-    // be a cover-hidden Glossia sequence (valid bitpack) or a bare mnemonic (no
-    // padding word); decode_extracted_words tries bitpack then falls back to
-    // base_n (issue #23 / cover-hidden payload).
-    let all_payload = !payload_separator.is_empty() && alnum_token_count(text) == extracted.len();
-    let bytes = decode_extracted_words(&extracted, &*payload_tree, grammar.codec(), all_payload)
+    // Bare/unframed input (a raw mnemonic: all tokens are payload words) has no
+    // bitpack padding header, so decode it as base-N instead (issue #23).
+    let codec_name = if payload_separator.is_empty() {
+        grammar.codec()
+    } else {
+        decode_codec_for_input(grammar.codec(), alnum_token_count(text), extracted.len())
+    };
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
     Ok(render_decoded_bytes(&bytes, format))
 }
@@ -2024,12 +2022,14 @@ fn decode_from_language_rich_with_payload_lang(
     }
 
     // 4. Payload words → binary → data string (base-N decoding).
-    // For the grammar's bitpack codec, an all-payload input (no cover words) may
-    // be a cover-hidden Glossia sequence (valid bitpack) or a bare mnemonic (no
-    // padding word); decode_extracted_words tries bitpack then falls back to
-    // base_n (issue #23 / cover-hidden payload).
-    let all_payload = !payload_separator.is_empty() && alnum_token_count(text) == extracted.len();
-    let bytes = decode_extracted_words(&extracted, &*payload_tree, grammar.codec(), all_payload)
+    // Bare/unframed input (a raw mnemonic: all tokens are payload words) has no
+    // bitpack padding header, so decode it as base-N instead (issue #23).
+    let codec_name = if payload_separator.is_empty() {
+        grammar.codec()
+    } else {
+        decode_codec_for_input(grammar.codec(), alnum_token_count(text), extracted.len())
+    };
+    let bytes = codec::decode_base_n(&extracted, &*payload_tree, codec_name)
         .map_err(|e| PipelineError::DecodeError(format!("{}", e)))?;
     let decoded = render_decoded_bytes(&bytes, format);
 
@@ -2367,26 +2367,38 @@ mod tests {
     }
 
     #[test]
-    fn test_cover_hidden_payload_round_trip() {
-        // Regression: an arbitrary-length ASCII key encoded into prose
-        // must still decode from its cover-hidden payload-only word sequence. The
-        // sequence is all payload words (like a bare mnemonic) but carries a
-        // leading bitpack padding word, so decode must try bitpack before base_n.
+    fn test_decode_codec_for_input_detects_bare_vs_framed() {
+        // Every input token is a payload word → unframed bare mnemonic → base_n.
+        assert_eq!(decode_codec_for_input("bitpack", 4, 4), "base_n");
+        // Cover words present (more tokens than payload words) → framed → bitpack.
+        assert_eq!(decode_codec_for_input("bitpack", 9, 4), "bitpack");
+        // Non-bitpack codecs already handle unframed input and are never rerouted.
+        assert_eq!(decode_codec_for_input("base_n", 4, 4), "base_n");
+        // No payload words extracted → keep the declared codec.
+        assert_eq!(decode_codec_for_input("bitpack", 0, 0), "bitpack");
+    }
+
+    #[test]
+    fn test_bip39_dialect_arbitrary_key_round_trip() {
+        // The API Key demo encodes arbitrary-length keys through the bip39 dialect
+        // (base_n, no padding word) so the cover-hidden payload-only sequence is a
+        // clean, round-trippable data sequence. Verify both the full prose and the
+        // payload-only word list decode back to the original key.
         let key = "sk-1SYMaH9HEJ5CHFMDQd5GoBtjRQzwOPQK";
-        let enc = Pipeline::from_meta("encode into english naturally").unwrap();
+        let enc = Pipeline::from_meta("encode into english bip39").unwrap();
         let prose = enc.execute(key).unwrap();
 
-        // Strip cover words → bare payload sequence (what "Hide cover" shows).
+        let dec = Pipeline::from_meta("transcode from english/bip39/bip39 into ascii7").unwrap();
+        assert_eq!(dec.execute(&prose).unwrap(), key, "full prose must round-trip");
+
+        // Strip cover words → the cover-hidden payload-only view.
         let tree = cached_payload_tree("english", "bip39").unwrap();
-        let payload_only: Vec<&str> = prose
+        let bare: String = prose
             .split_whitespace()
             .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
             .filter(|w| !w.is_empty() && tree.contains(&w.to_lowercase()))
-            .collect();
-        let bare = payload_only.join(" ");
-
-        let dec = Pipeline::from_meta("transcode from english/bip39/body into ascii7").unwrap();
-        assert_eq!(dec.execute(&prose).unwrap(), key, "full prose must round-trip");
+            .collect::<Vec<_>>()
+            .join(" ");
         assert_eq!(dec.execute(&bare).unwrap(), key, "cover-hidden payload must round-trip");
     }
 
