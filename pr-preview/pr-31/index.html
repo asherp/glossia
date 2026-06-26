@@ -1564,7 +1564,12 @@ function akRun() {
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
       const set = normSet(r.payload_words || []);
-      akSetOutput(coverAk ? out : payloadOnlyText(out, set), renderProse(out, set, coverAk));
+      // Keep the canonical artifact (what Copy and the ⇄ round trip use) as the
+      // FULL prose. A cover-hidden payload-only sequence is indistinguishable
+      // from a bare mnemonic, so the decoder mis-routes it (base_n instead of the
+      // grammar's bitpack) and the round trip yields garbage. "Hide cover" stays a
+      // display-only view; decoding always runs on the full sentences.
+      akSetOutput(out, renderProse(out, set, coverAk));
       akUpdateChrome();   // refresh the detected-format chip
     } else {
       const meta = 'transcode from ' + akLangById(akDetLang).source + ' into ' + akFmtById(akFormat).word;
