@@ -824,7 +824,17 @@ footer a:hover { text-decoration: underline; }
         .lang-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
         .lang-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
         .lang-btn.active:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
-        .demo-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; margin-top: 0.85rem; }
+        /* Each demo's one-line description doubles as the clickable summary of a
+           "how it works" disclosure. */
+        .demo-details { max-width: 720px; margin: 0.85rem auto 0; scroll-margin-top: 2rem; }
+        .demo-details > summary { list-style: none; cursor: pointer; color: var(--text-dim);
+          font-size: 0.8rem; text-align: center; line-height: 1.6; transition: color 0.15s; }
+        .demo-details > summary::-webkit-details-marker { display: none; }
+        .demo-details > summary:hover { color: var(--accent); }
+        .demo-details > summary::after { content: "\25be"; display: inline-block;
+          margin-left: 0.35rem; font-size: 0.75em; opacity: 0.7; transition: transform 0.15s; }
+        .demo-details[open] > summary::after { transform: rotate(180deg); }
+        .demo-details[open] > summary { margin-bottom: 0.85rem; }
         #demo .panel-header { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
         #demo .panel-header .lang-row { margin-left: auto; }
         .io-input { flex: 1; min-height: 64px; padding: 0.75rem 0.85rem; font-size: 0.9rem;
@@ -838,20 +848,11 @@ footer a:hover { text-decoration: underline; }
         #panel-bip39, #panel-apikey { border-top: 1px solid var(--border); padding-top: 0.5rem; }
         .enc-password-row { display: flex; align-items: center; justify-content: center;
           gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .enc-password-row label { font-family: var(--font-mono); font-size: 0.65rem;
-          text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
-        .enc-password-row label .req { color: var(--error); }
-        .enc-password-row label .opt { color: var(--text-dim); opacity: 0.7; }
         .enc-password-row input { min-width: 260px; }
+        .enc-password-row .btn-icon { padding: 0.4rem 0.55rem; line-height: 1; }
         .enc-entropy { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); white-space: nowrap; }
         .enc-entropy.strong { color: var(--success); }
         .enc-key { color: var(--text-dim); word-break: break-all; }
-        .enc-how { max-width: 700px; margin: 1.25rem auto 0; scroll-margin-top: 2rem; }
-        .enc-how summary { cursor: pointer; width: fit-content; margin: 0 auto;
-          font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase;
-          letter-spacing: 0.05em; color: var(--text-dim); }
-        .enc-how summary:hover { color: var(--accent); }
-        .enc-how[open] summary { margin-bottom: 0.75rem; }
         .enc-how-body { font-size: 0.78rem; line-height: 1.6; color: var(--text-dim); text-align: left; }
         .enc-how-body p { margin: 0 0 0.7rem; }
         .enc-how-body p:last-child { margin-bottom: 0; }
@@ -899,7 +900,20 @@ footer a:hover { text-decoration: underline; }
           </div>
         </div>
 
-        <p class="demo-hint" id="demo-hint"></p>
+        <details class="demo-details" id="bip39-how">
+          <summary id="demo-hint"></summary>
+          <div class="enc-how-body">
+            <p>A 12-word BIP39 seed is 128 bits of entropy plus a checksum. Glossia weaves those
+            exact words into grammatically valid prose, filling the gaps with <strong>cover
+            words</strong> that carry no data. English shares the BIP39 wordlist, so the seed words
+            appear verbatim in the sentences; <strong>Latin</strong> and <strong>Czech</strong> map
+            the same bits onto their own wordlists (Latin's larger list packs the seed into ~9
+            words).</p>
+            <p><strong>Decoding</strong> just filters the prose against the payload wordlist to
+            recover the seed words — byte-for-byte, with no AI or approximation. Press
+            <strong>⇄</strong> to run it backwards, or hide the cover words to see the payload alone.</p>
+          </div>
+        </details>
       </div>
 
       <!-- ─── API Key panel ───────────────────────────────────────── -->
@@ -943,7 +957,19 @@ footer a:hover { text-decoration: underline; }
           </div>
         </div>
 
-        <p class="demo-hint" id="ak-hint"></p>
+        <details class="demo-details" id="ak-how">
+          <summary id="ak-hint"></summary>
+          <div class="enc-how-body">
+            <p>An API key — or any hex, base64, or text blob — is <strong>bit-packed</strong> into
+            payload words and woven into prose. A leading padding word records the exact bit length,
+            so keys of any size (including awkward leading-zero bytes) round-trip exactly. The
+            padding word travels with the payload, so even the cover-hidden view stays decodable.</p>
+            <p><strong>Decoding</strong> filters the prose back to its payload words and unpacks the
+            bits, recovering the key in whichever format you pick — <strong>ASCII</strong>,
+            <strong>hex</strong>, or <strong>base64</strong>. Press <strong>⇄</strong> to switch
+            direction; the output format defaults to the one detected when encoding.</p>
+          </div>
+        </details>
       </div>
 
       <!-- ─── Encrypted Message panel ─────────────────────────────── -->
@@ -954,9 +980,9 @@ footer a:hover { text-decoration: underline; }
         </div>
 
         <div class="enc-password-row">
-          <label for="enc-pass">Passphrase <span class="opt" title="optional">(optional)</span></label>
           <input type="text" id="enc-pass" placeholder="Type a passphrase to encrypt, or leave blank to just encode &rarr;" autocomplete="off" spellcheck="false">
-          <button class="btn-sm" id="enc-genpass-btn" onclick="encGenPassword()" title="Generate a strong, high-entropy Latin passphrase">&#127922; Latin passphrase</button>
+          <button class="btn-sm btn-icon" id="enc-genpass-btn" onclick="encGenPassword()" title="Randomize" aria-label="Randomize passphrase">&#127922;</button>
+          <button class="btn-sm btn-icon" id="enc-copypass-btn" onclick="encCopyPass()" title="Copy passphrase" aria-label="Copy passphrase">&#128203;</button>
           <span class="enc-entropy" id="enc-entropy"></span>
         </div>
 
@@ -993,10 +1019,8 @@ footer a:hover { text-decoration: underline; }
           </div>
         </div>
 
-        <p class="demo-hint" id="enc-hint"></p>
-
-        <details class="enc-how" id="enc-how">
-          <summary>How it works</summary>
+        <details class="demo-details" id="enc-how">
+          <summary id="enc-hint"></summary>
           <div class="enc-how-body">
             <p><strong>Encoding.</strong> Your text is compressed (gzip or a 7-bit ASCII pack, whichever is
             smaller) and bit-packed into payload words, which are woven into grammatically valid prose.
@@ -2087,6 +2111,11 @@ window.encGenPassword = function() {
     encShowEntropy(words.length);
     encRun();   // re-encrypt under the new password
   } catch (e) { encShowError(e.message || String(e)); }
+};
+
+window.encCopyPass = function() {
+  const v = document.getElementById('enc-pass').value || '';
+  navigator.clipboard.writeText(v).catch(() => {});
 };
 
 // Sample messages: well-known aphorisms, picked at random for the demo input.
