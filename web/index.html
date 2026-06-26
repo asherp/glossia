@@ -804,7 +804,7 @@ footer a:hover { text-decoration: underline; }
         Humans assign meaning and legitimacy to familiar forms of communication. A passage of
         Latin carries different weight than a block of hexadecimal, even when neither is understood
         by the reader. Glossia exploits this: the same payload can be represented as structured
-        English, Latin prose, ASCII armor, and other human-friendly forms — without changing a
+        English, Latin prose, and other human-friendly forms — without changing a
         single bit. The goal isn't compression or secrecy — it's reducing the language barrier
         between humans and digital systems.
       </p>
@@ -1111,7 +1111,7 @@ footer a:hover { text-decoration: underline; }
     <section class="how-it-works">
       <div class="section-header">
         <h3>How It Works</h3>
-        <p>The encoding pipeline turns bytes into prose or ASCII armor — decoding reverses the same path</p>
+        <p>The encoding pipeline turns bytes into prose — decoding reverses the same path</p>
       </div>
       <div class="branching-diagram">
               <span class="highlight">Input bytes</span>
@@ -1121,11 +1121,8 @@ footer a:hover { text-decoration: underline; }
           <span class="highlight">Payload tokens</span>
                   |
          CFG + Montague Types
-                /      \
-               /        \
-          <span class="highlight">Text</span>        <span class="highlight">Crypto</span>
-            |             |
-          Prose         Armor</div>
+                  |
+          <span class="highlight">Prose</span></div>
       <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--text-dim);text-align:center;max-width:700px;margin-left:auto;margin-right:auto;">
         <strong>Decoding follows the same principle:</strong> filter the output against the payload wordlist
         to recover the encoded tokens, then reverse the codec to get the original bytes.
