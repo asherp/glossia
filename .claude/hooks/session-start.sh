@@ -13,6 +13,12 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
+# Run asynchronously: the session starts immediately while the toolchain installs
+# in the background. Trade-off: a web build attempted in the first moments of a
+# fresh container may race the install — cargo tests are unaffected (Rust is
+# pre-installed), and once the container state is cached this finishes instantly.
+echo '{"async": true, "asyncTimeout": 600000}'
+
 # 1. WASM compile target for build_web.sh (no-op if already added).
 rustup target add wasm32-unknown-unknown
 
