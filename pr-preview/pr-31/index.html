@@ -1437,14 +1437,14 @@ let akDetLang = 'english';   // SOURCE language auto-detected from left prose (d
 let akDetFmt = '';           // SOURCE format auto-detected from the key (encode), display only
 let akTimer = null;
 
-// The bip39 dialect encodes with base_n (no bitpack padding word), so the
-// payload words are pure data — the cover-hidden view is a clean, round-trippable
-// sequence (like a BIP39 mnemonic) rather than carrying a padding-count word that
-// a bare sequence would misread on decode.
+// The body dialect encodes with bitpack: a leading padding word records the bit
+// length, so arbitrary-length keys (including leading-zero bytes) round-trip
+// exactly. The padding word travels with the payload, so the cover-hidden view
+// stays decodable — the decoder tries bitpack before falling back to base_n.
 const AK_LANGS = [
-  { id: 'english', label: 'English', source: 'english/bip39/bip39' },
-  { id: 'latin',   label: 'Latin',   source: 'latin/default/bip39' },
-  { id: 'czech',   label: 'Czech',   source: 'czech/default/bip39' },
+  { id: 'english', label: 'English', source: 'english/bip39/body' },
+  { id: 'latin',   label: 'Latin',   source: 'latin/default/body' },
+  { id: 'czech',   label: 'Czech',   source: 'czech/default/body' },
 ];
 const AK_FORMATS = [
   { id: 'ascii7', label: 'ASCII',  word: 'ascii7' },
@@ -1570,7 +1570,7 @@ function akRun() {
   if (!text) { akSetOutput(''); return; }
   try {
     if (akMode === 'encode') {
-      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLang + ' bip39', SEED));
+      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLang + ' naturally', SEED));
       if (r.error) { akShowError(r.error); akSetOutput(''); return; }
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
