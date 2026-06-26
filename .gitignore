@@ -38,8 +38,13 @@ venv/
 ENV/
 .venv
 
-# Claude Code
-.claude/
+# Claude Code — ignore local state, but share project config (CLAUDE.md,
+# settings, and hooks so web sessions are reproducible).
+.claude/*
+!.claude/CLAUDE.md
+!.claude/settings.json
+!.claude/hooks/
+.claude/settings.local.json
 
 # Temporary files
 *.tmp
