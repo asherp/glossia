@@ -207,29 +207,21 @@ const AEAD_TAG_BITS = 96;
 const AEAD_TAG_LEN = AEAD_TAG_BITS / 8;     // 12 bytes
 const AEAD_MAX_CTLEN = 0x3fff;              // 14-bit length
 const AEAD_TRAILER_LEN = 2 + AEAD_SALT_LEN + AEAD_TAG_LEN;   // 20 bytes -> ~11 Latin words
-const EMDASH = ' — ';
+export const EMDASH = ' — ';
 
 function capWords(s) { return s.replace(/(^|\s)(\p{L})/gu, (_, sp, c) => sp + c.toUpperCase()); }
 
 // ─── public API ───────────────────────────────────────────────────────
 
-// message + passphrase -> artifact string. With a passphrase the result is the
-// authenticated "<prose> — <attribution>" form; without one it is bare prose
-// (unencrypted, the [flag][len] header riding inside the payload). Returns
-// { artifact, prose, payloadWords, langId, encrypted } — prose/payloadWords are
-// for rendering with payload words underlined.
-export async function encodeMessage(message, passphrase, langId = 'english') {
-  const lang = msgLangById(langId);
+// Phase 1 — encrypt (or just pack, with no passphrase) into an opaque, language-
+// independent cipher state. Render it into any language with renderArtifact, as
+// often as you like, without re-encrypting (so switching languages / cover does
+// not change the ciphertext). Returns { encrypted, ctHex, trailerHex }.
+export async function sealMessage(message, passphrase) {
   const { data: reduced, flag } = await maybeReduce(TE.encode(message));
-
   if (!passphrase) {
-    const ctHex = toHex(buildEmbedded(flag, reduced));
-    const r = JSON.parse(wasmEncodeRawBaseN(ctHex, lang.language, lang.wordlist, lang.dialect, SEED));
-    if (r.error) throw new Error(r.error);
-    const prose = (r.encoded_text || '').trim();
-    return { artifact: prose, prose, header: null, payloadWords: r.payload_words || [], langId: lang.id, encrypted: false };
+    return { encrypted: false, ctHex: toHex(buildEmbedded(flag, reduced)), trailerHex: null };
   }
-
   const salt = crypto.getRandomValues(new Uint8Array(AEAD_SALT_LEN));
   const { key, nonce } = await deriveKeyNonce(passphrase, salt, 'AES-GCM');
   const sealed = new Uint8Array(await crypto.subtle.encrypt(
@@ -237,30 +229,42 @@ export async function encodeMessage(message, passphrase, langId = 'english') {
   const ct = sealed.subarray(0, sealed.length - AEAD_TAG_LEN);
   const tag = sealed.subarray(sealed.length - AEAD_TAG_LEN);
   if (ct.length > AEAD_MAX_CTLEN) throw new Error('message too long');
-
-  // body prose = ciphertext, in the chosen language
-  const bodyR = JSON.parse(wasmEncodeRawBaseN(toHex(ct), lang.language, lang.wordlist, lang.dialect, SEED));
-  if (bodyR.error) throw new Error(bodyR.error);
-  const body = (bodyR.encoded_text || '').trim();
-
-  // trailer = plumbing bytes -> Latin payload words (capitalized, attribution-like)
+  // trailer = [flag:2b | length:14b][salt][tag]
   const tb = new Uint8Array(AEAD_TRAILER_LEN);
   const field0 = ((flag & 0x03) << 14) | ct.length;
   tb[0] = (field0 >> 8) & 0xff;
   tb[1] = field0 & 0xff;
   tb.set(salt, 2);
   tb.set(tag, 2 + AEAD_SALT_LEN);
-  const trR = JSON.parse(wasmEncodeRawBaseN(toHex(tb), 'latin', 'default', 'body', SEED));
+  return { encrypted: true, ctHex: toHex(ct), trailerHex: toHex(tb) };
+}
+
+// Phase 2 — render a sealed state into prose in the chosen language. Encrypted
+// states become "<body> — <latin attribution>"; unencrypted ones are bare prose.
+// The body and trailer are returned split out (with their payload words) so
+// callers can style and underline each independently.
+export function renderArtifact(state, langId = 'english') {
+  const lang = msgLangById(langId);
+  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, SEED));
+  if (bodyR.error) throw new Error(bodyR.error);
+  const body = (bodyR.encoded_text || '').trim();
+  const bodyWords = bodyR.payload_words || [];
+  if (!state.encrypted) {
+    return { artifact: body, prose: body, body, trailer: '', bodyWords, trailerWords: [], payloadWords: bodyWords, langId: lang.id, encrypted: false };
+  }
+  // trailer plumbing -> Latin payload words (capitalized, attribution-like)
+  const trR = JSON.parse(wasmEncodeRawBaseN(state.trailerHex, 'latin', 'default', 'body', SEED));
   if (trR.error) throw new Error(trR.error);
   const trailerWords = trR.payload_words || [];
   const trailer = capWords(trailerWords.join(' '));
-
   const artifact = body + EMDASH + trailer;
-  return {
-    artifact, prose: artifact, header: null,
-    payloadWords: (bodyR.payload_words || []).concat(trailerWords),
-    langId: lang.id, encrypted: true, authenticated: true,
-  };
+  return { artifact, prose: artifact, body, trailer, bodyWords, trailerWords, payloadWords: bodyWords.concat(trailerWords), langId: lang.id, encrypted: true, authenticated: true };
+}
+
+// Convenience: seal + render in one step. With a passphrase the result is the
+// authenticated "<prose> — <attribution>" form; without one it is bare prose.
+export async function encodeMessage(message, passphrase, langId = 'english') {
+  return renderArtifact(await sealMessage(message, passphrase), langId);
 }
 
 // Detect the language of some prose, restricted to MSG_LANGS. Falls back to

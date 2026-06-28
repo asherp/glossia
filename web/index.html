@@ -1027,18 +1027,18 @@ footer a:hover { text-decoration: underline; }
             Decoding filters the prose back down to those words and reverses the packing &mdash;
             byte-for-byte. With no passphrase the output is pure prose; a tiny <code>[flag][length]</code>
             header rides along inside the payload, so there&rsquo;s nothing else to carry.</p>
-            <p><strong>Encryption.</strong> Add a passphrase and the compressed bytes are encrypted with
-            AES-CTR before encoding. The passphrase is stretched with PBKDF2 (SHA-256, 200k iterations) to
-            derive both the key and the nonce from a fresh per-message salt, so the nonce never has to be
-            transmitted. The artifact gains a compact <code>key:</code> prefix &mdash; base64url plaintext
-            metadata holding the salt and ciphertext length, not a secret. Only the passphrase unlocks the
+            <p><strong>Encryption.</strong> Add a passphrase and the compressed bytes are sealed with
+            authenticated <strong>AES-256-GCM</strong> before encoding. The passphrase is stretched with
+            PBKDF2 (SHA-256, 200k iterations) to derive both the key and the nonce from a fresh per-message
+            salt, so the nonce never has to be transmitted. The artifact then reads as a quote with a source:
+            the prose <em>is</em> the ciphertext, and the dim <em>&mdash; attribution</em> after it carries the
+            plumbing (salt and authentication tag) as ~11 Latin payload words. Only the passphrase unlocks the
             message.</p>
-            <p><strong>Caveat.</strong> AES-CTR keeps your message confidential but is <em>not</em>
-            authenticated &mdash; it can&rsquo;t detect tampering. Someone who intercepts the ciphertext could
-            flip bits to alter the decoded message in controlled ways without ever knowing the passphrase.
-            That&rsquo;s impractical for messages copy-pasted by hand into chats and posts, but it&rsquo;s a
-            real property of unauthenticated encryption. For tamper-proof, end-to-end secure messaging, use a
-            signed protocol like <a href="https://nostr-mail.com" target="_blank" rel="noopener">nostr-mail</a>.</p>
+            <p><strong>Authenticated.</strong> GCM provides integrity as well as confidentiality &mdash; a
+            wrong passphrase or any tampering with the prose or the attribution fails cleanly, instead of
+            silently decoding to a different message. The same pipeline, signed and published to nostr relays
+            so a board loads by <code>#npub</code> in the URL, powers the
+            <a href="bulletin.html">Bulletins</a> demo.</p>
           </div>
         </details>
       </div>
@@ -1165,6 +1165,9 @@ import init, {
   encode_raw_base_n as wasmEncodeRawBaseN,
   decode_raw_base_n as wasmDecodeRawBaseN,
 } from './glossia.js';
+// Shared, authenticated message pipeline (also used by the bulletin board):
+// AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
+import { sealMessage, renderArtifact, decodeMessage, EMDASH } from './glossia-msg.js';
 
 let ready = false;
 let mode = 'encode';            // 'encode' (seed -> prose) or 'decode' (prose -> seed words)
@@ -1655,20 +1658,20 @@ window.akToggleCover = function() {
 
 // ═══ Encrypted Message panel ═════════════════════════════════════════
 //
-// Symmetric Google-Translate model with a shared passphrase:
-//   encode: message + passphrase -> compress -> AES-CTR encrypt -> "<key>: prose"
-//   decode: "<key>: prose" + passphrase -> decrypt -> decompress -> message
+// Symmetric Google-Translate model with a shared passphrase, over the shared
+// authenticated pipeline in ./glossia-msg.js:
+//   encode: message + passphrase -> compress -> AES-256-GCM -> "<prose> — <attribution>"
+//   decode: "<prose> — <attribution>" + passphrase -> verify+decrypt -> message
 //
 // The passphrase is OPTIONAL. With no passphrase the message is compressed and
-// encoded but not encrypted, and the header carries no salt — the prose is the
-// reduced bytes verbatim, decodable by anyone (no passphrase required).
+// encoded but not encrypted; a tiny [flag][len] header rides inside the payload
+// and the artifact is bare prose, decodable by anyone.
 //
-// The artifact is a key:value pair — the base64url <key> carries the plumbing
-// (flag + payload length + salt when encrypted), and the prose value carries only
-// the Glossia-encoded payload. The ciphertext is random per encryption, so the
-// cover toggle and language buttons re-render from the cached cipher (encCipher)
-// rather than re-encrypting; encode_raw_base_n uses the fixed SEED, so
-// re-rendering the same ciphertext into the same language is deterministic.
+// When encrypted, the prose is the ciphertext and the dim "— attribution" trailer
+// carries the plumbing (salt + GCM tag) as Latin words. sealMessage encrypts once
+// into a language-independent cipher state (encCipher); the cover toggle and
+// language buttons re-render that state via renderArtifact (fixed SEED -> the same
+// ciphertext deterministically becomes the same prose) rather than re-encrypting.
 
 const ENC_LANGS = [
   { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
@@ -1698,233 +1701,20 @@ function encSetOutput(text, html) {
   el.dataset.plainText = text;
 }
 
-// Render the artifact. When encrypted it's "<key>: prose" (dim base64url key,
-// then the prose value); with no passphrase there is no key — just the prose,
-// which already carries its own [flag][length] header embedded in the payload.
-function encSetArtifact(header, prosePlain, proseHtml) {
+// Render the artifact. When encrypted it reads as a quote with a source —
+// "<prose> — <attribution>" — where the dim attribution is the GCM plumbing
+// (salt + tag) rendered as Latin words. With no passphrase it is bare prose.
+function encSetArtifact(plainText, html) {
   const el = document.getElementById('enc-right-box');
   el.classList.remove('empty');
-  if (header) {
-    el.innerHTML = '<span class="enc-key">' + escapeHtml(header) + '</span>: ' + proseHtml;
-    el.dataset.plainText = header + ': ' + prosePlain;
-  } else {
-    el.innerHTML = proseHtml;
-    el.dataset.plainText = prosePlain;
-  }
+  el.innerHTML = html;
+  el.dataset.plainText = plainText;
 }
 
-// ─── compression (CompressionStream) + AES-CTR (WebCrypto) helpers ────
-const ENC_TE = new TextEncoder();
-const ENC_TD = new TextDecoder();
-
-function toHex(bytes) { return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join(''); }
-function fromHex(h) {
-  const clean = h.trim().toLowerCase().replace(/[^0-9a-f]/g, '');
-  const out = new Uint8Array(clean.length >> 1);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(clean.substr(i * 2, 2), 16);
-  return out;
-}
-
-async function gzipBytes(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-async function gunzipBytes(bytes) {
-  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-// Pack pure-ASCII bytes 7-bits-wide: [charCount:u16 BE][7-bit packed stream].
-// Returns null if any byte is >= 128 (needs the full 8th bit) or the message
-// is too long for the u16 count. Saves ~12.5% over raw bytes, with no
-// gzip-style fixed overhead — useful for short ASCII the compressor can't help.
-function asciiPack7(bytes) {
-  const L = bytes.length;
-  if (L > 0xffff) return null;
-  for (let i = 0; i < L; i++) if (bytes[i] > 0x7f) return null;
-  const out = new Uint8Array(2 + Math.ceil(L * 7 / 8));
-  out[0] = (L >> 8) & 0xff; out[1] = L & 0xff;
-  let acc = 0, bits = 0, pos = 2;
-  for (let i = 0; i < L; i++) {
-    acc = (acc << 7) | bytes[i];
-    bits += 7;
-    while (bits >= 8) { bits -= 8; out[pos++] = (acc >> bits) & 0xff; }
-  }
-  if (bits > 0) out[pos++] = (acc << (8 - bits)) & 0xff;
-  return out;
-}
-function asciiUnpack7(packed) {
-  const L = (packed[0] << 8) | packed[1];
-  const out = new Uint8Array(L);
-  let acc = 0, bits = 0, pos = 2, n = 0;
-  while (n < L) {
-    acc = (acc << 8) | (packed[pos++] || 0);
-    bits += 8;
-    while (bits >= 7 && n < L) { bits -= 7; out[n++] = (acc >> bits) & 0x7f; }
-  }
-  return out;
-}
-
-// Pick the smallest representation and record it in the flag byte:
-//   0 = raw UTF-8   1 = gzip   2 = 7-bit ASCII pack
-// gzip wins on longer/repetitive text; 7-bit packing wins on short ASCII
-// where gzip's ~18-byte overhead would make things bigger.
-async function maybeReduce(bytes) {
-  let best = { data: bytes, flag: 0 };
-  const a7 = asciiPack7(bytes);
-  if (a7 && a7.length < best.data.length) best = { data: a7, flag: 2 };
-  if (typeof CompressionStream !== 'undefined') {
-    try {
-      const gz = await gzipBytes(bytes);
-      if (gz.length < best.data.length) best = { data: gz, flag: 1 };
-    } catch (e) { /* keep current best */ }
-  }
-  return best;
-}
-async function expand(bytes, flag) {
-  if (flag === 1) return gunzipBytes(bytes);
-  if (flag === 2) return asciiUnpack7(bytes);
-  return bytes;
-}
-
-// Derive BOTH the AES key and its nonce from password + salt, so the nonce
-// never has to be transmitted. Each message uses a fresh random salt, making
-// the (key, nonce) pair unique per message — which is what keeps the CTR
-// keystream from ever being reused — while saving bytes on the wire.
-async function encDeriveKeyNonce(password, salt) {
-  const baseKey = await crypto.subtle.importKey('raw', ENC_TE.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, baseKey, (32 + 12) * 8));
-  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: 'AES-CTR' }, false, ['encrypt', 'decrypt']);
-  return { key, nonce: bits.subarray(32, 44) };
-}
-// 16-byte CTR counter block: 96-bit derived nonce in the high bytes, a 32-bit
-// counter (the low 4 bytes) starting at 0. 2^32 blocks = 64 GB per message.
-function ctrCounter(nonce) {
-  const c = new Uint8Array(16);
-  c.set(nonce, 0);
-  return c;
-}
-
-// Unsigned LEB128 varint (modulo/multiply math, so lengths above 2^31 are safe).
-function varintEncode(n) {
-  const out = [];
-  do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 0x80; out.push(b); } while (n > 0);
-  return new Uint8Array(out);
-}
-function varintDecode(bytes, pos) {
-  let value = 0, mult = 1, p = pos, b;
-  do { b = bytes[p++]; value += (b & 0x7f) * mult; mult *= 128; } while (b & 0x80);
-  return { value, next: p };
-}
-
-// base64url (no padding) for the compact header.
-function b64urlEncode(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-function b64urlDecode(str) {
-  const s = str.replace(/-/g, '+').replace(/_/g, '/');
-  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  const bin = atob(s + pad);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-// Two artifact shapes, depending on whether a passphrase was set:
-//
-//   encrypted:    "<key>: <prose>"
-//                 key   = base64url( [flag|0x80:1][ctlen:varint][salt:8] )
-//                 prose = Glossia-encoded ciphertext only
-//
-//   unencrypted:  "<prose>"   (no key — nothing secret to carry)
-//                 prose = Glossia-encoded [flag:1][len:varint][data] — the tiny
-//                         header rides along inside the payload, so the output is
-//                         pure readable prose.
-//
-// In both cases the flag's low bits (0x7f) hold the reduction method. AES-CTR is a
-// stream cipher (no tag/padding), so the encrypted prose carries exactly the
-// ciphertext.
-//
-// NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
-// cannot detect tampering (see the asterisk note under the demo panel).
-const ENC_FLAG_ENCRYPTED = 0x80;
-function encBuildHeader(flag, ctlen, salt) {
-  const lp = varintEncode(ctlen);
-  const h = new Uint8Array(1 + lp.length + salt.length);
-  h[0] = flag | ENC_FLAG_ENCRYPTED;
-  h.set(lp, 1);
-  h.set(salt, 1 + lp.length);
-  return b64urlEncode(h);
-}
-function encParseHeader(b64) {
-  const h = b64urlDecode(b64);
-  if (h.length < 2) throw new Error('bad header');
-  const flag = h[0] & 0x7f;
-  const { value: ctlen, next } = varintDecode(h, 1);
-  const salt = h.subarray(next);
-  if (salt.length < 8) throw new Error('bad header');
-  return { flag, ctlen, salt };
-}
-// Prepend the [flag][len] header to (possibly compressed) bytes for the
-// unencrypted case, so the prose alone is enough to decode.
-function encBuildEmbedded(flag, data) {
-  const lp = varintEncode(data.length);
-  const out = new Uint8Array(1 + lp.length + data.length);
-  out[0] = flag & 0x7f;
-  out.set(lp, 1);
-  out.set(data, 1 + lp.length);
-  return out;
-}
-// Recover { flag, data } from bytes built by encBuildEmbedded (trailing
-// bit-padding from the bitpack codec is ignored via the explicit length).
-function encParseEmbedded(bytes) {
-  if (bytes.length < 2) throw new Error('bad payload');
-  const flag = bytes[0] & 0x7f;
-  const { value: len, next } = varintDecode(bytes, 1);
-  return { flag, data: bytes.subarray(next, next + len) };
-}
-// Recognize the artifact shape. An encrypted artifact starts with a base64url
-// key (no spaces) followed by a colon; anything else is treated as bare prose.
-function encParseArtifact(text) {
-  text = text.trim();
-  const i = text.indexOf(':');
-  if (i > 0 && /^[A-Za-z0-9_-]+$/.test(text.slice(0, i))) {
-    const prose = text.slice(i + 1).trim();
-    if (prose) return { header: text.slice(0, i), prose };
-  }
-  return { header: null, prose: text };
-}
-
-// Encode: message + passphrase -> { header, ctHex }. The prose is rendered from
-// ctHex separately (so language/cover changes don't re-encrypt). With no
-// passphrase there is no key (header = null) — the [flag][len] header is embedded
-// in the prose payload instead, so the artifact is pure prose.
-async function encEncrypt(message, password) {
-  const { data: reduced, flag } = await maybeReduce(ENC_TE.encode(message));
-  if (!password) {
-    return { header: null, ctHex: toHex(encBuildEmbedded(flag, reduced)) };
-  }
-  const salt = crypto.getRandomValues(new Uint8Array(8));
-  const { key, nonce } = await encDeriveKeyNonce(password, salt);
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, reduced));
-  return { header: encBuildHeader(flag, ct.length, salt), ctHex: toHex(ct) };
-}
-// Decrypt: parsed header + ciphertext bytes + passphrase -> message.
-async function encDecrypt(hdr, ctBytes, password) {
-  const ct = ctBytes.subarray(0, hdr.ctlen);
-  const { key, nonce } = await encDeriveKeyNonce(password, hdr.salt);
-  // CTR is unauthenticated: a wrong passphrase yields a different keystream and
-  // therefore garbled bytes rather than a clean failure. We can only surface an
-  // error when the reduction stage (e.g. gunzip) chokes on the garbage.
-  try {
-    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, ct));
-    return ENC_TD.decode(await expand(plain, hdr.flag));
-  } catch (e) {
-    throw new Error('Could not decode — check the passphrase.');
-  }
-}
+// The encrypt / encode / decode pipeline (compression, AES-256-GCM, the Latin
+// "— attribution" trailer framing) lives in ./glossia-msg.js and is shared with
+// the bulletin board. This panel drives it via sealMessage / renderArtifact /
+// decodeMessage, imported at the top of this module.
 
 // ─── Language buttons ────────────────────────────────────────────────
 function encBuildButtons() {
@@ -1950,10 +1740,12 @@ function encUpdateHighlights() {
   document.querySelectorAll('#enc-langs .lang-btn').forEach(b => b.classList.toggle('active', b.dataset.encLang === encLang));
 }
 
-// Auto-detect the SOURCE language of the prose value (decode), restricted to
-// the languages this panel supports. Detects on the prose, not the base64 key.
+// Auto-detect the SOURCE language of the prose (decode), restricted to the
+// languages this panel supports. Detects on the body, not the attribution.
 function encDetectLeftLang() {
-  const prose = encParseArtifact(encLeftText().trim()).prose;
+  let prose = encLeftText().trim();
+  const i = prose.lastIndexOf(EMDASH);
+  if (i > 0) prose = prose.slice(0, i).trim();
   if (!prose) return;
   try {
     const matches = JSON.parse(wasmDetectDialect(prose));
@@ -1990,28 +1782,32 @@ function encUpdateChrome() {
   encUpdateHighlights();
 }
 
-// Re-underline the left box's prose value (decode), preserving the "<key>: "
-// prefix and underlining only payload words in the prose.
-function encUnderlineLeftArtifact(header, prose, words) {
+// Re-underline the left box (decode), underlining payload words across the
+// whole artifact (body + attribution).
+function encUnderlineLeftArtifact(artifact, words) {
   const el = document.getElementById('enc-left-box');
   const focused = (document.activeElement === el);
-  const body = underlineProse(prose, normSet(words));
-  el.innerHTML = header ? ('<span class="enc-key">' + escapeHtml(header) + '</span>: ' + body) : body;
+  el.innerHTML = underlineProse(artifact, normSet(words));
   if (focused) placeCaretEnd(el);
 }
 
-// Render the cached payload as prose (with a "<key>: " prefix when encrypted) in
-// the current target language (deterministic under the fixed SEED).
-function encRenderCipher(cipher) {
-  if (!ready || !cipher) { encSetOutput(''); return; }
-  const tgt = encLangById(encLang);
+// Render the cached cipher STATE into the current target language (deterministic
+// under the fixed SEED, so switching language / cover never re-encrypts). When
+// encrypted, the dim "— attribution" trailer carries the salt + GCM tag.
+function encRenderCipher(state) {
+  if (!ready || !state) { encSetOutput(''); return; }
   try {
-    const r = JSON.parse(wasmEncodeRawBaseN(cipher.ctHex, tgt.language, tgt.wordlist, tgt.dialect, SEED));
-    if (r.error) { encShowError(r.error); encSetOutput(''); return; }
-    const prose = (r.encoded_text || '').trim();
-    const set = normSet(r.payload_words || []);
-    const prosePlain = coverEnc ? prose : payloadOnlyText(prose, set);
-    encSetArtifact(cipher.header, prosePlain, renderProse(prose, set, coverEnc));
+    const r = renderArtifact(state, encLang);
+    const bodySet = normSet(r.bodyWords);
+    const bodyPlain = coverEnc ? r.body : payloadOnlyText(r.body, bodySet);
+    const bodyHtml = renderProse(r.body, bodySet, coverEnc);
+    if (r.encrypted) {
+      const trailerHtml = underlineProse(r.trailer, normSet(r.trailerWords));
+      encSetArtifact(bodyPlain + EMDASH + r.trailer,
+        bodyHtml + '<span class="enc-key">' + escapeHtml(EMDASH) + trailerHtml + '</span>');
+    } else {
+      encSetArtifact(bodyPlain, bodyHtml);
+    }
   } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); }
 }
 
@@ -2025,56 +1821,30 @@ async function encRun() {
 
   if (encMode === 'encode') {
     if (!text) { encCipher = null; encSetOutput(''); return; }
-    let cipher;
-    try { cipher = await encEncrypt(text, pw); }
+    let state;
+    try { state = await sealMessage(text, pw); }
     catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
     if (myId !== encRunId) return;   // a newer run superseded this one
-    encCipher = cipher;
+    encCipher = state;
     encRenderCipher(encCipher);
   } else {
     if (!text) { encSetOutput(''); return; }
-    const parsed = encParseArtifact(text);
-    if (!parsed.prose) { encSetOutput(''); return; }
     encDetectLeftLang();
     encUpdateChrome();
-    const src = encLangById(encDetLang);
-
-    // Unencrypted: no key — decode the prose, then read the embedded [flag][len]
-    // header (pass 0 so the codec returns every byte; trailing padding is sliced
-    // off by the embedded length). No passphrase required.
-    if (!parsed.header) {
-      let message;
-      try {
-        const r = JSON.parse(wasmDecodeRawBaseN(parsed.prose, src.language, src.wordlist, 0));
-        if (r.error) { encShowError(r.error); encSetOutput(''); return; }
-        const bytes = fromHex(r.decoded_hex || '');
-        encUnderlineLeftArtifact(null, parsed.prose, r.payload_words || []);
-        if (!bytes.length) { encSetOutput(''); return; }
-        const { flag, data } = encParseEmbedded(bytes);
-        message = ENC_TD.decode(await expand(data, flag));
-      } catch (e) { if (myId === encRunId) { encShowError('Could not decode the message.'); encSetOutput(''); } return; }
+    let res;
+    try { res = await decodeMessage(text, pw); }
+    catch (e) {
       if (myId !== encRunId) return;
-      encSetOutput(message);
+      encUnderlineLeftArtifact(text, []);
+      encShowError(e.needsPassphrase ? 'Enter the passphrase to decrypt.' : (e.message || 'Could not decode the message.'));
+      encSetOutput('');
       return;
     }
-
-    // Encrypted: the key carries flag + ciphertext length + salt.
-    let hdr, ctBytes;
-    try { hdr = encParseHeader(parsed.header); }
-    catch (e) { encSetOutput(''); encShowError('Malformed key.'); return; }
-    try {
-      const r = JSON.parse(wasmDecodeRawBaseN(parsed.prose, src.language, src.wordlist, hdr.ctlen));
-      if (r.error) { encShowError(r.error); encSetOutput(''); return; }
-      ctBytes = fromHex(r.decoded_hex || '');
-      encUnderlineLeftArtifact(parsed.header, parsed.prose, r.payload_words || []);
-    } catch (e) { encShowError(e.message || String(e)); encSetOutput(''); return; }
-    if (!ctBytes.length) { encSetOutput(''); return; }
-    if (!pw) { encSetOutput(''); encShowError('Enter the passphrase to decrypt.'); return; }
-    let message;
-    try { message = await encDecrypt(hdr, ctBytes, pw); }
-    catch (e) { if (myId === encRunId) { encShowError(e.message || String(e)); encSetOutput(''); } return; }
     if (myId !== encRunId) return;
-    encSetOutput(message);
+    encDetLang = res.langId || encDetLang;   // authoritative language from the decoder
+    encUpdateChrome();
+    encUnderlineLeftArtifact(text, res.payloadWords || []);
+    encSetOutput(res.message);
   }
 }
 
