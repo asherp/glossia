@@ -106,11 +106,14 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
       <label>Board address (npub)</label>
       <input type="text" id="r-npub" placeholder="npub1… (or paste a full glossia link)" spellcheck="false">
       <label>Decrypt passphrase <span class="muted">(optional — only to reveal the message)</span></label>
-      <input type="password" id="r-pass" placeholder="leave empty to read the prose only" spellcheck="false">
+      <div class="row">
+        <input type="password" id="r-pass" autocomplete="current-password" placeholder="leave empty to read the prose only" spellcheck="false">
+        <button type="button" class="btn sm" data-reveal="r-pass" title="Show / hide">👁</button>
+      </div>
       <label>Relays</label>
-      <input type="text" id="r-relays" spellcheck="false">
+      <input type="text" id="r-relays" autocomplete="off" spellcheck="false">
       <div class="row" style="margin-top:.7rem">
-        <button class="btn" id="r-load" style="flex:0 0 auto">Load bulletins</button>
+        <button type="button" class="btn" id="r-load" style="flex:0 0 auto" disabled>Load bulletins</button>
         <span class="hint" id="r-status" style="flex:1"></span>
       </div>
       <div class="err" id="r-err"></div>
@@ -122,7 +125,11 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
 
   <!-- ───────────── COMPOSE ───────────── -->
   <section class="panel" id="panel-compose">
+    <form id="c-form" autocomplete="on" onsubmit="return false;">
     <div class="card">
+      <!-- a stable username lets the browser's password manager offer to
+           generate and save the board passphrase -->
+      <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
       <label>Key model</label>
       <div class="seg" id="c-model">
         <button data-model="single" class="active">Single key (read + write)</button>
@@ -152,8 +159,9 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
       <div id="c-single">
         <label>Passphrase</label>
         <div class="row">
-          <input type="text" id="c-pass" placeholder="passphrase" spellcheck="false">
-          <button class="btn sm" id="c-genpass">🎲 generate</button>
+          <input type="password" id="c-pass" autocomplete="new-password" placeholder="passphrase — or let your browser suggest one" spellcheck="false">
+          <button type="button" class="btn sm" data-reveal="c-pass" title="Show / hide">👁</button>
+          <button type="button" class="btn sm" id="c-genpass" disabled>🎲 generate</button>
         </div>
         <div class="entropy" id="c-entropy"></div>
       </div>
@@ -167,12 +175,15 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
             <option value="nsec">Enter nsec / hex</option>
             <option value="random">Random (new)</option>
           </select>
-          <input type="text" id="c-pub-value" placeholder="publish passphrase" spellcheck="false">
-          <button class="btn sm" id="c-pub-gen" class="hidden">🎲</button>
+          <input type="text" id="c-pub-value" autocomplete="off" placeholder="publish passphrase" spellcheck="false">
+          <button type="button" class="btn sm hidden" id="c-pub-gen">🎲</button>
         </div>
         <div class="hint" id="c-pub-nsec"></div>
         <label>Decrypt passphrase (read key) <span class="muted">(optional)</span></label>
-        <input type="text" id="c-dec-pass" placeholder="leave empty to publish signed but unencrypted" spellcheck="false">
+        <div class="row">
+          <input type="password" id="c-dec-pass" autocomplete="new-password" placeholder="leave empty to publish signed but unencrypted" spellcheck="false">
+          <button type="button" class="btn sm" data-reveal="c-dec-pass" title="Show / hide">👁</button>
+        </div>
         <p class="hint">Share the <strong>decrypt passphrase</strong> with readers; keep the <strong>publish key</strong> to stay the only poster. (A broadcast / newsletter board.)</p>
       </div>
 
@@ -180,12 +191,13 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
       <input type="text" id="c-relays" spellcheck="false">
 
       <div class="row" style="margin-top:.8rem">
-        <button class="btn" id="c-preview" style="flex:0 0 auto">Preview</button>
-        <button class="btn" id="c-publish" style="flex:0 0 auto">Publish →</button>
+        <button type="button" class="btn" id="c-preview" style="flex:0 0 auto" disabled>Preview</button>
+        <button type="button" class="btn" id="c-publish" style="flex:0 0 auto" disabled>Publish →</button>
         <span class="hint" id="c-status" style="flex:1"></span>
       </div>
       <div class="err" id="c-err"></div>
     </div>
+    </form>
 
     <div class="card hidden" id="c-out-card">
       <label>Board address</label>
@@ -228,9 +240,20 @@ function parseRelays(s) {
   return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x));
 }
 
+// The WASM engine is ~3.8 MB; until it loads, gate the actions that need it so
+// clicks surface a clear "loading" state instead of silently doing nothing.
+const ENGINE_BTNS = ['c-preview', 'c-publish', 'c-genpass', 'r-load'];
+function setEngine(state, msg) {
+  const disabled = state !== 'ready';
+  ENGINE_BTNS.forEach(id => { const b = $(id); if (b) b.disabled = disabled; });
+  if (state === 'loading') { $('c-status').textContent = 'Loading Glossia engine…'; $('r-status').textContent = 'Loading Glossia engine…'; }
+  else if (state === 'ready') { $('c-status').textContent = ''; $('r-status').textContent = ''; }
+  else { $('c-err').textContent = msg; $('r-err').textContent = msg; }
+}
+setEngine('loading');
 (async () => {
-  try { await init(); ready = true; routeFromHash(); }
-  catch (e) { $('r-err').textContent = 'Failed to load Glossia engine: ' + (e.message || e); }
+  try { await init(); ready = true; setEngine('ready'); routeFromHash(); }
+  catch (e) { setEngine('error', 'Failed to load Glossia engine: ' + (e.message || e)); }
 })();
 
 // ── tabs ──────────────────────────────────────────────────────────────
@@ -299,18 +322,38 @@ function genPassphrase() {
   } catch { return ''; }
 }
 $('c-genpass').addEventListener('click', () => {
-  if (!ready) return;
+  if (!ready) { $('c-err').textContent = 'Engine still loading…'; return; }
   const p = genPassphrase();
-  if (p) { $('c-pass').value = p; showEntropy(p); }
+  if (p) { $('c-pass').value = p; $('c-pass').type = 'text'; showEntropy(p); }
 });
+// Rough entropy estimate: a word phrase (≥3 tokens) ~13 bits/word; otherwise a
+// character password, sized from the character classes it uses.
+function estimateBits(p) {
+  p = p.trim(); if (!p) return 0;
+  const words = p.split(/\s+/);
+  if (words.length >= 3) return Math.round(words.length * 13);
+  let charset = 0;
+  if (/[a-z]/.test(p)) charset += 26;
+  if (/[A-Z]/.test(p)) charset += 26;
+  if (/[0-9]/.test(p)) charset += 10;
+  if (/[^A-Za-z0-9]/.test(p)) charset += 32;
+  return Math.round(p.length * Math.log2(Math.max(charset, 2)));
+}
 function showEntropy(p) {
-  const n = p.trim() ? p.trim().split(/\s+/).length : 0;
-  const bits = Math.round(n * 15); // ~15 bits/word for the Latin payload list
+  const bits = estimateBits(p);
   const el = $('c-entropy');
-  el.textContent = n ? `≈ ${bits}-bit passphrase` : '';
+  el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
 $('c-pass').addEventListener('input', (e) => showEntropy(e.target.value));
+
+// Show / hide toggles for password fields.
+document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
+  const inp = $(btn.dataset.reveal);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+}));
 
 // resolve the publishing identity for the current compose state
 async function resolveIdentity() {
