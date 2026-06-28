@@ -191,13 +191,22 @@ export function parseArtifact(text) {
 // "— Cornelius Vanto Brixia". GCM authenticates: a wrong passphrase or a
 // tampered message fails cleanly instead of yielding garbage.
 //
-//   trailer bytes: [version|flag : 1][ctlen : 2 BE][salt : 8][tag : 16] = 27
+//   trailer bytes: [flag:2b | length:14b : 2 BE][salt : 6][GCM tag : 12] = 20
 //
-// The high nibble of byte 0 (0xA0) marks an AEAD artifact and version; the low
-// nibble carries the reduction method. Latin's 15 bits/word keeps the trailer
-// shortest. The em-dash never appears in encoded prose, so it splits cleanly.
-const AEAD_VERSION = 0xa0;
-const AEAD_TRAILER_LEN = 1 + 2 + 8 + 16;   // 27 bytes
+// The top 2 bits of the length field carry the reduction method, the low 14
+// bits the ciphertext length (<=16 KB). The em-dash never appears in encoded
+// prose, so it alone signals the format (no version byte needed). Latin's ~15
+// bits/word lands this at 11 words.
+//
+// Sizing notes: the 96-bit GCM tag is the integrity check (and the nostr event
+// signature independently authenticates the content); the 48-bit salt derives a
+// fresh key+nonce per message — a (key, nonce) repeat needs a salt collision,
+// ~2^24 messages on one board, which is far beyond any real bulletin.
+const AEAD_SALT_LEN = 6;
+const AEAD_TAG_BITS = 96;
+const AEAD_TAG_LEN = AEAD_TAG_BITS / 8;     // 12 bytes
+const AEAD_MAX_CTLEN = 0x3fff;              // 14-bit length
+const AEAD_TRAILER_LEN = 2 + AEAD_SALT_LEN + AEAD_TAG_LEN;   // 20 bytes -> ~11 Latin words
 const EMDASH = ' — ';
 
 function capWords(s) { return s.replace(/(^|\s)(\p{L})/gu, (_, sp, c) => sp + c.toUpperCase()); }
@@ -221,13 +230,13 @@ export async function encodeMessage(message, passphrase, langId = 'english') {
     return { artifact: prose, prose, header: null, payloadWords: r.payload_words || [], langId: lang.id, encrypted: false };
   }
 
-  const salt = crypto.getRandomValues(new Uint8Array(8));
+  const salt = crypto.getRandomValues(new Uint8Array(AEAD_SALT_LEN));
   const { key, nonce } = await deriveKeyNonce(passphrase, salt, 'AES-GCM');
   const sealed = new Uint8Array(await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv: nonce, tagLength: 128 }, key, reduced));
-  const ct = sealed.subarray(0, sealed.length - 16);
-  const tag = sealed.subarray(sealed.length - 16);
-  if (ct.length > 0xffff) throw new Error('message too long');
+    { name: 'AES-GCM', iv: nonce, tagLength: AEAD_TAG_BITS }, key, reduced));
+  const ct = sealed.subarray(0, sealed.length - AEAD_TAG_LEN);
+  const tag = sealed.subarray(sealed.length - AEAD_TAG_LEN);
+  if (ct.length > AEAD_MAX_CTLEN) throw new Error('message too long');
 
   // body prose = ciphertext, in the chosen language
   const bodyR = JSON.parse(wasmEncodeRawBaseN(toHex(ct), lang.language, lang.wordlist, lang.dialect, SEED));
@@ -236,11 +245,11 @@ export async function encodeMessage(message, passphrase, langId = 'english') {
 
   // trailer = plumbing bytes -> Latin payload words (capitalized, attribution-like)
   const tb = new Uint8Array(AEAD_TRAILER_LEN);
-  tb[0] = AEAD_VERSION | (flag & 0x0f);
-  tb[1] = (ct.length >> 8) & 0xff;
-  tb[2] = ct.length & 0xff;
-  tb.set(salt, 3);
-  tb.set(tag, 11);
+  const field0 = ((flag & 0x03) << 14) | ct.length;
+  tb[0] = (field0 >> 8) & 0xff;
+  tb[1] = field0 & 0xff;
+  tb.set(salt, 2);
+  tb.set(tag, 2 + AEAD_SALT_LEN);
   const trR = JSON.parse(wasmEncodeRawBaseN(toHex(tb), 'latin', 'default', 'body', SEED));
   if (trR.error) throw new Error(trR.error);
   const trailerWords = trR.payload_words || [];
@@ -324,11 +333,11 @@ async function aeadDecodeMessage(body, trailer, passphrase) {
   if (tR.error) throw new Error(tR.error);
   const tb = fromHex(tR.decoded_hex || '');
   if (tb.length < AEAD_TRAILER_LEN) throw new Error('bad attribution trailer');
-  if ((tb[0] & 0xf0) !== AEAD_VERSION) throw new Error('unrecognized attribution version');
-  const flag = tb[0] & 0x0f;
-  const ctlen = (tb[1] << 8) | tb[2];
-  const salt = tb.subarray(3, 11);
-  const tag = tb.subarray(11, 27);
+  const field0 = (tb[0] << 8) | tb[1];
+  const flag = field0 >> 14;
+  const ctlen = field0 & AEAD_MAX_CTLEN;
+  const salt = tb.subarray(2, 2 + AEAD_SALT_LEN);
+  const tag = tb.subarray(2 + AEAD_SALT_LEN, AEAD_TRAILER_LEN);
 
   // body prose -> ciphertext, in its detected language
   const lang = msgLangById(detectLang(body));
@@ -339,13 +348,13 @@ async function aeadDecodeMessage(body, trailer, passphrase) {
   if (!passphrase) { const e = new Error('passphrase required'); e.needsPassphrase = true; throw e; }
 
   const { key, nonce } = await deriveKeyNonce(passphrase, salt, 'AES-GCM');
-  const sealed = new Uint8Array(ct.length + 16);
+  const sealed = new Uint8Array(ct.length + AEAD_TAG_LEN);
   sealed.set(ct, 0);
   sealed.set(tag, ct.length);
   let message;
   try {
     const plain = new Uint8Array(await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: nonce, tagLength: 128 }, key, sealed));
+      { name: 'AES-GCM', iv: nonce, tagLength: AEAD_TAG_BITS }, key, sealed));
     message = TD.decode(await expand(plain, flag));
   } catch (e) {
     throw new Error('Could not decrypt — wrong passphrase, or the message was tampered with.');

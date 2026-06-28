@@ -63,20 +63,22 @@ you bring, or a freshly generated random key (save the `nsec` to post again).
 ## How a bulletin is built
 
 The message is compressed and encrypted with authenticated **AES-256-GCM**
-(key and nonce both derived from the passphrase and an 8-byte random salt via
+(key and nonce both derived from the passphrase and a 6-byte random salt via
 PBKDF2-SHA-256, 200k iterations), then Glossia-encoded into prose. An encrypted
 bulletin reads as a **quote with an attribution**: the prose *is* the ciphertext,
-and the em-dash trailer carries the plumbing — `[version|flag][length][salt][tag]`
-(27 bytes) — rendered as Latin payload words, so it scans like a cited source:
+and the em-dash trailer carries the plumbing — `[flag:2b | length:14b][salt:6][tag:12]`
+(20 bytes) — rendered as ~11 Latin payload words, so it scans like a cited source:
 
 ```
-"Ara belle arbustum. Obatratus emptor perrogatio…" — Coa Secuplus Caerulans Infloresco …
-└──────────────── ciphertext ───────────────────┘   └──── salt + 128-bit GCM tag ─────┘
+"Ara belle arbustum. Obatratus emptor perrogatio…" — Gelu Synapium Cenit Tolerantia Parium Remex …
+└──────────────── ciphertext ───────────────────┘   └──── salt + 96-bit GCM tag ─────────────────┘
 ```
 
-Latin's ~15 bits/word keeps the trailer shortest, and the em-dash never appears
-in encoded prose, so the two halves split cleanly. That artifact string is the
-body of a [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) event:
+The reduction flag rides in the top 2 bits of the length field, so no version
+byte is needed — the em-dash alone signals the format, and it never appears in
+encoded prose, so the two halves split cleanly. Latin's ~15 bits/word keeps the
+trailer at 11 words. That artifact string is the body of a
+[NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) event:
 
 ```
 kind:    1314            (an app-specific regular event — relays store every one,
