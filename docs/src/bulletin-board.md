@@ -10,7 +10,9 @@ human-friendly*. A bulletin reads as prose, transcribes by voice, and verifies
 by eye, while every payload word still carries its full entropy. Nothing is
 hidden; the encryption is what protects the contents, not the encoding.
 
-Try it at [`/bulletin.html`](https://glossia.io/bulletin.html).
+Read a board at [`/bulletin.html`](https://glossia.io/bulletin.html) (open a
+shared `#npub` link and add the passphrase to decrypt); post one at
+[`/compose.html`](https://glossia.io/compose.html).
 
 ## The model
 
