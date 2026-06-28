@@ -14,6 +14,7 @@
 - [Image Codec](./image-codec.md)
 - [Email Dialect](./email-dialect.md)
 - [Nostr Seal](./nostr-seal.md)
+- [Bulletin Board](./bulletin-board.md)
 - [Project Structure](./project-structure.md)
 - [Deployment & CI](./deployment.md)
 - [Whitepaper](./whitepaper.md)
