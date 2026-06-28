@@ -62,16 +62,26 @@ you bring, or a freshly generated random key (save the `nsec` to post again).
 
 ## How a bulletin is built
 
-The content pipeline is the same one behind the demo's
-[encrypted-message panel](./usage.md): the message is compressed, optionally
-encrypted with AES-256-CTR (PBKDF2-SHA-256, 200k iterations), and Glossia-encoded
-into prose. That prose string is the body of a [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md)
-nostr event:
+The message is compressed and encrypted with authenticated **AES-256-GCM**
+(key and nonce both derived from the passphrase and an 8-byte random salt via
+PBKDF2-SHA-256, 200k iterations), then Glossia-encoded into prose. An encrypted
+bulletin reads as a **quote with an attribution**: the prose *is* the ciphertext,
+and the em-dash trailer carries the plumbing — `[version|flag][length][salt][tag]`
+(27 bytes) — rendered as Latin payload words, so it scans like a cited source:
+
+```
+"Ara belle arbustum. Obatratus emptor perrogatio…" — Coa Secuplus Caerulans Infloresco …
+└──────────────── ciphertext ───────────────────┘   └──── salt + 128-bit GCM tag ─────┘
+```
+
+Latin's ~15 bits/word keeps the trailer shortest, and the em-dash never appears
+in encoded prose, so the two halves split cleanly. That artifact string is the
+body of a [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) event:
 
 ```
 kind:    1314            (an app-specific regular event — relays store every one,
                           append-only, and generic nostr clients ignore it)
-content: "<key>: <prose>"  (encrypted)   or   "<prose>"   (signed but unencrypted)
+content: "<prose> — <attribution>"  (encrypted)   or   "<prose>"   (signed but unencrypted)
 tags:    [["client","glossia"], ["subject", "..."]]
 sig:     schnorr (BIP-340) signature over the event id, by the publish key
 ```
@@ -79,7 +89,8 @@ sig:     schnorr (BIP-340) signature over the event id, by the publish key
 The event is signed in the browser and pushed to several public relays. Reading
 a board is a relay query for `{ authors: [pubkey], kinds: [1314] }`; each event's
 signature is verified before its prose is shown, and the message is revealed only
-if you supply the decrypt passphrase.
+if you supply the decrypt passphrase — the GCM tag then guarantees it decrypted
+to exactly what was published.
 
 All crypto runs client-side. The schnorr/secp256k1 and SHA-256 primitives are the
 audited [`@noble`](https://github.com/paulmillr/noble-curves) ESM builds, vendored
@@ -97,10 +108,11 @@ bech32 (`npub`/`nsec`) is implemented to BIP-173 and cross-checked against
   both the publish key (impersonate) and the decrypt key (read). The 200k-round
   PBKDF2 stretch raises the cost, and generated passphrases target ≥128 bits.
   Use a strong, generated passphrase.
-- **AES-CTR is unauthenticated.** It gives confidentiality, not integrity: a
-  wrong passphrase yields garbled output rather than a clean error, and a
-  tampered ciphertext is not detected. (The nostr signature does authenticate
-  the *event* — so you always know which npub posted it.)
+- **Encryption is authenticated.** AES-256-GCM gives confidentiality *and*
+  integrity: a wrong passphrase or any tampering with the prose or the
+  attribution fails cleanly instead of yielding garbage. The nostr signature
+  independently authenticates the *event*, so you also always know which npub
+  posted it.
 - **Relays are untrusted infrastructure.** They can drop or withhold events and
   see all public metadata. Publishing to several relays adds redundancy; it adds
   no confidentiality.

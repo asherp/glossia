@@ -201,8 +201,8 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
   </section>
 
   <footer class="hint" style="text-align:center; margin-top:2rem; border-top:1px solid var(--border); padding-top:1rem">
-    Glossia is a <strong>readable encoding, not steganography</strong>. AES-CTR gives confidentiality, not authentication.
-    Boards are public on nostr; a weak passphrase is offline-guessable. Generated passphrases target ≥128 bits.
+    Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
+    so a wrong passphrase or tampering fails cleanly. Boards are public on nostr; a weak passphrase is offline-guessable. Generated passphrases target ≥128 bits.
   </footer>
 </div>
 
@@ -432,22 +432,26 @@ async function renderBulletin(ev, pass) {
     body = `<div class="prose">${renderProse(dec.prose, dec.payloadWords)}</div>`
          + `<div class="msg">${escapeHtml(dec.message)}</div>`;
   } catch (e) {
-    // Still show the prose; just couldn't decrypt (no/wrong passphrase).
-    const { prose, header } = safeParse(ev.content);
+    // Still show the readable quote; just couldn't decrypt (no/wrong passphrase
+    // or tampering). Drop the attribution trailer from the locked view.
+    const { prose, encrypted } = safeParse(ev.content);
     body = `<div class="prose">${escapeHtml(prose)}</div>`
-         + `<div class="hint">${header ? (e.needsPassphrase ? '🔒 Encrypted — enter the decrypt passphrase to reveal.' : '🔒 ' + escapeHtml(e.message || 'Could not decrypt.')) : escapeHtml(e.message || 'Could not decode.')}</div>`;
+         + `<div class="hint">${encrypted ? (e.needsPassphrase ? '🔒 Encrypted — enter the decrypt passphrase to reveal.' : '🔒 ' + escapeHtml(e.message || 'Could not decrypt.')) : escapeHtml(e.message || 'Could not decode.')}</div>`;
   }
   return `<div class="bulletin">
     <div class="meta"><span>${when}</span>${subject ? `<span>· ${subject}</span>` : ''}<span class="muted mono">${ev.id.slice(0, 12)}…</span></div>
     ${body}
   </div>`;
 }
-// lightweight artifact split for the fallback display path
+// lightweight artifact split for the locked display path: show the readable
+// quote, hide the attribution trailer / legacy key.
 function safeParse(text) {
   text = (text || '').trim();
+  const di = text.lastIndexOf(' — ');
+  if (di > 0) return { encrypted: true, prose: text.slice(0, di).trim() };   // authenticated form
   const i = text.indexOf(':');
-  if (i > 0 && /^[A-Za-z0-9_-]+$/.test(text.slice(0, i))) return { header: text.slice(0, i), prose: text.slice(i + 1).trim() };
-  return { header: null, prose: text };
+  if (i > 0 && /^[A-Za-z0-9_-]+$/.test(text.slice(0, i))) return { encrypted: true, prose: text.slice(i + 1).trim() };
+  return { encrypted: false, prose: text };
 }
 
 syncPubSource();
