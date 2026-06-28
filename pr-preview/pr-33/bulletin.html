@@ -436,6 +436,20 @@ $('c-copy-npub').addEventListener('click', () => navigator.clipboard.writeText($
 $('c-copy-link').addEventListener('click', () => navigator.clipboard.writeText(readLink($('c-out-card').dataset.npub || '')).catch(() => {}));
 
 // ── read: load a board and render bulletins ───────────────────────────
+let loadedEvents = [];   // cached events from the last successful fetch
+let renderToken = 0;     // guards against overlapping re-renders
+
+// (Re)render the cached bulletins with whatever passphrase is in the box — no
+// re-fetch. Used both right after a fetch and whenever the passphrase changes.
+async function renderLoaded() {
+  if (!loadedEvents.length) return;
+  const my = ++renderToken;
+  const pass = $('r-pass').value.trim();
+  const items = await Promise.all(loadedEvents.map(ev => renderBulletin(ev, pass)));
+  if (my !== renderToken) return;   // a newer render superseded this one
+  $('r-results').innerHTML = items.join('');
+}
+
 async function loadBoard() {
   $('r-err').textContent = ''; $('r-status').textContent = '';
   if (!ready) { $('r-err').textContent = 'Engine still loading…'; return; }
@@ -445,27 +459,37 @@ async function loadBoard() {
   const npub = m[0];
   const relays = parseRelays($('r-relays').value);
   if (!relays.length) { $('r-err').textContent = 'Add at least one wss:// relay.'; return; }
-  const pass = $('r-pass').value.trim();
   $('r-status').textContent = 'Querying ' + relays.length + ' relays…';
   $('r-load').disabled = true;
   // reflect the board in the URL so the view is shareable / reloadable
   if (location.hash.replace(/^#/, '') !== npub) history.replaceState(null, '', '#' + npub);
   try {
     const events = await fetchBoard(npub, relays);
+    loadedEvents = events;
     $('r-results-card').classList.remove('hidden');
     if (!events.length) {
       $('r-results').innerHTML = '<p class="muted">No bulletins found for this board (yet).</p>';
       $('r-status').textContent = '';
       return;
     }
-    const items = await Promise.all(events.map(ev => renderBulletin(ev, pass)));
-    $('r-results').innerHTML = items.join('');
+    await renderLoaded();
     $('r-status').textContent = `${events.length} bulletin${events.length > 1 ? 's' : ''}.`;
   } catch (e) { $('r-err').textContent = e.message || String(e); }
   finally { $('r-load').disabled = false; }
 }
 $('r-load').addEventListener('click', loadBoard);
 $('r-npub').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBoard(); });
+
+// Typing (or revealing) the decrypt passphrase re-decrypts the already-loaded
+// bulletins in place — no re-fetch. Debounced, since each decrypt runs PBKDF2.
+let rPassTimer = null;
+$('r-pass').addEventListener('input', () => {
+  clearTimeout(rPassTimer);
+  rPassTimer = setTimeout(() => { if (loadedEvents.length) renderLoaded(); }, 350);
+});
+$('r-pass').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { clearTimeout(rPassTimer); renderLoaded(); }
+});
 
 async function renderBulletin(ev, pass) {
   const when = new Date(ev.created_at * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
