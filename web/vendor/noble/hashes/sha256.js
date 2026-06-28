@@ -1,4 +1,4 @@
-import { HashMD, Chi, Maj } from './_md.js';
+import { HashMD, Chi, Maj } from './md.js';
 import { rotr, wrapConstructor } from './utils.js';
 // SHA2-256 need to try 2^128 hashes to execute birthday attack.
 // BTC network is doing 2^67 hashes/sec as per early 2023.

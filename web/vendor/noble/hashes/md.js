@@ -1,4 +1,4 @@
-import { exists, output } from './_assert.js';
+import { exists, output } from './assert.js';
 import { Hash, createView, toBytes } from './utils.js';
 // Polyfill for Safari 14
 function setBigUint64(view, byteOffset, value, isLE) {
