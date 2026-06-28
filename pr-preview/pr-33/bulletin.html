@@ -88,13 +88,6 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
     <span class="home"><a href="./index.html">← demo</a></span>
   </header>
 
-  <div class="note">
-    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from a passphrase.
-    Your message is encrypted and encoded into Glossia prose, signed, and published to public nostr relays.
-    The site stays static — anyone opens a board by putting its <span class="mono">#npub</span> in the URL.
-    <strong>The passphrase is the credential:</strong> with it you can post and decrypt; with only the npub you can read the prose but not decrypt it.
-  </div>
-
   <div class="tabs">
     <div class="tab active" data-tab="read">Read a board</div>
     <div class="tab" data-tab="compose">Compose &amp; publish</div>
@@ -102,6 +95,11 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
 
   <!-- ───────────── READ ───────────── -->
   <section class="panel active" id="panel-read">
+    <!-- a board's bulletins render here, above the form, so a shared #npub link
+         shows its content first -->
+    <div class="card hidden" id="r-results-card">
+      <div id="r-results"></div>
+    </div>
     <div class="card">
       <label>Board address (npub)</label>
       <input type="text" id="r-npub" placeholder="npub1… (or paste a full glossia link)" spellcheck="false">
@@ -117,9 +115,6 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
         <span class="hint" id="r-status" style="flex:1"></span>
       </div>
       <div class="err" id="r-err"></div>
-    </div>
-    <div class="card hidden" id="r-results-card">
-      <div id="r-results"></div>
     </div>
   </section>
 
@@ -211,6 +206,13 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
       <div id="c-relay-results"></div>
     </div>
   </section>
+
+  <div class="note" style="margin-top:1.5rem">
+    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from a passphrase.
+    Your message is encrypted and encoded into Glossia prose, signed, and published to public nostr relays.
+    The site stays static — anyone opens a board by putting its <span class="mono">#npub</span> in the URL.
+    <strong>The passphrase is the credential:</strong> with it you can post and decrypt; with only the npub you can read the prose but not decrypt it.
+  </div>
 
   <footer class="hint" style="text-align:center; margin-top:2rem; border-top:1px solid var(--border); padding-top:1rem">
     Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
