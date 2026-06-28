@@ -1,21 +1,28 @@
 // glossia-msg.js — message → encrypted Glossia artifact, as an ES module.
 //
-// This is the content pipeline shared by the bulletin board (bulletin.html).
-// It mirrors the "Encrypted Message" panel in index.html so that an artifact
-// produced here decodes with the exact same rules (and vice-versa):
+// Shared content pipeline for the demo panel (index.html) and the bulletin
+// board (compose.html / bulletin.html):
 //
-//   encode: message + passphrase -> reduce -> AES-CTR -> "<key>: prose"
-//   decode: "<key>: prose" + passphrase -> AES-CTR -> expand -> message
+//   encode: message + credential -> reduce -> AES-256-GCM -> "<prose> — <attribution>"
+//   decode: "<prose> — <attribution>" + credential -> verify + decrypt -> message
 //
-// The passphrase is optional. With no passphrase the bytes are compressed and
-// encoded but not encrypted; the [flag][len] header rides inside the prose and
-// the artifact is bare prose (no "<key>: " prefix), decodable by anyone.
+// The CREDENTIAL is polymorphic:
+//   • a passphrase string  -> key+nonce via PBKDF2-SHA-256 (200k) — the demo's
+//     human-typed symmetric password.
+//   • a 32-byte Uint8Array -> key+nonce via HKDF-SHA-256 — the board "read key"
+//     (derived from the signing key in glossia-nostr.js); already high-entropy,
+//     so no slow stretching is needed.
+// The on-the-wire format is identical either way; the derivation is chosen by
+// credential type, and each flow uses one type consistently, so decoding never
+// needs to record which was used.
 //
-// NOTE: AES-CTR provides confidentiality only — it is NOT authenticated, so it
-// cannot detect tampering. (Same caveat as the demo panel.)
+// With NO credential the bytes are compressed and encoded but not encrypted; a
+// [flag][len] header rides inside the prose and the artifact is bare prose,
+// readable by anyone. AES-256-GCM is authenticated: a wrong credential or any
+// tampering fails cleanly.
 //
 // The glossia WASM (encode_raw_base_n / decode_raw_base_n) is loaded from the
-// same ./glossia.js bundle the rest of the site uses; call init() once first.
+// same ./glossia.js bundle; call init() once first.
 
 import init, {
   encode_raw_base_n as wasmEncodeRawBaseN,
@@ -27,8 +34,7 @@ export { init };
 
 const SEED = 42n;               // fixed seed -> deterministic prose
 
-// Languages this pipeline can render into / detect from (matches index.html's
-// ENC_LANGS so artifacts are interchangeable with the demo panel).
+// Languages this pipeline can render into / detect from.
 export const MSG_LANGS = [
   { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
   { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
@@ -102,20 +108,29 @@ async function expand(bytes, flag) {
   return bytes;
 }
 
-// ─── key + nonce both derived from password+salt (so the nonce is never
-//     transmitted). algo selects the cipher: 'AES-GCM' (authenticated, current
-//     scheme) or 'AES-CTR' (legacy artifacts). The 12-byte nonce doubles as the
-//     GCM IV. A fresh random salt per message keeps every (key, nonce) unique.
-async function deriveKeyNonce(password, salt, algo = 'AES-GCM') {
-  const baseKey = await crypto.subtle.importKey('raw', TE.encode(password), 'PBKDF2', false, ['deriveBits']);
-  const bits = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, baseKey, (32 + 12) * 8));
-  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: algo }, false, ['encrypt', 'decrypt']);
+// ─── per-message AES-256-GCM key + nonce, from a credential + salt ─────
+// Both key and nonce are derived (so the nonce is never transmitted); a fresh
+// random salt per message keeps every (key, nonce) unique. A passphrase string
+// is stretched with PBKDF2; a 32-byte key is expanded with HKDF (no stretching
+// needed — it is already high-entropy).
+function hasCred(c) { return (typeof c === 'string' && c.length > 0) || (c instanceof Uint8Array && c.length > 0); }
+
+async function deriveKeyNonce(cred, salt) {
+  let bits;
+  if (cred instanceof Uint8Array) {
+    const base = await crypto.subtle.importKey('raw', cred, 'HKDF', false, ['deriveBits']);
+    bits = new Uint8Array(await crypto.subtle.deriveBits(
+      { name: 'HKDF', hash: 'SHA-256', salt, info: TE.encode('glossia/aead/v1') }, base, (32 + 12) * 8));
+  } else {
+    const base = await crypto.subtle.importKey('raw', TE.encode(cred), 'PBKDF2', false, ['deriveBits']);
+    bits = new Uint8Array(await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, base, (32 + 12) * 8));
+  }
+  const key = await crypto.subtle.importKey('raw', bits.subarray(0, 32), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
   return { key, nonce: bits.subarray(32, 44) };
 }
-function ctrCounter(nonce) { const c = new Uint8Array(16); c.set(nonce, 0); return c; }
 
-// ─── varint + base64url + header framing ──────────────────────────────
+// ─── varint + embedded header (unencrypted path) ──────────────────────
 function varintEncode(n) {
   const out = [];
   do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 0x80; out.push(b); } while (n > 0);
@@ -125,38 +140,6 @@ function varintDecode(bytes, pos) {
   let value = 0, mult = 1, p = pos, b;
   do { b = bytes[p++]; value += (b & 0x7f) * mult; mult *= 128; } while (b & 0x80);
   return { value, next: p };
-}
-function b64urlEncode(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-function b64urlDecode(str) {
-  const s = str.replace(/-/g, '+').replace(/_/g, '/');
-  const pad = s.length % 4 === 0 ? '' : '='.repeat(4 - (s.length % 4));
-  const bin = atob(s + pad);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-const FLAG_ENCRYPTED = 0x80;
-function buildHeader(flag, ctlen, salt) {
-  const lp = varintEncode(ctlen);
-  const h = new Uint8Array(1 + lp.length + salt.length);
-  h[0] = flag | FLAG_ENCRYPTED;
-  h.set(lp, 1);
-  h.set(salt, 1 + lp.length);
-  return b64urlEncode(h);
-}
-function parseHeader(b64) {
-  const h = b64urlDecode(b64);
-  if (h.length < 2) throw new Error('bad header');
-  const flag = h[0] & 0x7f;
-  const { value: ctlen, next } = varintDecode(h, 1);
-  const salt = h.subarray(next);
-  if (salt.length < 8) throw new Error('bad header');
-  return { flag, ctlen, salt };
 }
 function buildEmbedded(flag, data) {
   const lp = varintEncode(data.length);
@@ -172,36 +155,19 @@ function parseEmbedded(bytes) {
   const { value: len, next } = varintDecode(bytes, 1);
   return { flag, data: bytes.subarray(next, next + len) };
 }
-// "<base64url-key>: prose" when encrypted, else bare prose.
-export function parseArtifact(text) {
-  text = (text || '').trim();
-  const i = text.indexOf(':');
-  if (i > 0 && /^[A-Za-z0-9_-]+$/.test(text.slice(0, i))) {
-    const prose = text.slice(i + 1).trim();
-    if (prose) return { header: text.slice(0, i), prose };
-  }
-  return { header: null, prose: text };
-}
 
 // ─── authenticated artifact: "<prose> — <latin attribution>" ──────────
 //
 // The encrypted artifact reads as a quote with an attribution. The prose IS the
 // AES-256-GCM ciphertext; the em-dash trailer is the plumbing — flag + length +
-// salt + 128-bit auth tag — rendered as Latin payload words, so it scans like
-// "— Cornelius Vanto Brixia". GCM authenticates: a wrong passphrase or a
-// tampered message fails cleanly instead of yielding garbage.
+// salt + 96-bit auth tag — rendered as ~11 Latin payload words, so it scans like
+// "— Cornelius Vanto Brixia". GCM authenticates: a wrong credential or a tampered
+// message fails cleanly instead of yielding garbage.
 //
 //   trailer bytes: [flag:2b | length:14b : 2 BE][salt : 6][GCM tag : 12] = 20
 //
-// The top 2 bits of the length field carry the reduction method, the low 14
-// bits the ciphertext length (<=16 KB). The em-dash never appears in encoded
-// prose, so it alone signals the format (no version byte needed). Latin's ~15
-// bits/word lands this at 11 words.
-//
-// Sizing notes: the 96-bit GCM tag is the integrity check (and the nostr event
-// signature independently authenticates the content); the 48-bit salt derives a
-// fresh key+nonce per message — a (key, nonce) repeat needs a salt collision,
-// ~2^24 messages on one board, which is far beyond any real bulletin.
+// The top 2 bits of the length field carry the reduction method; the em-dash
+// never appears in encoded prose, so it alone signals the format.
 const AEAD_SALT_LEN = 6;
 const AEAD_TAG_BITS = 96;
 const AEAD_TAG_LEN = AEAD_TAG_BITS / 8;     // 12 bytes
@@ -213,17 +179,18 @@ function capWords(s) { return s.replace(/(^|\s)(\p{L})/gu, (_, sp, c) => sp + c.
 
 // ─── public API ───────────────────────────────────────────────────────
 
-// Phase 1 — encrypt (or just pack, with no passphrase) into an opaque, language-
+// Phase 1 — encrypt (or just pack, with no credential) into an opaque, language-
 // independent cipher state. Render it into any language with renderArtifact, as
-// often as you like, without re-encrypting (so switching languages / cover does
-// not change the ciphertext). Returns { encrypted, ctHex, trailerHex }.
-export async function sealMessage(message, passphrase) {
+// often as you like, without re-encrypting. `cred` is a passphrase string or a
+// 32-byte key (Uint8Array); falsy/empty means do not encrypt.
+// Returns { encrypted, ctHex, trailerHex }.
+export async function sealMessage(message, cred) {
   const { data: reduced, flag } = await maybeReduce(TE.encode(message));
-  if (!passphrase) {
+  if (!hasCred(cred)) {
     return { encrypted: false, ctHex: toHex(buildEmbedded(flag, reduced)), trailerHex: null };
   }
   const salt = crypto.getRandomValues(new Uint8Array(AEAD_SALT_LEN));
-  const { key, nonce } = await deriveKeyNonce(passphrase, salt, 'AES-GCM');
+  const { key, nonce } = await deriveKeyNonce(cred, salt);
   const sealed = new Uint8Array(await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: nonce, tagLength: AEAD_TAG_BITS }, key, reduced));
   const ct = sealed.subarray(0, sealed.length - AEAD_TAG_LEN);
@@ -261,14 +228,12 @@ export function renderArtifact(state, langId = 'english') {
   return { artifact, prose: artifact, body, trailer, bodyWords, trailerWords, payloadWords: bodyWords.concat(trailerWords), langId: lang.id, encrypted: true, authenticated: true };
 }
 
-// Convenience: seal + render in one step. With a passphrase the result is the
-// authenticated "<prose> — <attribution>" form; without one it is bare prose.
-export async function encodeMessage(message, passphrase, langId = 'english') {
-  return renderArtifact(await sealMessage(message, passphrase), langId);
+// Convenience: seal + render in one step.
+export async function encodeMessage(message, cred, langId = 'english') {
+  return renderArtifact(await sealMessage(message, cred), langId);
 }
 
-// Detect the language of some prose, restricted to MSG_LANGS. Falls back to
-// english. Detects on the prose value, not the base64 key.
+// Detect the language of some prose, restricted to MSG_LANGS. Falls back to english.
 export function detectLang(prose) {
   try {
     const matches = JSON.parse(wasmDetectDialect(prose));
@@ -280,59 +245,32 @@ export function detectLang(prose) {
   return 'english';
 }
 
-// artifact string + passphrase -> { message, prose, header, payloadWords,
-// langId, encrypted, authenticated }. Throws on malformed input; for the
-// authenticated form a wrong passphrase or tampering throws cleanly.
-export async function decodeMessage(artifact, passphrase) {
+// artifact string + credential -> { message, prose, payloadWords, langId,
+// encrypted, authenticated }. Throws on malformed input; for the authenticated
+// form a wrong credential or tampering throws cleanly.
+export async function decodeMessage(artifact, cred) {
   const text = (artifact || '').trim();
 
   // Authenticated form: "<prose> — <latin attribution>".
   const di = text.lastIndexOf(EMDASH);
-  if (di > 0) return aeadDecodeMessage(text.slice(0, di).trim(), text.slice(di + EMDASH.length).trim(), passphrase);
+  if (di > 0) return aeadDecodeMessage(text.slice(0, di).trim(), text.slice(di + EMDASH.length).trim(), cred);
 
-  // Legacy / unencrypted forms.
-  const { header, prose } = parseArtifact(text);
-  if (!prose) throw new Error('empty artifact');
-  const lang = msgLangById(detectLang(prose));
-
-  if (!header) {
-    // Unencrypted: pass 0 so the codec returns every byte; the embedded length
-    // slices off any trailing bit-pad. No passphrase required.
-    const r = JSON.parse(wasmDecodeRawBaseN(prose, lang.language, lang.wordlist, 0));
-    if (r.error) throw new Error(r.error);
-    const bytes = fromHex(r.decoded_hex || '');
-    if (!bytes.length) throw new Error('empty payload');
-    const { flag, data } = parseEmbedded(bytes);
-    const message = TD.decode(await expand(data, flag));
-    return { message, prose, header: null, payloadWords: r.payload_words || [], langId: lang.id, encrypted: false };
-  }
-
-  // Encrypted: key carries flag + ciphertext length + salt.
-  const hdr = parseHeader(header);
-  const r = JSON.parse(wasmDecodeRawBaseN(prose, lang.language, lang.wordlist, hdr.ctlen));
+  // Unencrypted bare prose: the [flag][len] header rides inside the payload.
+  if (!text) throw new Error('empty artifact');
+  const lang = msgLangById(detectLang(text));
+  const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, 0));
   if (r.error) throw new Error(r.error);
-  const ctBytes = fromHex(r.decoded_hex || '');
-  if (!ctBytes.length) throw new Error('empty ciphertext');
-  if (!passphrase) {
-    const e = new Error('passphrase required'); e.needsPassphrase = true; throw e;
-  }
-  const ct = ctBytes.subarray(0, hdr.ctlen);
-  const { key, nonce } = await deriveKeyNonce(passphrase, hdr.salt, 'AES-CTR');
-  let message;
-  try {
-    const plain = new Uint8Array(await crypto.subtle.decrypt(
-      { name: 'AES-CTR', counter: ctrCounter(nonce), length: 32 }, key, ct));
-    message = TD.decode(await expand(plain, hdr.flag));
-  } catch (e) {
-    throw new Error('Could not decode — check the passphrase.');
-  }
-  return { message, prose, header, payloadWords: r.payload_words || [], langId: lang.id, encrypted: true };
+  const bytes = fromHex(r.decoded_hex || '');
+  if (!bytes.length) throw new Error('empty payload');
+  const { flag, data } = parseEmbedded(bytes);
+  const message = TD.decode(await expand(data, flag));
+  return { message, prose: text, header: null, payloadWords: r.payload_words || [], langId: lang.id, encrypted: false };
 }
 
 // Decode the authenticated "<body> — <attribution>" form. GCM verifies the tag,
-// so a wrong passphrase or any tampering throws rather than returning garbage.
-async function aeadDecodeMessage(body, trailer, passphrase) {
-  // attribution (Latin) -> 27 plumbing bytes (lowercased so capitalization is ignored)
+// so a wrong credential or any tampering throws rather than returning garbage.
+async function aeadDecodeMessage(body, trailer, cred) {
+  // attribution (Latin) -> plumbing bytes (lowercased so capitalization is ignored)
   const tR = JSON.parse(wasmDecodeRawBaseN(trailer.toLowerCase(), 'latin', 'default', AEAD_TRAILER_LEN));
   if (tR.error) throw new Error(tR.error);
   const tb = fromHex(tR.decoded_hex || '');
@@ -349,9 +287,9 @@ async function aeadDecodeMessage(body, trailer, passphrase) {
   if (bR.error) throw new Error(bR.error);
   const ct = fromHex(bR.decoded_hex || '').subarray(0, ctlen);
   if (!ct.length) throw new Error('empty ciphertext');
-  if (!passphrase) { const e = new Error('passphrase required'); e.needsPassphrase = true; throw e; }
+  if (!hasCred(cred)) { const e = new Error('decryption key required'); e.needsKey = true; e.needsPassphrase = true; throw e; }
 
-  const { key, nonce } = await deriveKeyNonce(passphrase, salt, 'AES-GCM');
+  const { key, nonce } = await deriveKeyNonce(cred, salt);
   const sealed = new Uint8Array(ct.length + AEAD_TAG_LEN);
   sealed.set(ct, 0);
   sealed.set(tag, ct.length);
@@ -361,7 +299,7 @@ async function aeadDecodeMessage(body, trailer, passphrase) {
       { name: 'AES-GCM', iv: nonce, tagLength: AEAD_TAG_BITS }, key, sealed));
     message = TD.decode(await expand(plain, flag));
   } catch (e) {
-    throw new Error('Could not decrypt — wrong passphrase, or the message was tampered with.');
+    throw new Error('Could not decrypt — wrong key/passphrase, or the message was tampered with.');
   }
   return {
     message, prose: body + EMDASH + trailer, header: null,

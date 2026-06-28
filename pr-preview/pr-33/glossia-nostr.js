@@ -1,20 +1,22 @@
 // glossia-nostr.js — minimal nostr identity + event + relay layer for the
 // Glossia bulletin board, built on the vendored @noble crypto in ./vendor/noble.
 //
-// Design: ONE passphrase is the whole credential.
-//   passphrase --PBKDF2(fixed domain salt)--> secp256k1 secret key --> npub
-// The npub is a *public read address* (it goes in the URL). The passphrase is
-// the *write + decrypt secret*: anyone who has it can both post to the board
-// and decrypt its messages; anyone with only the npub can read the encrypted
-// prose but not decrypt it.
+// Design: a single signing key roots a three-tier capability hierarchy.
+//   signing key d  --schnorr--> npub                         (publish + identity)
+//                  --SHA256(domain‖d)--> read key K          (decrypt)
+//   npub = d·G                                               (locate + verify only)
 //
-// The identity key uses a FIXED domain-separation salt so the same passphrase
-// always lands on the same npub. The message-content key (glossia-msg.js) uses
-// a fresh RANDOM salt per message, so the two derivations are independent.
+//   • nsec (d)      → publish AND decrypt (can compute K)
+//   • read key (K)  → decrypt only (one-way hash → can't recover d → can't sign)
+//   • npub          → read the prose / verify signatures, but can't decrypt
+//
+// d can be random (save the nsec) or passphrase-derived (deterministic npub via
+// a FIXED domain salt). The content key is then K = deriveContentKey(d), so the
+// user never has to choose a separate encryption password.
 
 import { schnorr, secp256k1 } from '@noble/curves/secp256k1';
 import { sha256 } from '@noble/hashes/sha256';
-import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils';
+import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/utils';
 
 const TE = new TextEncoder();
 
@@ -115,9 +117,26 @@ export function isNpub(s) {
   try { npubToHex(s); return true; } catch { return false; }
 }
 
+// The board "read key": a 32-byte symmetric content key, shared as nread1….
+// Holding it grants decrypt-only access — it cannot publish, since you can't
+// recover the signing key from it.
+export function nreadEncode(keyHex) { return encodeBech32Entity('nread', keyHex); }
+export function nreadToHex(nread) { return decodeBech32Entity('nread', nread.trim()); }
+export function isNread(s) { try { nreadToHex(s); return true; } catch { return false; } }
+
 // ─── identity: passphrase -> deterministic secp256k1 keypair ──────────
 const IDENTITY_SALT = TE.encode('glossia/nostr-identity/v1');
+const CONTENT_KEY_DOMAIN = TE.encode('glossia/content-key/v1');
 const SECP_N = secp256k1.CURVE.n;
+
+// The content (read) key is the symmetric encryption key, derived one-way from
+// the signing key with domain separation. Holding the signing key (nsec) lets
+// you both sign (publish) and compute this key (decrypt); holding only this key
+// (nread) lets you decrypt but not sign; holding only the npub lets you do
+// neither — you can't reach the read key without the signing key.
+export function deriveContentKey(sk) {
+  return sha256(concatBytes(CONTENT_KEY_DOMAIN, sk));   // 32 bytes
+}
 
 function bigToBytes32(n) {
   let hex = n.toString(16);
@@ -131,12 +150,16 @@ function bigToBytes32(n) {
 export function identityFromSk(sk) {
   if (!(sk instanceof Uint8Array) || sk.length !== 32) throw new Error('secret key must be 32 bytes');
   const pubHex = bytesToHex(schnorr.getPublicKey(sk));   // 32-byte x-only (nostr pubkey)
+  const readKey = deriveContentKey(sk);
   return {
     sk,
     pubHex,
     secHex: bytesToHex(sk),
     npub: npubEncode(pubHex),
     nsec: nsecEncode(bytesToHex(sk)),
+    readKey,                                 // Uint8Array(32) — symmetric content key
+    readKeyHex: bytesToHex(readKey),
+    nread: nreadEncode(bytesToHex(readKey)),
   };
 }
 
@@ -171,6 +194,20 @@ export async function deriveIdentity(passphrase) {
     { name: 'PBKDF2', salt: IDENTITY_SALT, iterations: 200000, hash: 'SHA-256' }, baseKey, 256));
   const scalar = (BigInt('0x' + bytesToHex(bits)) % (SECP_N - 1n)) + 1n;
   return identityFromSk(bigToBytes32(scalar));
+}
+
+// Resolve a viewer's decryption credential to the 32-byte content key:
+//   • nsec   -> derive the read key from the signing key (full-access holder)
+//   • nread  -> the read key itself (read-only holder)
+//   • else   -> treat as a passphrase: derive the board identity, then its read
+//               key (works for a passphrase-derived board).
+// Returns null for empty input.
+export async function resolveContentKey(input) {
+  const s = (input || '').trim();
+  if (!s) return null;
+  if (s.startsWith('nsec')) return deriveContentKey(hexToBytes(nsecToHex(s)));
+  if (s.startsWith('nread')) return hexToBytes(nreadToHex(s));
+  return (await deriveIdentity(s)).readKey;
 }
 
 // ─── NIP-01 events ────────────────────────────────────────────────────

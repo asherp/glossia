@@ -82,9 +82,9 @@ summary { color: var(--text-dim); font-size: .82rem; cursor: pointer; }
   </div>
 
   <div class="card">
-    <label>Decrypt passphrase <span class="muted">(optional — only to reveal the message)</span></label>
+    <label>Decryption key <span class="muted">(optional — read key, nsec, or passphrase)</span></label>
     <div class="row">
-      <input type="password" id="r-pass" autocomplete="current-password" placeholder="leave empty to read the prose only" spellcheck="false">
+      <input type="password" id="r-pass" autocomplete="current-password" placeholder="nread1… / nsec1… / passphrase — leave empty to read the prose only" spellcheck="false">
       <button type="button" class="btn sm" data-reveal="r-pass" title="Show / hide">👁</button>
     </div>
     <details id="r-settings" style="margin-top:.7rem">
@@ -102,10 +102,10 @@ summary { color: var(--text-dim); font-size: .82rem; cursor: pointer; }
   </div>
 
   <div class="note">
-    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from a passphrase.
-    Messages are encrypted, encoded into Glossia prose, signed, and published to public nostr relays.
-    With only the npub you can read the prose; the passphrase decrypts it. To post, use
-    <a href="./compose.html">create a bulletin</a>.
+    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span>. Messages are encrypted,
+    encoded into Glossia prose, signed, and published to public nostr relays. With only the npub you can read
+    the prose; a <strong>read key</strong> (nread…), an <strong>nsec</strong>, or the board's
+    <strong>passphrase</strong> decrypts it. To post, use <a href="./compose.html">create a bulletin</a>.
   </div>
 
   <footer class="hint" style="text-align:center; margin-top:2rem; border-top:1px solid var(--border); padding-top:1rem">
@@ -116,7 +116,7 @@ summary { color: var(--text-dim); font-size: .82rem; cursor: pointer; }
 
 <script type="module">
 import { init, decodeMessage } from './glossia-msg.js';
-import { fetchBoard, isNpub, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { fetchBoard, isNpub, resolveContentKey, DEFAULT_RELAYS } from './glossia-nostr.js';
 
 const $ = (id) => document.getElementById(id);
 let ready = false;
@@ -176,8 +176,12 @@ let renderToken = 0;
 async function renderLoaded() {
   if (!loadedEvents.length) return;
   const my = ++renderToken;
-  const pass = $('r-pass').value.trim();
-  const items = await Promise.all(loadedEvents.map(ev => renderBulletin(ev, pass)));
+  // Resolve the credential (read key / nsec / passphrase) to a content key once
+  // per render, not per bulletin (a passphrase runs PBKDF2).
+  let key = null;
+  try { key = await resolveContentKey($('r-pass').value); } catch { key = null; }
+  if (my !== renderToken) return;
+  const items = await Promise.all(loadedEvents.map(ev => renderBulletin(ev, key)));
   if (my !== renderToken) return;
   $('r-results').innerHTML = items.join('');
 }
@@ -218,13 +222,13 @@ $('r-pass').addEventListener('input', () => {
 });
 $('r-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(rPassTimer); renderLoaded(); } });
 
-async function renderBulletin(ev, pass) {
+async function renderBulletin(ev, key) {
   const when = new Date(ev.created_at * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
   const subjTag = (ev.tags || []).find(t => t[0] === 'subject');
   const subject = subjTag ? escapeHtml(subjTag[1]) : '';
   let body = '';
   try {
-    const dec = await decodeMessage(ev.content, pass);
+    const dec = await decodeMessage(ev.content, key);
     body = `<div class="prose">${renderProse(dec.prose, dec.payloadWords)}</div>`
          + `<div class="msg">${escapeHtml(dec.message)}</div>`;
   } catch (e) {
@@ -232,7 +236,7 @@ async function renderBulletin(ev, pass) {
     // attribution is meant to read as the source of the quote even undecrypted.
     const { encrypted } = safeParse(ev.content);
     body = `<div class="prose">${escapeHtml(ev.content)}</div>`
-         + `<div class="hint">${encrypted ? (e.needsPassphrase ? '🔒 Encrypted — enter the decrypt passphrase to reveal.' : '🔒 ' + escapeHtml(e.message || 'Could not decrypt.')) : escapeHtml(e.message || 'Could not decode.')}</div>`;
+         + `<div class="hint">${encrypted ? (e.needsKey ? '🔒 Encrypted — add the read key, nsec, or passphrase to reveal.' : '🔒 ' + escapeHtml(e.message || 'Could not decrypt.')) : escapeHtml(e.message || 'Could not decode.')}</div>`;
   }
   return `<div class="bulletin">
     <div class="meta"><span>${when}</span>${subject ? `<span>· ${subject}</span>` : ''}<span class="muted mono">${ev.id.slice(0, 12)}…</span></div>
