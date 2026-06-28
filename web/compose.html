@@ -4,10 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Create a Glossia Bulletin — publish an encrypted board</title>
-<meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity derived from a passphrase. Share the board's #npub link for anyone to read.">
-<!-- Resolve the vendored @noble crypto (schnorr / sha256 / bech32 deps) for the
-     browser's native ES module loader. These files are the audited @noble ESM
-     builds, vendored under ./vendor/noble so the page stays offline-capable. -->
+<meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity. Share the board's #npub to read the prose, the read key to decrypt, the nsec to post.">
 <script type="importmap">
 {
   "imports": {
@@ -52,12 +49,12 @@ input:focus, textarea:focus, select:focus { outline: none; border-color: var(--a
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 .btn.sm { padding: .4rem .7rem; font-size: .8rem; background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); font-weight: 500; flex: 0 0 auto; }
 .btn.sm:hover { border-color: var(--accent); background: var(--surface); }
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
-.seg button { background: var(--surface); color: var(--text-dim); border: none; padding: .45rem .8rem; cursor: pointer; font-size: .85rem; }
-.seg button.active { background: var(--accent); color: #fff; }
 .hint { font-size: .82rem; color: var(--text-dim); margin: .4rem 0; }
 .mono { font-family: var(--font-mono); }
-.npub { word-break: break-all; font-size: .82rem; color: var(--orange); }
+.keyval { word-break: break-all; font-size: .8rem; font-family: var(--font-mono); }
+.keyval.pub { color: var(--orange); }
+.keyval.sec { color: var(--error); }
+.keyval.read { color: var(--success); }
 .prose { background: var(--bg); border: 1px dashed var(--border); border-radius: 7px; padding: .7rem; margin: .5rem 0; font-size: .95rem; line-height: 1.7; }
 mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); color: var(--text); padding: 0 1px; border-radius: 2px; }
 .entropy { font-size: .78rem; color: var(--text-dim); }
@@ -67,6 +64,10 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
 .muted { color: var(--text-dim); }
 .relay-line { font-size: .8rem; font-family: var(--font-mono); }
 .hidden { display: none !important; }
+.check { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--text); text-transform: none; letter-spacing: 0; margin-top: .8rem; }
+.check input { width: auto; }
+.keyrow { margin: .5rem 0; }
+.keyrow .lab { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--text-dim); }
 .note { background: rgba(124,108,240,.08); border: 1px solid rgba(124,108,240,.25); border-radius: 8px; padding: .6rem .8rem; font-size: .82rem; color: var(--text-dim); margin-bottom: 1rem; }
 .note strong { color: var(--text); }
 </style>
@@ -81,15 +82,7 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
 
   <form id="c-form" autocomplete="on" onsubmit="return false;">
   <div class="card">
-    <!-- a stable username lets the browser's password manager offer to generate
-         and save the board passphrase -->
     <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
-    <label>Key model</label>
-    <div class="seg" id="c-model">
-      <button type="button" data-model="single" class="active">Single key (read + write)</button>
-      <button type="button" data-model="double">Two keys (split roles)</button>
-    </div>
-    <p class="hint" id="c-model-hint">One passphrase is the whole credential: it derives the board's npub <em>and</em> encrypts the message. Anyone you give it to can read and post.</p>
 
     <label>Message</label>
     <textarea id="c-msg" placeholder="Your message…">The pen is mightier than the sword.</textarea>
@@ -109,37 +102,21 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
       </div>
     </div>
 
-    <!-- single-key: one passphrase -->
-    <div id="c-single">
-      <label>Passphrase</label>
-      <div class="row">
-        <input type="password" id="c-pass" autocomplete="new-password" placeholder="passphrase — or let your browser suggest one" spellcheck="false">
-        <button type="button" class="btn sm" data-reveal="c-pass" title="Show / hide">👁</button>
-        <button type="button" class="btn sm" id="c-genpass" disabled>🎲 generate</button>
-      </div>
-      <div class="entropy" id="c-entropy"></div>
+    <label>Board identity (the signing key)</label>
+    <div class="row">
+      <select id="c-id-source" style="flex:0 0 auto; width:11rem">
+        <option value="random">Random (new board)</option>
+        <option value="passphrase">From passphrase</option>
+        <option value="nsec">Enter nsec</option>
+      </select>
+      <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or let your browser suggest one" spellcheck="false">
+      <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
+      <button type="button" class="btn sm hidden" id="c-id-gen" title="Generate a new random key">🎲</button>
     </div>
+    <div class="entropy" id="c-entropy"></div>
+    <p class="hint" id="c-id-hint">A fresh random key — after publishing, save the <strong>nsec</strong> to post again.</p>
 
-    <!-- two-key: separate publish identity + decrypt passphrase -->
-    <div id="c-double" class="hidden">
-      <label>Publish identity (write key)</label>
-      <div class="row">
-        <select id="c-pub-source" style="flex:0 0 auto; width:11rem">
-          <option value="passphrase">From passphrase</option>
-          <option value="nsec">Enter nsec / hex</option>
-          <option value="random">Random (new)</option>
-        </select>
-        <input type="text" id="c-pub-value" autocomplete="off" placeholder="publish passphrase" spellcheck="false">
-        <button type="button" class="btn sm hidden" id="c-pub-gen">🎲</button>
-      </div>
-      <div class="hint" id="c-pub-nsec"></div>
-      <label>Decrypt passphrase (read key) <span class="muted">(optional)</span></label>
-      <div class="row">
-        <input type="password" id="c-dec-pass" autocomplete="new-password" placeholder="leave empty to publish signed but unencrypted" spellcheck="false">
-        <button type="button" class="btn sm" data-reveal="c-dec-pass" title="Show / hide">👁</button>
-      </div>
-      <p class="hint">Share the <strong>decrypt passphrase</strong> with readers; keep the <strong>publish key</strong> to stay the only poster. (A broadcast / newsletter board.)</p>
-    </div>
+    <label class="check"><input type="checkbox" id="c-encrypt" checked> Encrypt the message <span class="muted">(uncheck to publish a public, signed-but-unencrypted bulletin)</span></label>
 
     <label>Relays</label>
     <input type="text" id="c-relays" spellcheck="false">
@@ -154,29 +131,45 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
   </form>
 
   <div class="card hidden" id="c-out-card">
-    <label>Board address</label>
-    <div class="npub mono" id="c-out-npub"></div>
-    <div class="row" style="margin:.4rem 0">
-      <button type="button" class="btn sm" id="c-copy-npub">copy npub</button>
-      <button type="button" class="btn sm" id="c-copy-link">copy read link</button>
-      <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener" style="text-decoration:none">open ↗</a>
-    </div>
     <label>What gets published (Glossia prose)</label>
     <div class="prose" id="c-out-prose"></div>
+
+    <label>Keys to share</label>
+    <div class="keyrow">
+      <span class="lab">Read link — anyone can open &amp; read the prose</span>
+      <div class="row" style="margin:.2rem 0">
+        <button type="button" class="btn sm" id="c-copy-link">copy read link</button>
+        <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener" style="text-decoration:none">open ↗</a>
+      </div>
+    </div>
+    <div class="keyrow" id="c-readkey-row">
+      <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
+      <div class="keyval read" id="c-out-nread"></div>
+      <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:.3rem">copy read key</button>
+    </div>
+    <div class="keyrow">
+      <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
+      <div class="keyval sec" id="c-out-nsec"></div>
+      <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:.3rem">copy nsec</button>
+    </div>
+    <div class="keyrow">
+      <span class="lab">npub — the board's public address</span>
+      <div class="keyval pub" id="c-out-npub"></div>
+    </div>
     <div id="c-relay-results"></div>
   </div>
 
   <div class="note">
-    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from a passphrase.
-    Your message is encrypted and encoded into Glossia prose, signed, and published to public nostr relays.
-    The site stays static — anyone opens the board by following its <span class="mono">#npub</span>
-    <a href="./bulletin.html">read link</a>.
-    <strong>The passphrase is the credential:</strong> with it you can post and decrypt; with only the npub others can read the prose but not decrypt it.
+    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key.
+    The message is encrypted with a key derived from that same signing key, encoded into Glossia prose, signed, and
+    published to public nostr relays. <strong>nsec</strong> → post and decrypt; <strong>read key</strong> → decrypt only;
+    <strong>npub</strong> → read the prose but not decrypt. You never set a separate password.
   </div>
 
   <footer class="hint" style="text-align:center; margin-top:2rem; border-top:1px solid var(--border); padding-top:1rem">
     Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
-    so a wrong passphrase or tampering fails cleanly. Boards are public on nostr; a weak passphrase is offline-guessable. Generated passphrases target ≥128 bits.
+    so a wrong key or tampering fails cleanly. A random board key has full entropy; a passphrase-derived board is only as
+    strong as the passphrase (generated ones target ≥128 bits).
   </footer>
 </div>
 
@@ -198,11 +191,9 @@ function renderProse(prose, words) {
   const set = new Set((words || []).map(w => w.toLowerCase()));
   return escapeHtml(prose).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<mark>${w}</mark>` : w);
 }
-
-// the read link points at the view page (bulletin.html), same directory
 function readLink(npub) { return location.href.replace(/[^/]*$/, '') + 'bulletin.html#' + npub; }
 
-const ENGINE_BTNS = ['c-preview', 'c-publish', 'c-genpass'];
+const ENGINE_BTNS = ['c-preview', 'c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
   const disabled = state !== 'ready';
   ENGINE_BTNS.forEach(id => { $(id).disabled = disabled; });
@@ -216,64 +207,45 @@ setEngine('loading');
   catch (e) { setEngine('error', 'Failed to load Glossia engine: ' + (e.message || e)); }
 })();
 
-// ── key-model toggle ──────────────────────────────────────────────────
-let model = 'single';
-$('c-model').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  model = b.dataset.model;
-  $('c-model').querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
-  $('c-single').classList.toggle('hidden', model !== 'single');
-  $('c-double').classList.toggle('hidden', model !== 'double');
-  $('c-model-hint').innerHTML = model === 'single'
-    ? 'One passphrase is the whole credential: it derives the board\'s npub <em>and</em> encrypts the message. Anyone you give it to can read and post.'
-    : 'The <strong>publish key</strong> controls the npub (who can post). A separate <strong>decrypt passphrase</strong> controls who can read. Independent roles.';
-});
-
-function syncPubSource() {
-  const src = $('c-pub-source').value;
-  const val = $('c-pub-value');
-  $('c-pub-gen').classList.toggle('hidden', src !== 'random');
-  val.classList.toggle('hidden', src === 'random');
-  val.placeholder = src === 'nsec' ? 'nsec1… or 64-char hex' : 'publish passphrase';
-  if (src !== 'random') $('c-pub-nsec').textContent = '';
+// ── identity source ───────────────────────────────────────────────────
+let randomIdentity = null;   // cached so repeated preview/publish keep one board
+function syncIdSource() {
+  const src = $('c-id-source').value;
+  $('c-id-gen').classList.toggle('hidden', src !== 'random');
+  $('c-id-value').classList.toggle('hidden', src === 'random');
+  $('c-entropy').classList.toggle('hidden', src !== 'passphrase');
+  const val = $('c-id-value');
+  if (src === 'nsec') { val.type = 'text'; val.placeholder = 'nsec1… or 64-char hex'; val.autocomplete = 'off'; }
+  else { val.placeholder = 'passphrase — or let your browser suggest one'; val.autocomplete = 'new-password'; }
+  $('c-id-hint').innerHTML = src === 'random'
+    ? 'A fresh random key — after publishing, save the <strong>nsec</strong> to post again.'
+    : src === 'passphrase'
+      ? 'Deterministic: the same passphrase always reaches the same board. Sharing the passphrase grants full access.'
+      : 'Bring an existing nostr key to keep posting to its board.';
 }
-$('c-pub-source').addEventListener('change', syncPubSource);
-$('c-pub-gen').addEventListener('click', () => {
-  const id = generateIdentity();
-  $('c-pub-value').dataset.nsec = id.nsec;
-  $('c-pub-nsec').innerHTML = 'New publish key — <strong>save this nsec to post again:</strong> <span class="mono npub">' + escapeHtml(id.nsec) + '</span>';
-});
+$('c-id-source').addEventListener('change', syncIdSource);
+$('c-id-gen').addEventListener('click', () => { randomIdentity = generateIdentity(); $('c-status').textContent = 'New random board key ready.'; });
 
-// passphrase generator (Latin words, ≥128 bits)
+// passphrase generator + entropy (only for the passphrase source)
 function genPassphrase() {
-  try {
-    const words = JSON.parse(random_words(9, 'latin', 'default', BigInt(Date.now())));
-    return Array.isArray(words) ? words.join(' ') : '';
-  } catch { return ''; }
+  try { const w = JSON.parse(random_words(9, 'latin', 'default', BigInt(Date.now()))); return Array.isArray(w) ? w.join(' ') : ''; }
+  catch { return ''; }
 }
-$('c-genpass').addEventListener('click', () => {
-  if (!ready) { $('c-err').textContent = 'Engine still loading…'; return; }
-  const p = genPassphrase();
-  if (p) { $('c-pass').value = p; $('c-pass').type = 'text'; showEntropy(p); }
-});
 function estimateBits(p) {
   p = p.trim(); if (!p) return 0;
   const words = p.split(/\s+/);
   if (words.length >= 3) return Math.round(words.length * 13);
-  let charset = 0;
-  if (/[a-z]/.test(p)) charset += 26;
-  if (/[A-Z]/.test(p)) charset += 26;
-  if (/[0-9]/.test(p)) charset += 10;
-  if (/[^A-Za-z0-9]/.test(p)) charset += 32;
-  return Math.round(p.length * Math.log2(Math.max(charset, 2)));
+  let cs = 0;
+  if (/[a-z]/.test(p)) cs += 26; if (/[A-Z]/.test(p)) cs += 26; if (/[0-9]/.test(p)) cs += 10; if (/[^A-Za-z0-9]/.test(p)) cs += 32;
+  return Math.round(p.length * Math.log2(Math.max(cs, 2)));
 }
 function showEntropy(p) {
-  const bits = estimateBits(p);
+  const bits = $('c-id-source').value === 'passphrase' ? estimateBits(p) : 0;
   const el = $('c-entropy');
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
-$('c-pass').addEventListener('input', (e) => showEntropy(e.target.value));
+$('c-id-value').addEventListener('input', (e) => showEntropy(e.target.value));
 
 document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
   const inp = $(btn.dataset.reveal);
@@ -284,42 +256,41 @@ document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('
 
 // ── build / preview / publish ─────────────────────────────────────────
 async function resolveIdentity() {
-  if (model === 'single') {
-    const p = $('c-pass').value.trim();
-    if (!p) throw new Error('Enter a passphrase.');
-    return { identity: await deriveIdentity(p), decryptPass: p };
+  const src = $('c-id-source').value;
+  if (src === 'random') {
+    if (!randomIdentity) randomIdentity = generateIdentity();
+    return randomIdentity;
   }
-  const src = $('c-pub-source').value;
-  let identity;
+  const v = $('c-id-value').value.trim();
   if (src === 'passphrase') {
-    const p = $('c-pub-value').value.trim();
-    if (!p) throw new Error('Enter a publish passphrase.');
-    identity = await deriveIdentity(p);
-  } else if (src === 'nsec') {
-    const v = $('c-pub-value').value.trim();
-    identity = v.startsWith('nsec') ? identityFromNsec(v) : identityFromSecHex(v);
-  } else {
-    if (!$('c-pub-value').dataset.nsec) throw new Error('Click 🎲 to generate a publish key first.');
-    identity = identityFromNsec($('c-pub-value').dataset.nsec);
+    if (!v) throw new Error('Enter a passphrase.');
+    if (v.split(/\s+/).length < 2 && estimateBits(v) < 60) { /* weak but allowed */ }
+    return await deriveIdentity(v);
   }
-  return { identity, decryptPass: $('c-dec-pass').value.trim() };
+  if (!v) throw new Error('Enter an nsec.');
+  return v.startsWith('nsec') ? identityFromNsec(v) : identityFromSecHex(v);
 }
 
 async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
-  const { identity, decryptPass } = await resolveIdentity();
-  const enc = await encodeMessage(msg, decryptPass, $('c-lang').value);
+  const identity = await resolveIdentity();
+  const cred = $('c-encrypt').checked ? identity.readKey : null;   // key-derived encryption
+  const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
 }
 
 function showBoard(identity, enc) {
-  $('c-out-card').classList.remove('hidden');
-  $('c-out-npub').textContent = identity.npub;
+  const c = $('c-out-card');
+  c.classList.remove('hidden');
   $('c-out-prose').innerHTML = renderProse(enc.prose, enc.payloadWords);
-  $('c-out-card').dataset.npub = identity.npub;
+  $('c-out-npub').textContent = identity.npub;
+  $('c-out-nsec').textContent = identity.nsec;
+  $('c-out-nread').textContent = identity.nread;
+  $('c-readkey-row').classList.toggle('hidden', !enc.encrypted);   // read key only matters when encrypted
   $('c-open-link').href = readLink(identity.npub);
+  c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
 }
 
 $('c-preview').addEventListener('click', async () => {
@@ -357,10 +328,12 @@ $('c-publish').addEventListener('click', async () => {
   finally { $('c-publish').disabled = false; }
 });
 
-$('c-copy-npub').addEventListener('click', () => navigator.clipboard.writeText($('c-out-card').dataset.npub || '').catch(() => {}));
+function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] || '').catch(() => {}); }
 $('c-copy-link').addEventListener('click', () => navigator.clipboard.writeText(readLink($('c-out-card').dataset.npub || '')).catch(() => {}));
+$('c-copy-nread').addEventListener('click', () => copy('nread'));
+$('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 
-syncPubSource();
+syncIdSource();
 </script>
 </body>
 </html>

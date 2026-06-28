@@ -1,9 +1,10 @@
 # Bulletin Board
 
 A **Glossia bulletin** is an encrypted message published as natural-language
-prose to a [nostr](https://nostr.com) identity you derive from a passphrase. The
-site itself stays static: anyone opens a board by putting its `#npub` in the
-URL, and the browser loads that board's bulletins straight from public relays.
+prose to a [nostr](https://nostr.com) identity (a random key, or one derived from
+a passphrase). The site itself stays static: anyone opens a board by putting its
+`#npub` in the URL, and the browser loads that board's bulletins straight from
+public relays.
 
 It is the project's core idea applied to messaging — *machine data made
 human-friendly*. A bulletin reads as prose, transcribes by voice, and verifies
@@ -11,62 +12,55 @@ by eye, while every payload word still carries its full entropy. Nothing is
 hidden; the encryption is what protects the contents, not the encoding.
 
 Read a board at [`/bulletin.html`](https://glossia.io/bulletin.html) (open a
-shared `#npub` link and add the passphrase to decrypt); post one at
+shared `#npub` link and add a read key, nsec, or passphrase to decrypt); post one at
 [`/compose.html`](https://glossia.io/compose.html).
 
 ## The model
 
-A board has exactly one public locator and up to two secrets:
-
-| Thing | Role | Who holds it |
-|-------|------|--------------|
-| **npub** | the board's public **address** (goes in the URL) | everyone — it's how you find and read a board |
-| **publish key** | **write** access: signs and posts bulletins as this npub | the author(s) |
-| **decrypt passphrase** | **read** access: decrypts the message contents | the intended readers |
-
-With only the npub you can fetch a board and read its *prose*, but not decrypt
-it. The secrets are what grant posting and reading.
-
-### Single-key (read + write)
-
-One passphrase is the whole credential. It is stretched two independent ways:
+A single signing key roots a three-tier capability hierarchy — so you never set
+a separate encryption password:
 
 ```
-passphrase ──PBKDF2(salt = "glossia/nostr-identity/v1")──▶ secp256k1 key ──▶ npub   (identity)
-passphrase ──PBKDF2(random per-message salt)─────────────▶ AES-256 key            (content)
+signing key d ──schnorr──────────────▶ npub                  (publish + identity)
+              ──SHA256("glossia/content-key/v1" ‖ d)──▶ read key K   (decrypt)
+npub = d·G                                                    (locate + verify)
 ```
 
-The fixed identity salt makes the npub **deterministic** — the same passphrase
-always lands on the same board, across sessions and devices, with no server or
-stored state. The random content salt keeps every message's keystream unique.
-Because the two derivations use different salts they are cryptographically
-independent, even though they start from the same passphrase.
+| Credential | Can publish? | Can decrypt? | Notes |
+|-----------|:---:|:---:|-------|
+| **nsec** (the signing key `d`) | ✅ | ✅ | can compute `K = H(d)` — full access |
+| **read key** (`K`, shared as `nread1…`) | ❌ | ✅ | one-way hash → can't recover `d` → can't sign |
+| **npub** (public address, in the URL) | ❌ | ❌ | reads the *prose* and verifies signatures only |
 
-Anyone you give the passphrase to can both **post and read**. Good for a
-personal scratchpad or a fully shared group board.
+The content key is derived **one-way** from the signing key, with domain
+separation. So:
 
-### Two-key (split roles)
+- **Share the nsec** → co-authors can post *and* read.
+- **Share the read key** → subscribers can read but not post or impersonate the
+  board (broadcast / newsletter).
+- **Share nothing** → anyone with the npub still reads the encrypted *prose* and
+  can verify who signed it, but can't decrypt. (Publish unencrypted for a plain
+  verifiable public feed.)
 
-The publish key and the decrypt passphrase are separate, which splits "who can
-post" from "who can read":
+This subsumes the old single-key / two-key split into one root. Publishing leaks
+neither `d` nor `K`: the schnorr signature and the AES-256-GCM ciphertext reveal
+nothing about either.
 
-- **Broadcast / newsletter.** Keep the publish key private; share only the
-  decrypt passphrase. Subscribers read every bulletin but cannot post or
-  impersonate the board.
-- **Dead drop / inbox.** Share the publish key with senders; keep the decrypt
-  passphrase. They post blindly, only you read.
-- **Verifiable public feed.** Use no decrypt passphrase at all — the bulletins
-  are plain readable prose, but every one is signed by the board's stable npub,
-  so readers can confirm authorship.
+### Where the signing key comes from
 
-The publish key can be a passphrase (deterministic npub), an existing `nsec`
-you bring, or a freshly generated random key (save the `nsec` to post again).
+- **Random** — a fresh full-entropy key; save the `nsec` to post again.
+- **Passphrase** — `d` is derived deterministically (`PBKDF2`, fixed domain salt)
+  so the same passphrase always reaches the same board. Sharing the passphrase
+  grants full access; the view page also accepts it to decrypt.
+- **Bring your own `nsec`** — keep posting to an existing board.
 
 ## How a bulletin is built
 
-The message is compressed and encrypted with authenticated **AES-256-GCM**
-(key and nonce both derived from the passphrase and a 6-byte random salt via
-PBKDF2-SHA-256, 200k iterations), then Glossia-encoded into prose. An encrypted
+The message is compressed and encrypted with authenticated **AES-256-GCM**.
+Per message, the AES key and nonce are derived from the board's content key `K`
+and a fresh 6-byte random salt via **HKDF-SHA-256** (the content key is already
+high-entropy, so no PBKDF2 stretching is needed — decryption is instant). The
+result is Glossia-encoded into prose. An encrypted
 bulletin reads as a **quote with an attribution**: the prose *is* the ciphertext,
 and the em-dash trailer carries the plumbing — `[flag:2b | length:14b][salt:6][tag:12]`
 (20 bytes) — rendered as ~11 Latin payload words, so it scans like a cited source:
@@ -93,27 +87,31 @@ sig:     schnorr (BIP-340) signature over the event id, by the publish key
 The event is signed in the browser and pushed to several public relays. Reading
 a board is a relay query for `{ authors: [pubkey], kinds: [1314] }`; each event's
 signature is verified before its prose is shown, and the message is revealed only
-if you supply the decrypt passphrase — the GCM tag then guarantees it decrypted
-to exactly what was published.
+if you supply a decryption credential (read key / nsec / passphrase) — the GCM tag
+then guarantees it decrypted to exactly what was published.
 
 All crypto runs client-side. The schnorr/secp256k1 and SHA-256 primitives are the
 audited [`@noble`](https://github.com/paulmillr/noble-curves) ESM builds, vendored
 under `web/vendor/noble` so the page stays self-contained and offline-capable;
-bech32 (`npub`/`nsec`) is implemented to BIP-173 and cross-checked against
-`nostr-tools`.
+bech32 (`npub` / `nsec` / `nread`) is implemented to BIP-173 and cross-checked
+against `nostr-tools`.
 
 ## Security notes
 
 - **A board is public.** Its npub, ciphertext-prose, post times, and subject
   tags are all visible to anyone. Encryption protects the *message*, not the
   fact that a board exists or how often it is posted to.
-- **The passphrase is the only secret.** Because the npub is public, a weak
-  passphrase is open to *offline* guessing — an attacker who grinds it recovers
-  both the publish key (impersonate) and the decrypt key (read). The 200k-round
-  PBKDF2 stretch raises the cost, and generated passphrases target ≥128 bits.
-  Use a strong, generated passphrase.
+- **Random boards have full-entropy keys.** The signing key (and thus the read
+  key) is random, so the content key is never guessable — there is no password to
+  brute-force. **Passphrase-derived boards** are the exception: the npub is public,
+  so a weak passphrase is open to *offline* guessing (recovering it yields both the
+  signing key and the read key). The 200k-round PBKDF2 stretch raises the cost; use
+  a strong, generated passphrase, or just use a random board.
+- **The read key only grants reading.** It is a one-way hash of the signing key,
+  so sharing it for read access can never leak the ability to post. Revoking a
+  reader, though, means rotating to a new board (the key is static per board).
 - **Encryption is authenticated.** AES-256-GCM gives confidentiality *and*
-  integrity: a wrong passphrase or any tampering with the prose or the
+  integrity: a wrong key/passphrase or any tampering with the prose or the
   attribution fails cleanly instead of yielding garbage. The nostr signature
   independently authenticates the *event*, so you also always know which npub
   posted it.
