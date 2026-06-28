@@ -228,8 +228,10 @@ async function renderBulletin(ev, pass) {
     body = `<div class="prose">${renderProse(dec.prose, dec.payloadWords)}</div>`
          + `<div class="msg">${escapeHtml(dec.message)}</div>`;
   } catch (e) {
-    const { prose, encrypted } = safeParse(ev.content);
-    body = `<div class="prose">${escapeHtml(prose)}</div>`
+    // Locked: show the full artifact — quote AND attribution — since the
+    // attribution is meant to read as the source of the quote even undecrypted.
+    const { encrypted } = safeParse(ev.content);
+    body = `<div class="prose">${escapeHtml(ev.content)}</div>`
          + `<div class="hint">${encrypted ? (e.needsPassphrase ? '🔒 Encrypted — enter the decrypt passphrase to reveal.' : '🔒 ' + escapeHtml(e.message || 'Could not decrypt.')) : escapeHtml(e.message || 'Could not decode.')}</div>`;
   }
   return `<div class="bulletin">
