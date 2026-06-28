@@ -5,7 +5,7 @@ import { Field, mod, pow2 } from './abstract/modular.js';
 import { mapToCurveSimpleSWU } from './abstract/weierstrass.js';
 import { bytesToNumberBE, concatBytes, ensureBytes, numberToBytesBE } from './abstract/utils.js';
 import { createHasher, isogenyMap } from './abstract/hash-to-curve.js';
-import { createCurve } from './_shortw_utils.js';
+import { createCurve } from './shortw_utils.js';
 const secp256k1P = BigInt('0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f');
 const secp256k1N = BigInt('0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141');
 const _1n = BigInt(1);

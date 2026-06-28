@@ -1,4 +1,4 @@
-import { hash as assertHash, bytes as assertBytes, exists as assertExists } from './_assert.js';
+import { hash as assertHash, bytes as assertBytes, exists as assertExists } from './assert.js';
 import { Hash, toBytes } from './utils.js';
 // HMAC (RFC 2104)
 export class HMAC extends Hash {
