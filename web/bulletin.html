@@ -176,14 +176,26 @@ let renderToken = 0;
 async function renderLoaded() {
   if (!loadedEvents.length) return;
   const my = ++renderToken;
-  // Resolve the credential (read key / nsec / passphrase) to a content key once
-  // per render, not per bulletin (a passphrase runs PBKDF2).
-  let key = null;
-  try { key = await resolveContentKey($('r-pass').value); } catch { key = null; }
+  const creds = await credCandidates();   // resolved once per render, not per bulletin
   if (my !== renderToken) return;
-  const items = await Promise.all(loadedEvents.map(ev => renderBulletin(ev, key)));
+  const items = await Promise.all(loadedEvents.map(ev => renderBulletin(ev, creds)));
   if (my !== renderToken) return;
   $('r-results').innerHTML = items.join('');
+}
+
+// Ordered list of content credentials to try for the current input. For a
+// passphrase we try the current key-derived scheme first, then the legacy scheme
+// where the passphrase string WAS the content key — so bulletins posted before
+// content keys were derived from the signing key still decrypt.
+async function credCandidates() {
+  const raw = $('r-pass').value.trim();
+  if (!raw) return [];
+  if (raw.startsWith('nsec') || raw.startsWith('nread')) {
+    try { return [await resolveContentKey(raw)]; } catch { return []; }
+  }
+  let K = null;
+  try { K = await resolveContentKey(raw); } catch { /* ignore */ }
+  return K ? [K, raw] : [raw];
 }
 
 async function loadBoard() {
@@ -222,21 +234,28 @@ $('r-pass').addEventListener('input', () => {
 });
 $('r-pass').addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(rPassTimer); renderLoaded(); } });
 
-async function renderBulletin(ev, key) {
+async function renderBulletin(ev, creds) {
   const when = new Date(ev.created_at * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
   const subjTag = (ev.tags || []).find(t => t[0] === 'subject');
   const subject = subjTag ? escapeHtml(subjTag[1]) : '';
-  let body = '';
-  try {
-    const dec = await decodeMessage(ev.content, key);
+  // Try each candidate credential in turn; GCM rejects the wrong ones cleanly.
+  let dec = null, lastErr = null;
+  for (const c of (creds.length ? creds : [null])) {
+    try { dec = await decodeMessage(ev.content, c); break; }
+    catch (e) { lastErr = e; }
+  }
+  let body;
+  if (dec) {
     body = `<div class="prose">${renderProse(dec.prose, dec.payloadWords)}</div>`
          + `<div class="msg">${escapeHtml(dec.message)}</div>`;
-  } catch (e) {
+  } else {
     // Locked: show the full artifact — quote AND attribution — since the
     // attribution is meant to read as the source of the quote even undecrypted.
     const { encrypted } = safeParse(ev.content);
-    body = `<div class="prose">${escapeHtml(ev.content)}</div>`
-         + `<div class="hint">${encrypted ? (e.needsKey ? '🔒 Encrypted — add the read key, nsec, or passphrase to reveal.' : '🔒 ' + escapeHtml(e.message || 'Could not decrypt.')) : escapeHtml(e.message || 'Could not decode.')}</div>`;
+    const hint = !encrypted ? escapeHtml(lastErr?.message || 'Could not decode.')
+      : creds.length ? '🔒 Wrong key/passphrase — could not decrypt.'
+      : '🔒 Encrypted — add the read key, nsec, or passphrase to reveal.';
+    body = `<div class="prose">${escapeHtml(ev.content)}</div><div class="hint">${hint}</div>`;
   }
   return `<div class="bulletin">
     <div class="meta"><span>${when}</span>${subject ? `<span>· ${subject}</span>` : ''}<span class="muted mono">${ev.id.slice(0, 12)}…</span></div>
