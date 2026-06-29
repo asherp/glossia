@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Command-line interface for glossia: encode binary data into grammatical natural language"
+repository = "https://github.com/asherp/glossia"
+homepage = "https://github.com/asherp/glossia"
+readme = "../README.md"
+keywords = ["encoding", "bip39", "grammar", "codec", "cli"]
+categories = ["command-line-utilities", "encoding"]
 
 # Installs as the `glossia` command (`cargo install --path glossia-cli`)
 # even though the package is named `glossia-cli`.
@@ -12,5 +17,8 @@ name = "glossia"
 path = "src/main.rs"
 
 [dependencies]
-glossia = { path = "..", features = ["native"] }
+# Both `path` and `version` so it builds from the workspace during development
+# and resolves to the published crate when installed from crates.io. Publish the
+# `glossia` library first, then this CLI.
+glossia = { path = "..", version = "0.1.0", features = ["native"] }
 rand = "0.8"

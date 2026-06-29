@@ -625,6 +625,17 @@ fn scan_languages_dir(
         }
     };
 
+    // `git ls-files languages/` can succeed yet return nothing when the build
+    // runs outside the working tree that tracks these files — most importantly
+    // inside the unpacked `.crate` during `cargo package`/`cargo publish`
+    // verification (it lives under the gitignored target/ dir, so the pathspec
+    // matches no tracked files). Treat an empty result like "git unavailable"
+    // and fall back to scanning the filesystem, otherwise zero languages get
+    // embedded and the generated `matches!(language, )` fails to compile.
+    if file_list.is_empty() {
+        return scan_languages_dir_fs(base_dir, base_dir, languages);
+    }
+
     for rel_from_repo in file_list {
         // rel_from_repo is like "languages/latin/payload.yaml"
         let _path = rel_from_repo.clone();
