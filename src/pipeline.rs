@@ -180,12 +180,43 @@ pub struct PipelineStats {
     pub ratio: f64,
 }
 
+/// The intent verb parsed from a meta instruction.
+///
+/// Authoritative for how an `Auto` source is interpreted when the target is a
+/// Language: `Encode` treats the input as **raw data** to encode (never guessing
+/// it is a seed or existing prose — this is what makes #29 impossible);
+/// `Transcode` treats the input as an **existing Glossia encoding** to detect and
+/// re-encode. `Unspecified` (shorthand meta with no verb, or `from_params`) falls
+/// back to inferring the direction from the endpoint types.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum Verb {
+    #[default]
+    Unspecified,
+    Encode,
+    Decode,
+    Transcode,
+}
+
+/// Classify a meta word as an intent verb, if it is one.
+fn classify_verb(word: &str) -> Option<Verb> {
+    match word {
+        "encode" => Some(Verb::Encode),
+        "decode" => Some(Verb::Decode),
+        // "translate" is a synonym for transcode (language → language).
+        "transcode" | "translate" => Some(Verb::Transcode),
+        _ => None,
+    }
+}
+
 /// A pipeline specification parsed from meta-language words or constructed
 /// from explicit parameters.
 #[derive(Clone, Debug)]
 pub struct Pipeline {
     pub source: Endpoint,
     pub target: Endpoint,
+    /// The intent verb (encode/transcode/decode). Disambiguates how an `Auto`
+    /// source is treated when the target is a Language. See [`Verb`].
+    pub verb: Verb,
     pub seed: u64,
     pub verbose: bool,
     /// When true, replace `\n` with `<br>` in output for HTML rendering.
@@ -412,6 +443,7 @@ impl Pipeline {
         .collect();
 
         let mut current_role: Option<Role> = None;
+        let mut verb = Verb::Unspecified;
         let mut source: Option<Endpoint> = None;
         let mut target: Option<Endpoint> = None;
         let mut pending_dialect: Option<String> = None;
@@ -512,7 +544,15 @@ impl Pipeline {
                 continue;
             }
 
-            // Skip non-meta-payload words (cover verbs: "translate", "encode", etc.)
+            // Intent verb: authoritative for source interpretation (first wins).
+            if let Some(v) = classify_verb(lower) {
+                if verb == Verb::Unspecified {
+                    verb = v;
+                }
+                continue;
+            }
+
+            // Skip remaining non-meta-payload words (cover words).
             if !meta_payload.contains(lower) {
                 continue;
             }
@@ -619,6 +659,7 @@ impl Pipeline {
         Ok(Pipeline {
             source,
             target,
+            verb,
             seed: 0,
             verbose: false,
             html,
@@ -630,6 +671,10 @@ impl Pipeline {
     }
 
     /// Construct from explicit parameters (backward compat with CLI flags).
+    ///
+    /// The verb is `Unspecified`, so an `Auto` source is treated as raw data when
+    /// the target is a Language (the encode direction). Use [`Self::with_verb`] to
+    /// request transcode auto-detection of the source instead.
     pub fn from_params(source: Endpoint, target: Endpoint) -> Self {
         // Resolve dialect-declared wordlists (same as from_meta).
         let source = resolve_dialect_wordlist(source);
@@ -638,6 +683,7 @@ impl Pipeline {
         Pipeline {
             source,
             target,
+            verb: Verb::Unspecified,
             seed: 0,
             verbose: false,
             html: false,
@@ -646,6 +692,12 @@ impl Pipeline {
             k_max: None,
             k_min: None,
         }
+    }
+
+    /// Set the intent verb (encode/transcode/decode). See [`Verb`].
+    pub fn with_verb(mut self, verb: Verb) -> Self {
+        self.verb = verb;
+        self
     }
 
     /// Set the RNG seed.
@@ -731,23 +783,62 @@ impl Pipeline {
         }
     }
 
-    /// Resolve an Auto source by detecting the dialect from input text.
+    /// Detect which Glossia language/dialect `input` is encoded in, for the
+    /// transcode/decode directions. Returns the matched `Language` endpoint when a
+    /// payload wordlist matches confidently (hit rate > 0.3), else `None`.
+    fn detect_source_language(&self, input: &str) -> Option<Endpoint> {
+        let words: Vec<String> = input
+            .split_whitespace()
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
+            .filter(|w| !w.is_empty())
+            .collect();
+        if words.is_empty() {
+            return None;
+        }
+        let matches = detect_dialect(&words);
+        let best = matches.first()?;
+        if best.hit_rate > 0.3 {
+            if self.verbose {
+                eprintln!(
+                    "Auto-detected source: {}/{} ({:.0}% hit rate)",
+                    best.language, best.wordlist, best.hit_rate * 100.0
+                );
+            }
+            let dialect = best.dialects.first()
+                .cloned()
+                .unwrap_or_else(|| "body".to_string());
+            Some(Endpoint::Language {
+                language: best.language.clone(),
+                wordlist: best.wordlist.clone(),
+                dialect,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Resolve an `Auto` source. The verb the user typed is authoritative.
     ///
-    /// When the target is a Language (encode direction), we skip dialect
-    /// detection and always treat the input as raw data. Dialect detection
-    /// only runs when the target is Auto or Format (decode/transcode direction),
-    /// meaning we need to figure out which Glossia language the input is in.
+    /// When the target is a Language, the verb decides how the input is read:
+    /// - `encode` (or `Unspecified`): the input is **raw data** to encode. We do
+    ///   not inspect it for "is this secretly a seed/prose?" — that content
+    ///   guessing is exactly what silently corrupted ordinary payload-word text
+    ///   (#29). `encode into <lang>` always means "encode this data".
+    /// - `transcode`/`translate`: the input is an **existing Glossia encoding**;
+    ///   we detect its source dialect and re-encode. If no encoding is detected,
+    ///   we error rather than guess — name the source with `from <source>`.
+    ///
+    /// Structured crypto formats (a bech32 address, etc.) are still recognized in
+    /// both cases: that is unambiguous format recognition, not intent guessing.
+    ///
+    /// When the target is Auto/Format (the decode direction), identifying the
+    /// source dialect *is* the job, so detection always runs.
     fn resolve_source(&self, input: &str) -> Result<Endpoint, PipelineError> {
         match &self.source {
             Endpoint::Auto => {
-                // If target is a Language, the user wants to encode raw data
-                // into prose. Check for crypto formats and high-confidence
-                // wordlist matches first, then fall back to format detection.
                 if matches!(&self.target, Endpoint::Language { .. }) {
-                    // Check for crypto format first — if detected, treat source
-                    // as crypto Language. This turns the pipeline into a transcode
-                    // (crypto → target) which uses the crypto alphabet's native
-                    // bits-per-char (e.g., 5 for bech32) instead of ASCII7's 6.57.
+                    // Crypto format recognition (native alphabet), unless the
+                    // target is itself crypto. Applies regardless of verb.
                     if !matches!(&self.target, Endpoint::Language { language, .. } if language.starts_with("crypto/")) {
                         if let Some((language, dialect, _)) = detect_crypto_format(input) {
                             if self.verbose {
@@ -761,40 +852,22 @@ impl Pipeline {
                         }
                     }
 
-                    // Check if input looks like words from a small, specialized
-                    // payload wordlist (e.g. BIP39 mnemonic). Require:
-                    //  - high hit rate (≥0.8): nearly all words match
-                    //  - small wordlist (≤8192): filters out general-purpose
-                    //    wordlists like lemmas/ngram that match normal text
-                    let words: Vec<String> = input
-                        .split_whitespace()
-                        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
-                        .filter(|w| !w.is_empty())
-                        .collect();
-
-                    if !words.is_empty() {
-                        let matches = detect_dialect(&words);
-                        if let Some(best) = matches.first() {
-                            if best.hit_rate >= 0.8 && best.wordlist_size <= 8192 {
-                                if self.verbose {
-                                    eprintln!(
-                                        "Source auto-detected as {}/{} ({:.0}% hit rate, {} words, target is Language)",
-                                        best.language, best.wordlist, best.hit_rate * 100.0, best.wordlist_size
-                                    );
-                                }
-                                // Use "raw" dialect to signal that the input is
-                                // raw payload words (e.g. BIP39 mnemonic), not
-                                // Glossia prose with a header + cover words.
-                                return Ok(Endpoint::Language {
-                                    language: best.language.clone(),
-                                    wordlist: best.wordlist.clone(),
-                                    dialect: "raw".to_string(),
-                                });
-                            }
+                    if self.verb == Verb::Transcode {
+                        // User asserts the input is an existing encoding: detect it.
+                        if let Some(src) = self.detect_source_language(input) {
+                            return Ok(src);
                         }
+                        return Err(PipelineError::InvalidPipeline(
+                            "transcode: could not detect the source encoding of the input; \
+                             name it explicitly, e.g. `transcode from english into <target>`"
+                                .to_string(),
+                        ));
                     }
 
-                    // Not a known wordlist — treat as raw data format.
+                    // encode / unspecified: raw data to encode. A bare BIP39
+                    // mnemonic is encoded as text and round-trips verbatim; to
+                    // re-encode it as a seed use `transcode` or an explicit
+                    // `from <lang>/<wordlist>/raw` source.
                     let (mode, _) = codec::detect_mode(input);
                     if self.verbose {
                         eprintln!("Source auto-detected as format: {} (target is Language)", mode);
@@ -802,40 +875,11 @@ impl Pipeline {
                     return Ok(Endpoint::Format(mode));
                 }
 
-                let words: Vec<String> = input
-                    .split_whitespace()
-                    .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
-                    .filter(|w| !w.is_empty())
-                    .collect();
-
-                if words.is_empty() {
-                    let (mode, _) = codec::detect_mode(input);
-                    return Ok(Endpoint::Format(mode));
+                // Decode direction (target is Auto/Format): detect the source
+                // dialect; fall back to treating the input as raw data.
+                if let Some(src) = self.detect_source_language(input) {
+                    return Ok(src);
                 }
-
-                // Try dialect detection — if enough words match a payload wordlist,
-                // the input is Glossia prose.
-                let matches = detect_dialect(&words);
-                if let Some(best) = matches.first() {
-                    if best.hit_rate > 0.3 {
-                        if self.verbose {
-                            eprintln!(
-                                "Auto-detected source: {}/{} ({:.0}% hit rate)",
-                                best.language, best.wordlist, best.hit_rate * 100.0
-                            );
-                        }
-                        let dialect = best.dialects.first()
-                            .cloned()
-                            .unwrap_or_else(|| "body".to_string());
-                        return Ok(Endpoint::Language {
-                            language: best.language.clone(),
-                            wordlist: best.wordlist.clone(),
-                            dialect,
-                        });
-                    }
-                }
-
-                // Not Glossia prose — treat as raw data.
                 let (mode, _) = codec::detect_mode(input);
                 Ok(Endpoint::Format(mode))
             }
@@ -2420,6 +2464,96 @@ mod tests {
             .collect::<Vec<_>>()
             .join(" ");
         assert_eq!(dec.execute(&bare).unwrap(), key, "cover-hidden payload must round-trip");
+    }
+
+    #[test]
+    fn test_encode_into_language_treats_payload_words_as_text() {
+        // #29: `encode into <lang>` always treats its input as raw data, never
+        // guessing that payload-word input is a seed/prose to transcode. So an
+        // ASCII phrase whose words happen to be payload words — and even a full
+        // bare BIP39 mnemonic — is encoded as text and round-trips verbatim,
+        // instead of being silently transcoded to a (shorter) byte value.
+        let enc = Pipeline::from_meta("encode into english naturally").unwrap();
+        let dec = Pipeline::from_meta("decode from english").unwrap();
+        let cases = [
+            "absorb absurd access",
+            "zoo zone zero",
+            // A genuine, valid-checksum 12-word mnemonic is still just text here.
+            "abandon abandon abandon abandon abandon abandon \
+             abandon abandon abandon abandon abandon about",
+        ];
+        for text in cases {
+            let rich = enc.execute_rich(text).unwrap();
+            assert!(
+                matches!(rich.resolved_source, Some(Endpoint::Format(_))),
+                "input must resolve to a data Format, not a seed/prose source: {:?}",
+                rich.resolved_source
+            );
+            let prose = enc.execute(text).unwrap();
+            let back = dec.execute(&prose).unwrap();
+            assert_eq!(back, text, "payload-word input must round-trip as text, got {:?}", back);
+        }
+    }
+
+    #[test]
+    fn test_explicit_raw_source_still_transcodes_seed() {
+        // Removing the encode-into carve-out does not touch the explicit path the
+        // demo uses: naming a `raw` source re-encodes a bare mnemonic as a seed,
+        // compacting it into a denser language (here English → Latin → English).
+        let mnemonic = "abandon abandon abandon abandon abandon abandon \
+                        abandon abandon abandon abandon abandon about";
+        let to_latin = Pipeline::from_meta("transcode from english/bip39/raw into latin/default/raw").unwrap();
+        let back = Pipeline::from_meta("transcode from latin/default/raw into english/bip39/raw").unwrap();
+        let latin = to_latin.execute(mnemonic).unwrap();
+        assert_eq!(
+            back.execute(&latin).unwrap(),
+            mnemonic,
+            "explicit raw transcode must round-trip the seed words"
+        );
+    }
+
+    #[test]
+    fn test_verb_parsed_from_meta() {
+        assert_eq!(Pipeline::from_meta("encode into latin").unwrap().verb, Verb::Encode);
+        assert_eq!(Pipeline::from_meta("transcode from english into latin").unwrap().verb, Verb::Transcode);
+        assert_eq!(Pipeline::from_meta("translate from english into latin").unwrap().verb, Verb::Transcode);
+        assert_eq!(Pipeline::from_meta("decode from english").unwrap().verb, Verb::Decode);
+        // Shorthand with no verb stays Unspecified (endpoint-inferred direction).
+        assert_eq!(Pipeline::from_meta("latin").unwrap().verb, Verb::Unspecified);
+    }
+
+    #[test]
+    fn test_transcode_verb_auto_detects_source() {
+        // The verb is authoritative: `transcode into <lang>` with no explicit
+        // `from` treats the input as an existing encoding, auto-detects its source
+        // dialect, and re-encodes. A bare BIP39 mnemonic is detected as
+        // english/bip39 and compacted into Latin, then round-trips back to the
+        // seed words. This is the seed-compaction convenience, now gated by the
+        // verb the user typed rather than by guessing at the input's content.
+        let mnemonic = "abandon abandon abandon abandon abandon abandon \
+                        abandon abandon abandon abandon abandon about";
+        let to_latin = Pipeline::from_meta("transcode into latin").unwrap();
+        let latin = to_latin.execute(mnemonic).unwrap();
+        let back = Pipeline::from_meta("transcode from latin into english/bip39/raw").unwrap();
+        assert_eq!(
+            back.execute(&latin).unwrap(),
+            mnemonic,
+            "transcode-verb auto-detect must round-trip the seed words"
+        );
+    }
+
+    #[test]
+    fn test_transcode_verb_errors_without_detectable_source() {
+        // `transcode into <lang>` declares "the input is an existing encoding".
+        // If none is detected, error and ask for an explicit source rather than
+        // silently encoding the input as text.
+        let pipe = Pipeline::from_meta("transcode into english").unwrap();
+        let err = pipe.execute("xyzzy plugh frobnicate").unwrap_err();
+        assert!(
+            matches!(err, PipelineError::InvalidPipeline(ref m) if m.contains("could not detect")),
+            "expected a 'could not detect source' error, got {:?}",
+            err
+        );
     }
 
     #[test]

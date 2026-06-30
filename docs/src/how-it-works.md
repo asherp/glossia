@@ -162,6 +162,45 @@ This bijective property ensures that:
 - **Localization**: Convert messages to languages appropriate for different regions or contexts
 - **Migration**: Move existing encodings to newer, larger wordlists as they become available
 
+### The verb is authoritative: encode vs. transcode
+
+The verb you use in a meta instruction decides how the input is interpreted, so
+intent is **declared, not guessed**:
+
+- **`encode into <language>`** — the input is **raw data** to encode. Glossia
+  never inspects it for "is this secretly a seed or existing prose?" — that
+  guessing is exactly what could silently corrupt ordinary text whose words
+  happen to be payload words. So a bare list of payload words (even a full BIP39
+  mnemonic) given to `encode into …` is encoded **as text** and round-trips
+  verbatim.
+
+- **`transcode into <language>`** (or `translate`) — the input is an **existing
+  Glossia encoding**. Glossia detects its source dialect and re-encodes. This is
+  what compacts a seed into a denser language (a 12-word seed → ~9 Latin words).
+  If no source encoding is detected, it errors and asks you to name the source
+  with `from <source>` rather than guessing.
+
+```
+echo "<12-word seed>" | glossia --meta "encode into english"      # → encoded as text, round-trips
+echo "<12-word seed>" | glossia --meta "transcode into latin"     # → detected as a seed, compacted to Latin
+glossia --meta "transcode from latin into english"                # explicit source, always works
+```
+
+The same input behaves differently under `encode` vs. `transcode`, but each is
+an explicit instruction — there is no content-based heuristic that can misfire.
+
+Two things bypass the verb, by design:
+
+- **Naming the source explicitly** (`transcode from <source> into <target>`)
+  always wins — useful when auto-detection would be ambiguous.
+- **Structured crypto formats** (a `bc1…` bech32 address, an `npub…`, etc.) are
+  always recognized so they encode via their native alphabet. That is
+  unambiguous format recognition, not seed/prose guessing.
+
+When the target is a `Format` (the decode direction, e.g. `decode into hex`),
+Glossia always detects which language the input prose is in — there, identifying
+the source is the whole job.
+
 ## Glossia Transmission
 
 While **direct-to-direct transmission is lossless**, noise may be introduced while in-transit. For this reason, Glossia-encoded messages should always utilize checksums, error correction, and any additional information necessary for delivery.
