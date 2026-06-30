@@ -382,13 +382,20 @@ fn print_usage(program_name: &str) {
     eprintln!("                          Auto-detects language/wordlist if --language not specified");
     eprintln!();
     eprintln!("Pipeline mode (translate between languages):");
-    eprintln!("  --meta <instruction>    Execute a meta-language pipeline instruction");
-    eprintln!("                          e.g., \"translate from english into latin\"");
-    eprintln!("  --into <target>         Encode into target language/format");
-    eprintln!("                          e.g., english, latin, latin/default/prose, hex");
-    eprintln!("  --from <source>         Decode from source language/format");
-    eprintln!("                          e.g., english, english/bip39, hex, base64");
-    eprintln!("                          Use --from with --into to transcode between languages");
+    eprintln!("  The verb is authoritative — it decides how the input is read:");
+    eprintln!("  --encode                Input is raw data; encode it (requires --to).");
+    eprintln!("                          A bare mnemonic is encoded as text and round-trips.");
+    eprintln!("  --transcode             Input is an existing Glossia encoding; detect its");
+    eprintln!("                          source and re-encode (requires --to). With no --from");
+    eprintln!("                          the source language is auto-detected.");
+    eprintln!("  --decode                Decode an encoding back to data (with --from/--to);");
+    eprintln!("                          on its own with words, the legacy word->bytes mode.");
+    eprintln!("  --to / --into <target>  Target language/format (e.g. english, latin,");
+    eprintln!("                          latin/default/prose, hex, base64).");
+    eprintln!("  --from <source>         Source language/format (e.g. english, english/bip39,");
+    eprintln!("                          english/bip39/raw, hex). Optional under --transcode.");
+    eprintln!("  --meta <instruction>    Run a full meta-language instruction directly,");
+    eprintln!("                          e.g. \"transcode from english into latin\".");
     eprintln!("                          Input comes from --from-ascii, positional args, or stdin");
     eprintln!("  --madlib                Replace payload words with [POS] placeholders");
     eprintln!("  --seed <N>              Seed for deterministic random generation");
@@ -415,10 +422,11 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} --random 5 --dialect latin-body --highlight-payload bars", program_name);
     eprintln!();
     eprintln!("Pipeline examples:");
-    eprintln!("  {} --into english --from-ascii \"Hello World\"", program_name);
-    eprintln!("  {} --from english --into latin < english_prose.txt", program_name);
-    eprintln!("  {} --from english < prose.txt   (decode to original data)", program_name);
-    eprintln!("  {} --meta \"translate from english into latin\" < prose.txt", program_name);
+    eprintln!("  {} --encode --to english --from-ascii \"Hello World\"", program_name);
+    eprintln!("  {} --transcode --from english --to latin < english_prose.txt", program_name);
+    eprintln!("  {} --transcode --to latin < seed_words.txt   (auto-detect source)", program_name);
+    eprintln!("  {} --decode --from english < prose.txt   (decode to original data)", program_name);
+    eprintln!("  {} --meta \"transcode from english into latin\" < prose.txt", program_name);
     eprintln!();
     eprintln!("Image rendering:");
     eprintln!("  -o <file.svg|file.png>      Output image file (with -l image)");
@@ -467,6 +475,11 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut meta_instruction: Option<String> = None;
     let mut pipeline_into: Option<String> = None;
     let mut pipeline_from: Option<String> = None;
+    // Verb flags (encode/transcode/decode) drive a pipeline together with the
+    // --from/--to endpoint helpers. `--decode` doubles as the legacy word→bytes
+    // flag; it only drives a pipeline when an endpoint is also given.
+    let mut encode_flag = false;
+    let mut transcode_flag = false;
     let mut render_image: Option<String> = None;
     let mut render_output: Option<String> = None;
     let mut i = 1;
@@ -658,9 +671,17 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 meta_instruction = Some(args[i + 1].clone());
                 i += 2;
             }
-            "--into" => {
+            "--encode" => {
+                encode_flag = true;
+                i += 1;
+            }
+            "--transcode" => {
+                transcode_flag = true;
+                i += 1;
+            }
+            "--into" | "--to" => {
                 if i + 1 >= args.len() {
-                    return Err("--into requires a value (target language or format)".to_string());
+                    return Err(format!("{} requires a value (target language or format)", args[i]));
                 }
                 pipeline_into = Some(args[i + 1].clone());
                 i += 2;
@@ -724,6 +745,41 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         }
     }
     
+    // Verb-flag pipeline: synthesize a meta instruction from --encode/--transcode/
+    // --decode plus --from/--to and run it through the meta parser (which makes the
+    // verb authoritative). `--decode` only drives a pipeline when an endpoint is
+    // given; on its own it stays the legacy word→bytes flag.
+    if encode_flag && transcode_flag {
+        return Err("Use only one of --encode or --transcode.".to_string());
+    }
+    let verb_word = if encode_flag {
+        Some("encode")
+    } else if transcode_flag {
+        Some("transcode")
+    } else if decode_mode && (pipeline_from.is_some() || pipeline_into.is_some()) {
+        Some("decode")
+    } else {
+        None
+    };
+    if let Some(vw) = verb_word {
+        if meta_instruction.is_some() {
+            return Err("Use either --meta or the --encode/--transcode/--decode flags, not both.".to_string());
+        }
+        if (encode_flag || transcode_flag) && pipeline_into.is_none() {
+            return Err(format!("--{} requires a target: add --to <language|format>.", vw));
+        }
+        let mut s = String::from(vw);
+        if let Some(ref f) = pipeline_from {
+            s.push_str(" from ");
+            s.push_str(f);
+        }
+        if let Some(ref t) = pipeline_into {
+            s.push_str(" into ");
+            s.push_str(t);
+        }
+        meta_instruction = Some(s);
+    }
+
     if random_count.is_some() && !words.is_empty() {
         return Err("Cannot use --random with explicit words. Use one or the other.".to_string());
     }
