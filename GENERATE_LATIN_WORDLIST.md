@@ -1,6 +1,6 @@
 # Generating Latin Wordlists for Glossia
 
-This guide explains how to use `generate_latin_wordlist.py` to create Latin wordlists for Glossia from CLTK (Classical Language Toolkit) lemmata data.
+This guide explains how to use `glossia-tools/py/generate_latin_wordlist.py` to create Latin wordlists for Glossia from CLTK (Classical Language Toolkit) lemmata data.
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ You have several options to obtain Latin lemmata data:
 The script will attempt to automatically download lemmata from the CLTK repository:
 
 ```bash
-python generate_latin_wordlist.py -o latin_wordlist.yaml
+python glossia-tools/py/generate_latin_wordlist.py -o latin_wordlist.yaml
 ```
 
 ### Option 2: Use CLTK Python Package (Recommended)
@@ -51,7 +51,7 @@ python -c "from cltk.data.fetch import FetchCorpus; FetchCorpus('lat').import_co
 The script will automatically find the downloaded data. Alternatively, you can specify the file path:
 
 ```bash
-python generate_latin_wordlist.py --lemmata-file ~/cltk_data/lat/model/lat_models_cltk/lemmata/backoff/collected.json -o latin_wordlist.yaml
+python glossia-tools/py/generate_latin_wordlist.py --lemmata-file ~/cltk_data/lat/model/lat_models_cltk/lemmata/backoff/collected.json -o latin_wordlist.yaml
 ```
 
 ### Option 3: Download Manually
@@ -62,7 +62,7 @@ Download the lemmata JSON file directly from:
 Then use it with `--lemmata-file`:
 
 ```bash
-python generate_latin_wordlist.py --lemmata-file path/to/lemmata.json -o latin_wordlist.yaml
+python glossia-tools/py/generate_latin_wordlist.py --lemmata-file path/to/lemmata.json -o latin_wordlist.yaml
 ```
 
 ## Usage Examples
@@ -72,7 +72,7 @@ python generate_latin_wordlist.py --lemmata-file path/to/lemmata.json -o latin_w
 Generate a complete wordlist (all words):
 
 ```bash
-python generate_latin_wordlist.py -o latin_payload.yaml
+python glossia-tools/py/generate_latin_wordlist.py -o latin_payload.yaml
 ```
 
 ### Generate a Cover Wordlist
@@ -80,7 +80,7 @@ python generate_latin_wordlist.py -o latin_payload.yaml
 Generate a cover wordlist with shorter, common words (3-6 characters, top 1000):
 
 ```bash
-python generate_latin_wordlist.py --cover -o latin_cover.yaml
+python glossia-tools/py/generate_latin_wordlist.py --cover -o latin_cover.yaml
 ```
 
 ### Custom Filtering
@@ -89,7 +89,7 @@ Filter words by length and limit the number:
 
 ```bash
 # Words between 4-6 characters, maximum 500 words
-python generate_latin_wordlist.py --min-length 4 --max-length 6 -n 500 -o latin_short.yaml
+python glossia-tools/py/generate_latin_wordlist.py --min-length 4 --max-length 6 -n 500 -o latin_short.yaml
 ```
 
 ### Use Local File
@@ -97,7 +97,7 @@ python generate_latin_wordlist.py --min-length 4 --max-length 6 -n 500 -o latin_
 If you have a local lemmata file:
 
 ```bash
-python generate_latin_wordlist.py --lemmata-file my_lemmata.json -o output.yaml
+python glossia-tools/py/generate_latin_wordlist.py --lemmata-file my_lemmata.json -o output.yaml
 ```
 
 ## Command-Line Options

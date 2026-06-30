@@ -13,7 +13,29 @@ name = "glossia"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+description = "Encode binary data (BIP39 mnemonics, keys, arbitrary payloads) into grammatically correct, human-readable natural language"
+repository = "https://github.com/asherp/glossia"
+homepage = "https://github.com/asherp/glossia"
+documentation = "https://docs.rs/glossia"
+readme = "README.md"
+keywords = ["encoding", "bip39", "grammar", "codec", "linguistics"]
+categories = ["encoding", "text-processing"]
 build = "build.rs"
+# Whitelist exactly what the crate needs at build/runtime. build.rs only ever
+# reads languages/**/*.yaml (via include_str! and its filesystem scan); the
+# .cfg/.txt/.png/.py files under languages/ are source/derivation artifacts that
+# are never compiled in. Whitelisting also keeps repo cruft (.env, .cache-glossia/,
+# docs/, root data dumps, CI config) out of the published .crate.
+include = [
+    "src/**/*",
+    "/build.rs",
+    "languages/**/*.yaml",
+    "examples/**/*.rs",
+    "/README.md",
+    "/LICENSE",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+]
 
 [features]
 default = ["native"]
