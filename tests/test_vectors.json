@@ -88,11 +88,11 @@
       "expected_decoded": { "value": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90", "format": "hex" }
     },
     {
-      "id": "bip39-mnemonic-12-words",
-      "description": "Well-known 12-word BIP39 test mnemonic (all-zero entropy). Detected as a seed and encoded via the word-preserving english bip39 dialect (base_n); the seed words survive in the prose and the entropy round-trips.",
+      "id": "bip39-mnemonic-12-words-as-text",
+      "description": "A bare 12-word BIP39 mnemonic given to the 'encode' verb is treated as raw data (text), not silently transcoded as a seed, so it round-trips verbatim. The verb is authoritative: to re-encode a mnemonic as a seed (compacting it into a denser language) use the 'transcode' verb (e.g. 'transcode into latin', which auto-detects the source) or name the source explicitly ('transcode from english/bip39/raw into latin').",
       "input": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "bip39" },
       "encoding": { "language": "english", "wordlist": "bip39", "dialect": "bip39", "codec": "base_n", "seed": 42 },
-      "expected_decoded": { "value": "000000000000000000000003", "format": "hex" }
+      "expected_decoded": { "value": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "format": "ascii7" }
     },
     {
       "id": "btc-bech32-address",
