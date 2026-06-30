@@ -271,6 +271,7 @@ This repository is a Cargo workspace:
 - `glossia` (repo root): the library crate (`src/lib.rs`, grammar, generator, codec, merkle, …), built as `cdylib` + `rlib`
 - `glossia-cli/`: the `glossia` command-line binary (`glossia-cli/src/main.rs`)
 - `glossia-tools/`: developer tooling binaries (`cleanup_weights`, `tag_words`, `compare_pos_weights`, `get_top_words`, `validate_pos_weights`)
+- `glossia-tools/py/`: standalone Python helper scripts (Latin wordlist generation, payload dedup, PDF/word extraction). Run from the repo root, e.g. `python glossia-tools/py/generate_latin_wordlist.py`
 
 Key files:
 
