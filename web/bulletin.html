@@ -80,7 +80,7 @@ body[data-style="terminal"] .dot { border-radius:0; background:#1f7a4d; }
 .identity .sep { color:var(--hair); }
 
 /* reading-style switch */
-.style-switch { display:flex; gap:6px; margin-top:20px; }
+.style-switch { display:flex; gap:6px; margin-top:8px; }
 .style-tile { flex:1; display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 6px; border-radius:calc(var(--radius) + 3px); border:1.5px solid var(--rule); background:transparent; cursor:pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); transition:border-color .2s, color .2s, background .2s; }
 .style-tile:hover { color:var(--ink); }
 .style-tile[aria-pressed="true"] { border-color:var(--accent); color:var(--ink); }
@@ -159,6 +159,12 @@ body[data-style="terminal"]    .b-decoded-text { font:400 13px/1.6 'IBM Plex Mon
 /* lock affordance */
 .b-lock { margin-top:14px; color:var(--meta); background:none; border:none; padding:0; cursor:pointer; display:inline-flex; }
 .b-lock:hover { color:var(--accent); }
+/* lock/unlock toggle on decoded bulletins: is-open reveals the plaintext and
+   shows the open padlock; toggling off re-hides it and shows the closed lock */
+.b-toggle .ic-unlock { display:none; }
+.bulletin.is-open .b-toggle .ic-lock { display:none; }
+.bulletin.is-open .b-toggle .ic-unlock { display:inline-flex; }
+.bulletin:not(.is-open) .b-decoded { display:none; }
 
 .empty { font:400 14px/1.6 'Public Sans',sans-serif; color:var(--dim); }
 body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font-size:13px; }
@@ -184,13 +190,6 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
       <span id="r-status-line">reading prose</span>
     </div>
 
-    <!-- reading-style switch -->
-    <div class="style-switch" role="group" aria-label="Reading style">
-      <button type="button" class="style-tile" data-set-style="letterpress"><span class="swatch letterpress"></span>Letterpress</button>
-      <button type="button" class="style-tile" data-set-style="midnight"><span class="swatch midnight"></span>Midnight</button>
-      <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
-    </div>
-
     <!-- key bar -->
     <div class="keybar">
       <label for="r-key">Decryption key</label>
@@ -203,8 +202,16 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
     <details class="settings" id="r-settings">
       <summary>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Board &amp; relays</span>
+        <span>Settings</span>
       </summary>
+
+      <label>Reading style</label>
+      <div class="style-switch" role="group" aria-label="Reading style">
+        <button type="button" class="style-tile" data-set-style="letterpress"><span class="swatch letterpress"></span>Letterpress</button>
+        <button type="button" class="style-tile" data-set-style="midnight"><span class="swatch midnight"></span>Midnight</button>
+        <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
+      </div>
+
       <label for="r-npub">Board address (npub)</label>
       <input type="text" id="r-npub" placeholder="npub1… (or paste a full glossia link)" spellcheck="false">
       <label for="r-relays">Relays</label>
@@ -282,7 +289,8 @@ function fmtDate(sec) {
   const p = (n) => String(n).padStart(2, '0');
   return `${p(d.getUTCDate())} ${mon} ${d.getUTCFullYear()} · ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
-const LOCK_SVG = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const ICON_LOCK = '<svg class="ic-lock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
+const ICON_UNLOCK = '<svg class="ic-unlock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2.1"/></svg>';
 
 // ── URL routing: bulletin.html#<npub>&style=<style> ───────────────────
 function writeHash() {
@@ -371,7 +379,10 @@ async function renderBulletin(ev, creds) {
     const proseHtml = boldPayload(body, dec.payloadWords);
     const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
     const decoded = `<div class="b-decoded"><div class="b-decoded-label">decoded</div><div class="b-decoded-text">${escapeHtml(dec.message)}</div></div>`;
-    return { unlocked: true, encrypted: !!dec.encrypted, html: `<article class="bulletin">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}</article>` };
+    // Unlocked bulletins start open (unlock icon). The toggle re-hides the
+    // plaintext in place and swaps back to the closed lock.
+    const toggle = `<button type="button" class="b-lock b-toggle" data-toggle title="Hide the decoded message">${ICON_LOCK}${ICON_UNLOCK}</button>`;
+    return { unlocked: true, encrypted: !!dec.encrypted, html: `<article class="bulletin is-open">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}${toggle}</article>` };
   }
 
   // Locked: skim the prose (no key needed) so payload words still read as emphasis.
@@ -379,15 +390,20 @@ async function renderBulletin(ev, creds) {
   const { body, attr } = splitProse(skim.prose);
   const proseHtml = boldPayload(body, skim.payloadWords);
   const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
-  const lock = `<button type="button" class="b-lock" data-lock title="Add a decryption key to unlock">${LOCK_SVG}</button>`;
+  const lock = `<button type="button" class="b-lock" data-lock title="Add a decryption key to unlock">${ICON_LOCK}</button>`;
   return { unlocked: false, encrypted: !!skim.encrypted, html: `<article class="bulletin">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${lock}</article>` };
 }
 
-// clicking a lock focuses the key field and explains why it's locked
+// clicking a lock (no key yet) focuses the key field and explains why it's
+// locked; the toggle on an unlocked bulletin hides/reveals its decoded text
 function wireLocks() {
   document.querySelectorAll('[data-lock]').forEach(btn => btn.addEventListener('click', () => {
     if (!$('r-key').value.trim()) $('r-keyhint').classList.remove('hidden');
     $('r-key').focus();
+  }));
+  document.querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
+    const open = btn.closest('.bulletin').classList.toggle('is-open');
+    btn.title = open ? 'Hide the decoded message' : 'Reveal the decoded message';
   }));
 }
 
