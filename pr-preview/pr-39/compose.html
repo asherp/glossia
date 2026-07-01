@@ -126,6 +126,8 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 .pv-head .accent { color:var(--accent); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 .out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
+.share { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); }
+.share label:first-of-type { margin-top:0; }
 .board-loaded .loaded-npub { background:#fff; border:1px solid var(--input-bd); border-radius:8px; padding:11px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink); word-break:break-all; }
 .linkbox.private .u { border-color:rgba(192,57,43,.4); }
 .lab.warn { color:var(--error); }
@@ -282,22 +284,32 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
           </div>
         </div>
         <div class="pv-caption">The prose above is generated live as you type — that's what gets published. Switch the reading style to preview each look.</div>
+
+        <div class="share">
+          <label>Reader link <span class="muted">· read the prose (npub)</span></label>
+          <div class="linkbox">
+            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
+            <button type="button" class="btn sm" data-copy="npub">copy</button>
+            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+
+          <label>Reader link + key <span class="lab warn">· includes the decryption key — readers unlock instantly</span></label>
+          <div class="linkbox private">
+            <div class="u" id="c-link-key">glossia.io/bulletin.html#npub…&amp;key=…</div>
+            <button type="button" class="btn sm" data-copy="key">copy</button>
+            <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+
+          <label>Author link <span class="lab warn">· includes the nsec — post more to this board</span></label>
+          <div class="linkbox private">
+            <div class="u" id="c-link-nsec">glossia.io/compose.html#nsec…</div>
+            <button type="button" class="btn sm" data-copy="nsec">copy</button>
+            <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+        </div>
       </div>
 
       <div class="board out-card hidden" id="c-out-card">
-        <label>Reader link <span class="muted">· share to read · style saved in the #</span></label>
-        <div class="linkbox">
-          <div class="u" id="c-link-preview">glossia.io/bulletin.html#…</div>
-          <button type="button" class="btn sm" id="c-copy-link">copy</button>
-          <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener">open ↗</a>
-        </div>
-
-        <label>Author link <span class="lab warn">· keep private — includes the nsec; anyone with it can post to this board</span></label>
-        <div class="linkbox private">
-          <div class="u" id="c-author-preview">glossia.io/compose.html#nsec…</div>
-          <button type="button" class="btn sm" id="c-copy-author">copy</button>
-          <a class="btn sm" id="c-open-author" href="#" target="_blank" rel="noopener">open ↗</a>
-        </div>
 
         <label>Keys to share</label>
         <div class="keyrow" id="c-readkey-row">
@@ -366,6 +378,27 @@ function boardIdentity() {
   if (!randomIdentity) randomIdentity = generateIdentity();
   return randomIdentity;
 }
+
+// The reader's decryption credential to embed in the "reader link + key": the
+// board's read key (nread) by default, or the custom passphrase if one is set.
+function shareCred() { return overridePass() || boardIdentity().nread; }
+function readerNpubLink() { return readLink(boardIdentity().npub); }
+function readerKeyLink() { return readLink(boardIdentity().npub) + '&key=' + encodeURIComponent(shareCred()); }
+function shareAuthorLink() { return authorLink(boardIdentity().nsec); }
+const strip = (u) => u.replace(/^https?:\/\//, '');
+
+// The three shareable links live under the preview and update as the board,
+// reading style, or passphrase change.
+function updateLinks() {
+  const npubL = readerNpubLink(), keyL = readerKeyLink(), authL = shareAuthorLink();
+  $('c-link-npub').textContent = strip(npubL); $('c-open-npub').href = npubL;
+  $('c-link-key').textContent = strip(keyL);   $('c-open-key').href = keyL;
+  $('c-link-nsec').textContent = strip(authL); $('c-open-nsec').href = authL;
+}
+document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
+  const link = b.dataset.copy === 'npub' ? readerNpubLink() : b.dataset.copy === 'key' ? readerKeyLink() : shareAuthorLink();
+  navigator.clipboard.writeText(link).catch(() => {});
+}));
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
@@ -470,7 +503,7 @@ function showEntropy(p) {
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
-$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); updateMode(); schedulePreview(); });
+$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); updateMode(); updateLinks(); schedulePreview(); });
 
 document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
   const inp = $(btn.dataset.reveal);
@@ -501,10 +534,6 @@ function showBoard(identity, enc) {
   const custom = !!overridePass();
   $('c-readkey-row').classList.toggle('hidden', custom);   // nread only decrypts the default board-key form
   $('c-pass-note').classList.toggle('hidden', !custom);
-  $('c-open-link').href = readLink(identity.npub);
-  $('c-link-preview').textContent = readLink(identity.npub).replace(/^https?:\/\//, '');
-  $('c-open-author').href = authorLink(identity.nsec);
-  $('c-author-preview').textContent = authorLink(identity.nsec).replace(/^https?:\/\//, '');
   $('c-head-npub').textContent = shortNpub(identity.npub);
   c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
 }
@@ -534,23 +563,11 @@ $('c-publish').addEventListener('click', async () => {
 });
 
 function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] || '').catch(() => {}); }
-$('c-copy-link').addEventListener('click', () => navigator.clipboard.writeText(readLink($('c-out-card').dataset.npub || '')).catch(() => {}));
-$('c-copy-author').addEventListener('click', () => navigator.clipboard.writeText(authorLink($('c-out-card').dataset.nsec || '')).catch(() => {}));
 $('c-copy-nread').addEventListener('click', () => copy('nread'));
 $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 
-// keep both links in sync when the reading style changes
-$('c-style').addEventListener('change', () => {
-  const { npub, nsec } = $('c-out-card').dataset;
-  if (npub) {
-    $('c-open-link').href = readLink(npub);
-    $('c-link-preview').textContent = readLink(npub).replace(/^https?:\/\//, '');
-  }
-  if (nsec) {
-    $('c-open-author').href = authorLink(nsec);
-    $('c-author-preview').textContent = authorLink(nsec).replace(/^https?:\/\//, '');
-  }
-});
+// keep the share links in sync when the reading style changes
+$('c-style').addEventListener('change', updateLinks);
 
 // ── open compose.html#nsec…&style=… to reuse an existing board ─────────
 function loadFromHash() {
@@ -583,6 +600,7 @@ loadFromHash();
 $('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
 syncMeta();
 updateMode();
+updateLinks();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
 schedulePreview();
 </script>
