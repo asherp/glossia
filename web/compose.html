@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Create a Glossia Bulletin — publish an encrypted board</title>
-<meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity. Share the board's #npub to read the prose, the read key to decrypt, the nsec to post.">
+<meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity. Share the board's #npub to read the prose, the read key to decrypt, the nsec to post — in your choice of reading style.">
 <script type="importmap">
 {
   "imports": {
@@ -16,169 +16,261 @@
   }
 }
 </script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0f1117; --surface: #1a1d27; --surface-alt: #1e2130; --border: #2a2d3a;
-  --text: #e4e4e7; --text-dim: #8b8d97; --accent: #7c6cf0; --accent-hover: #9488f5;
-  --mark-bg: rgba(14,165,233,0.15); --mark-border: rgba(14,165,233,0.4);
-  --error: #ef4444; --success: #22c55e; --orange: #f97316;
-  --font-mono: 'SF Mono','Cascadia Code','Fira Code',monospace;
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --page:#d7d5cf; --card:#faf8f3; --card-bd:#e2ddce; --ink:#26241d; --ink-soft:#3c3a33;
+  --dim:#84806f; --accent:#9a5b3f; --accent-2:#824a31; --rule:#e2ddce; --input-bd:#ddd6c6;
+  --meta:#b8b2a0; --error:#c0392b; --ok:#4f7a3f;
 }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: var(--font-sans); background: var(--bg); color: var(--text); line-height: 1.55; }
-.container { max-width: 880px; margin: 0 auto; padding: 1.5rem; }
+html, body { margin: 0; }
+body { min-height: 100vh; background: var(--page); color: var(--ink); font-family: 'Public Sans', system-ui, sans-serif; line-height: 1.55; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 48px 22px 80px; }
 a { color: var(--accent); text-decoration: none; }
-a:hover { color: var(--accent-hover); text-decoration: underline; }
-header.top { display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.25rem; }
-header.top h1 { font-size: 1.4rem; margin: 0; }
-header.top .sub { color: var(--text-dim); font-size: .9rem; }
-header.top .home { margin-left: auto; font-size: .85rem; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; margin-bottom: 1rem; }
-label { display: block; font-size: .8rem; color: var(--text-dim); margin: .6rem 0 .25rem; text-transform: uppercase; letter-spacing: .03em; }
-input[type=text], input[type=password], textarea, select {
-  width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  border-radius: 7px; padding: .55rem .65rem; font-family: var(--font-mono); font-size: .9rem;
-}
-textarea { resize: vertical; min-height: 4.5rem; line-height: 1.5; }
-input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
-.row { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; }
-.row > * { flex: 1; min-width: 0; }
-.btn { background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: .55rem 1rem; font-size: .9rem; cursor: pointer; font-weight: 600; }
-.btn:hover { background: var(--accent-hover); }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-.btn.sm { padding: .4rem .7rem; font-size: .8rem; background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); font-weight: 500; flex: 0 0 auto; }
-.btn.sm:hover { border-color: var(--accent); background: var(--surface); }
-.hint { font-size: .82rem; color: var(--text-dim); margin: .4rem 0; }
-.mono { font-family: var(--font-mono); }
-.keyval { word-break: break-all; font-size: .8rem; font-family: var(--font-mono); }
-.keyval.pub { color: var(--orange); }
-.keyval.sec { color: var(--error); }
-.keyval.read { color: var(--success); }
-.prose { background: var(--bg); border: 1px dashed var(--border); border-radius: 7px; padding: .7rem; margin: .5rem 0; font-size: .95rem; line-height: 1.7; }
-mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); color: var(--text); padding: 0 1px; border-radius: 2px; }
-.entropy { font-size: .78rem; color: var(--text-dim); }
-.entropy.strong { color: var(--success); }
-.err { color: var(--error); font-size: .85rem; min-height: 1.1rem; }
-.ok { color: var(--success); }
-.muted { color: var(--text-dim); }
-.relay-line { font-size: .8rem; font-family: var(--font-mono); }
+a:hover { text-decoration: underline; }
 .hidden { display: none !important; }
-.check { display: flex; align-items: center; gap: .5rem; font-size: .85rem; color: var(--text); text-transform: none; letter-spacing: 0; margin-top: .8rem; }
-.check input { width: auto; }
-.keyrow { margin: .5rem 0; }
-.keyrow .lab { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: var(--text-dim); }
-.note { background: rgba(124,108,240,.08); border: 1px solid rgba(124,108,240,.25); border-radius: 8px; padding: .6rem .8rem; font-size: .82rem; color: var(--text-dim); margin-bottom: 1rem; }
-.note strong { color: var(--text); }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.muted { color: var(--dim); }
+
+/* masthead */
+.masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+.masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
+.masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+
+/* two-column layout */
+.layout { display:flex; gap:32px; align-items:flex-start; flex-wrap:wrap; }
+.col-form { flex:1 1 520px; min-width:320px; }
+.col-preview { flex:0 1 380px; min-width:300px; position:sticky; top:24px; }
+
+/* card */
+.board { background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:12px; box-shadow:0 24px 60px -32px rgba(38,36,29,.45); padding:32px 36px 36px; margin-bottom:20px; }
+.board-head { display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--rule); padding-bottom:14px; margin-bottom:20px; }
+.board-head .k { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; text-transform:uppercase; }
+.board-head .n { font:400 11px/1 'IBM Plex Mono',monospace; color:var(--meta); }
+
+/* form controls */
+label { display:block; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:20px 0 9px; }
+label:first-of-type { margin-top:0; }
+input[type=text], input[type=password], textarea, select {
+  width:100%; background:#fff; border:1px solid var(--input-bd); border-radius:8px; color:var(--ink);
+  font:400 14px/1.5 'Public Sans',sans-serif; padding:11px 13px;
+}
+textarea { resize:vertical; min-height:88px; line-height:1.55; font-size:15px; }
+#c-id-value, #c-relays, #c-lang, select { font-family:'IBM Plex Mono',monospace; font-size:13.5px; }
+input:focus, textarea:focus, select:focus { outline:none; border-color:var(--accent); }
+input::placeholder, textarea::placeholder { color:#b3ad9c; }
+
+.row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; }
+.row > * { flex:1; min-width:0; }
+
+.btn { background:var(--accent); color:#faf8f3; border:none; border-radius:9px; padding:13px 18px; font:600 13px/1 'Public Sans',sans-serif; letter-spacing:.02em; cursor:pointer; }
+.btn:hover { background:var(--accent-2); }
+.btn:disabled { opacity:.5; cursor:not-allowed; }
+.btn.sm { background:#efece3; color:var(--ink); border:1px solid var(--input-bd); border-radius:7px; padding:8px 12px; font-size:12px; font-weight:500; letter-spacing:0; flex:0 0 auto; }
+.btn.sm:hover { background:#fff; border-color:var(--accent); }
+.btn.block { width:100%; padding:14px; font-size:14px; margin-top:24px; }
+
+.hint { font:400 13px/1.5 'Public Sans',sans-serif; color:var(--dim); margin:.5rem 0; }
+.entropy { font:400 12px/1 'IBM Plex Mono',monospace; color:var(--dim); margin-top:8px; }
+.entropy.strong { color:var(--ok); }
+.err { color:var(--error); font:400 12px/1.4 'IBM Plex Mono',monospace; min-height:1.1em; margin-top:8px; }
+.ok { color:var(--ok); }
+.check { display:flex; align-items:center; gap:9px; font:400 13px/1.4 'Public Sans',sans-serif; color:var(--ink); text-transform:none; letter-spacing:0; margin:22px 0 0; }
+.check input { width:auto; }
+
+/* reading-style tiles */
+.tiles { display:flex; gap:10px; }
+.tile { flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; padding:12px 8px; border-radius:9px; border:2px solid var(--rule); background:transparent; cursor:pointer; font:500 12px/1 'Public Sans',sans-serif; color:var(--dim); transition:border-color .2s,color .2s,background .2s; }
+.tile:hover { color:var(--ink); }
+.tile[aria-pressed="true"] { border-color:var(--accent); background:#fff; color:var(--ink); }
+.tile .mini { width:74px; height:46px; border-radius:6px; display:flex; align-items:center; justify-content:center; }
+.mini.letterpress { background:#f6f3ec; border:1px solid #d8d2c4; font:italic 500 22px/1 'Spectral',serif; color:#26241d; }
+.mini.midnight { background:#0d0d10; border:1px solid #232228; font:400 22px/1 'Newsreader',serif; color:#e8e4da; }
+.mini.terminal { background:#f0eee8; border:1px solid #17161a; font:600 18px/1 'IBM Plex Mono',monospace; color:#17161a; }
+
+/* shareable link + outputs */
+.linkbox { display:flex; gap:8px; }
+.linkbox .u { flex:1; background:#fff; border:1px solid var(--input-bd); border-radius:8px; padding:12px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.prose { background:#fff; border:1px dashed var(--input-bd); border-radius:8px; padding:12px 14px; margin:8px 0; font:400 15px/1.7 'Spectral',serif; color:var(--ink); }
+mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4); color:var(--ink); padding:0 1px; border-radius:2px; }
+.keyrow { margin:14px 0; }
+.keyrow .lab { display:block; font:400 12px/1.4 'Public Sans',sans-serif; color:var(--dim); margin-bottom:5px; }
+.keyval { word-break:break-all; font:400 13px/1.5 'IBM Plex Mono',monospace; background:#fff; border:1px solid var(--input-bd); border-radius:7px; padding:9px 11px; }
+.keyval.pub { color:#8a5a2b; } .keyval.sec { color:var(--error); } .keyval.read { color:var(--ok); }
+.relay-line { font:400 13px/1.6 'IBM Plex Mono',monospace; }
+.note { background:rgba(154,91,63,.06); border:1px solid rgba(154,91,63,.22); border-radius:10px; padding:14px 16px; font:400 13px/1.55 'Public Sans',sans-serif; color:var(--ink-soft); margin-top:20px; }
+.note strong { color:var(--accent); font-weight:600; }
+.foot { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); font:400 12px/1.6 'Public Sans',sans-serif; color:var(--dim); text-align:center; }
+.foot strong { color:var(--accent); font-weight:600; }
+
+/* live preview */
+.pv-head { display:flex; align-items:center; gap:8px; margin-bottom:14px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
+.pv-head .accent { color:var(--accent); }
+.pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
+.preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
+.preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
+.preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
+.preview[data-style="terminal"]    { background:#f0eee8; border:1px solid #17161a; color:#17161a; border-radius:0; box-shadow:0 20px 50px -34px rgba(23,22,26,.5); }
+.pv-meta { display:flex; justify-content:space-between; gap:10px; font:500 10px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px; }
+.preview[data-style="letterpress"] .pv-meta { color:#a29c88; }
+.preview[data-style="midnight"]    .pv-meta { color:#5c5a63; }
+.preview[data-style="terminal"]    .pv-meta { color:#a29c8b; letter-spacing:.04em; }
+.preview[data-style="letterpress"] .pv-subject { color:#9a5b3f; }
+.preview[data-style="midnight"]    .pv-subject { color:#c9a25f; }
+.preview[data-style="terminal"]    .pv-subject { color:#274bd6; }
+.pv-note { display:flex; align-items:center; gap:7px; font:400 12px/1.5 'IBM Plex Mono',monospace; margin-bottom:16px; }
+.preview[data-style="letterpress"] .pv-note { color:#b0aa97; }
+.preview[data-style="midnight"]    .pv-note { color:#4a4952; }
+.preview[data-style="terminal"]    .pv-note { color:#a29c8b; font-size:11px; }
+.pv-decoded { }
+.preview[data-style="letterpress"] .pv-decoded { padding-left:16px; border-left:2px solid #9a5b3f; }
+.preview[data-style="midnight"]    .pv-decoded { padding-left:16px; border-left:2px solid #c9a25f; }
+.preview[data-style="terminal"]    .pv-decoded { background:#17161a; padding:12px 14px; }
+.pv-dec-label { font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; text-transform:uppercase; margin-bottom:7px; }
+.preview[data-style="letterpress"] .pv-dec-label { color:#9a5b3f; }
+.preview[data-style="midnight"]    .pv-dec-label { color:#c9a25f; }
+.preview[data-style="terminal"]    .pv-dec-label { color:#7fd6a0; letter-spacing:.16em; }
+.pv-dec-text { white-space:pre-wrap; }
+.preview[data-style="letterpress"] .pv-dec-text { font:400 17px/1.55 'Spectral',serif; color:#26241d; }
+.preview[data-style="midnight"]    .pv-dec-text { font:400 18px/1.55 'Newsreader',serif; color:#f4efe4; }
+.preview[data-style="terminal"]    .pv-dec-text { font:400 13px/1.6 'IBM Plex Mono',monospace; color:#f0eee8; }
 </style>
 </head>
 <body>
-<div class="container">
-  <header class="top">
-    <h1>Create a Bulletin</h1>
+<div class="wrap">
+  <div class="masthead">
+    <span class="title">Glossia · Compose</span>
     <span class="sub">encrypt a message, encode it as prose, publish it to a board</span>
-    <span class="home"><a href="./bulletin.html">← read a board</a> &nbsp;·&nbsp; <a href="./index.html">demo</a></span>
-  </header>
-
-  <form id="c-form" autocomplete="on" onsubmit="return false;">
-  <div class="card">
-    <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
-
-    <label>Message</label>
-    <textarea id="c-msg" placeholder="Your message…">The pen is mightier than the sword.</textarea>
-
-    <div class="row">
-      <div style="flex:0 0 auto">
-        <label>Prose language</label>
-        <select id="c-lang">
-          <option value="english">English</option>
-          <option value="latin">Latin</option>
-          <option value="czech">Czech</option>
-        </select>
-      </div>
-      <div style="flex:0 0 auto">
-        <label>Subject <span class="muted">(optional, public)</span></label>
-        <input type="text" id="c-subject" placeholder="label" spellcheck="false" style="width:12rem">
-      </div>
-      <div style="flex:0 0 auto">
-        <label>Reading style <span class="muted">(saved in the link)</span></label>
-        <select id="c-style">
-          <option value="letterpress">Letterpress</option>
-          <option value="midnight">Midnight</option>
-          <option value="terminal">Terminal</option>
-        </select>
-      </div>
-    </div>
-
-    <label>Board identity (the signing key)</label>
-    <div class="row">
-      <select id="c-id-source" style="flex:0 0 auto; width:11rem">
-        <option value="random">Random (new board)</option>
-        <option value="passphrase">From passphrase</option>
-        <option value="nsec">Enter nsec</option>
-      </select>
-      <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or let your browser suggest one" spellcheck="false">
-      <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
-      <button type="button" class="btn sm hidden" id="c-id-gen" title="Generate a new random key">🎲</button>
-    </div>
-    <div class="entropy" id="c-entropy"></div>
-    <p class="hint" id="c-id-hint">A fresh random key — after publishing, save the <strong>nsec</strong> to post again.</p>
-
-    <label class="check"><input type="checkbox" id="c-encrypt" checked> Encrypt the message <span class="muted">(uncheck to publish a public, signed-but-unencrypted bulletin)</span></label>
-
-    <label>Relays</label>
-    <input type="text" id="c-relays" spellcheck="false">
-
-    <div class="row" style="margin-top:.8rem">
-      <button type="button" class="btn" id="c-preview" style="flex:0 0 auto" disabled>Preview</button>
-      <button type="button" class="btn" id="c-publish" style="flex:0 0 auto" disabled>Publish →</button>
-      <span class="hint" id="c-status" style="flex:1"></span>
-    </div>
-    <div class="err" id="c-err"></div>
-  </div>
-  </form>
-
-  <div class="card hidden" id="c-out-card">
-    <label>What gets published (Glossia prose)</label>
-    <div class="prose" id="c-out-prose"></div>
-
-    <label>Keys to share</label>
-    <div class="keyrow">
-      <span class="lab">Read link — anyone can open &amp; read the prose</span>
-      <div class="row" style="margin:.2rem 0">
-        <button type="button" class="btn sm" id="c-copy-link">copy read link</button>
-        <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener" style="text-decoration:none">open ↗</a>
-      </div>
-    </div>
-    <div class="keyrow" id="c-readkey-row">
-      <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
-      <div class="keyval read" id="c-out-nread"></div>
-      <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:.3rem">copy read key</button>
-    </div>
-    <div class="keyrow">
-      <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
-      <div class="keyval sec" id="c-out-nsec"></div>
-      <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:.3rem">copy nsec</button>
-    </div>
-    <div class="keyrow">
-      <span class="lab">npub — the board's public address</span>
-      <div class="keyval pub" id="c-out-npub"></div>
-    </div>
-    <div id="c-relay-results"></div>
+    <span class="home"><a href="./bulletin.html">read a board →</a> &nbsp;·&nbsp; <a href="./index.html">demo</a></span>
   </div>
 
-  <div class="note">
-    <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key.
-    The message is encrypted with a key derived from that same signing key, encoded into Glossia prose, signed, and
-    published to public nostr relays. <strong>nsec</strong> → post and decrypt; <strong>read key</strong> → decrypt only;
-    <strong>npub</strong> → read the prose but not decrypt. You never set a separate password.
-  </div>
+  <div class="layout">
+    <div class="col-form">
+      <form id="c-form" autocomplete="on" onsubmit="return false;">
+      <div class="board">
+        <div class="board-head">
+          <span class="k">New bulletin</span>
+          <span class="n" id="c-head-npub">not yet published</span>
+        </div>
+        <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
 
-  <footer class="hint" style="text-align:center; margin-top:2rem; border-top:1px solid var(--border); padding-top:1rem">
-    Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
-    so a wrong key or tampering fails cleanly. A random board key has full entropy; a passphrase-derived board is only as
-    strong as the passphrase (generated ones target ≥128 bits).
-  </footer>
+        <label>Message</label>
+        <textarea id="c-msg" spellcheck="false" placeholder="Your message…">The pen is mightier than the sword.</textarea>
+
+        <div class="row">
+          <div style="flex:0 0 auto">
+            <label>Prose language</label>
+            <select id="c-lang">
+              <option value="english">English</option>
+              <option value="latin">Latin</option>
+              <option value="czech">Czech</option>
+            </select>
+          </div>
+          <div style="flex:1 1 auto">
+            <label>Subject <span class="muted">(optional, public)</span></label>
+            <input type="text" id="c-subject" placeholder="label" spellcheck="false">
+          </div>
+        </div>
+
+        <label>Reading style <span class="muted">(saved in the shareable link)</span></label>
+        <input type="hidden" id="c-style" value="letterpress">
+        <div class="tiles" role="group" aria-label="Reading style">
+          <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
+          <button type="button" class="tile" data-set-style="midnight"><span class="mini midnight">Aa</span>Midnight</button>
+          <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
+        </div>
+
+        <label>Board identity <span class="muted">(the signing key)</span></label>
+        <div class="row">
+          <select id="c-id-source" style="flex:0 0 auto; width:12rem">
+            <option value="random">Random (new board)</option>
+            <option value="passphrase">From passphrase</option>
+            <option value="nsec">Enter nsec</option>
+          </select>
+          <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or let your browser suggest one" spellcheck="false">
+          <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
+          <button type="button" class="btn sm hidden" id="c-id-gen" title="Generate a new random key">🎲</button>
+        </div>
+        <div class="entropy" id="c-entropy"></div>
+        <p class="hint" id="c-id-hint">A fresh random key — after publishing, save the <strong>nsec</strong> to post again.</p>
+
+        <label class="check"><input type="checkbox" id="c-encrypt" checked> Encrypt the message <span class="muted">(uncheck to publish a public, signed-but-unencrypted bulletin)</span></label>
+
+        <label>Relays</label>
+        <input type="text" id="c-relays" spellcheck="false">
+
+        <div class="row" style="margin-top:20px; align-items:center">
+          <button type="button" class="btn sm" id="c-preview" style="flex:0 0 auto" disabled>Preview prose</button>
+          <span class="hint" id="c-status" style="flex:1; margin:0"></span>
+        </div>
+        <button type="button" class="btn block" id="c-publish" disabled>Encode &amp; publish</button>
+        <div class="err" id="c-err"></div>
+      </div>
+      </form>
+
+      <div class="board hidden" id="c-out-card">
+        <label>What gets published (Glossia prose)</label>
+        <div class="prose" id="c-out-prose"></div>
+
+        <label>Shareable link <span class="muted">· style saved in the #</span></label>
+        <div class="linkbox">
+          <div class="u" id="c-link-preview">glossia.io/bulletin.html#…</div>
+          <button type="button" class="btn sm" id="c-copy-link">copy</button>
+          <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener">open ↗</a>
+        </div>
+
+        <label>Keys to share</label>
+        <div class="keyrow" id="c-readkey-row">
+          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
+          <div class="keyval read" id="c-out-nread"></div>
+          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
+        </div>
+        <div class="keyrow">
+          <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
+          <div class="keyval sec" id="c-out-nsec"></div>
+          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nsec</button>
+        </div>
+        <div class="keyrow">
+          <span class="lab">npub — the board's public address</span>
+          <div class="keyval pub" id="c-out-npub"></div>
+        </div>
+        <div id="c-relay-results"></div>
+      </div>
+
+      <div class="note">
+        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key.
+        The message is encrypted with a key derived from that same signing key, encoded into Glossia prose, signed, and
+        published to public nostr relays. <strong>nsec</strong> → post and decrypt; <strong>read key</strong> → decrypt only;
+        <strong>npub</strong> → read the prose but not decrypt. You never set a separate password.
+      </div>
+
+      <div class="foot">
+        Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
+        so a wrong key or tampering fails cleanly. A random board key has full entropy; a passphrase-derived board is only as
+        strong as the passphrase (generated ones target ≥128 bits).
+      </div>
+    </div>
+
+    <aside class="col-preview">
+      <div class="pv-head"><span>Live preview</span><span class="muted">·</span><span class="accent" id="c-style-name">Letterpress</span></div>
+      <div class="preview" id="c-preview-card" data-style="letterpress">
+        <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">harbor</span></div>
+        <div class="pv-note">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <span>encoded as Glossia prose — reads as-is, decodes with the key</span>
+        </div>
+        <div class="pv-decoded">
+          <div class="pv-dec-label">decoded</div>
+          <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
+        </div>
+      </div>
+      <div class="pv-caption">This is how it reads once unlocked. Switch the reading style to preview each look.</div>
+    </aside>
+  </div>
 </div>
 
 <script type="module">
@@ -217,6 +309,28 @@ setEngine('loading');
   try { await init(); ready = true; setEngine('ready'); }
   catch (e) { setEngine('error', 'Failed to load Glossia engine: ' + (e.message || e)); }
 })();
+
+// ── reading style: tiles drive a hidden input + the live preview ───────
+const STYLE_NAMES = { letterpress: 'Letterpress', midnight: 'Midnight', terminal: 'Terminal' };
+function applyStyle(style) {
+  if (!STYLE_NAMES[style]) style = 'letterpress';
+  $('c-style').value = style;
+  $('c-preview-card').dataset.style = style;
+  $('c-style-name').textContent = STYLE_NAMES[style];
+  document.querySelectorAll('[data-set-style]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.setStyle === style)));
+  $('c-style').dispatchEvent(new Event('change'));   // refresh the open link if published
+}
+document.querySelectorAll('[data-set-style]').forEach(b =>
+  b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
+
+// ── live preview mirrors the message / subject as a reader would see it ─
+function syncPreview() {
+  $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
+  $('c-pv-subject').textContent = $('c-subject').value.trim() || 'no subject';
+}
+$('c-msg').addEventListener('input', syncPreview);
+$('c-subject').addEventListener('input', syncPreview);
 
 // ── identity source ───────────────────────────────────────────────────
 let randomIdentity = null;   // cached so repeated preview/publish keep one board
@@ -292,6 +406,8 @@ async function buildBulletin() {
   return { identity, enc, ev };
 }
 
+function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.slice(-6) : (v || ''); }
+
 function showBoard(identity, enc) {
   const c = $('c-out-card');
   c.classList.remove('hidden');
@@ -301,6 +417,8 @@ function showBoard(identity, enc) {
   $('c-out-nread').textContent = identity.nread;
   $('c-readkey-row').classList.toggle('hidden', !enc.encrypted);   // read key only matters when encrypted
   $('c-open-link').href = readLink(identity.npub);
+  $('c-link-preview').textContent = readLink(identity.npub).replace(/^https?:\/\//, '');
+  $('c-head-npub').textContent = shortNpub(identity.npub);
   c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
 }
 
@@ -311,7 +429,7 @@ $('c-preview').addEventListener('click', async () => {
     const { identity, enc } = await buildBulletin();
     showBoard(identity, enc);
     $('c-relay-results').innerHTML = '';
-    $('c-status').textContent = 'Preview ready — review, then Publish.';
+    $('c-status').textContent = 'Preview ready — review, then publish.';
   } catch (e) { $('c-err').textContent = e.message || String(e); }
 });
 
@@ -344,13 +462,18 @@ $('c-copy-link').addEventListener('click', () => navigator.clipboard.writeText(r
 $('c-copy-nread').addEventListener('click', () => copy('nread'));
 $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 
-// keep the open link's reading style in sync if it changes after a preview
+// keep the open link + link preview in sync when the reading style changes
 $('c-style').addEventListener('change', () => {
   const npub = $('c-out-card').dataset.npub;
-  if (npub) $('c-open-link').href = readLink(npub);
+  if (npub) {
+    $('c-open-link').href = readLink(npub);
+    $('c-link-preview').textContent = readLink(npub).replace(/^https?:\/\//, '');
+  }
 });
 
 syncIdSource();
+syncPreview();
+applyStyle($('c-style').value);   // mark the default reading-style tile selected
 </script>
 </body>
 </html>
