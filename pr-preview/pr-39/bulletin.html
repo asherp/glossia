@@ -196,7 +196,7 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
     <div class="keybar">
       <label for="r-key">Decryption key</label>
       <input type="text" id="r-key" spellcheck="false" autocomplete="off"
-             placeholder="read key, nsec, or passphrase — leave empty to read the prose only">
+             placeholder="read key, nwrite, or passphrase — leave empty to read the prose only">
       <div class="keyhint hidden" id="r-keyhint">A decryption key is required to unlock these bulletins.</div>
     </div>
 
@@ -324,7 +324,7 @@ let renderToken = 0;
 async function credCandidates() {
   const raw = $('r-key').value.trim();
   if (!raw) return [];
-  if (raw.startsWith('nsec') || raw.startsWith('nread')) {
+  if (raw.startsWith('nwrite') || raw.startsWith('nsec') || raw.startsWith('nread')) {
     try { return [await resolveContentKey(raw)]; } catch { return []; }
   }
   let K = null;
