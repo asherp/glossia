@@ -100,6 +100,14 @@ mark { background: var(--mark-bg); border-bottom: 1px solid var(--mark-border); 
         <label>Subject <span class="muted">(optional, public)</span></label>
         <input type="text" id="c-subject" placeholder="label" spellcheck="false" style="width:12rem">
       </div>
+      <div style="flex:0 0 auto">
+        <label>Reading style <span class="muted">(saved in the link)</span></label>
+        <select id="c-style">
+          <option value="letterpress">Letterpress</option>
+          <option value="midnight">Midnight</option>
+          <option value="terminal">Terminal</option>
+        </select>
+      </div>
     </div>
 
     <label>Board identity (the signing key)</label>
@@ -191,7 +199,10 @@ function renderProse(prose, words) {
   const set = new Set((words || []).map(w => w.toLowerCase()));
   return escapeHtml(prose).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<mark>${w}</mark>` : w);
 }
-function readLink(npub) { return location.href.replace(/[^/]*$/, '') + 'bulletin.html#' + npub; }
+function readLink(npub, style) {
+  const s = style || $('c-style').value || 'letterpress';
+  return location.href.replace(/[^/]*$/, '') + 'bulletin.html#' + npub + '&style=' + s;
+}
 
 const ENGINE_BTNS = ['c-preview', 'c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
@@ -332,6 +343,12 @@ function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] ||
 $('c-copy-link').addEventListener('click', () => navigator.clipboard.writeText(readLink($('c-out-card').dataset.npub || '')).catch(() => {}));
 $('c-copy-nread').addEventListener('click', () => copy('nread'));
 $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
+
+// keep the open link's reading style in sync if it changes after a preview
+$('c-style').addEventListener('change', () => {
+  const npub = $('c-out-card').dataset.npub;
+  if (npub) $('c-open-link').href = readLink(npub);
+});
 
 syncIdSource();
 </script>
