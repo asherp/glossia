@@ -130,7 +130,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 .pv-head .accent { color:var(--accent); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 .out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
-.share { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); }
+.share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
 .board-loaded .loaded-npub { background:#fff; border:1px solid var(--input-bd); border-radius:8px; padding:11px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink); word-break:break-all; }
 .linkbox.private .u { border-color:rgba(192,57,43,.4); }
@@ -258,6 +258,52 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
       </div>
       </form>
 
+      <div class="board out-card hidden" id="c-out-card">
+        <div class="share">
+          <label>Reader link <span class="muted">· read the prose (npub)</span></label>
+          <div class="linkbox">
+            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
+            <button type="button" class="btn sm" data-copy="npub">copy</button>
+            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+
+          <label>Reader link + key <span class="lab warn">· includes the decryption key — readers unlock instantly</span></label>
+          <div class="linkbox private">
+            <div class="u" id="c-link-key">glossia.io/bulletin.html#npub…&amp;key=…</div>
+            <button type="button" class="btn sm" data-copy="key">copy</button>
+            <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+
+          <label>Author link <span class="lab warn">· includes the nsec — post more to this board</span></label>
+          <div class="linkbox private">
+            <div class="u" id="c-link-nsec">glossia.io/compose.html#nsec…</div>
+            <button type="button" class="btn sm" data-copy="nsec">copy</button>
+            <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+          <p class="hint" style="margin-top:12px">This page's address <em>is</em> the author link — <strong>bookmark it</strong> to keep publishing to this board later.</p>
+        </div>
+
+        <label>Keys to share</label>
+        <div class="keyrow" id="c-readkey-row">
+          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
+          <div class="keyval read" id="c-out-nread"></div>
+          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
+        </div>
+        <div class="keyrow hidden" id="c-pass-note">
+          <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
+        </div>
+        <div class="keyrow">
+          <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
+          <div class="keyval sec" id="c-out-nsec"></div>
+          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nsec</button>
+        </div>
+        <div class="keyrow">
+          <span class="lab">npub — the board's public address</span>
+          <div class="keyval pub" id="c-out-npub"></div>
+        </div>
+        <div id="c-relay-results"></div>
+      </div>
+
       <div class="note">
         <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key
         (the <strong>nsec</strong>). The message is always encrypted — by default with a key derived from that same
@@ -288,53 +334,6 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
           </div>
         </div>
         <div class="pv-caption">The prose above is generated live as you type — that's what gets published. Switch the reading style to preview each look.</div>
-
-        <div class="share">
-          <label>Reader link <span class="muted">· read the prose (npub)</span></label>
-          <div class="linkbox">
-            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
-            <button type="button" class="btn sm" data-copy="npub">copy</button>
-            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
-
-          <label>Reader link + key <span class="lab warn">· includes the decryption key — readers unlock instantly</span></label>
-          <div class="linkbox private">
-            <div class="u" id="c-link-key">glossia.io/bulletin.html#npub…&amp;key=…</div>
-            <button type="button" class="btn sm" data-copy="key">copy</button>
-            <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
-
-          <label>Author link <span class="lab warn">· includes the nsec — post more to this board</span></label>
-          <div class="linkbox private">
-            <div class="u" id="c-link-nsec">glossia.io/compose.html#nsec…</div>
-            <button type="button" class="btn sm" data-copy="nsec">copy</button>
-            <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
-          <p class="hint" style="margin-top:12px">This page's address <em>is</em> the author link — <strong>bookmark it</strong> to keep publishing to this board later.</p>
-        </div>
-      </div>
-
-      <div class="board out-card hidden" id="c-out-card">
-
-        <label>Keys to share</label>
-        <div class="keyrow" id="c-readkey-row">
-          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
-          <div class="keyval read" id="c-out-nread"></div>
-          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
-        </div>
-        <div class="keyrow hidden" id="c-pass-note">
-          <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
-        </div>
-        <div class="keyrow">
-          <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
-          <div class="keyval sec" id="c-out-nsec"></div>
-          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nsec</button>
-        </div>
-        <div class="keyrow">
-          <span class="lab">npub — the board's public address</span>
-          <div class="keyval pub" id="c-out-npub"></div>
-        </div>
-        <div id="c-relay-results"></div>
       </div>
     </aside>
   </div>
@@ -603,7 +602,7 @@ const mqStack = window.matchMedia('(max-width: 820px)');
 function placePreview() {
   const live = $('c-live-preview');
   if (mqStack.matches) $('c-preview-slot').appendChild(live);
-  else document.querySelector('.col-preview').insertBefore(live, $('c-out-card'));
+  else document.querySelector('.col-preview').appendChild(live);   // aside holds only the preview now
 }
 mqStack.addEventListener('change', placePreview);
 placePreview();
