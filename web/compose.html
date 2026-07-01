@@ -341,8 +341,9 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 
 <script type="module">
 import { init, encodeMessage } from './glossia-msg.js';
-import { generateIdentity, identityFromNsec, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { generateIdentity, identityFromNsec, identityFromSecHex, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
+import { hexToWords, wordsToHex, isWordForm, textToHex } from './glossia-words.js';
 
 const $ = (id) => document.getElementById(id);
 let ready = false;
@@ -361,16 +362,7 @@ function splitProse(text) {
   return { body: text, attr: '' };
 }
 function baseUrl() { return location.href.replace(/[^/]*$/, ''); }
-function readLink(npub, style) {
-  const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'bulletin.html#' + npub + '&style=' + s;
-}
-// Author link: carries the nsec so the same board can be reused to publish more
-// bulletins. Private — grants posting AND decrypting.
-function authorLink(nsec, style) {
-  const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'compose.html#' + nsec + '&style=' + s;
-}
+function curStyle() { return $('c-style').value || 'letterpress'; }
 
 // The board's signing identity: a fresh random key for a new board, or the nsec
 // loaded from an author link. The message is ALWAYS encrypted — the credential is
@@ -383,17 +375,22 @@ function boardIdentity() {
   return randomIdentity;
 }
 
-// The reader's decryption credential to embed in the "reader link + key": the
-// board's read key (nread) by default, or the custom passphrase if one is set.
-function shareCred() { return overridePass() || boardIdentity().nread; }
-function readerNpubLink() { return readLink(boardIdentity().npub); }
-function readerKeyLink() { return readLink(boardIdentity().npub) + '&key=' + encodeURIComponent(shareCred()); }
-function shareAuthorLink() { return authorLink(boardIdentity().nsec); }
+// Links carry the keys as hyphenated Latin words (see glossia-words.js) rather
+// than raw bech32, so the nsec/npub/credential aren't obvious in history. The
+// reader link + key embeds a 1-byte type tag: 0x72 'r' = read key (default
+// board-key form), 0x70 'p' = a custom passphrase.
+function readerNpubLink() { return baseUrl() + 'bulletin.html#' + hexToWords(boardIdentity().pubHex) + '&style=' + curStyle(); }
+function readerKeyLink() {
+  const blob = overridePass() ? ('70' + textToHex(overridePass())) : ('72' + boardIdentity().readKeyHex);
+  return readerNpubLink() + '&key=' + hexToWords(blob);
+}
+function shareAuthorLink() { return baseUrl() + 'compose.html#' + hexToWords(boardIdentity().secHex) + '&style=' + curStyle(); }
 const strip = (u) => u.replace(/^https?:\/\//, '');
 
 // The three shareable links live under the preview and update as the board,
 // reading style, or passphrase change.
 function updateLinks() {
+  if (!ready) return;   // the word codec needs the engine — links refresh once it's up
   const npubL = readerNpubLink(), keyL = readerKeyLink(), authL = shareAuthorLink();
   $('c-link-npub').textContent = strip(npubL); $('c-open-npub').href = npubL;
   $('c-link-key').textContent = strip(keyL);   $('c-open-key').href = keyL;
@@ -419,7 +416,7 @@ function setEngine(state, msg) {
 }
 setEngine('loading');
 (async () => {
-  try { await init(); ready = true; setEngine('ready'); schedulePreview(); }
+  try { await init(); ready = true; setEngine('ready'); engineReady(); }
   catch (e) { setEngine('error', 'Failed to load Glossia engine: ' + (e.message || e)); }
 })();
 
@@ -582,21 +579,28 @@ $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 // bookmark restores the same board so you can keep publishing to it. The hash
 // fragment is never sent to the server.
 function writeHash() {
-  const hash = '#' + boardIdentity().nsec + '&style=' + ($('c-style').value || 'letterpress');
+  if (!ready) return;   // needs the word codec
+  const hash = '#' + hexToWords(boardIdentity().secHex) + '&style=' + curStyle();
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
-function loadFromHash() {
-  const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
-  if (!h) return;
-  const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
+// Reading style is a plain readable param and needs no engine, so apply it up
+// front; the nsec (word- or bech32-encoded) is decoded once the engine is ready.
+function applyStyleFromHash() {
+  const styleM = location.hash.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
-  const nm = h.match(/nsec1[0-9a-z]+/i);
-  if (nm) {
-    try {
-      nsecIdentity = identityFromNsec(nm[0]);
+}
+function loadBoardFromHash() {
+  const raw = location.hash.replace(/^#/, '');
+  for (const p of raw.split('&')) {
+    let id = null;
+    if (/^nsec1[0-9a-z]+$/i.test(p)) { try { id = identityFromNsec(p); } catch { /* bad */ } }
+    else if (isWordForm(p)) { const hx = wordsToHex(p); if (hx && hx.length === 64) { try { id = identityFromSecHex(hx); } catch { /* bad */ } } }
+    if (id) {
+      nsecIdentity = id;
       $('c-nsec-banner').classList.remove('hidden');
-      $('c-nsec-npub').textContent = nsecIdentity.npub;
-    } catch { /* malformed nsec — ignore, start a fresh board */ }
+      $('c-nsec-npub').textContent = id.npub;
+      break;
+    }
   }
 }
 
@@ -611,14 +615,22 @@ function placePreview() {
 mqStack.addEventListener('change', placePreview);
 placePreview();
 
-loadFromHash();
-$('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
+// Synchronous setup that needs no engine: reading style + preview chrome.
 syncMeta();
 updateMode();
-updateLinks();
-applyStyle($('c-style').value);   // mark the default reading-style tile selected
-writeHash();                      // pin the board in the address bar so it's bookmarkable
-schedulePreview();
+applyStyleFromHash();
+applyStyle(curStyle());   // mark the default reading-style tile selected
+
+// The rest (decoding the board from the hash, building word-encoded links,
+// pinning the board in the address bar) needs the word codec — run it once the
+// engine is ready. See the boot IIFE above, which calls engineReady().
+function engineReady() {
+  loadBoardFromHash();
+  $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
+  updateLinks();
+  writeHash();
+  schedulePreview();
+}
 </script>
 </body>
 </html>
