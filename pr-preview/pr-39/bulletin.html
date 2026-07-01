@@ -97,6 +97,12 @@ body[data-style="letterpress"] .keybar input { border:none; border-bottom:1.5px 
 body[data-style="letterpress"] .keybar input:focus { border-bottom-color:var(--accent); }
 .keyhint { margin-top:10px; font:400 12px/1.45 'IBM Plex Mono',monospace; color:var(--accent); }
 
+/* board id (the npub) shown at the top as the board's identifier */
+.board-id { display:flex; gap:8px; align-items:center; margin-top:16px; }
+.board-id input { flex:1; min-width:0; background:var(--input-bg); color:var(--ink); border:1px solid var(--input-bd); border-radius:var(--radius); font:400 13px/1.5 'IBM Plex Mono',monospace; padding:10px 12px; }
+.board-id input:focus { outline:none; border-color:var(--accent); }
+.board-id input::placeholder { color:var(--dim); opacity:.7; }
+
 /* settings disclosure */
 .settings { margin-top:16px; border-top:1px solid var(--rule); padding-top:14px; }
 .settings > summary { list-style:none; cursor:pointer; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); display:flex; align-items:center; gap:7px; }
@@ -105,12 +111,12 @@ body[data-style="letterpress"] .keybar input:focus { border-bottom-color:var(--a
 .settings label { display:block; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:16px 0 7px; }
 .settings input { width:100%; background:var(--input-bg); color:var(--ink); border:1px solid var(--input-bd); border-radius:var(--radius); font:400 13px/1.5 'IBM Plex Mono',monospace; padding:9px 11px; }
 .settings input:focus { outline:none; border-color:var(--accent); }
-.settings .actions { display:flex; align-items:center; gap:10px; margin-top:12px; }
-.mini-btn { flex:0 0 auto; background:var(--accent); color:#faf8f3; border:none; border-radius:var(--radius); padding:9px 15px; font:600 12px/1 'Public Sans',sans-serif; letter-spacing:.02em; cursor:pointer; }
+.mini-btn { flex:0 0 auto; background:var(--accent); color:#faf8f3; border:none; border-radius:var(--radius); padding:10px 16px; font:600 12px/1 'Public Sans',sans-serif; letter-spacing:.02em; cursor:pointer; }
 .mini-btn:hover { filter:brightness(.92); }
 .mini-btn:disabled { opacity:.5; cursor:not-allowed; }
-.status { flex:1; font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--dim); }
-.err { color:#c0392b; font:400 12px/1.4 'IBM Plex Mono',monospace; min-height:1em; margin-top:8px; }
+.status { font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--dim); margin-top:8px; }
+.status:empty { margin-top:0; }
+.err { color:#c0392b; font:400 12px/1.4 'IBM Plex Mono',monospace; min-height:1em; margin-top:6px; }
 body[data-style="midnight"] .err { color:#e07b6a; }
 
 /* ───────────────────────── bulletins ───────────────────────── */
@@ -178,6 +184,14 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
       <a class="compose-link" href="./compose.html">compose →</a>
     </div>
 
+    <!-- board id: the board's npub, shown at the top as its identifier -->
+    <div class="board-id">
+      <input type="text" id="r-npub" spellcheck="false" placeholder="npub1… — the board's id (or paste a glossia link)">
+      <button type="button" class="mini-btn" id="r-load" disabled>Load</button>
+    </div>
+    <div class="status" id="r-status"></div>
+    <div class="err" id="r-err"></div>
+
     <!-- key bar -->
     <div class="keybar">
       <label for="r-key">Decryption key</label>
@@ -200,15 +214,8 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
         <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
       </div>
 
-      <label for="r-npub">Board address (npub)</label>
-      <input type="text" id="r-npub" placeholder="npub1… (or paste a full glossia link)" spellcheck="false">
       <label for="r-relays">Relays</label>
       <input type="text" id="r-relays" autocomplete="off" spellcheck="false">
-      <div class="actions">
-        <button type="button" class="mini-btn" id="r-load" disabled>Load bulletins</button>
-        <span class="status" id="r-status"></span>
-      </div>
-      <div class="err" id="r-err"></div>
     </details>
 
     <!-- bulletins -->
@@ -295,7 +302,7 @@ function routeFromHash() {
   applyStyle(styleM ? styleM[1].toLowerCase() : 'letterpress', { persist: false });
   const m = h.match(/npub1[0-9a-z]+/i);
   if (m && isNpub(m[0])) { $('r-npub').value = m[0]; loadBoard(); }
-  else { $('r-settings').open = true; }   // no board yet — show the form to enter one
+  else { $('r-npub').focus(); }   // no board yet — prompt for the id at the top
 }
 window.addEventListener('hashchange', routeFromHash);
 
@@ -380,7 +387,7 @@ async function loadBoard() {
   $('r-err').textContent = ''; $('r-status').textContent = '';
   if (!ready) { $('r-err').textContent = 'Engine still loading…'; return; }
   const m = $('r-npub').value.trim().match(/npub1[0-9a-z]+/i);
-  if (!m || !isNpub(m[0])) { $('r-err').textContent = 'Enter a valid npub.'; $('r-settings').open = true; return; }
+  if (!m || !isNpub(m[0])) { $('r-err').textContent = 'Enter a valid npub.'; $('r-npub').focus(); return; }
   const npub = m[0];
   const relays = parseRelays($('r-relays').value);
   if (!relays.length) { $('r-err').textContent = 'Add at least one wss:// relay.'; return; }
