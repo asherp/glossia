@@ -210,7 +210,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
         <div id="c-preview-slot"></div>
 
         <div class="board-loaded hidden" id="c-nsec-banner">
-          <label>Board <span class="muted">(reused from your author link)</span></label>
+          <label>Board <span class="muted">(saved — you're continuing this board)</span></label>
           <div class="loaded-npub" id="c-nsec-npub"></div>
           <p class="hint">New bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
         </div>
@@ -310,6 +310,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
             <button type="button" class="btn sm" data-copy="nsec">copy</button>
             <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
           </div>
+          <p class="hint" style="margin-top:12px">This page's address <em>is</em> the author link — <strong>bookmark it</strong> to keep publishing to this board later.</p>
         </div>
       </div>
 
@@ -570,10 +571,17 @@ function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] ||
 $('c-copy-nread').addEventListener('click', () => copy('nread'));
 $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 
-// keep the share links in sync when the reading style changes
-$('c-style').addEventListener('change', updateLinks);
+// keep the share links + address bar in sync when the reading style changes
+$('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 
-// ── open compose.html#nsec…&style=… to reuse an existing board ─────────
+// ── the address bar IS the board: compose.html#nsec…&style=… ───────────
+// Writing the board into the hash makes the page bookmarkable — reopening the
+// bookmark restores the same board so you can keep publishing to it. The hash
+// fragment is never sent to the server.
+function writeHash() {
+  const hash = '#' + boardIdentity().nsec + '&style=' + ($('c-style').value || 'letterpress');
+  if (location.hash !== hash) history.replaceState(null, '', hash);
+}
 function loadFromHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
   if (!h) return;
@@ -606,6 +614,7 @@ syncMeta();
 updateMode();
 updateLinks();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
+writeHash();                      // pin the board in the address bar so it's bookmarkable
 schedulePreview();
 </script>
 </body>
