@@ -119,6 +119,9 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 .pv-head .accent { color:var(--accent); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 .out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
+.board-loaded .loaded-npub { background:#fff; border:1px solid var(--input-bd); border-radius:8px; padding:11px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink); word-break:break-all; }
+.linkbox.private .u { border-color:rgba(192,57,43,.4); }
+.lab.warn { color:var(--error); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
@@ -190,14 +193,22 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
         <label>Message</label>
         <textarea id="c-msg" spellcheck="false" placeholder="Your message…">The pen is mightier than the sword.</textarea>
 
-        <label>Passphrase <span class="muted">(the board's key)</span></label>
-        <div class="row">
-          <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or generate a strong one" spellcheck="false">
-          <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
-          <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
+        <div id="c-pass-group">
+          <label>Passphrase <span class="muted">(the board's key)</span></label>
+          <div class="row">
+            <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or generate a strong one" spellcheck="false">
+            <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
+            <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
+          </div>
+          <div class="entropy" id="c-entropy"></div>
+          <p class="hint" id="c-id-hint">Deterministic: the same passphrase always reaches the same board. Sharing the passphrase grants full access.</p>
         </div>
-        <div class="entropy" id="c-entropy"></div>
-        <p class="hint" id="c-id-hint">Deterministic: the same passphrase always reaches the same board. Sharing the passphrase grants full access.</p>
+
+        <div class="board-loaded hidden" id="c-nsec-banner">
+          <label>Board <span class="muted">(loaded from your author link)</span></label>
+          <div class="loaded-npub" id="c-nsec-npub"></div>
+          <p class="hint">Publishing with the saved <strong>nsec</strong> — new bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
+        </div>
 
         <details class="settings" id="c-settings">
           <summary>
@@ -262,11 +273,18 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
       <div class="pv-caption">The prose above is generated live as you type — that's what gets published. Switch the reading style to preview each look.</div>
 
       <div class="board out-card hidden" id="c-out-card">
-        <label>Shareable link <span class="muted">· style saved in the #</span></label>
+        <label>Reader link <span class="muted">· share to read · style saved in the #</span></label>
         <div class="linkbox">
           <div class="u" id="c-link-preview">glossia.io/bulletin.html#…</div>
           <button type="button" class="btn sm" id="c-copy-link">copy</button>
           <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener">open ↗</a>
+        </div>
+
+        <label>Author link <span class="lab warn">· keep private — includes the nsec; anyone with it can post to this board</span></label>
+        <div class="linkbox private">
+          <div class="u" id="c-author-preview">glossia.io/compose.html#nsec…</div>
+          <button type="button" class="btn sm" id="c-copy-author">copy</button>
+          <a class="btn sm" id="c-open-author" href="#" target="_blank" rel="noopener">open ↗</a>
         </div>
 
         <label>Keys to share</label>
@@ -292,7 +310,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 
 <script type="module">
 import { init, encodeMessage } from './glossia-msg.js';
-import { deriveIdentity, generateIdentity, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { deriveIdentity, generateIdentity, identityFromNsec, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -311,10 +329,22 @@ function splitProse(text) {
   if (di > 0) return { body: text.slice(0, di).trim(), attr: text.slice(di + 3).trim() };
   return { body: text, attr: '' };
 }
+function baseUrl() { return location.href.replace(/[^/]*$/, ''); }
 function readLink(npub, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return location.href.replace(/[^/]*$/, '') + 'bulletin.html#' + npub + '&style=' + s;
+  return baseUrl() + 'bulletin.html#' + npub + '&style=' + s;
 }
+// Author link: carries the nsec (and the current mode) so the same board can be
+// reused to publish more bulletins. Private — grants posting AND decrypting.
+function authorLink(nsec, style) {
+  const s = style || $('c-style').value || 'letterpress';
+  return baseUrl() + 'compose.html#' + nsec + '&style=' + s + '&enc=' + (isEncrypting() ? '1' : '0');
+}
+
+// A board loaded from an author link (compose.html#nsec…). When set it overrides
+// the passphrase field and fixes the encrypt/encoded mode from the link.
+let nsecIdentity = null, nsecEncrypt = true;
+function isEncrypting() { return nsecIdentity ? nsecEncrypt : !!$('c-id-value').value.trim(); }
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
@@ -353,7 +383,7 @@ function syncMeta() {
 // Reflect whether a passphrase is set: encrypted vs encoded-only, in both the
 // publish button label and the preview badge.
 function updateMode() {
-  const encrypted = !!$('c-id-value').value.trim();
+  const encrypted = isEncrypting();
   $('c-publish').textContent = encrypted ? 'Encode & publish' : 'Publish message (encoded only)';
   const el = $('c-pv-mode');
   el.dataset.mode = encrypted ? 'enc' : 'plain';
@@ -372,12 +402,15 @@ async function regenPreview() {
   const msg = $('c-msg').value;
   if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
-  const pass = $('c-id-value').value.trim();
   try {
     let cred = null;
-    if (pass) {
-      if (pass === pvIdCache.pass && pvIdCache.cred) cred = pvIdCache.cred;
-      else { cred = (await deriveIdentity(pass)).readKey; pvIdCache = { pass, cred }; }
+    if (isEncrypting()) {
+      if (nsecIdentity) cred = nsecIdentity.readKey;
+      else {
+        const pass = $('c-id-value').value.trim();
+        if (pass === pvIdCache.pass && pvIdCache.cred) cred = pvIdCache.cred;
+        else { cred = (await deriveIdentity(pass)).readKey; pvIdCache = { pass, cred }; }
+      }
     }
     if (my !== pvToken) return;
     const enc = await encodeMessage(msg, cred, $('c-lang').value);
@@ -440,6 +473,7 @@ document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('
 // ephemeral random signing key and an encoded-only (unencrypted) bulletin.
 let randomIdentity = null;
 async function resolveIdentity() {
+  if (nsecIdentity) return nsecIdentity;              // reused board from an author link
   const v = $('c-id-value').value.trim();
   if (v) return await deriveIdentity(v);
   if (!randomIdentity) randomIdentity = generateIdentity();
@@ -449,9 +483,8 @@ async function resolveIdentity() {
 async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
-  const encrypt = !!$('c-id-value').value.trim();
   const identity = await resolveIdentity();
-  const cred = encrypt ? identity.readKey : null;   // encrypt only when a passphrase is set
+  const cred = isEncrypting() ? identity.readKey : null;   // encrypt only when a key is set
   const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
@@ -468,6 +501,8 @@ function showBoard(identity, enc) {
   $('c-readkey-row').classList.toggle('hidden', !enc.encrypted);   // read key only matters when encrypted
   $('c-open-link').href = readLink(identity.npub);
   $('c-link-preview').textContent = readLink(identity.npub).replace(/^https?:\/\//, '');
+  $('c-open-author').href = authorLink(identity.nsec);
+  $('c-author-preview').textContent = authorLink(identity.nsec).replace(/^https?:\/\//, '');
   $('c-head-npub').textContent = shortNpub(identity.npub);
   c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
 }
@@ -498,21 +533,47 @@ $('c-publish').addEventListener('click', async () => {
 
 function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] || '').catch(() => {}); }
 $('c-copy-link').addEventListener('click', () => navigator.clipboard.writeText(readLink($('c-out-card').dataset.npub || '')).catch(() => {}));
+$('c-copy-author').addEventListener('click', () => navigator.clipboard.writeText(authorLink($('c-out-card').dataset.nsec || '')).catch(() => {}));
 $('c-copy-nread').addEventListener('click', () => copy('nread'));
 $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 
-// keep the open link + link preview in sync when the reading style changes
+// keep both links in sync when the reading style changes
 $('c-style').addEventListener('change', () => {
-  const npub = $('c-out-card').dataset.npub;
+  const { npub, nsec } = $('c-out-card').dataset;
   if (npub) {
     $('c-open-link').href = readLink(npub);
     $('c-link-preview').textContent = readLink(npub).replace(/^https?:\/\//, '');
   }
+  if (nsec) {
+    $('c-open-author').href = authorLink(nsec);
+    $('c-author-preview').textContent = authorLink(nsec).replace(/^https?:\/\//, '');
+  }
 });
 
+// ── open compose.html#nsec…&style=…&enc=… to reuse an existing board ────
+function loadFromHash() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
+  if (!h) return;
+  const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
+  if (styleM) applyStyle(styleM[1].toLowerCase());
+  const nm = h.match(/nsec1[0-9a-z]+/i);
+  if (nm) {
+    try {
+      nsecIdentity = identityFromNsec(nm[0]);
+      nsecEncrypt = !/enc=0/i.test(h);   // encoded-only if the link said so
+      $('c-pass-group').classList.add('hidden');
+      $('c-nsec-banner').classList.remove('hidden');
+      $('c-nsec-npub').textContent = nsecIdentity.npub;
+      $('c-head-npub').textContent = shortNpub(nsecIdentity.npub);
+    } catch { /* malformed nsec — ignore, fall back to passphrase */ }
+  }
+}
+
+loadFromHash();
 syncMeta();
 updateMode();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
+schedulePreview();
 </script>
 </body>
 </html>
