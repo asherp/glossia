@@ -398,6 +398,11 @@ function updateLinks() {
   $('c-link-npub').textContent = strip(npubL); $('c-open-npub').href = npubL;
   $('c-link-key').textContent = strip(keyL);   $('c-open-key').href = keyL;
   $('c-link-nsec').textContent = strip(authL); $('c-open-nsec').href = authL;
+  // the read key (nread) only decrypts the default board-key form; when a
+  // passphrase is set, readers use it instead — keep this in sync live
+  const custom = !!overridePass();
+  $('c-readkey-row').classList.toggle('hidden', custom);
+  $('c-pass-note').classList.toggle('hidden', !custom);
 }
 document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
   const link = b.dataset.copy === 'npub' ? readerNpubLink() : b.dataset.copy === 'key' ? readerKeyLink() : shareAuthorLink();
@@ -490,6 +495,7 @@ $('c-id-gen').addEventListener('click', () => {
   $('c-id-value').value = p;
   showEntropy(p);
   updateMode();
+  updateLinks();
   schedulePreview();
   $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
 });
@@ -535,9 +541,7 @@ function showBoard(identity, enc) {
   $('c-out-npub').textContent = identity.npub;
   $('c-out-nsec').textContent = identity.nsec;
   $('c-out-nread').textContent = identity.nread;
-  const custom = !!overridePass();
-  $('c-readkey-row').classList.toggle('hidden', custom);   // nread only decrypts the default board-key form
-  $('c-pass-note').classList.toggle('hidden', !custom);
+  updateLinks();                       // keep links + read-key/passphrase note in sync with the current credential
   $('c-head-npub').textContent = shortNpub(identity.npub);
   c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
 }
