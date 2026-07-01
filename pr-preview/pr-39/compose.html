@@ -130,6 +130,17 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 .preview[data-style="letterpress"] .pv-subject { color:#9a5b3f; }
 .preview[data-style="midnight"]    .pv-subject { color:#c9a25f; }
 .preview[data-style="terminal"]    .pv-subject { color:#274bd6; }
+/* encrypted / encoded-only indicator */
+.pv-mode { display:inline-flex; align-items:center; gap:6px; margin-bottom:14px; padding:4px 9px; border-radius:999px; font:600 9px/1.2 'IBM Plex Mono',monospace; letter-spacing:.12em; text-transform:uppercase; }
+.pv-mode svg { width:11px; height:11px; }
+.pv-mode[data-mode="enc"]   { background:rgba(79,122,63,.14); color:#3f6a32; }
+.pv-mode[data-mode="plain"] { background:rgba(154,91,63,.12); color:#9a5b3f; }
+.preview[data-style="midnight"] .pv-mode[data-mode="enc"]   { background:rgba(127,214,160,.14); color:#7fd6a0; }
+.preview[data-style="midnight"] .pv-mode[data-mode="plain"] { background:rgba(201,162,95,.16); color:#c9a25f; }
+.preview[data-style="terminal"] .pv-mode { border-radius:0; }
+.preview[data-style="terminal"] .pv-mode[data-mode="enc"]   { background:#17161a; color:#7fd6a0; }
+.preview[data-style="terminal"] .pv-mode[data-mode="plain"] { background:#17161a; color:#e8e4da; }
+
 /* realtime-generated prose (mirrors the viewer's bulletin prose) */
 .pv-prose { margin:0 0 4px; }
 .preview[data-style="letterpress"] .pv-prose { font:italic 300 17px/1.7 'Spectral',serif; color:#413d33; }
@@ -240,6 +251,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
       <div class="pv-head"><span>Live preview</span><span class="muted">·</span><span class="accent" id="c-style-name">Letterpress</span></div>
       <div class="preview" id="c-preview-card" data-style="letterpress">
         <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">no subject</span></div>
+        <div class="pv-mode" id="c-pv-mode" data-mode="plain"></div>
         <p class="pv-prose" id="c-pv-prose">Your prose will appear here as you type…</p>
         <div class="pv-attr" id="c-pv-attr"></div>
         <div class="pv-decoded">
@@ -280,7 +292,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 
 <script type="module">
 import { init, encodeMessage } from './glossia-msg.js';
-import { deriveIdentity, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { deriveIdentity, generateIdentity, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -333,9 +345,21 @@ document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
 // ── live preview: realtime prose + decoded, exactly as a reader sees it ─
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function syncMeta() {
   $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
   $('c-pv-subject').textContent = $('c-subject').value.trim() || 'no subject';
+}
+// Reflect whether a passphrase is set: encrypted vs encoded-only, in both the
+// publish button label and the preview badge.
+function updateMode() {
+  const encrypted = !!$('c-id-value').value.trim();
+  $('c-publish').textContent = encrypted ? 'Encode & publish' : 'Publish message (encoded only)';
+  const el = $('c-pv-mode');
+  el.dataset.mode = encrypted ? 'enc' : 'plain';
+  el.innerHTML = encrypted
+    ? LOCK_SVG + '<span>encrypted · unlocks with the key</span>'
+    : '<span>encoded only · readable by anyone</span>';
 }
 // Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
 // and drop stale runs. The board key is cached so retyping the message alone
@@ -344,6 +368,7 @@ let pvTimer = null, pvToken = 0, pvIdCache = { pass: '', cred: null };
 async function regenPreview() {
   const my = ++pvToken;
   syncMeta();
+  updateMode();
   const msg = $('c-msg').value;
   if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
@@ -383,6 +408,7 @@ $('c-id-gen').addEventListener('click', () => {
   if (!p) { $('c-status').textContent = 'Could not generate a passphrase — is the engine ready?'; return; }
   $('c-id-value').value = p;
   showEntropy(p);
+  updateMode();
   schedulePreview();
   $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
 });
@@ -400,7 +426,7 @@ function showEntropy(p) {
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
-$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); schedulePreview(); });
+$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); updateMode(); schedulePreview(); });
 
 document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
   const inp = $(btn.dataset.reveal);
@@ -410,17 +436,22 @@ document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('
 }));
 
 // ── build / preview / publish ─────────────────────────────────────────
+// With a passphrase → a deterministic, encrypted board. Without one → an
+// ephemeral random signing key and an encoded-only (unencrypted) bulletin.
+let randomIdentity = null;
 async function resolveIdentity() {
   const v = $('c-id-value').value.trim();
-  if (!v) throw new Error('Enter a passphrase.');
-  return await deriveIdentity(v);
+  if (v) return await deriveIdentity(v);
+  if (!randomIdentity) randomIdentity = generateIdentity();
+  return randomIdentity;
 }
 
 async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
+  const encrypt = !!$('c-id-value').value.trim();
   const identity = await resolveIdentity();
-  const cred = identity.readKey;   // always encrypt with the key derived from the passphrase
+  const cred = encrypt ? identity.readKey : null;   // encrypt only when a passphrase is set
   const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
@@ -434,6 +465,7 @@ function showBoard(identity, enc) {
   $('c-out-npub').textContent = identity.npub;
   $('c-out-nsec').textContent = identity.nsec;
   $('c-out-nread').textContent = identity.nread;
+  $('c-readkey-row').classList.toggle('hidden', !enc.encrypted);   // read key only matters when encrypted
   $('c-open-link').href = readLink(identity.npub);
   $('c-link-preview').textContent = readLink(identity.npub).replace(/^https?:\/\//, '');
   $('c-head-npub').textContent = shortNpub(identity.npub);
@@ -479,6 +511,7 @@ $('c-style').addEventListener('change', () => {
 });
 
 syncMeta();
+updateMode();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
 </script>
 </body>
