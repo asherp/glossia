@@ -293,6 +293,9 @@ function writeHash() {
   const parts = [];
   if (npub) parts.push(npub[0]);
   parts.push('style=' + currentStyle());
+  // keep the decryption key in the URL so a reader can bookmark the unlocked page
+  const key = $('r-key').value.trim();
+  if (key) parts.push('key=' + encodeURIComponent(key));
   const hash = '#' + parts.join('&');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
@@ -419,6 +422,7 @@ $('r-npub').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBoar
 let keyTimer = null;
 $('r-key').addEventListener('input', () => {
   if ($('r-key').value.trim()) $('r-keyhint').classList.add('hidden');
+  writeHash();   // reflect the key in the URL so the unlocked page stays bookmarkable
   clearTimeout(keyTimer);
   keyTimer = setTimeout(() => { if (loadedEvents.length) renderLoaded(); }, 350);
 });
