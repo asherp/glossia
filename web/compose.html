@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Create a Glossia Bulletin — publish an encrypted board</title>
-<meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity. Share the board's #npub to read the prose, the read key to decrypt, the nsec to post — in your choice of reading style.">
+<meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity. Share the board's #npub to read the prose, the read key to decrypt, the nwrite to post — in your choice of reading style.">
 <script type="importmap">
 {
   "imports": {
@@ -237,7 +237,7 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 
           <label>Passphrase <span class="muted">(optional — overrides the board key)</span></label>
           <div class="row">
-            <input type="password" id="c-id-value" autocomplete="new-password" placeholder="defaults to this board's key (hash of the nsec) — type to override" spellcheck="false">
+            <input type="password" id="c-id-value" autocomplete="new-password" placeholder="defaults to this board's key (hash of the nwrite) — type to override" spellcheck="false">
             <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
             <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
           </div>
@@ -283,9 +283,9 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
             <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
           </div>
 
-          <label>Author link <span class="lab warn">· includes the nsec — post more to this board</span></label>
+          <label>Author link <span class="lab warn">· includes the nwrite — post more to this board</span></label>
           <div class="linkbox private">
-            <div class="u" id="c-link-nsec">glossia.io/compose.html#nsec…</div>
+            <div class="u" id="c-link-nsec">glossia.io/compose.html#nwrite…</div>
             <button type="button" class="btn sm" data-copy="nsec">copy</button>
             <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
           </div>
@@ -304,9 +304,9 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
           <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
         </div>
         <div class="keyrow">
-          <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
+          <span class="lab" style="color:var(--error)">nwrite — <strong>keep private</strong>; grants posting AND decrypting</span>
           <div class="keyval sec" id="c-out-nsec"></div>
-          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nsec</button>
+          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nwrite</button>
         </div>
         <div class="keyrow">
           <span class="lab">npub — the board's public address</span>
@@ -316,10 +316,10 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
       </div>
 
       <div class="note">
-        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key
-        (the <strong>nsec</strong>). The message is always encrypted — by default with a key derived from that same
-        signing key (a hash of the nsec), then encoded into Glossia prose, signed, and published to public nostr relays.
-        <strong>nsec</strong> → post and decrypt; <strong>read key</strong> → decrypt only; <strong>npub</strong> → read
+        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its write key
+        (the <strong>nwrite</strong>). The message is always encrypted — by default with a key derived from that same
+        write key (a hash of the nwrite), then encoded into Glossia prose, signed, and published to public nostr relays.
+        <strong>nwrite</strong> → post and decrypt; <strong>read key</strong> → decrypt only; <strong>npub</strong> → read
         the prose but not decrypt. Set a passphrase to encrypt with a shared secret instead — readers then decrypt with
         that passphrase rather than the read key.
       </div>
@@ -354,7 +354,7 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 
 <script type="module">
 import { init, encodeMessage } from './glossia-msg.js';
-import { generateIdentity, identityFromNsec, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -378,16 +378,16 @@ function readLink(npub, style) {
   const s = style || $('c-style').value || 'letterpress';
   return baseUrl() + 'bulletin.html#' + npub + '&style=' + s;
 }
-// Author link: carries the nsec so the same board can be reused to publish more
-// bulletins. Private — grants posting AND decrypting.
-function authorLink(nsec, style) {
+// Author link: carries the nwrite (the board's write key) so the same board can
+// be reused to publish more bulletins. Private — grants posting AND decrypting.
+function authorLink(nwrite, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'compose.html#' + nsec + '&style=' + s;
+  return baseUrl() + 'compose.html#' + nwrite + '&style=' + s;
 }
 
-// The board's signing identity: a fresh random key for a new board, or the nsec
-// loaded from an author link. The message is ALWAYS encrypted — the credential is
-// the board's own key (a hash of the nsec) by default, or a typed passphrase.
+// The board's signing identity: a fresh random key for a new board, or the write
+// key (nwrite) loaded from an author link. The message is ALWAYS encrypted — the
+// credential is the board's own key (a hash of the nwrite) by default, or a passphrase.
 let nsecIdentity = null, randomIdentity = null;
 function boardIdentity() {
   if (nsecIdentity) return nsecIdentity;
@@ -406,11 +406,11 @@ function overridePass() {
 function shareCred() { return overridePass() || boardIdentity().nread; }
 function readerNpubLink() { return readLink(boardIdentity().npub); }
 function readerKeyLink() { return readLink(boardIdentity().npub) + '&key=' + encodeURIComponent(shareCred()); }
-// The author link (also the bookmarkable page URL) carries the nsec and, when a
+// The author link (also the bookmarkable page URL) carries the nwrite and, when a
 // custom passphrase is set, that key too — so reopening restores the board fully.
 function shareAuthorLink() {
   const k = overridePass();
-  return authorLink(boardIdentity().nsec) + (k ? '&key=' + encodeURIComponent(k) : '');
+  return authorLink(boardIdentity().nwrite) + (k ? '&key=' + encodeURIComponent(k) : '');
 }
 const strip = (u) => u.replace(/^https?:\/\//, '');
 
@@ -552,7 +552,7 @@ async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
-  const cred = overridePass() || identity.readKey;   // default = board key (hash of nsec); override = passphrase
+  const cred = overridePass() || identity.readKey;   // default = board key (hash of nwrite); override = passphrase
   const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
@@ -564,11 +564,11 @@ function showBoard(identity, enc) {
   const c = $('c-out-card');
   c.classList.remove('hidden');
   $('c-out-npub').textContent = identity.npub;
-  $('c-out-nsec').textContent = identity.nsec;
+  $('c-out-nsec').textContent = identity.nwrite;
   $('c-out-nread').textContent = identity.nread;
   updateLinks();                       // keep links + read-key/passphrase note in sync with the current credential
   $('c-head-npub').textContent = shortNpub(identity.npub);
-  c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
+  c.dataset.npub = identity.npub; c.dataset.nsec = identity.nwrite; c.dataset.nread = identity.nread;
 }
 
 $('c-publish').addEventListener('click', async () => {
@@ -602,13 +602,13 @@ $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 // keep the share links + address bar in sync when the reading style changes
 $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 
-// ── the address bar IS the board: compose.html#nsec…&style=… ───────────
+// ── the address bar IS the board: compose.html#nwrite…&style=… ─────────
 // Writing the board into the hash makes the page bookmarkable — reopening the
 // bookmark restores the same board so you can keep publishing to it. The hash
 // fragment is never sent to the server.
 function writeHash() {
   const k = overridePass();
-  const hash = '#' + boardIdentity().nsec + '&style=' + ($('c-style').value || 'letterpress')
+  const hash = '#' + boardIdentity().nwrite + '&style=' + ($('c-style').value || 'letterpress')
     + (k ? '&key=' + encodeURIComponent(k) : '');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
@@ -617,14 +617,17 @@ function loadFromHash() {
   const raw = location.hash.replace(/^#/, '');
   const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
+  // Prefer an nwrite write key; fall back to nsec so older author links still open.
+  const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
-  if (nm) {
-    try {
-      nsecIdentity = identityFromNsec(nm[0]);
+  try {
+    if (wm) nsecIdentity = identityFromNwrite(wm[0]);
+    else if (nm) nsecIdentity = identityFromNsec(nm[0]);
+    if (nsecIdentity) {
       $('c-nsec-banner').classList.remove('hidden');
       $('c-nsec-npub').textContent = nsecIdentity.npub;
-    } catch { /* malformed nsec — ignore, start a fresh board */ }
-  }
+    }
+  } catch { /* malformed write key — ignore, start a fresh board */ }
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { try { hashKey = decodeURIComponent(keyM[1]); } catch { hashKey = keyM[1]; } }
 }
