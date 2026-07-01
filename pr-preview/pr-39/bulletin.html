@@ -231,7 +231,8 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
 
 <script type="module">
 import { init, decodeMessage, skimArtifact } from './glossia-msg.js';
-import { fetchBoard, isNpub, resolveContentKey, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { fetchBoard, isNpub, npubEncode, npubToHex, nreadEncode, resolveContentKey, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { hexToWords, wordsToHex, isWordForm, hexToText } from './glossia-words.js';
 
 const $ = (id) => document.getElementById(id);
 let ready = false;
@@ -289,25 +290,51 @@ const ICON_UNLOCK = '<svg class="ic-unlock" width="15" height="15" viewBox="0 0 
 
 // ── URL routing: bulletin.html#<npub>&style=<style> ───────────────────
 function writeHash() {
-  const npub = $('r-npub').value.trim().match(/npub1[0-9a-z]+/i);
+  const m = $('r-npub').value.trim().match(/npub1[0-9a-z]+/i);
   const parts = [];
-  if (npub) parts.push(npub[0]);
+  // word-encode the npub (falls back to bech32 if the engine isn't up yet); the
+  // decryption key is intentionally NOT written back into the address bar
+  if (m && isNpub(m[0])) { let tok = m[0]; try { tok = hexToWords(npubToHex(m[0])); } catch { /* bech32 */ } parts.push(tok); }
   parts.push('style=' + currentStyle());
   const hash = '#' + parts.join('&');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
+// The board and key ride in the hash as hyphenated Latin words (see
+// glossia-words.js) or, for older links, as bech32. Style is a plain param.
 function routeFromHash() {
   const raw = location.hash.replace(/^#/, '');
-  let h = raw; try { h = decodeURIComponent(raw); } catch { /* keep raw */ }
-  h = h.trim();
-  const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
+  const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   applyStyle(styleM ? styleM[1].toLowerCase() : 'letterpress', { persist: false });
-  // a decryption key embedded in the link (the "reader link + key") unlocks on open
-  const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
-  if (keyM && keyM[1]) { let k = keyM[1]; try { k = decodeURIComponent(k); } catch { /* keep */ } $('r-key').value = k; }
-  const m = h.match(/npub1[0-9a-z]+/i);
-  if (m && isNpub(m[0])) { $('r-npub').value = m[0]; loadBoard(); }
+
+  let npub = null, key = null;
+  for (const p of raw.split('&')) {
+    if (/^key=/i.test(p)) {
+      key = decodeKeyParam(p.slice(4));
+    } else if (/^npub1[0-9a-z]+$/i.test(p)) {
+      if (isNpub(p)) npub = p;
+    } else if (isWordForm(p) && !npub) {
+      const hx = wordsToHex(p);
+      if (hx && hx.length === 64) { try { npub = npubEncode(hx); } catch { /* bad */ } }
+    }
+  }
+  if (key) $('r-key').value = key;
+  if (npub && isNpub(npub)) { $('r-npub').value = npub; loadBoard(); }
   else { $('r-npub').focus(); }   // no board yet — prompt for the id at the top
+}
+
+// A key= value is either word-encoded (a 1-byte type tag + payload: 0x72 read
+// key → nread, 0x70 passphrase → text) or, for older links, a raw credential.
+function decodeKeyParam(v) {
+  if (isWordForm(v)) {
+    const blob = wordsToHex(v);
+    if (blob && blob.length >= 2) {
+      const type = blob.slice(0, 2), rest = blob.slice(2);
+      if (type === '72' && rest.length === 64) { try { return nreadEncode(rest); } catch { /* fall through */ } }
+      if (type === '70') { try { return hexToText(rest); } catch { /* fall through */ } }
+    }
+    return null;
+  }
+  try { return decodeURIComponent(v); } catch { return v; }   // legacy raw form
 }
 window.addEventListener('hashchange', routeFromHash);
 
