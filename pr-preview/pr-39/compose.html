@@ -242,7 +242,6 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
             <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
           </div>
           <div class="entropy" id="c-entropy"></div>
-          <p class="hint" id="c-id-hint">By default the message is encrypted with this board's key (a hash of the nsec) — readers unlock it with the read key. Set a passphrase to encrypt with a shared secret instead; readers then need that passphrase.</p>
 
           <label>Prose language</label>
           <select id="c-lang">
@@ -390,19 +389,29 @@ function authorLink(nsec, style) {
 // loaded from an author link. The message is ALWAYS encrypted — the credential is
 // the board's own key (a hash of the nsec) by default, or a typed passphrase.
 let nsecIdentity = null, randomIdentity = null;
-function overridePass() { return $('c-id-value').value.trim(); }
 function boardIdentity() {
   if (nsecIdentity) return nsecIdentity;
   if (!randomIdentity) randomIdentity = generateIdentity();
   return randomIdentity;
 }
+// The passphrase field is pre-filled with the board's own read key (nread) by
+// default; that counts as "no override". Anything else is a custom passphrase.
+function overridePass() {
+  const v = $('c-id-value').value.trim();
+  return (v && v !== boardIdentity().nread) ? v : '';
+}
 
-// The reader's decryption credential to embed in the "reader link + key": the
-// board's read key (nread) by default, or the custom passphrase if one is set.
+// The reader's decryption credential to embed in a key link: the board's read
+// key (nread) by default, or the custom passphrase if one is set.
 function shareCred() { return overridePass() || boardIdentity().nread; }
 function readerNpubLink() { return readLink(boardIdentity().npub); }
 function readerKeyLink() { return readLink(boardIdentity().npub) + '&key=' + encodeURIComponent(shareCred()); }
-function shareAuthorLink() { return authorLink(boardIdentity().nsec); }
+// The author link (also the bookmarkable page URL) carries the nsec and, when a
+// custom passphrase is set, that key too — so reopening restores the board fully.
+function shareAuthorLink() {
+  const k = overridePass();
+  return authorLink(boardIdentity().nsec) + (k ? '&key=' + encodeURIComponent(k) : '');
+}
 const strip = (u) => u.replace(/^https?:\/\//, '');
 
 // The three shareable links live under the preview and update as the board,
@@ -511,6 +520,7 @@ $('c-id-gen').addEventListener('click', () => {
   showEntropy(p);
   updateMode();
   updateLinks();
+  writeHash();
   schedulePreview();
   $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
 });
@@ -528,7 +538,7 @@ function showEntropy(p) {
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
-$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); updateMode(); updateLinks(); schedulePreview(); });
+$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); updateMode(); updateLinks(); writeHash(); schedulePreview(); });
 
 document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
   const inp = $(btn.dataset.reveal);
@@ -597,15 +607,17 @@ $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 // bookmark restores the same board so you can keep publishing to it. The hash
 // fragment is never sent to the server.
 function writeHash() {
-  const hash = '#' + boardIdentity().nsec + '&style=' + ($('c-style').value || 'letterpress');
+  const k = overridePass();
+  const hash = '#' + boardIdentity().nsec + '&style=' + ($('c-style').value || 'letterpress')
+    + (k ? '&key=' + encodeURIComponent(k) : '');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
+let hashKey = '';   // a custom passphrase carried in the opened author link, if any
 function loadFromHash() {
-  const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
-  if (!h) return;
-  const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
+  const raw = location.hash.replace(/^#/, '');
+  const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
-  const nm = h.match(/nsec1[0-9a-z]+/i);
+  const nm = raw.match(/nsec1[0-9a-z]+/i);
   if (nm) {
     try {
       nsecIdentity = identityFromNsec(nm[0]);
@@ -613,6 +625,8 @@ function loadFromHash() {
       $('c-nsec-npub').textContent = nsecIdentity.npub;
     } catch { /* malformed nsec — ignore, start a fresh board */ }
   }
+  const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
+  if (keyM && keyM[1]) { try { hashKey = decodeURIComponent(keyM[1]); } catch { hashKey = keyM[1]; } }
 }
 
 // keep the live preview under the message when the columns stack (mobile),
@@ -627,6 +641,9 @@ mqStack.addEventListener('change', placePreview);
 placePreview();
 
 loadFromHash();
+// prefill the passphrase: the custom key from an author link, or the board's
+// own read key (nread) as the default
+$('c-id-value').value = hashKey || boardIdentity().nread;
 $('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
 syncMeta();
 updateMode();
