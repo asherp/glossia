@@ -82,6 +82,13 @@ input::placeholder, textarea::placeholder { color:#b3ad9c; }
 .check { display:flex; align-items:center; gap:9px; font:400 13px/1.4 'Public Sans',sans-serif; color:var(--ink); text-transform:none; letter-spacing:0; margin:22px 0 0; }
 .check input { width:auto; }
 
+/* settings disclosure */
+.settings { margin-top:22px; border-top:1px solid var(--rule); padding-top:16px; }
+.settings > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); }
+.settings > summary::-webkit-details-marker { display:none; }
+.settings > summary:hover { color:var(--accent-2); }
+.settings label:first-of-type { margin-top:16px; }
+
 /* reading-style tiles */
 .tiles { display:flex; gap:10px; }
 .tile { flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; padding:12px 8px; border-radius:9px; border:2px solid var(--rule); background:transparent; cursor:pointer; font:500 12px/1 'Public Sans',sans-serif; color:var(--dim); transition:border-color .2s,color .2s,background .2s; }
@@ -111,6 +118,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 .pv-head { display:flex; align-items:center; gap:8px; margin-bottom:14px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
 .pv-head .accent { color:var(--accent); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
+.out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
@@ -161,47 +169,42 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
         <label>Message</label>
         <textarea id="c-msg" spellcheck="false" placeholder="Your message…">The pen is mightier than the sword.</textarea>
 
+        <label>Passphrase <span class="muted">(the board's key)</span></label>
         <div class="row">
-          <div style="flex:0 0 auto">
-            <label>Prose language</label>
-            <select id="c-lang">
-              <option value="english">English</option>
-              <option value="latin">Latin</option>
-              <option value="czech">Czech</option>
-            </select>
-          </div>
-          <div style="flex:1 1 auto">
-            <label>Subject <span class="muted">(optional, public)</span></label>
-            <input type="text" id="c-subject" placeholder="label" spellcheck="false">
-          </div>
-        </div>
-
-        <label>Reading style <span class="muted">(saved in the shareable link)</span></label>
-        <input type="hidden" id="c-style" value="letterpress">
-        <div class="tiles" role="group" aria-label="Reading style">
-          <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
-          <button type="button" class="tile" data-set-style="midnight"><span class="mini midnight">Aa</span>Midnight</button>
-          <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
-        </div>
-
-        <label>Board identity <span class="muted">(the signing key)</span></label>
-        <div class="row">
-          <select id="c-id-source" style="flex:0 0 auto; width:12rem">
-            <option value="random">Random (new board)</option>
-            <option value="passphrase">From passphrase</option>
-            <option value="nsec">Enter nsec</option>
-          </select>
-          <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or let your browser suggest one" spellcheck="false">
+          <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or generate a strong one" spellcheck="false">
           <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
-          <button type="button" class="btn sm hidden" id="c-id-gen" title="Generate a new random key">🎲</button>
+          <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
         </div>
         <div class="entropy" id="c-entropy"></div>
-        <p class="hint" id="c-id-hint">A fresh random key — after publishing, save the <strong>nsec</strong> to post again.</p>
+        <p class="hint" id="c-id-hint">Deterministic: the same passphrase always reaches the same board. Sharing the passphrase grants full access.</p>
 
-        <label class="check"><input type="checkbox" id="c-encrypt" checked> Encrypt the message <span class="muted">(uncheck to publish a public, signed-but-unencrypted bulletin)</span></label>
+        <details class="settings" id="c-settings">
+          <summary>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </summary>
 
-        <label>Relays</label>
-        <input type="text" id="c-relays" spellcheck="false">
+          <label>Prose language</label>
+          <select id="c-lang">
+            <option value="english">English</option>
+            <option value="latin">Latin</option>
+            <option value="czech">Czech</option>
+          </select>
+
+          <label>Subject <span class="muted">(optional, public)</span></label>
+          <input type="text" id="c-subject" placeholder="label" spellcheck="false">
+
+          <label>Reading style <span class="muted">(saved in the shareable link)</span></label>
+          <input type="hidden" id="c-style" value="letterpress">
+          <div class="tiles" role="group" aria-label="Reading style">
+            <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
+            <button type="button" class="tile" data-set-style="midnight"><span class="mini midnight">Aa</span>Midnight</button>
+            <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
+          </div>
+
+          <label>Relays</label>
+          <input type="text" id="c-relays" spellcheck="false">
+        </details>
 
         <div class="row" style="margin-top:20px; align-items:center">
           <button type="button" class="btn sm" id="c-preview" style="flex:0 0 auto" disabled>Preview prose</button>
@@ -211,35 +214,6 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
         <div class="err" id="c-err"></div>
       </div>
       </form>
-
-      <div class="board hidden" id="c-out-card">
-        <label>What gets published (Glossia prose)</label>
-        <div class="prose" id="c-out-prose"></div>
-
-        <label>Shareable link <span class="muted">· style saved in the #</span></label>
-        <div class="linkbox">
-          <div class="u" id="c-link-preview">glossia.io/bulletin.html#…</div>
-          <button type="button" class="btn sm" id="c-copy-link">copy</button>
-          <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener">open ↗</a>
-        </div>
-
-        <label>Keys to share</label>
-        <div class="keyrow" id="c-readkey-row">
-          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
-          <div class="keyval read" id="c-out-nread"></div>
-          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
-        </div>
-        <div class="keyrow">
-          <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
-          <div class="keyval sec" id="c-out-nsec"></div>
-          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nsec</button>
-        </div>
-        <div class="keyrow">
-          <span class="lab">npub — the board's public address</span>
-          <div class="keyval pub" id="c-out-npub"></div>
-        </div>
-        <div id="c-relay-results"></div>
-      </div>
 
       <div class="note">
         <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key.
@@ -269,16 +243,42 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
         </div>
       </div>
       <div class="pv-caption">This is how it reads once unlocked. Switch the reading style to preview each look.</div>
+
+      <div class="board out-card hidden" id="c-out-card">
+        <label>What gets published (Glossia prose)</label>
+        <div class="prose" id="c-out-prose"></div>
+
+        <label>Shareable link <span class="muted">· style saved in the #</span></label>
+        <div class="linkbox">
+          <div class="u" id="c-link-preview">glossia.io/bulletin.html#…</div>
+          <button type="button" class="btn sm" id="c-copy-link">copy</button>
+          <a class="btn sm" id="c-open-link" href="#" target="_blank" rel="noopener">open ↗</a>
+        </div>
+
+        <label>Keys to share</label>
+        <div class="keyrow" id="c-readkey-row">
+          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
+          <div class="keyval read" id="c-out-nread"></div>
+          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
+        </div>
+        <div class="keyrow">
+          <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
+          <div class="keyval sec" id="c-out-nsec"></div>
+          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nsec</button>
+        </div>
+        <div class="keyrow">
+          <span class="lab">npub — the board's public address</span>
+          <div class="keyval pub" id="c-out-npub"></div>
+        </div>
+        <div id="c-relay-results"></div>
+      </div>
     </aside>
   </div>
 </div>
 
 <script type="module">
 import { init, encodeMessage } from './glossia-msg.js';
-import {
-  deriveIdentity, identityFromNsec, identityFromSecHex, generateIdentity,
-  buildEvent, publishEvent, DEFAULT_RELAYS,
-} from './glossia-nostr.js';
+import { deriveIdentity, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -332,30 +332,20 @@ function syncPreview() {
 $('c-msg').addEventListener('input', syncPreview);
 $('c-subject').addEventListener('input', syncPreview);
 
-// ── identity source ───────────────────────────────────────────────────
-let randomIdentity = null;   // cached so repeated preview/publish keep one board
-function syncIdSource() {
-  const src = $('c-id-source').value;
-  $('c-id-gen').classList.toggle('hidden', src !== 'random');
-  $('c-id-value').classList.toggle('hidden', src === 'random');
-  $('c-entropy').classList.toggle('hidden', src !== 'passphrase');
-  const val = $('c-id-value');
-  if (src === 'nsec') { val.type = 'text'; val.placeholder = 'nsec1… or 64-char hex'; val.autocomplete = 'off'; }
-  else { val.placeholder = 'passphrase — or let your browser suggest one'; val.autocomplete = 'new-password'; }
-  $('c-id-hint').innerHTML = src === 'random'
-    ? 'A fresh random key — after publishing, save the <strong>nsec</strong> to post again.'
-    : src === 'passphrase'
-      ? 'Deterministic: the same passphrase always reaches the same board. Sharing the passphrase grants full access.'
-      : 'Bring an existing nostr key to keep posting to its board.';
-}
-$('c-id-source').addEventListener('change', syncIdSource);
-$('c-id-gen').addEventListener('click', () => { randomIdentity = generateIdentity(); $('c-status').textContent = 'New random board key ready.'; });
-
-// passphrase generator + entropy (only for the passphrase source)
+// ── board passphrase ──────────────────────────────────────────────────
+// The board's signing key is derived from this passphrase, so the same
+// passphrase always reaches the same board. The 🎲 fills a strong one.
 function genPassphrase() {
   try { const w = JSON.parse(random_words(9, 'latin', 'default', BigInt(Date.now()))); return Array.isArray(w) ? w.join(' ') : ''; }
   catch { return ''; }
 }
+$('c-id-gen').addEventListener('click', () => {
+  const p = genPassphrase();
+  if (!p) { $('c-status').textContent = 'Could not generate a passphrase — is the engine ready?'; return; }
+  $('c-id-value').value = p;
+  showEntropy(p);
+  $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
+});
 function estimateBits(p) {
   p = p.trim(); if (!p) return 0;
   const words = p.split(/\s+/);
@@ -365,7 +355,7 @@ function estimateBits(p) {
   return Math.round(p.length * Math.log2(Math.max(cs, 2)));
 }
 function showEntropy(p) {
-  const bits = $('c-id-source').value === 'passphrase' ? estimateBits(p) : 0;
+  const bits = estimateBits(p);
   const el = $('c-entropy');
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
@@ -381,26 +371,16 @@ document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('
 
 // ── build / preview / publish ─────────────────────────────────────────
 async function resolveIdentity() {
-  const src = $('c-id-source').value;
-  if (src === 'random') {
-    if (!randomIdentity) randomIdentity = generateIdentity();
-    return randomIdentity;
-  }
   const v = $('c-id-value').value.trim();
-  if (src === 'passphrase') {
-    if (!v) throw new Error('Enter a passphrase.');
-    if (v.split(/\s+/).length < 2 && estimateBits(v) < 60) { /* weak but allowed */ }
-    return await deriveIdentity(v);
-  }
-  if (!v) throw new Error('Enter an nsec.');
-  return v.startsWith('nsec') ? identityFromNsec(v) : identityFromSecHex(v);
+  if (!v) throw new Error('Enter a passphrase.');
+  return await deriveIdentity(v);
 }
 
 async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = await resolveIdentity();
-  const cred = $('c-encrypt').checked ? identity.readKey : null;   // key-derived encryption
+  const cred = identity.readKey;   // always encrypt with the key derived from the passphrase
   const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
@@ -415,7 +395,6 @@ function showBoard(identity, enc) {
   $('c-out-npub').textContent = identity.npub;
   $('c-out-nsec').textContent = identity.nsec;
   $('c-out-nread').textContent = identity.nread;
-  $('c-readkey-row').classList.toggle('hidden', !enc.encrypted);   // read key only matters when encrypted
   $('c-open-link').href = readLink(identity.npub);
   $('c-link-preview').textContent = readLink(identity.npub).replace(/^https?:\/\//, '');
   $('c-head-npub').textContent = shortNpub(identity.npub);
@@ -471,7 +450,6 @@ $('c-style').addEventListener('change', () => {
   }
 });
 
-syncIdSource();
 syncPreview();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
 </script>
