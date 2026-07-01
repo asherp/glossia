@@ -125,8 +125,8 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .mini.terminal { background:#f0eee8; border:1px solid #17161a; font:600 18px/1 'IBM Plex Mono',monospace; color:#17161a; }
 
 /* shareable link + outputs */
-.linkbox { display:flex; gap:8px; }
-.linkbox .u { flex:1; min-width:0; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:8px; padding:12px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.linkbox { display:flex; gap:8px; align-items:flex-start; }
+.linkbox .u { flex:1; min-width:0; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:8px; padding:12px 13px; font:400 13px/1.5 'IBM Plex Mono',monospace; color:var(--ink-soft); word-break:break-all; }
 .prose { background:var(--input-bg); border:1px dashed var(--input-bd); border-radius:8px; padding:12px 14px; margin:8px 0; font:400 15px/1.7 'Spectral',serif; color:var(--ink); }
 mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bottom:1px solid color-mix(in srgb, var(--accent) 42%, transparent); color:var(--ink); padding:0 1px; border-radius:2px; }
 .keyrow { margin:14px 0; }
