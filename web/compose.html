@@ -48,8 +48,12 @@ a:hover { text-decoration: underline; }
 #c-preview-slot:empty { display:none; }
 /* when the two columns stack, the live preview moves under the message */
 @media (max-width: 820px) {
-  .layout { flex-direction:column; }
-  .col-preview { position:static; flex:1 1 auto; width:100%; }
+  .wrap { padding:32px 16px 64px; }
+  .layout { flex-direction:column; align-items:stretch; }
+  .col-form, .col-preview { flex:1 1 auto; width:100%; min-width:0; }
+  .col-preview { position:static; }
+  .board { padding:24px 20px 28px; }
+  .out-card, .preview { padding:20px 18px; }
   #c-preview-slot { margin-top:18px; }
 }
 
@@ -108,7 +112,7 @@ input::placeholder, textarea::placeholder { color:#b3ad9c; }
 
 /* shareable link + outputs */
 .linkbox { display:flex; gap:8px; }
-.linkbox .u { flex:1; background:#fff; border:1px solid var(--input-bd); border-radius:8px; padding:12px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.linkbox .u { flex:1; min-width:0; background:#fff; border:1px solid var(--input-bd); border-radius:8px; padding:12px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .prose { background:#fff; border:1px dashed var(--input-bd); border-radius:8px; padding:12px 14px; margin:8px 0; font:400 15px/1.7 'Spectral',serif; color:var(--ink); }
 mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4); color:var(--ink); padding:0 1px; border-radius:2px; }
 .keyrow { margin:14px 0; }
