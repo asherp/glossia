@@ -193,22 +193,20 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
         <label>Message</label>
         <textarea id="c-msg" spellcheck="false" placeholder="Your message…">The pen is mightier than the sword.</textarea>
 
-        <div id="c-pass-group">
-          <label>Passphrase <span class="muted">(the board's key)</span></label>
-          <div class="row">
-            <input type="password" id="c-id-value" autocomplete="new-password" placeholder="passphrase — or generate a strong one" spellcheck="false">
-            <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
-            <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
-          </div>
-          <div class="entropy" id="c-entropy"></div>
-          <p class="hint" id="c-id-hint">Deterministic: the same passphrase always reaches the same board. Sharing the passphrase grants full access.</p>
+        <div class="board-loaded hidden" id="c-nsec-banner">
+          <label>Board <span class="muted">(reused from your author link)</span></label>
+          <div class="loaded-npub" id="c-nsec-npub"></div>
+          <p class="hint">New bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
         </div>
 
-        <div class="board-loaded hidden" id="c-nsec-banner">
-          <label>Board <span class="muted">(loaded from your author link)</span></label>
-          <div class="loaded-npub" id="c-nsec-npub"></div>
-          <p class="hint">Publishing with the saved <strong>nsec</strong> — new bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
+        <label>Passphrase <span class="muted">(optional — overrides the board key)</span></label>
+        <div class="row">
+          <input type="password" id="c-id-value" autocomplete="new-password" placeholder="defaults to this board's key (hash of the nsec) — type to override" spellcheck="false">
+          <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
+          <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
         </div>
+        <div class="entropy" id="c-entropy"></div>
+        <p class="hint" id="c-id-hint">By default the message is encrypted with this board's key (a hash of the nsec) — readers unlock it with the read key. Set a passphrase to encrypt with a shared secret instead; readers then need that passphrase.</p>
 
         <details class="settings" id="c-settings">
           <summary>
@@ -245,16 +243,18 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
       </form>
 
       <div class="note">
-        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key.
-        The message is encrypted with a key derived from that same signing key, encoded into Glossia prose, signed, and
-        published to public nostr relays. <strong>nsec</strong> → post and decrypt; <strong>read key</strong> → decrypt only;
-        <strong>npub</strong> → read the prose but not decrypt. You never set a separate password.
+        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its signing key
+        (the <strong>nsec</strong>). The message is always encrypted — by default with a key derived from that same
+        signing key (a hash of the nsec), then encoded into Glossia prose, signed, and published to public nostr relays.
+        <strong>nsec</strong> → post and decrypt; <strong>read key</strong> → decrypt only; <strong>npub</strong> → read
+        the prose but not decrypt. Set a passphrase to encrypt with a shared secret instead — readers then decrypt with
+        that passphrase rather than the read key.
       </div>
 
       <div class="foot">
         Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
-        so a wrong key or tampering fails cleanly. A random board key has full entropy; a passphrase-derived board is only as
-        strong as the passphrase (generated ones target ≥128 bits).
+        so a wrong key or tampering fails cleanly. The board's signing key has full entropy; a custom passphrase is only as
+        strong as you make it (generated ones target ≥128 bits).
       </div>
     </div>
 
@@ -293,6 +293,9 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
           <div class="keyval read" id="c-out-nread"></div>
           <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
         </div>
+        <div class="keyrow hidden" id="c-pass-note">
+          <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
+        </div>
         <div class="keyrow">
           <span class="lab" style="color:var(--error)">nsec — <strong>keep private</strong>; grants posting AND decrypting</span>
           <div class="keyval sec" id="c-out-nsec"></div>
@@ -310,7 +313,7 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 
 <script type="module">
 import { init, encodeMessage } from './glossia-msg.js';
-import { deriveIdentity, generateIdentity, identityFromNsec, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { generateIdentity, identityFromNsec, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -334,17 +337,23 @@ function readLink(npub, style) {
   const s = style || $('c-style').value || 'letterpress';
   return baseUrl() + 'bulletin.html#' + npub + '&style=' + s;
 }
-// Author link: carries the nsec (and the current mode) so the same board can be
-// reused to publish more bulletins. Private — grants posting AND decrypting.
+// Author link: carries the nsec so the same board can be reused to publish more
+// bulletins. Private — grants posting AND decrypting.
 function authorLink(nsec, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'compose.html#' + nsec + '&style=' + s + '&enc=' + (isEncrypting() ? '1' : '0');
+  return baseUrl() + 'compose.html#' + nsec + '&style=' + s;
 }
 
-// A board loaded from an author link (compose.html#nsec…). When set it overrides
-// the passphrase field and fixes the encrypt/encoded mode from the link.
-let nsecIdentity = null, nsecEncrypt = true;
-function isEncrypting() { return nsecIdentity ? nsecEncrypt : !!$('c-id-value').value.trim(); }
+// The board's signing identity: a fresh random key for a new board, or the nsec
+// loaded from an author link. The message is ALWAYS encrypted — the credential is
+// the board's own key (a hash of the nsec) by default, or a typed passphrase.
+let nsecIdentity = null, randomIdentity = null;
+function overridePass() { return $('c-id-value').value.trim(); }
+function boardIdentity() {
+  if (nsecIdentity) return nsecIdentity;
+  if (!randomIdentity) randomIdentity = generateIdentity();
+  return randomIdentity;
+}
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
@@ -383,18 +392,16 @@ function syncMeta() {
 // Reflect whether a passphrase is set: encrypted vs encoded-only, in both the
 // publish button label and the preview badge.
 function updateMode() {
-  const encrypted = isEncrypting();
-  $('c-publish').textContent = encrypted ? 'Encode & publish' : 'Publish message (encoded only)';
+  const custom = !!overridePass();
+  $('c-publish').textContent = 'Encode & publish';
   const el = $('c-pv-mode');
-  el.dataset.mode = encrypted ? 'enc' : 'plain';
-  el.innerHTML = encrypted
-    ? LOCK_SVG + '<span>encrypted · unlocks with the key</span>'
-    : '<span>encoded only · readable by anyone</span>';
+  el.dataset.mode = 'enc';
+  el.innerHTML = LOCK_SVG + '<span>encrypted · ' + (custom ? 'your passphrase' : 'board key') + '</span>';
 }
 // Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
 // and drop stale runs. The board key is cached so retyping the message alone
 // doesn't re-derive it.
-let pvTimer = null, pvToken = 0, pvIdCache = { pass: '', cred: null };
+let pvTimer = null, pvToken = 0;
 async function regenPreview() {
   const my = ++pvToken;
   syncMeta();
@@ -403,15 +410,7 @@ async function regenPreview() {
   if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
-    let cred = null;
-    if (isEncrypting()) {
-      if (nsecIdentity) cred = nsecIdentity.readKey;
-      else {
-        const pass = $('c-id-value').value.trim();
-        if (pass === pvIdCache.pass && pvIdCache.cred) cred = pvIdCache.cred;
-        else { cred = (await deriveIdentity(pass)).readKey; pvIdCache = { pass, cred }; }
-      }
-    }
+    const cred = overridePass() || boardIdentity().readKey;   // default = board key; override = passphrase
     if (my !== pvToken) return;
     const enc = await encodeMessage(msg, cred, $('c-lang').value);
     if (my !== pvToken) return;
@@ -469,22 +468,11 @@ document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('
 }));
 
 // ── build / preview / publish ─────────────────────────────────────────
-// With a passphrase → a deterministic, encrypted board. Without one → an
-// ephemeral random signing key and an encoded-only (unencrypted) bulletin.
-let randomIdentity = null;
-async function resolveIdentity() {
-  if (nsecIdentity) return nsecIdentity;              // reused board from an author link
-  const v = $('c-id-value').value.trim();
-  if (v) return await deriveIdentity(v);
-  if (!randomIdentity) randomIdentity = generateIdentity();
-  return randomIdentity;
-}
-
 async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
-  const identity = await resolveIdentity();
-  const cred = isEncrypting() ? identity.readKey : null;   // encrypt only when a key is set
+  const identity = boardIdentity();
+  const cred = overridePass() || identity.readKey;   // default = board key (hash of nsec); override = passphrase
   const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
@@ -498,7 +486,9 @@ function showBoard(identity, enc) {
   $('c-out-npub').textContent = identity.npub;
   $('c-out-nsec').textContent = identity.nsec;
   $('c-out-nread').textContent = identity.nread;
-  $('c-readkey-row').classList.toggle('hidden', !enc.encrypted);   // read key only matters when encrypted
+  const custom = !!overridePass();
+  $('c-readkey-row').classList.toggle('hidden', custom);   // nread only decrypts the default board-key form
+  $('c-pass-note').classList.toggle('hidden', !custom);
   $('c-open-link').href = readLink(identity.npub);
   $('c-link-preview').textContent = readLink(identity.npub).replace(/^https?:\/\//, '');
   $('c-open-author').href = authorLink(identity.nsec);
@@ -550,7 +540,7 @@ $('c-style').addEventListener('change', () => {
   }
 });
 
-// ── open compose.html#nsec…&style=…&enc=… to reuse an existing board ────
+// ── open compose.html#nsec…&style=… to reuse an existing board ─────────
 function loadFromHash() {
   const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
   if (!h) return;
@@ -560,16 +550,14 @@ function loadFromHash() {
   if (nm) {
     try {
       nsecIdentity = identityFromNsec(nm[0]);
-      nsecEncrypt = !/enc=0/i.test(h);   // encoded-only if the link said so
-      $('c-pass-group').classList.add('hidden');
       $('c-nsec-banner').classList.remove('hidden');
       $('c-nsec-npub').textContent = nsecIdentity.npub;
-      $('c-head-npub').textContent = shortNpub(nsecIdentity.npub);
-    } catch { /* malformed nsec — ignore, fall back to passphrase */ }
+    } catch { /* malformed nsec — ignore, start a fresh board */ }
   }
 }
 
 loadFromHash();
+$('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
 syncMeta();
 updateMode();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
