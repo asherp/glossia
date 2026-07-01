@@ -27,7 +27,6 @@ export const GLOSSIA_KIND = 1314;
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
-  'wss://relay.nostr.band',
   'wss://relay.primal.net',
 ];
 
