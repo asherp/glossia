@@ -130,10 +130,20 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
 .preview[data-style="letterpress"] .pv-subject { color:#9a5b3f; }
 .preview[data-style="midnight"]    .pv-subject { color:#c9a25f; }
 .preview[data-style="terminal"]    .pv-subject { color:#274bd6; }
-.pv-note { display:flex; align-items:center; gap:7px; font:400 12px/1.5 'IBM Plex Mono',monospace; margin-bottom:16px; }
-.preview[data-style="letterpress"] .pv-note { color:#b0aa97; }
-.preview[data-style="midnight"]    .pv-note { color:#4a4952; }
-.preview[data-style="terminal"]    .pv-note { color:#a29c8b; font-size:11px; }
+/* realtime-generated prose (mirrors the viewer's bulletin prose) */
+.pv-prose { margin:0 0 4px; }
+.preview[data-style="letterpress"] .pv-prose { font:italic 300 17px/1.7 'Spectral',serif; color:#413d33; }
+.preview[data-style="midnight"]    .pv-prose { font:300 18px/1.65 'Newsreader',serif; color:#cfcabf; }
+.preview[data-style="terminal"]    .pv-prose { font:400 13px/1.7 'IBM Plex Mono',monospace; color:#3a382f; }
+.pv-prose .pw { }
+.preview[data-style="letterpress"] .pv-prose .pw { font-weight:600; font-style:normal; color:#26241d; }
+.preview[data-style="midnight"]    .pv-prose .pw { font-weight:500; color:#f4efe4; }
+.preview[data-style="terminal"]    .pv-prose .pw { font-weight:600; color:#17161a; border-bottom:1px dotted #9a937f; }
+.pv-attr { margin-bottom:16px; }
+.pv-attr:empty { margin-bottom:16px; }
+.preview[data-style="letterpress"] .pv-attr { text-align:right; font:italic 400 13px/1.4 'Spectral',serif; color:#8a8573; }
+.preview[data-style="midnight"]    .pv-attr { text-align:right; font:italic 300 14px/1.4 'Newsreader',serif; color:#6f6d75; }
+.preview[data-style="terminal"]    .pv-attr { font:400 11px/1.4 'IBM Plex Mono',monospace; color:#8f8a79; }
 .pv-decoded { }
 .preview[data-style="letterpress"] .pv-decoded { padding-left:16px; border-left:2px solid #9a5b3f; }
 .preview[data-style="midnight"]    .pv-decoded { padding-left:16px; border-left:2px solid #c9a25f; }
@@ -206,11 +216,8 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
           <input type="text" id="c-relays" spellcheck="false">
         </details>
 
-        <div class="row" style="margin-top:20px; align-items:center">
-          <button type="button" class="btn sm" id="c-preview" style="flex:0 0 auto" disabled>Preview prose</button>
-          <span class="hint" id="c-status" style="flex:1; margin:0"></span>
-        </div>
         <button type="button" class="btn block" id="c-publish" disabled>Encode &amp; publish</button>
+        <div class="hint" id="c-status" style="margin-top:10px"></div>
         <div class="err" id="c-err"></div>
       </div>
       </form>
@@ -232,22 +239,17 @@ mark { background:rgba(154,91,63,.14); border-bottom:1px solid rgba(154,91,63,.4
     <aside class="col-preview">
       <div class="pv-head"><span>Live preview</span><span class="muted">·</span><span class="accent" id="c-style-name">Letterpress</span></div>
       <div class="preview" id="c-preview-card" data-style="letterpress">
-        <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">harbor</span></div>
-        <div class="pv-note">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
-          <span>encoded as Glossia prose — reads as-is, decodes with the key</span>
-        </div>
+        <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">no subject</span></div>
+        <p class="pv-prose" id="c-pv-prose">Your prose will appear here as you type…</p>
+        <div class="pv-attr" id="c-pv-attr"></div>
         <div class="pv-decoded">
           <div class="pv-dec-label">decoded</div>
           <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
         </div>
       </div>
-      <div class="pv-caption">This is how it reads once unlocked. Switch the reading style to preview each look.</div>
+      <div class="pv-caption">The prose above is generated live as you type — that's what gets published. Switch the reading style to preview each look.</div>
 
       <div class="board out-card hidden" id="c-out-card">
-        <label>What gets published (Glossia prose)</label>
-        <div class="prose" id="c-out-prose"></div>
-
         <label>Shareable link <span class="muted">· style saved in the #</span></label>
         <div class="linkbox">
           <div class="u" id="c-link-preview">glossia.io/bulletin.html#…</div>
@@ -289,14 +291,20 @@ function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x =
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function renderProse(prose, words) {
   const set = new Set((words || []).map(w => w.toLowerCase()));
-  return escapeHtml(prose).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<mark>${w}</mark>` : w);
+  return escapeHtml(prose).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<b class="pw">${w}</b>` : w);
+}
+function splitProse(text) {
+  text = (text || '').trim();
+  const di = text.lastIndexOf(' — ');
+  if (di > 0) return { body: text.slice(0, di).trim(), attr: text.slice(di + 3).trim() };
+  return { body: text, attr: '' };
 }
 function readLink(npub, style) {
   const s = style || $('c-style').value || 'letterpress';
   return location.href.replace(/[^/]*$/, '') + 'bulletin.html#' + npub + '&style=' + s;
 }
 
-const ENGINE_BTNS = ['c-preview', 'c-publish', 'c-id-gen'];
+const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
   const disabled = state !== 'ready';
   ENGINE_BTNS.forEach(id => { $(id).disabled = disabled; });
@@ -306,7 +314,7 @@ function setEngine(state, msg) {
 }
 setEngine('loading');
 (async () => {
-  try { await init(); ready = true; setEngine('ready'); }
+  try { await init(); ready = true; setEngine('ready'); schedulePreview(); }
   catch (e) { setEngine('error', 'Failed to load Glossia engine: ' + (e.message || e)); }
 })();
 
@@ -324,13 +332,44 @@ function applyStyle(style) {
 document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
-// ── live preview mirrors the message / subject as a reader would see it ─
-function syncPreview() {
+// ── live preview: realtime prose + decoded, exactly as a reader sees it ─
+function syncMeta() {
   $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
   $('c-pv-subject').textContent = $('c-subject').value.trim() || 'no subject';
 }
-$('c-msg').addEventListener('input', syncPreview);
-$('c-subject').addEventListener('input', syncPreview);
+// Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
+// and drop stale runs. The board key is cached so retyping the message alone
+// doesn't re-derive it.
+let pvTimer = null, pvToken = 0, pvIdCache = { pass: '', cred: null };
+async function regenPreview() {
+  const my = ++pvToken;
+  syncMeta();
+  const msg = $('c-msg').value;
+  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
+  if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
+  const pass = $('c-id-value').value.trim();
+  try {
+    let cred = null;
+    if (pass) {
+      if (pass === pvIdCache.pass && pvIdCache.cred) cred = pvIdCache.cred;
+      else { cred = (await deriveIdentity(pass)).readKey; pvIdCache = { pass, cred }; }
+    }
+    if (my !== pvToken) return;
+    const enc = await encodeMessage(msg, cred, $('c-lang').value);
+    if (my !== pvToken) return;
+    const { body, attr } = splitProse(enc.prose);
+    $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
+    $('c-pv-attr').textContent = attr ? '— ' + attr : '';
+  } catch (e) {
+    if (my !== pvToken) return;
+    $('c-pv-prose').textContent = 'Could not generate prose — ' + (e.message || e);
+    $('c-pv-attr').textContent = '';
+  }
+}
+function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPreview, 400); }
+$('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
+$('c-subject').addEventListener('input', syncMeta);
+$('c-lang').addEventListener('change', schedulePreview);
 
 // ── board passphrase ──────────────────────────────────────────────────
 // The board's signing key is derived from this passphrase, so the same
@@ -344,6 +383,7 @@ $('c-id-gen').addEventListener('click', () => {
   if (!p) { $('c-status').textContent = 'Could not generate a passphrase — is the engine ready?'; return; }
   $('c-id-value').value = p;
   showEntropy(p);
+  schedulePreview();
   $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
 });
 function estimateBits(p) {
@@ -360,7 +400,7 @@ function showEntropy(p) {
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
-$('c-id-value').addEventListener('input', (e) => showEntropy(e.target.value));
+$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); schedulePreview(); });
 
 document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
   const inp = $(btn.dataset.reveal);
@@ -391,7 +431,6 @@ function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.s
 function showBoard(identity, enc) {
   const c = $('c-out-card');
   c.classList.remove('hidden');
-  $('c-out-prose').innerHTML = renderProse(enc.prose, enc.payloadWords);
   $('c-out-npub').textContent = identity.npub;
   $('c-out-nsec').textContent = identity.nsec;
   $('c-out-nread').textContent = identity.nread;
@@ -400,17 +439,6 @@ function showBoard(identity, enc) {
   $('c-head-npub').textContent = shortNpub(identity.npub);
   c.dataset.npub = identity.npub; c.dataset.nsec = identity.nsec; c.dataset.nread = identity.nread;
 }
-
-$('c-preview').addEventListener('click', async () => {
-  $('c-err').textContent = ''; $('c-status').textContent = '';
-  if (!ready) return;
-  try {
-    const { identity, enc } = await buildBulletin();
-    showBoard(identity, enc);
-    $('c-relay-results').innerHTML = '';
-    $('c-status').textContent = 'Preview ready — review, then publish.';
-  } catch (e) { $('c-err').textContent = e.message || String(e); }
-});
 
 $('c-publish').addEventListener('click', async () => {
   $('c-err').textContent = ''; $('c-status').textContent = '';
@@ -450,7 +478,7 @@ $('c-style').addEventListener('change', () => {
   }
 });
 
-syncPreview();
+syncMeta();
 applyStyle($('c-style').value);   // mark the default reading-style tile selected
 </script>
 </body>
