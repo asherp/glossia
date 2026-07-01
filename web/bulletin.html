@@ -297,9 +297,14 @@ function writeHash() {
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
 function routeFromHash() {
-  const h = decodeURIComponent(location.hash.replace(/^#/, '')).trim();
+  const raw = location.hash.replace(/^#/, '');
+  let h = raw; try { h = decodeURIComponent(raw); } catch { /* keep raw */ }
+  h = h.trim();
   const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
   applyStyle(styleM ? styleM[1].toLowerCase() : 'letterpress', { persist: false });
+  // a decryption key embedded in the link (the "reader link + key") unlocks on open
+  const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
+  if (keyM && keyM[1]) { let k = keyM[1]; try { k = decodeURIComponent(k); } catch { /* keep */ } $('r-key').value = k; }
   const m = h.match(/npub1[0-9a-z]+/i);
   if (m && isNpub(m[0])) { $('r-npub').value = m[0]; loadBoard(); }
   else { $('r-npub').focus(); }   // no board yet — prompt for the id at the top
