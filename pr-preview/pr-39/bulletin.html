@@ -73,12 +73,6 @@ body[data-style="midnight"] .board { box-shadow: 0 24px 60px -30px rgba(0,0,0,.7
 .compose-link { font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color:var(--accent); text-decoration:none; }
 .compose-link:hover { text-decoration:underline; }
 
-.identity { display:flex; align-items:center; gap:8px; margin-top:11px; font:400 12px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; color:var(--dim); flex-wrap:wrap; }
-.dot { width:6px; height:6px; border-radius:50%; background:#4f9d5b; flex:0 0 auto; }
-body[data-style="midnight"] .dot { box-shadow:0 0 8px #4f9d5b; }
-body[data-style="terminal"] .dot { border-radius:0; background:#1f7a4d; }
-.identity .sep { color:var(--hair); }
-
 /* reading-style switch */
 .style-switch { display:flex; gap:6px; margin-top:8px; }
 .style-tile { flex:1; display:flex; align-items:center; justify-content:center; gap:7px; padding:9px 6px; border-radius:calc(var(--radius) + 3px); border:1.5px solid var(--rule); background:transparent; cursor:pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); transition:border-color .2s, color .2s, background .2s; }
@@ -182,12 +176,6 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
     <div class="masthead">
       <span class="brand">Glossia Bulletin</span>
       <a class="compose-link" href="./compose.html">compose →</a>
-    </div>
-    <div class="identity">
-      <span class="dot"></span>
-      <span id="r-board">no board loaded</span>
-      <span class="sep">·</span>
-      <span id="r-status-line">reading prose</span>
     </div>
 
     <!-- key bar -->
@@ -329,19 +317,6 @@ async function credCandidates() {
   return K ? [K, raw] : [raw];
 }
 
-function setStatusLine(count, hasKey, unlocked, hadEncrypted) {
-  $('r-board').textContent = $('r-npub').value.trim() ? shortNpub($('r-npub').value.trim()) : 'no board loaded';
-  if (!count) { $('r-status-line').textContent = 'no bulletins'; return; }
-  const n = `${count} bulletin${count > 1 ? 's' : ''}`;
-  if (unlocked) $('r-status-line').textContent = `${n} · unlocked`;
-  else if (hasKey && hadEncrypted) $('r-status-line').textContent = `${n} · wrong key`;
-  else $('r-status-line').textContent = `${n} · reading prose`;
-}
-function shortNpub(s) {
-  const m = s.match(/npub1[0-9a-z]+/i); if (!m) return s;
-  const v = m[0]; return v.length > 18 ? v.slice(0, 10) + '…' + v.slice(-6) : v;
-}
-
 async function renderLoaded() {
   if (!loadedEvents.length) return;
   const my = ++renderToken;
@@ -351,12 +326,6 @@ async function renderLoaded() {
   if (my !== renderToken) return;
   $('r-results').innerHTML = rendered.map(r => r.html).join('');
   wireLocks();
-  setStatusLine(
-    loadedEvents.length,
-    creds.length > 0,
-    rendered.some(r => r.unlocked),
-    rendered.some(r => r.encrypted),
-  );
 }
 
 async function renderBulletin(ev, creds) {
@@ -423,7 +392,6 @@ async function loadBoard() {
     if (!loadedEvents.length) {
       $('r-results').innerHTML = '<p class="empty">No bulletins found for this board (yet).</p>';
       $('r-status').textContent = '';
-      setStatusLine(0);
       return;
     }
     await renderLoaded();
