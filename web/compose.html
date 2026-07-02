@@ -67,7 +67,7 @@ a:hover { text-decoration: underline; }
   .col-form, .col-preview { flex:1 1 auto; width:100%; min-width:0; }
   .col-preview { position:static; }
   .board { padding:24px 20px 28px; }
-  .out-card, .preview { padding:20px 18px; }
+  .preview { padding:20px 18px; }
   #c-preview-slot { margin-top:18px; }
 }
 
@@ -165,7 +165,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 
 /* live preview */
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
-.out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
@@ -280,60 +279,78 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
       </form>
 
       <div class="board" id="c-share-card">
-        <div class="share">
-          <label>Public link <span class="muted">· read the prose (npub)</span></label>
-          <div class="linkbox">
-            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
-            <button type="button" class="btn sm" data-copy="npub">copy</button>
-            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
+        <!-- Keep this — for you -->
+        <div class="share keep">
+          <label>Keep this <span class="muted">· for you</span></label>
+          <p class="hint" style="margin:0 0 12px">
+            <strong>Bookmark this page.</strong> Its address is your author link — the only way back in to publish more.
+            Losing it means you can't post to this board again. For a durable backup, save the seed phrase.
+          </p>
+          <button type="button" class="btn sm" id="c-save-keep">💾 Save seed phrase</button>
+        </div>
 
-          <label>Reader link + key <span class="lab warn">· includes the decryption key — readers unlock instantly</span></label>
+        <!-- Share these — for others -->
+        <div class="share" style="margin-top:24px">
+          <label>Share these <span class="muted">· for others</span></label>
+
+          <label style="margin-top:14px">Reader link <span class="lab warn">· includes the decryption key — readers unlock instantly (avoid pasting where the link is logged)</span></label>
           <div class="linkbox private">
             <div class="u" id="c-link-key">glossia.io/bulletin.html#npub…&amp;key=…</div>
             <button type="button" class="btn sm" data-copy="key">copy</button>
             <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
           </div>
 
-          <label>Author link <span class="lab warn">· includes the nwrite — post more to this board</span></label>
+          <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
+          <div class="linkbox">
+            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
+            <button type="button" class="btn sm" data-copy="npub">copy</button>
+            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
+          </div>
+        </div>
+
+        <div id="c-relay-results"></div>
+
+        <!-- Advanced — raw keys & the author link, for power users -->
+        <details class="settings" id="c-advanced">
+          <summary>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Advanced — keys &amp; author link</span>
+          </summary>
+
+          <label>Author link <span class="lab warn">· includes the nwrite — full access, keep private</span></label>
           <div class="linkbox private">
             <div class="u" id="c-link-nsec">glossia.io/compose.html#nwrite…</div>
             <button type="button" class="btn sm" data-copy="nsec">copy</button>
             <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
           </div>
-          <p class="hint" style="margin-top:12px">This page's address <em>is</em> the author link — <strong>bookmark it</strong> to keep publishing to this board later.</p>
-        </div>
-      </div>
 
-      <div class="board out-card hidden" id="c-out-card">
-        <label>Keys to share</label>
-        <div class="keyrow" id="c-readkey-row">
-          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
-          <div class="keyval read" id="c-out-nread"></div>
-          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
-        </div>
-        <div class="keyrow hidden" id="c-pass-note">
-          <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
-        </div>
-        <div class="keyrow">
-          <span class="lab" style="color:var(--error)">nwrite — <strong>keep private</strong>; grants posting AND decrypting</span>
-          <div class="keyval sec" id="c-out-nsec"></div>
-          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nwrite</button>
-        </div>
-        <div class="keyrow">
-          <span class="lab">npub — the board's public address</span>
-          <div class="keyval pub" id="c-out-npub"></div>
-        </div>
-        <div id="c-relay-results"></div>
+          <div class="keyrow" id="c-readkey-row">
+            <span class="lab">Read key <span class="muted">— decrypt only, cannot post</span></span>
+            <div class="keyval read" id="c-out-nread"></div>
+            <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
+          </div>
+          <div class="keyrow hidden" id="c-pass-note">
+            <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
+          </div>
+          <div class="keyrow">
+            <span class="lab" style="color:var(--error)">nwrite <span class="muted">— keep private; posting AND decrypting</span></span>
+            <div class="keyval sec" id="c-out-nsec"></div>
+            <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nwrite</button>
+          </div>
+          <div class="keyrow">
+            <span class="lab">npub <span class="muted">— the board's public address</span></span>
+            <div class="keyval pub" id="c-out-npub"></div>
+          </div>
+        </details>
       </div>
 
       <div class="note">
-        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its write key
-        (the <strong>nwrite</strong>). The message is always encrypted — by default with a key derived from that same
-        write key (a hash of the nwrite), then encoded into Glossia prose, signed, and published to public nostr relays.
-        <strong>nwrite</strong> → post and decrypt; <strong>read key</strong> → decrypt only; <strong>npub</strong> → read
-        the prose but not decrypt. Set a passphrase to encrypt with a shared secret instead — readers then decrypt with
-        that passphrase rather than the read key.
+        <strong>How it works.</strong> Every board has three things: a <strong>public address</strong> anyone can open,
+        an <strong>author link</strong> that lets you publish, and a <strong>read key</strong> that lets readers decrypt.
+        All three come from one secret, so there's no separate password to set. Every message is encrypted and encoded into
+        Glossia prose before it's published — share a <strong>reader link</strong> (or the read key) for read-only access,
+        and keep your author link to keep posting. Prefer a shared secret? Set a passphrase, and readers decrypt with that
+        instead of the read key.
       </div>
 
       <div class="foot">
@@ -370,9 +387,8 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
     <!-- SAVE: show the board's private key as a Glossia seed phrase -->
     <div id="c-save-view">
       <h2 class="modal-title">Save this board</h2>
-      <p class="modal-lead">The paragraph below <strong>is this board's private key</strong>, written as a Glossia seed phrase.
-        Anyone who has it can post to and decrypt this board — and it is the <strong>only</strong> way to restore the board
-        if you lose the link. Write it down or store it somewhere safe.</p>
+      <p class="modal-lead">This is your board's <strong>seed phrase</strong> — save it somewhere safe. Anyone with it can
+        post to and read this board, and it's the only way back in if you lose the link.</p>
       <div class="seed-prose" id="c-seed-prose"></div>
       <div class="modal-actions">
         <button type="button" class="btn sm" id="c-seed-copy">Copy</button>
@@ -474,6 +490,10 @@ function updateLinks() {
   $('c-link-npub').textContent = strip(npubL); $('c-open-npub').href = npubL;
   $('c-link-key').textContent = strip(keyL);   $('c-open-key').href = keyL;
   $('c-link-nsec').textContent = strip(authL); $('c-open-nsec').href = authL;
+  // raw keys in the Advanced disclosure, kept in sync with the current board
+  $('c-out-npub').textContent = boardIdentity().npub;
+  $('c-out-nsec').textContent = boardIdentity().nwrite;
+  $('c-out-nread').textContent = boardIdentity().nread;
   // the read key (nread) only decrypts the default board-key form; when a
   // passphrase is set, readers use it instead — keep this in sync live
   const custom = !!overridePass();
@@ -608,24 +628,12 @@ async function buildBulletin() {
 
 function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.slice(-6) : (v || ''); }
 
-function showBoard(identity, enc) {
-  const c = $('c-out-card');
-  c.classList.remove('hidden');
-  $('c-out-npub').textContent = identity.npub;
-  $('c-out-nsec').textContent = identity.nwrite;
-  $('c-out-nread').textContent = identity.nread;
-  updateLinks();                       // keep links + read-key/passphrase note in sync with the current credential
-  $('c-head-npub').textContent = shortNpub(identity.npub);
-  c.dataset.npub = identity.npub; c.dataset.nsec = identity.nwrite; c.dataset.nread = identity.nread;
-}
-
 $('c-publish').addEventListener('click', async () => {
   $('c-err').textContent = ''; $('c-status').textContent = '';
   if (!ready) return;
-  let identity, enc, ev;
-  try { ({ identity, enc, ev } = await buildBulletin()); }
+  let ev;
+  try { ({ ev } = await buildBulletin()); }
   catch (e) { $('c-err').textContent = e.message || String(e); return; }
-  showBoard(identity, enc);
   const relays = parseRelays($('c-relays').value);
   if (!relays.length) { $('c-err').textContent = 'Add at least one wss:// relay.'; return; }
   $('c-status').textContent = 'Publishing to ' + relays.length + ' relays…';
@@ -643,9 +651,8 @@ $('c-publish').addEventListener('click', async () => {
   finally { $('c-publish').disabled = false; }
 });
 
-function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] || '').catch(() => {}); }
-$('c-copy-nread').addEventListener('click', () => copy('nread'));
-$('c-copy-nsec').addEventListener('click', () => copy('nsec'));
+$('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nread).catch(() => {}));
+$('c-copy-nsec').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nwrite).catch(() => {}));
 
 // ── save / load a board via its seed-phrase paragraph ─────────────────
 // A board's private key (its signing key / nwrite) is rendered as readable
@@ -671,7 +678,7 @@ $('c-new').addEventListener('click', (e) => {
 });
 
 let currentSeed = '';   // the seed phrase currently shown in the save dialog
-$('c-save').addEventListener('click', () => {
+function openSaveDialog() {
   if (!ready) { $('c-status').textContent = 'Engine still loading — try again in a moment.'; return; }
   const id = boardIdentity();
   try {
@@ -687,7 +694,9 @@ $('c-save').addEventListener('click', () => {
     ? 'This restores the board’s signing key. Your custom passphrase is separate — keep it too, or readers can’t decrypt.'
     : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
   showModal('save');
-});
+}
+$('c-save').addEventListener('click', openSaveDialog);
+$('c-save-keep').addEventListener('click', openSaveDialog);
 $('c-seed-copy').addEventListener('click', () => { if (currentSeed) navigator.clipboard.writeText(currentSeed).catch(() => {}); });
 $('c-seed-download').addEventListener('click', () => {
   if (!currentSeed) return;
@@ -735,7 +744,7 @@ function restoreBoard(id) {
   hashKey = '';                                 // a seed carries only the signing key
   $('c-id-value').value = '';                   // no custom passphrase → use the board key
   showEntropy('');
-  $('c-out-card').classList.add('hidden');      // old board's publish output no longer applies
+  $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
   $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
   updateMode(); updateLinks(); writeHash(); schedulePreview();
 }
