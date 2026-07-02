@@ -167,6 +167,7 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
+.share-btn { margin-top:2px; padding:10px 16px; font-size:12.5px; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
@@ -235,11 +236,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
         <!-- on narrow screens the live preview is moved here, directly below the message -->
         <div id="c-preview-slot"></div>
 
-        <div class="board-loaded hidden" id="c-nsec-banner">
-          <label>Board <span class="muted">(saved — you're continuing this board)</span></label>
-          <p class="hint">New bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
-        </div>
-
         <details class="settings" id="c-settings">
           <summary>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -294,18 +290,10 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
           <label>Share these <span class="muted">· for others</span></label>
 
           <label style="margin-top:14px">Reader link <span class="lab warn">· includes the decryption key — readers unlock instantly (avoid pasting where the link is logged)</span></label>
-          <div class="linkbox private">
-            <div class="u" id="c-link-key">glossia.io/bulletin.html#npub…&amp;key=…</div>
-            <button type="button" class="btn sm" data-copy="key">copy</button>
-            <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
+          <button type="button" class="btn sm share-btn" id="c-btn-reader">🔗 Reader link</button>
 
           <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
-          <div class="linkbox">
-            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
-            <button type="button" class="btn sm" data-copy="npub">copy</button>
-            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
+          <button type="button" class="btn sm share-btn" id="c-btn-public">🔗 Share</button>
         </div>
 
         <div id="c-relay-results"></div>
@@ -457,10 +445,9 @@ function boardIdentity() {
   return randomIdentity;
 }
 // Adopt a saved/loaded board as the signing identity (from an author link or a
-// seed phrase) and surface the "continuing this board" banner.
+// seed phrase).
 function applyLoadedIdentity(id) {
   nsecIdentity = id;
-  $('c-nsec-banner').classList.remove('hidden');
 }
 // The passphrase field is left EMPTY by default — the placeholder explains that
 // encryption then falls back to the board's own key. Any non-empty value is a
@@ -486,9 +473,9 @@ const strip = (u) => u.replace(/^https?:\/\//, '');
 // The three shareable links live under the preview and update as the board,
 // reading style, or passphrase change.
 function updateLinks() {
-  const npubL = readerNpubLink(), keyL = readerKeyLink(), authL = shareAuthorLink();
-  $('c-link-npub').textContent = strip(npubL); $('c-open-npub').href = npubL;
-  $('c-link-key').textContent = strip(keyL);   $('c-open-key').href = keyL;
+  // reader/public links are computed on click by their buttons; only the author
+  // link (in Advanced) is shown as text.
+  const authL = shareAuthorLink();
   $('c-link-nsec').textContent = strip(authL); $('c-open-nsec').href = authL;
   // raw keys in the Advanced disclosure, kept in sync with the current board
   $('c-out-npub').textContent = boardIdentity().npub;
@@ -504,6 +491,24 @@ document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click'
   const link = b.dataset.copy === 'npub' ? readerNpubLink() : b.dataset.copy === 'key' ? readerKeyLink() : shareAuthorLink();
   navigator.clipboard.writeText(link).catch(() => {});
 }));
+
+// "Share these" buttons compute their URL on click (no link text shown):
+// the reader button copies the key-bearing link; the public button opens the
+// native share sheet where available, else copies.
+function flashBtn(btn, msg) {
+  const orig = btn.dataset.label || btn.textContent;
+  btn.dataset.label = orig;
+  btn.textContent = msg;
+  setTimeout(() => { btn.textContent = btn.dataset.label; }, 1400);
+}
+$('c-btn-reader').addEventListener('click', () => {
+  navigator.clipboard.writeText(readerKeyLink()).then(() => flashBtn($('c-btn-reader'), 'Copied ✓')).catch(() => {});
+});
+$('c-btn-public').addEventListener('click', async () => {
+  const url = readerNpubLink();
+  if (navigator.share) { try { await navigator.share({ title: 'Glossia bulletin board', url }); } catch { /* share cancelled */ } return; }
+  navigator.clipboard.writeText(url).then(() => flashBtn($('c-btn-public'), 'Copied ✓')).catch(() => {});
+});
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
