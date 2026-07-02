@@ -172,6 +172,34 @@ export function identityFromSk(sk) {
   };
 }
 
+// ─── seed phrase: a board's signing key ⇆ a checksummed hex payload ────
+// A board can be "saved" as a Glossia seed phrase — its 32-byte signing key
+// rendered as readable prose (the prose rendering lives in glossia-msg.js). We
+// append a short checksum here so a transcription error (a mistyped word) is
+// caught on load instead of silently restoring a different board. Layout:
+//   [signing key : 32][checksum : 4]     checksum = sha256(signing key)[..4]
+const SEED_CHECK_LEN = 4;
+export const SEED_PAYLOAD_LEN = 32 + SEED_CHECK_LEN;   // decodeSeedPhrase's byte count
+
+// The checksummed seed payload (hex) for an identity — feed to encodeSeedPhrase.
+export function seedPayloadHex(identity) {
+  const sk = identity.sk;
+  const sum = sha256(sk).subarray(0, SEED_CHECK_LEN);
+  return bytesToHex(concatBytes(sk, sum));
+}
+
+// Parse a checksummed seed payload (hex) back into an identity. Throws if the
+// payload is too short or the checksum fails (a mistyped / garbled seed phrase).
+export function identityFromSeedPayloadHex(hex) {
+  const bytes = hexToBytes((hex || '').trim().toLowerCase());
+  if (bytes.length < SEED_PAYLOAD_LEN) throw new Error('seed phrase too short');
+  const sk = bytes.slice(0, 32);
+  const got = bytes.subarray(32, SEED_PAYLOAD_LEN);
+  const want = sha256(sk).subarray(0, SEED_CHECK_LEN);
+  for (let i = 0; i < SEED_CHECK_LEN; i++) if (got[i] !== want[i]) throw new Error('seed phrase checksum failed');
+  return identityFromSk(sk);
+}
+
 // Bring an existing nostr publishing key (nsec or 64-char hex) as the board's
 // identity — used by the TWO-KEY model, where the publish key is independent of
 // the decrypt passphrase.

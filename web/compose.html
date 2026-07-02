@@ -139,6 +139,26 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 .foot { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); font:400 12px/1.6 'Public Sans',sans-serif; color:var(--dim); text-align:center; }
 .foot strong { color:var(--accent); font-weight:600; }
 
+/* save / load board actions (in the board-head) */
+.board-actions { display:flex; gap:8px; align-items:center; }
+.board-actions .n { margin-right:4px; }
+.board-actions .btn.sm { padding:7px 11px; }
+
+/* modal: save / load a board via its seed-phrase paragraph */
+.modal-overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:flex-start; justify-content:center; padding:6vh 18px 40px; background:rgba(20,18,14,.55); backdrop-filter:blur(3px); overflow-y:auto; }
+body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
+.modal { position:relative; width:100%; max-width:560px; background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:14px; box-shadow:0 40px 90px -40px rgba(20,18,14,.7); padding:30px 32px 28px; }
+.modal-x { position:absolute; top:14px; right:16px; background:none; border:none; color:var(--dim); font-size:24px; line-height:1; cursor:pointer; padding:2px 6px; }
+.modal-x:hover { color:var(--accent); }
+.modal-title { margin:0 0 10px; font:600 18px/1.2 'Public Sans',sans-serif; color:var(--ink); }
+.modal-lead { margin:0 0 16px; font:400 14px/1.6 'Public Sans',sans-serif; color:var(--ink-soft); }
+.modal-lead strong { color:var(--accent); font-weight:600; }
+.seed-prose { background:var(--input-bg); border:1px dashed color-mix(in srgb, var(--error) 45%, var(--input-bd)); border-radius:10px; padding:16px 18px; font:400 16px/1.72 'Spectral',serif; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+.modal-actions { display:flex; align-items:center; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.modal-actions .muted { margin-left:auto; font:400 12px/1.3 'IBM Plex Mono',monospace; }
+.modal-foot { margin:16px 0 0; font:400 12px/1.55 'Public Sans',sans-serif; }
+#c-seed-input { width:100%; min-height:120px; }
+
 /* live preview */
 .pv-head { display:flex; align-items:center; gap:8px; margin-bottom:14px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
 .pv-head .accent { color:var(--accent); }
@@ -213,7 +233,11 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
       <div class="board">
         <div class="board-head">
           <span class="k">New bulletin</span>
-          <span class="n" id="c-head-npub">not yet published</span>
+          <div class="board-actions">
+            <span class="n" id="c-head-npub">not yet published</span>
+            <button type="button" class="btn sm" id="c-save" title="Show this board's private key as a Glossia seed phrase to save">💾 Save</button>
+            <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂 Load</button>
+          </div>
         </div>
         <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
 
@@ -352,9 +376,45 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
   </div>
 </div>
 
+<!-- Save / Load a board via its seed-phrase paragraph -->
+<div class="modal-overlay hidden" id="c-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button type="button" class="modal-x" id="c-modal-close" aria-label="Close">&times;</button>
+
+    <!-- SAVE: show the board's private key as a Glossia seed phrase -->
+    <div id="c-save-view">
+      <h2 class="modal-title">Save this board</h2>
+      <p class="modal-lead">The paragraph below <strong>is this board's private key</strong>, written as a Glossia seed phrase.
+        Anyone who has it can post to and decrypt this board — and it is the <strong>only</strong> way to restore the board
+        if you lose the link. Write it down or store it somewhere safe.</p>
+      <div class="seed-prose" id="c-seed-prose"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn sm" id="c-seed-copy">Copy</button>
+        <button type="button" class="btn sm" id="c-seed-download">Download .txt</button>
+        <span class="muted" id="c-seed-npub"></span>
+      </div>
+      <p class="modal-foot muted" id="c-seed-note">The key never leaves your device. The seed phrase carries a checksum,
+        so a mistyped word is caught when you load it back.</p>
+    </div>
+
+    <!-- LOAD: restore a board from a saved seed phrase -->
+    <div id="c-load-view" class="hidden">
+      <h2 class="modal-title">Load a saved board</h2>
+      <p class="modal-lead">Paste a Glossia seed phrase you saved earlier to restore its board. You'll be able to
+        post to and decrypt it again.</p>
+      <textarea id="c-seed-input" spellcheck="false" placeholder="Paste your seed phrase paragraph…"></textarea>
+      <div class="err" id="c-load-err"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="c-load-go">Restore board</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
-import { init, encodeMessage } from './glossia-msg.js';
-import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
+         seedPayloadHex, identityFromSeedPayloadHex, SEED_PAYLOAD_LEN, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -393,6 +453,13 @@ function boardIdentity() {
   if (nsecIdentity) return nsecIdentity;
   if (!randomIdentity) randomIdentity = generateIdentity();
   return randomIdentity;
+}
+// Adopt a saved/loaded board as the signing identity (from an author link or a
+// seed phrase) and surface the "continuing this board" banner.
+function applyLoadedIdentity(id) {
+  nsecIdentity = id;
+  $('c-nsec-banner').classList.remove('hidden');
+  $('c-nsec-npub').textContent = id.npub;
 }
 // The passphrase field is pre-filled with the board's own read key (nread) by
 // default; that counts as "no override". Anything else is a custom passphrase.
@@ -599,6 +666,90 @@ function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] ||
 $('c-copy-nread').addEventListener('click', () => copy('nread'));
 $('c-copy-nsec').addEventListener('click', () => copy('nsec'));
 
+// ── save / load a board via its seed-phrase paragraph ─────────────────
+// A board's private key (its signing key / nwrite) is rendered as readable
+// Glossia prose so it can be written down and later re-entered to restore the
+// board — the project's core idea applied to a private key.
+function showModal(view) {
+  $('c-save-view').classList.toggle('hidden', view !== 'save');
+  $('c-load-view').classList.toggle('hidden', view !== 'load');
+  $('c-modal').classList.remove('hidden');
+}
+function closeModal() { $('c-modal').classList.add('hidden'); }
+$('c-modal-close').addEventListener('click', closeModal);
+$('c-modal').addEventListener('click', (e) => { if (e.target === $('c-modal')) closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('c-modal').classList.contains('hidden')) closeModal(); });
+
+let currentSeed = '';   // the seed phrase currently shown in the save dialog
+$('c-save').addEventListener('click', () => {
+  if (!ready) { $('c-status').textContent = 'Engine still loading — try again in a moment.'; return; }
+  const id = boardIdentity();
+  try {
+    currentSeed = encodeSeedPhrase(seedPayloadHex(id), $('c-lang').value).prose;
+    $('c-seed-prose').textContent = currentSeed;
+  } catch (e) {
+    currentSeed = '';
+    $('c-seed-prose').textContent = 'Could not render the seed phrase — ' + (e.message || e);
+  }
+  $('c-seed-npub').textContent = shortNpub(id.npub);
+  // when a custom passphrase is set, note that it's separate from the signing key
+  $('c-seed-note').textContent = overridePass()
+    ? 'This restores the board’s signing key. Your custom passphrase is separate — keep it too, or readers can’t decrypt.'
+    : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
+  showModal('save');
+});
+$('c-seed-copy').addEventListener('click', () => { if (currentSeed) navigator.clipboard.writeText(currentSeed).catch(() => {}); });
+$('c-seed-download').addEventListener('click', () => {
+  if (!currentSeed) return;
+  const blob = new Blob([currentSeed + '\n'], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'glossia-board-seed.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$('c-load').addEventListener('click', () => { $('c-load-err').textContent = ''; $('c-seed-input').value = ''; showModal('load'); });
+// Decode a pasted seed phrase back into a board identity. The language is
+// unknown, so try the detected one first, then each supported language; the
+// checksum rejects a wrong-language decode, so the first that verifies wins.
+function identityFromSeed(prose) {
+  const seen = new Set();
+  for (const lang of [detectLang(prose), 'english', 'latin', 'czech']) {
+    if (seen.has(lang)) continue;
+    seen.add(lang);
+    try {
+      const { hex } = decodeSeedPhrase(prose, SEED_PAYLOAD_LEN, lang);
+      return identityFromSeedPayloadHex(hex);
+    } catch { /* try the next language */ }
+  }
+  throw new Error('Could not read that seed phrase — check the words and try again.');
+}
+$('c-load-go').addEventListener('click', () => {
+  $('c-load-err').textContent = '';
+  const text = $('c-seed-input').value.trim();
+  if (!text) { $('c-load-err').textContent = 'Paste a seed phrase first.'; return; }
+  if (!ready) { $('c-load-err').textContent = 'Engine still loading — try again in a moment.'; return; }
+  let id;
+  try { id = identityFromSeed(text); }
+  catch (e) { $('c-load-err').textContent = e.message || String(e); return; }
+  restoreBoard(id);
+  closeModal();
+  $('c-status').textContent = 'Board restored from its seed phrase — you can publish to it again.';
+});
+
+// Switch the whole page over to a restored board: adopt its identity, reset the
+// credential to that board's default, and refresh links, address bar, preview.
+function restoreBoard(id) {
+  applyLoadedIdentity(id);
+  hashKey = '';                                 // a seed carries only the signing key
+  $('c-id-value').value = boardIdentity().nread;
+  showEntropy('');
+  $('c-out-card').classList.add('hidden');      // old board's publish output no longer applies
+  $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
+  updateMode(); updateLinks(); writeHash(); schedulePreview();
+}
+
 // keep the share links + address bar in sync when the reading style changes
 $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 
@@ -621,12 +772,8 @@ function loadFromHash() {
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
   try {
-    if (wm) nsecIdentity = identityFromNwrite(wm[0]);
-    else if (nm) nsecIdentity = identityFromNsec(nm[0]);
-    if (nsecIdentity) {
-      $('c-nsec-banner').classList.remove('hidden');
-      $('c-nsec-npub').textContent = nsecIdentity.npub;
-    }
+    if (wm) applyLoadedIdentity(identityFromNwrite(wm[0]));
+    else if (nm) applyLoadedIdentity(identityFromNsec(nm[0]));
   } catch { /* malformed write key — ignore, start a fresh board */ }
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { try { hashKey = decodeURIComponent(keyM[1]); } catch { hashKey = keyM[1]; } }

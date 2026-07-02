@@ -54,6 +54,31 @@ nothing about either.
   grants full access; the view page also accepts it to decrypt.
 - **Bring your own `nsec`** — keep posting to an existing board.
 
+## Saving and loading a board
+
+The compose page's address bar already *is* the board (the author link carries the
+`nwrite`), so bookmarking it is the quickest way to return. For a durable backup
+that survives a lost bookmark, **Save board** renders the board's signing key as a
+**Glossia seed phrase** — the private key itself, written as a readable
+paragraph of prose:
+
+```
+Save board  ─▶  32-byte signing key ‖ 4-byte checksum
+            ─▶  encode_raw_base_n  ─▶  natural-language paragraph  ("write this down")
+Load board  ─▶  paste the paragraph  ─▶  decode + verify checksum  ─▶  board restored
+```
+
+This is the project's core idea applied to a private key: the seed phrase *is* the
+key, made human-friendly — readable, speakable, transcribable. A 4-byte checksum
+(`sha256(key)[..4]`) rides with the key, so a mistyped or garbled word is caught on
+load instead of silently restoring a different board (the same safeguard BIP39
+mnemonics use). The phrase is rendered in whichever prose language the board uses;
+**Load board** auto-detects the language and the checksum confirms the decode. The
+key is generated and encoded entirely in the browser — it never leaves the device.
+
+Anyone who holds the seed phrase has the signing key, so it grants full access
+(post *and* decrypt): treat it exactly like the `nwrite`.
+
 ## How a bulletin is built
 
 The message is compressed and encrypted with authenticated **AES-256-GCM**.
