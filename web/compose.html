@@ -75,6 +75,10 @@ a:hover { text-decoration: underline; }
 .board { background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:12px; box-shadow:0 24px 60px -32px rgba(20,18,14,.4); padding:32px 36px 36px; margin-bottom:20px; transition:background .35s ease, border-color .35s ease; }
 .board-head { display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--rule); padding-bottom:14px; margin-bottom:20px; }
 .board-head .k { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; text-transform:uppercase; }
+/* the section title doubles as a "start a fresh board" button */
+.board-new { color:var(--ink); text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.board-new:hover { color:var(--accent); text-decoration:none; }
+.board-new .plus { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid currentColor; border-radius:5px; font-size:13px; line-height:1; }
 .board-head .n { font:400 11px/1 'IBM Plex Mono',monospace; color:var(--meta); }
 
 /* form controls */
@@ -232,7 +236,7 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
       <form id="c-form" autocomplete="on" onsubmit="return false;">
       <div class="board">
         <div class="board-head">
-          <span class="k">New bulletin</span>
+          <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span> New bulletin</a>
           <div class="board-actions">
             <span class="n" id="c-head-npub">not yet published</span>
             <button type="button" class="btn sm" id="c-save" title="Show this board's private key as a Glossia seed phrase to save">💾 Save</button>
@@ -680,6 +684,15 @@ function closeModal() { $('c-modal').classList.add('hidden'); }
 $('c-modal-close').addEventListener('click', closeModal);
 $('c-modal').addEventListener('click', (e) => { if (e.target === $('c-modal')) closeModal(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('c-modal').classList.contains('hidden')) closeModal(); });
+
+// "+ New bulletin" resets to a fresh, unsaved board: drop the board from the URL
+// and reload, so init generates a brand-new random signing key. (The href on the
+// element is the no-JS fallback.)
+$('c-new').addEventListener('click', (e) => {
+  e.preventDefault();
+  history.replaceState(null, '', baseUrl() + 'compose.html');
+  location.reload();
+});
 
 let currentSeed = '';   // the seed phrase currently shown in the save dialog
 $('c-save').addEventListener('click', () => {
