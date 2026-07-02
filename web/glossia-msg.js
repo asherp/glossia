@@ -267,6 +267,42 @@ export async function decodeMessage(artifact, cred) {
   return { message, prose: text, header: null, payloadWords: r.payload_words || [], langId: lang.id, encrypted: false };
 }
 
+// Skim an artifact WITHOUT a credential: recover the prose's payload words (and
+// split the body from its attribution trailer) so a locked bulletin can still be
+// rendered with its payload words highlighted. The prose→word mapping is
+// deterministic from the wordlist and the public trailer, so no key is needed —
+// only the final AES-GCM step (in decodeMessage) requires the credential.
+// Returns { prose, body, trailer, payloadWords, encrypted }. Never throws.
+export function skimArtifact(artifact) {
+  const text = (artifact || '').trim();
+  if (!text) return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false };
+
+  // Authenticated form: "<body> — <latin attribution>".
+  const di = text.lastIndexOf(EMDASH);
+  if (di > 0) {
+    const body = text.slice(0, di).trim();
+    const trailer = text.slice(di + EMDASH.length).trim();
+    try {
+      const tR = JSON.parse(wasmDecodeRawBaseN(trailer.toLowerCase(), 'latin', 'default', AEAD_TRAILER_LEN));
+      if (tR.error) throw new Error(tR.error);
+      const tb = fromHex(tR.decoded_hex || '');
+      if (tb.length < AEAD_TRAILER_LEN) throw new Error('bad trailer');
+      const ctlen = ((tb[0] << 8) | tb[1]) & AEAD_MAX_CTLEN;
+      const lang = msgLangById(detectLang(body));
+      const bR = JSON.parse(wasmDecodeRawBaseN(body, lang.language, lang.wordlist, ctlen));
+      const words = (bR.payload_words || []).concat(tR.payload_words || []);
+      return { prose: text, body, trailer, payloadWords: words, encrypted: true };
+    } catch { return { prose: text, body, trailer, payloadWords: [], encrypted: true }; }
+  }
+
+  // Bare, unencrypted prose.
+  try {
+    const lang = msgLangById(detectLang(text));
+    const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, 0));
+    return { prose: text, body: text, trailer: '', payloadWords: r.payload_words || [], encrypted: false };
+  } catch { return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false }; }
+}
+
 // Decode the authenticated "<body> — <attribution>" form. GCM verifies the tag,
 // so a wrong credential or any tampering throws rather than returning garbage.
 async function aeadDecodeMessage(body, trailer, cred) {

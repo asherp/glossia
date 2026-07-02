@@ -27,7 +27,6 @@ export const GLOSSIA_KIND = 1314;
 export const DEFAULT_RELAYS = [
   'wss://relay.damus.io',
   'wss://nos.lol',
-  'wss://relay.nostr.band',
   'wss://relay.primal.net',
 ];
 
@@ -117,6 +116,15 @@ export function isNpub(s) {
   try { npubToHex(s); return true; } catch { return false; }
 }
 
+// The board "write key": the 32-byte signing key, shared as nwrite1…. It is the
+// SAME secret as the nostr nsec (byte-identical, just a different bech32 HRP), so
+// it can still be imported into any nostr client as an nsec. The nwrite badge
+// lets the write key sit alongside nread in Glossia's capability naming:
+//   nwrite → publish AND decrypt · nread → decrypt only · npub → read prose only.
+export function nwriteEncode(secHex) { return encodeBech32Entity('nwrite', secHex); }
+export function nwriteToHex(nwrite) { return decodeBech32Entity('nwrite', nwrite.trim()); }
+export function isNwrite(s) { try { nwriteToHex(s); return true; } catch { return false; } }
+
 // The board "read key": a 32-byte symmetric content key, shared as nread1….
 // Holding it grants decrypt-only access — it cannot publish, since you can't
 // recover the signing key from it.
@@ -157,6 +165,7 @@ export function identityFromSk(sk) {
     secHex: bytesToHex(sk),
     npub: npubEncode(pubHex),
     nsec: nsecEncode(bytesToHex(sk)),
+    nwrite: nwriteEncode(bytesToHex(sk)),    // same secret as nsec, Glossia-badged
     readKey,                                 // Uint8Array(32) — symmetric content key
     readKeyHex: bytesToHex(readKey),
     nread: nreadEncode(bytesToHex(readKey)),
@@ -167,6 +176,7 @@ export function identityFromSk(sk) {
 // identity — used by the TWO-KEY model, where the publish key is independent of
 // the decrypt passphrase.
 export function identityFromNsec(nsec) { return identityFromSk(hexToBytes(nsecToHex(nsec))); }
+export function identityFromNwrite(nwrite) { return identityFromSk(hexToBytes(nwriteToHex(nwrite))); }
 export function identityFromSecHex(secHex) {
   const clean = secHex.trim().toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(clean)) throw new Error('secret key must be 64 hex chars');
@@ -197,7 +207,8 @@ export async function deriveIdentity(passphrase) {
 }
 
 // Resolve a viewer's decryption credential to the 32-byte content key:
-//   • nsec   -> derive the read key from the signing key (full-access holder)
+//   • nwrite -> derive the read key from the signing key (full-access holder)
+//   • nsec   -> same, for a raw nostr key or an older author link
 //   • nread  -> the read key itself (read-only holder)
 //   • else   -> treat as a passphrase: derive the board identity, then its read
 //               key (works for a passphrase-derived board).
@@ -205,6 +216,7 @@ export async function deriveIdentity(passphrase) {
 export async function resolveContentKey(input) {
   const s = (input || '').trim();
   if (!s) return null;
+  if (s.startsWith('nwrite')) return deriveContentKey(hexToBytes(nwriteToHex(s)));
   if (s.startsWith('nsec')) return deriveContentKey(hexToBytes(nsecToHex(s)));
   if (s.startsWith('nread')) return hexToBytes(nreadToHex(s));
   return (await deriveIdentity(s)).readKey;
