@@ -175,23 +175,11 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
 .preview[data-style="terminal"]    { background:#f0eee8; border:1px solid #17161a; color:#17161a; border-radius:0; box-shadow:0 20px 50px -34px rgba(23,22,26,.5); }
-.pv-meta { display:flex; justify-content:space-between; gap:10px; font:500 10px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px; }
-.preview[data-style="letterpress"] .pv-meta { color:#a29c88; }
-.preview[data-style="midnight"]    .pv-meta { color:#5c5a63; }
-.preview[data-style="terminal"]    .pv-meta { color:#a29c8b; letter-spacing:.04em; }
+/* subject (shown only when one is set) */
+.pv-subject { font:500 10px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px; }
 .preview[data-style="letterpress"] .pv-subject { color:#9a5b3f; }
 .preview[data-style="midnight"]    .pv-subject { color:#c9a25f; }
-.preview[data-style="terminal"]    .pv-subject { color:#274bd6; }
-/* encrypted / encoded-only indicator */
-.pv-mode { display:inline-flex; align-items:center; gap:6px; margin-bottom:14px; padding:4px 9px; border-radius:999px; font:600 9px/1.2 'IBM Plex Mono',monospace; letter-spacing:.12em; text-transform:uppercase; }
-.pv-mode svg { width:11px; height:11px; }
-.pv-mode[data-mode="enc"]   { background:rgba(79,122,63,.14); color:#3f6a32; }
-.pv-mode[data-mode="plain"] { background:rgba(154,91,63,.12); color:#9a5b3f; }
-.preview[data-style="midnight"] .pv-mode[data-mode="enc"]   { background:rgba(127,214,160,.14); color:#7fd6a0; }
-.preview[data-style="midnight"] .pv-mode[data-mode="plain"] { background:rgba(201,162,95,.16); color:#c9a25f; }
-.preview[data-style="terminal"] .pv-mode { border-radius:0; }
-.preview[data-style="terminal"] .pv-mode[data-mode="enc"]   { background:#17161a; color:#7fd6a0; }
-.preview[data-style="terminal"] .pv-mode[data-mode="plain"] { background:#17161a; color:#e8e4da; }
+.preview[data-style="terminal"]    .pv-subject { color:#274bd6; letter-spacing:.04em; }
 
 /* realtime-generated prose (mirrors the viewer's bulletin prose) */
 .pv-prose { margin:0 0 4px; }
@@ -360,8 +348,7 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
     <aside class="col-preview">
       <div id="c-live-preview">
         <div class="preview" id="c-preview-card" data-style="letterpress">
-          <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">no subject</span></div>
-          <div class="pv-mode" id="c-pv-mode" data-mode="plain"></div>
+          <div class="pv-subject hidden" id="c-pv-subject"></div>
           <p class="pv-prose" id="c-pv-prose">Your prose will appear here as you type…</p>
           <div class="pv-attr" id="c-pv-attr"></div>
           <div class="pv-decoded">
@@ -530,19 +517,15 @@ document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
 // ── live preview: realtime prose + decoded, exactly as a reader sees it ─
-const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function syncMeta() {
   $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
-  $('c-pv-subject').textContent = $('c-subject').value.trim() || 'no subject';
+  const subj = $('c-subject').value.trim();   // only show the subject when one is set
+  $('c-pv-subject').textContent = subj;
+  $('c-pv-subject').classList.toggle('hidden', !subj);
 }
-// Reflect whether a passphrase is set: encrypted vs encoded-only, in both the
-// publish button label and the preview badge.
+// The message is always encrypted; keep the publish button label in sync.
 function updateMode() {
-  const custom = !!overridePass();
   $('c-publish').textContent = 'Encode & publish';
-  const el = $('c-pv-mode');
-  el.dataset.mode = 'enc';
-  el.innerHTML = LOCK_SVG + '<span>encrypted · ' + (custom ? 'your passphrase' : 'board key') + '</span>';
 }
 // Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
 // and drop stale runs. The board key is cached so retyping the message alone
