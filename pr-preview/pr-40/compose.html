@@ -164,8 +164,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 #c-seed-input { width:100%; min-height:120px; }
 
 /* live preview */
-.pv-head { display:flex; align-items:center; gap:8px; margin-bottom:14px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
-.pv-head .accent { color:var(--accent); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 .out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
 .share { margin-bottom:8px; }
@@ -361,7 +359,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 
     <aside class="col-preview">
       <div id="c-live-preview">
-        <div class="pv-head"><span>Live preview</span><span class="muted">·</span><span class="accent" id="c-style-name">Letterpress</span></div>
         <div class="preview" id="c-preview-card" data-style="letterpress">
           <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">no subject</span></div>
           <div class="pv-mode" id="c-pv-mode" data-mode="plain"></div>
@@ -525,7 +522,6 @@ function applyStyle(style) {
   $('c-style').value = style;
   document.body.dataset.style = style;        // theme the whole page
   $('c-preview-card').dataset.style = style;  // and the live-preview box
-  $('c-style-name').textContent = STYLE_NAMES[style];
   document.querySelectorAll('[data-set-style]').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.setStyle === style)));
   $('c-style').dispatchEvent(new Event('change'));   // refresh the open link if published
