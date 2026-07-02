@@ -461,11 +461,12 @@ function applyLoadedIdentity(id) {
   $('c-nsec-banner').classList.remove('hidden');
   $('c-nsec-npub').textContent = id.npub;
 }
-// The passphrase field is pre-filled with the board's own read key (nread) by
-// default; that counts as "no override". Anything else is a custom passphrase.
+// The passphrase field is left EMPTY by default — the placeholder explains that
+// encryption then falls back to the board's own key. Any non-empty value is a
+// custom passphrase override. (We never write the read key into the field: it is
+// the board's secret, not something to surface in an input.)
 function overridePass() {
-  const v = $('c-id-value').value.trim();
-  return (v && v !== boardIdentity().nread) ? v : '';
+  return $('c-id-value').value.trim();
 }
 
 // The reader's decryption credential to embed in a key link: the board's read
@@ -743,7 +744,7 @@ $('c-load-go').addEventListener('click', () => {
 function restoreBoard(id) {
   applyLoadedIdentity(id);
   hashKey = '';                                 // a seed carries only the signing key
-  $('c-id-value').value = boardIdentity().nread;
+  $('c-id-value').value = '';                   // no custom passphrase → use the board key
   showEntropy('');
   $('c-out-card').classList.add('hidden');      // old board's publish output no longer applies
   $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
@@ -791,9 +792,9 @@ mqStack.addEventListener('change', placePreview);
 placePreview();
 
 loadFromHash();
-// prefill the passphrase: the custom key from an author link, or the board's
-// own read key (nread) as the default
-$('c-id-value').value = hashKey || boardIdentity().nread;
+// prefill the passphrase only with a custom key carried in an author link;
+// otherwise leave it empty so encryption defaults to the board's own key
+$('c-id-value').value = hashKey || '';
 $('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
 syncMeta();
 updateMode();
