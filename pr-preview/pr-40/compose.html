@@ -167,7 +167,8 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
-.share-btn { margin-top:2px; padding:10px 16px; font-size:12.5px; }
+.share-btn { margin-top:2px; padding:10px 16px; font-size:12.5px; display:inline-flex; align-items:center; gap:8px; }
+.share-btn svg { width:14px; height:14px; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
@@ -290,10 +291,10 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
           <label>Share these <span class="muted">· for others</span></label>
 
           <label style="margin-top:14px">Reader link <span class="lab warn">· includes the decryption key — readers unlock instantly (avoid pasting where the link is logged)</span></label>
-          <button type="button" class="btn sm share-btn" id="c-btn-reader">🔗 Reader link</button>
+          <button type="button" class="btn sm share-btn" id="c-btn-reader"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Reader link</button>
 
           <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
-          <button type="button" class="btn sm share-btn" id="c-btn-public">🔗 Share</button>
+          <button type="button" class="btn sm share-btn" id="c-btn-public"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button>
         </div>
 
         <div id="c-relay-results"></div>
@@ -496,10 +497,9 @@ document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click'
 // the reader button copies the key-bearing link; the public button opens the
 // native share sheet where available, else copies.
 function flashBtn(btn, msg) {
-  const orig = btn.dataset.label || btn.textContent;
-  btn.dataset.label = orig;
+  if (!btn.dataset.html) btn.dataset.html = btn.innerHTML;   // preserve the icon markup
   btn.textContent = msg;
-  setTimeout(() => { btn.textContent = btn.dataset.label; }, 1400);
+  setTimeout(() => { btn.innerHTML = btn.dataset.html; }, 1400);
 }
 $('c-btn-reader').addEventListener('click', () => {
   navigator.clipboard.writeText(readerKeyLink()).then(() => flashBtn($('c-btn-reader'), 'Copied ✓')).catch(() => {});
