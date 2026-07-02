@@ -168,7 +168,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
-.board-loaded .loaded-npub { background:var(--input-bg); border:1px solid var(--input-bd); border-radius:8px; padding:11px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink); word-break:break-all; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
@@ -239,7 +238,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 
         <div class="board-loaded hidden" id="c-nsec-banner">
           <label>Board <span class="muted">(saved — you're continuing this board)</span></label>
-          <div class="loaded-npub" id="c-nsec-npub"></div>
           <p class="hint">New bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
         </div>
 
@@ -447,7 +445,6 @@ function boardIdentity() {
 function applyLoadedIdentity(id) {
   nsecIdentity = id;
   $('c-nsec-banner').classList.remove('hidden');
-  $('c-nsec-npub').textContent = id.npub;
 }
 // The passphrase field is left EMPTY by default — the placeholder explains that
 // encryption then falls back to the board's own key. Any non-empty value is a
