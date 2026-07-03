@@ -186,10 +186,12 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .preview[data-style="letterpress"] .pv-prose { font:italic 300 17px/1.7 'Spectral',serif; color:#413d33; }
 .preview[data-style="midnight"]    .pv-prose { font:300 18px/1.65 'Newsreader',serif; color:#cfcabf; }
 .preview[data-style="terminal"]    .pv-prose { font:400 13px/1.7 'IBM Plex Mono',monospace; color:#3a382f; }
-.pv-prose .pw { }
-.preview[data-style="letterpress"] .pv-prose .pw { font-weight:600; font-style:normal; color:#26241d; }
-.preview[data-style="midnight"]    .pv-prose .pw { font-weight:500; color:#f4efe4; }
-.preview[data-style="terminal"]    .pv-prose .pw { font-weight:600; color:#17161a; border-bottom:1px dotted #9a937f; }
+/* payload words read as plain prose by default; the "highlight payload words"
+   setting (body[data-hl="on"]) emphasizes them per reading style */
+.pv-prose .pw { font:inherit; color:inherit; border-bottom:none; }
+body[data-hl="on"] .preview[data-style="letterpress"] .pv-prose .pw { font-weight:600; font-style:normal; color:#26241d; }
+body[data-hl="on"] .preview[data-style="midnight"]    .pv-prose .pw { font-weight:500; color:#f4efe4; }
+body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weight:600; color:#17161a; border-bottom:1px dotted #9a937f; }
 .pv-attr { margin-bottom:16px; }
 .pv-attr:empty { margin-bottom:16px; }
 .preview[data-style="letterpress"] .pv-attr { text-align:right; font:italic 400 13px/1.4 'Spectral',serif; color:#8a8573; }
@@ -209,7 +211,7 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .preview[data-style="terminal"]    .pv-dec-text { font:400 13px/1.6 'IBM Plex Mono',monospace; color:#f0eee8; }
 </style>
 </head>
-<body data-style="letterpress">
+<body data-style="letterpress" data-hl="off">
 <div class="wrap">
   <div class="masthead">
     <span class="title">Glossia · Compose</span>
@@ -268,6 +270,8 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
             <button type="button" class="tile" data-set-style="midnight"><span class="mini midnight">Aa</span>Midnight</button>
             <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
           </div>
+
+          <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words <span class="muted">(saved in the shareable link)</span></label>
 
           <label>Relays</label>
           <input type="text" id="c-relays" spellcheck="false">
@@ -425,15 +429,19 @@ function splitProse(text) {
   return { body: text, attr: '' };
 }
 function baseUrl() { return location.href.replace(/[^/]*$/, ''); }
+// "Highlight payload words" is a reading preference carried in the link (like the
+// reading style); off by default, so it only appears in the hash when on.
+function hlOn() { return document.body.dataset.hl === 'on'; }
+function hlParam() { return hlOn() ? '&hl=1' : ''; }
 function readLink(npub, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'bulletin.html#' + npub + '&style=' + s;
+  return baseUrl() + 'bulletin.html#' + npub + '&style=' + s + hlParam();
 }
 // Author link: carries the nwrite (the board's write key) so the same board can
 // be reused to publish more bulletins. Private — grants posting AND decrypting.
 function authorLink(nwrite, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'compose.html#' + nwrite + '&style=' + s;
+  return baseUrl() + 'compose.html#' + nwrite + '&style=' + s + hlParam();
 }
 
 // The board's signing identity: a fresh random key for a new board, or the write
@@ -535,6 +543,16 @@ function applyStyle(style) {
     b.setAttribute('aria-pressed', String(b.dataset.setStyle === style)));
   $('c-style').dispatchEvent(new Event('change'));   // refresh the open link if published
 }
+
+// ── highlight payload words (off by default) ──────────────────────────
+// Pure CSS toggle: body[data-hl] gates the .pw emphasis, so no re-render is
+// needed. Persisted in the shareable link (updateLinks + writeHash).
+function applyHl(on, { persist = true } = {}) {
+  document.body.dataset.hl = on ? 'on' : 'off';
+  $('c-hl').checked = on;
+  if (persist) { updateLinks(); writeHash(); }
+}
+$('c-hl').addEventListener('change', () => applyHl($('c-hl').checked));
 document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
@@ -764,7 +782,7 @@ $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 function writeHash() {
   const k = overridePass();
   const hash = '#' + boardIdentity().nwrite + '&style=' + ($('c-style').value || 'letterpress')
-    + (k ? '&key=' + encodeURIComponent(k) : '');
+    + (k ? '&key=' + encodeURIComponent(k) : '') + hlParam();
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
 let hashKey = '';   // a custom passphrase carried in the opened author link, if any
@@ -772,6 +790,7 @@ function loadFromHash() {
   const raw = location.hash.replace(/^#/, '');
   const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
+  applyHl(/(?:^|&)hl=1(?:&|$)/i.test(raw), { persist: false });   // off unless the link says on
   // Prefer an nwrite write key; fall back to nsec so older author links still open.
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
