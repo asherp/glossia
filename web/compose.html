@@ -364,7 +364,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
           </div>
         </div>
-        <button type="button" class="btn block" id="c-publish" disabled>Encode &amp; publish</button>
+        <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
         <div class="hint" id="c-status" style="margin-top:10px"></div>
         <div class="err" id="c-err"></div>
       </div>
@@ -565,7 +565,7 @@ function syncMeta() {
 }
 // The message is always encrypted; keep the publish button label in sync.
 function updateMode() {
-  $('c-publish').textContent = 'Encode & publish';
+  $('c-publish').textContent = 'Publish';
 }
 // Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
 // and drop stale runs. The board key is cached so retyping the message alone
