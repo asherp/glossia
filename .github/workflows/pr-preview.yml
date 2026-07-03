@@ -14,9 +14,14 @@ permissions:
   contents: write
   pull-requests: write
 
+# Share one repo-wide group with the Deploy Web App workflow so no two gh-pages
+# pushes overlap. GitHub Pages serves one deployment at a time; overlapping
+# pushes make the loser fail with "Deployment failed, try again later", leaving
+# the just-deployed preview at pr-preview/pr-<N>/ returning 404. cancel-in-progress
+# is false so an in-flight deploy always finishes publishing before the next runs.
 concurrency:
-  group: pr-preview-${{ github.ref }}
-  cancel-in-progress: true
+  group: gh-pages-deploy
+  cancel-in-progress: false
 
 jobs:
   preview:
