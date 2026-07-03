@@ -172,32 +172,61 @@ export function identityFromSk(sk) {
   };
 }
 
-// ─── seed phrase: a board's signing key ⇆ a checksummed hex payload ────
-// A board can be "saved" as a Glossia seed phrase — its 32-byte signing key
-// rendered as readable prose (the prose rendering lives in glossia-msg.js). We
-// append a short checksum here so a transcription error (a mistyped word) is
-// caught on load instead of silently restoring a different board. Layout:
-//   [signing key : 32][checksum : 4]     checksum = sha256(signing key)[..4]
+// ─── seed phrase: a board (signing key [+ passphrase]) ⇆ a hex payload ─
+// A board can be "saved" as a Glossia seed phrase — its 32-byte signing key,
+// plus any custom encryption passphrase, rendered as readable prose (the prose
+// rendering lives in glossia-msg.js). A short checksum rides along so a
+// transcription error (a mistyped word) is caught on load instead of silently
+// restoring a different board. Layout:
+//   [signing key : 32][passLen : 2 BE][passphrase UTF-8 : passLen][checksum : 4]
+//   checksum = sha256(everything before it)[..4];  passLen 0 = no passphrase.
+// Decoding uses the prose's natural byte length (word count), so the payload can
+// be any size; trailing bit-padding past the checksum is ignored.
 const SEED_CHECK_LEN = 4;
-export const SEED_PAYLOAD_LEN = 32 + SEED_CHECK_LEN;   // decodeSeedPhrase's byte count
+const TD = new TextDecoder();
 
-// The checksummed seed payload (hex) for an identity — feed to encodeSeedPhrase.
-export function seedPayloadHex(identity) {
-  const sk = identity.sk;
-  const sum = sha256(sk).subarray(0, SEED_CHECK_LEN);
-  return bytesToHex(concatBytes(sk, sum));
+function seedChecksumOk(body, got) {
+  if (got.length < SEED_CHECK_LEN) return false;
+  const want = sha256(body).subarray(0, SEED_CHECK_LEN);
+  for (let i = 0; i < SEED_CHECK_LEN; i++) if (got[i] !== want[i]) return false;
+  return true;
 }
 
-// Parse a checksummed seed payload (hex) back into an identity. Throws if the
-// payload is too short or the checksum fails (a mistyped / garbled seed phrase).
-export function identityFromSeedPayloadHex(hex) {
+// The checksummed seed payload (hex) for an identity, optionally carrying a
+// custom passphrase — feed to encodeSeedPhrase.
+export function seedPayloadHex(identity, passphrase = '') {
+  const pass = TE.encode(passphrase || '');
+  if (pass.length > 0xffff) throw new Error('passphrase too long to embed in a seed phrase');
+  const body = new Uint8Array(32 + 2 + pass.length);
+  body.set(identity.sk, 0);
+  body[32] = (pass.length >> 8) & 0xff;
+  body[33] = pass.length & 0xff;
+  body.set(pass, 34);
+  return bytesToHex(concatBytes(body, sha256(body).subarray(0, SEED_CHECK_LEN)));
+}
+
+// Parse a seed payload (hex) back into { identity, passphrase }. Verifies the
+// checksum (a mistyped / garbled seed phrase throws). Accepts the current
+// key+passphrase layout and the legacy key-only layout ([sk:32][checksum:4]).
+export function seedFromPayloadHex(hex) {
   const bytes = hexToBytes((hex || '').trim().toLowerCase());
-  if (bytes.length < SEED_PAYLOAD_LEN) throw new Error('seed phrase too short');
-  const sk = bytes.slice(0, 32);
-  const got = bytes.subarray(32, SEED_PAYLOAD_LEN);
-  const want = sha256(sk).subarray(0, SEED_CHECK_LEN);
-  for (let i = 0; i < SEED_CHECK_LEN; i++) if (got[i] !== want[i]) throw new Error('seed phrase checksum failed');
-  return identityFromSk(sk);
+  // current layout: [sk:32][passLen:2][passphrase][checksum:4]
+  if (bytes.length >= 32 + 2 + SEED_CHECK_LEN) {
+    const passLen = (bytes[32] << 8) | bytes[33];
+    const end = 34 + passLen;
+    if (bytes.length >= end + SEED_CHECK_LEN &&
+        seedChecksumOk(bytes.subarray(0, end), bytes.subarray(end, end + SEED_CHECK_LEN))) {
+      return {
+        identity: identityFromSk(bytes.slice(0, 32)),
+        passphrase: passLen ? TD.decode(bytes.subarray(34, end)) : '',
+      };
+    }
+  }
+  // legacy layout: [sk:32][checksum:4]
+  if (bytes.length >= 36 && seedChecksumOk(bytes.subarray(0, 32), bytes.subarray(32, 36))) {
+    return { identity: identityFromSk(bytes.slice(0, 32)), passphrase: '' };
+  }
+  throw new Error('seed phrase checksum failed');
 }
 
 // Bring an existing nostr publishing key (nsec or 64-char hex) as the board's

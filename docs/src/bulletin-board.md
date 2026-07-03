@@ -63,21 +63,24 @@ that survives a lost bookmark, **Save board** renders the board's signing key as
 paragraph of prose:
 
 ```
-Save board  ─▶  32-byte signing key ‖ 4-byte checksum
+Save board  ─▶  [signing key : 32][passLen : 2][passphrase][checksum : 4]
             ─▶  encode_raw_base_n  ─▶  natural-language paragraph  ("write this down")
-Load board  ─▶  paste the paragraph  ─▶  decode + verify checksum  ─▶  board restored
+Load board  ─▶  paste the paragraph  ─▶  decode + verify checksum  ─▶  board (+ passphrase) restored
 ```
 
 This is the project's core idea applied to a private key: the seed phrase *is* the
-key, made human-friendly — readable, speakable, transcribable. A 4-byte checksum
-(`sha256(key)[..4]`) rides with the key, so a mistyped or garbled word is caught on
-load instead of silently restoring a different board (the same safeguard BIP39
-mnemonics use). The phrase is rendered in whichever prose language the board uses;
-**Load board** auto-detects the language and the checksum confirms the decode. The
-key is generated and encoded entirely in the browser — it never leaves the device.
+key, made human-friendly — readable, speakable, transcribable. If a **custom
+passphrase** is set, it is folded into the payload too, so the seed restores the
+*whole* board — signing key and passphrase — and **Load board** fills the passphrase
+back in. A 4-byte checksum (`sha256(payload)[..4]`) rides along, so a mistyped or
+garbled word is caught on load instead of silently restoring a different board (the
+same safeguard BIP39 mnemonics use). The phrase is rendered in whichever prose
+language the board uses; **Load board** auto-detects the language and the checksum
+confirms the decode. Everything is generated and encoded entirely in the browser —
+it never leaves the device.
 
-Anyone who holds the seed phrase has the signing key, so it grants full access
-(post *and* decrypt): treat it exactly like the `nwrite`.
+Anyone who holds the seed phrase has the signing key (and any embedded passphrase),
+so it grants full access (post *and* decrypt): treat it exactly like the `nwrite`.
 
 ## How a bulletin is built
 
