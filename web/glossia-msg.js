@@ -245,6 +245,33 @@ export function detectLang(prose) {
   return 'english';
 }
 
+// ─── seed-phrase paragraph: a raw key ⇆ readable Glossia prose ────────
+// A "seed phrase" is a raw key rendered as natural-language prose whose payload
+// words carry the key's bytes — the project's core idea applied to a private
+// key. It uses the same word-preserving base-n codec as the demo's BIP39 panel,
+// so the bytes round-trip exactly (decoding filters the prose back against the
+// wordlist). Callers append a checksum to the key before encoding (see
+// glossia-nostr.js) so a mistyped word is caught on load.
+
+// hex string (any byte length) -> { prose, payloadWords, langId }.
+export function encodeSeedPhrase(hex, langId = 'english') {
+  const lang = msgLangById(langId);
+  const r = JSON.parse(wasmEncodeRawBaseN(hex, lang.language, lang.wordlist, lang.dialect, SEED));
+  if (r.error) throw new Error(r.error);
+  return { prose: (r.encoded_text || '').trim(), payloadWords: r.payload_words || [], langId: lang.id };
+}
+
+// prose paragraph + known byte length -> { hex, payloadWords, langId }. Decodes
+// in the given language, or the one auto-detected from the prose.
+export function decodeSeedPhrase(prose, byteCount, langId) {
+  const text = (prose || '').trim();
+  if (!text) throw new Error('empty seed phrase');
+  const lang = msgLangById(langId || detectLang(text));
+  const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, byteCount));
+  if (r.error) throw new Error(r.error);
+  return { hex: r.decoded_hex || '', payloadWords: r.payload_words || [], langId: lang.id };
+}
+
 // artifact string + credential -> { message, prose, payloadWords, langId,
 // encrypted, authenticated }. Throws on malformed input; for the authenticated
 // form a wrong credential or tampering throws cleanly.
@@ -265,6 +292,42 @@ export async function decodeMessage(artifact, cred) {
   const { flag, data } = parseEmbedded(bytes);
   const message = TD.decode(await expand(data, flag));
   return { message, prose: text, header: null, payloadWords: r.payload_words || [], langId: lang.id, encrypted: false };
+}
+
+// Skim an artifact WITHOUT a credential: recover the prose's payload words (and
+// split the body from its attribution trailer) so a locked bulletin can still be
+// rendered with its payload words highlighted. The prose→word mapping is
+// deterministic from the wordlist and the public trailer, so no key is needed —
+// only the final AES-GCM step (in decodeMessage) requires the credential.
+// Returns { prose, body, trailer, payloadWords, encrypted }. Never throws.
+export function skimArtifact(artifact) {
+  const text = (artifact || '').trim();
+  if (!text) return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false };
+
+  // Authenticated form: "<body> — <latin attribution>".
+  const di = text.lastIndexOf(EMDASH);
+  if (di > 0) {
+    const body = text.slice(0, di).trim();
+    const trailer = text.slice(di + EMDASH.length).trim();
+    try {
+      const tR = JSON.parse(wasmDecodeRawBaseN(trailer.toLowerCase(), 'latin', 'default', AEAD_TRAILER_LEN));
+      if (tR.error) throw new Error(tR.error);
+      const tb = fromHex(tR.decoded_hex || '');
+      if (tb.length < AEAD_TRAILER_LEN) throw new Error('bad trailer');
+      const ctlen = ((tb[0] << 8) | tb[1]) & AEAD_MAX_CTLEN;
+      const lang = msgLangById(detectLang(body));
+      const bR = JSON.parse(wasmDecodeRawBaseN(body, lang.language, lang.wordlist, ctlen));
+      const words = (bR.payload_words || []).concat(tR.payload_words || []);
+      return { prose: text, body, trailer, payloadWords: words, encrypted: true };
+    } catch { return { prose: text, body, trailer, payloadWords: [], encrypted: true }; }
+  }
+
+  // Bare, unencrypted prose.
+  try {
+    const lang = msgLangById(detectLang(text));
+    const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, 0));
+    return { prose: text, body: text, trailer: '', payloadWords: r.payload_words || [], encrypted: false };
+  } catch { return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false }; }
 }
 
 // Decode the authenticated "<body> — <attribution>" form. GCM verifies the tag,
