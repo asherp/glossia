@@ -15,8 +15,14 @@ on:
 permissions:
   contents: write
 
+# Serialize every workflow that pushes to gh-pages under one repo-wide group.
+# Each push to gh-pages triggers GitHub's own pages-build-deployment, and Pages
+# only runs one deployment at a time — two overlapping pushes make the loser
+# fail with "Deployment failed, try again later", which is what leaves a freshly
+# deployed path (e.g. a PR preview) returning 404. The PR Preview workflow shares
+# this exact group name so production and preview deploys can never race.
 concurrency:
-  group: pages-deploy
+  group: gh-pages-deploy
   cancel-in-progress: false
 
 jobs:
