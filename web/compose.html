@@ -67,7 +67,7 @@ a:hover { text-decoration: underline; }
   .col-form, .col-preview { flex:1 1 auto; width:100%; min-width:0; }
   .col-preview { position:static; }
   .board { padding:24px 20px 28px; }
-  .out-card, .preview { padding:20px 18px; }
+  .preview { padding:20px 18px; }
   #c-preview-slot { margin-top:18px; }
 }
 
@@ -75,6 +75,10 @@ a:hover { text-decoration: underline; }
 .board { background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:12px; box-shadow:0 24px 60px -32px rgba(20,18,14,.4); padding:32px 36px 36px; margin-bottom:20px; transition:background .35s ease, border-color .35s ease; }
 .board-head { display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--rule); padding-bottom:14px; margin-bottom:20px; }
 .board-head .k { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; text-transform:uppercase; }
+/* the section title doubles as a "start a fresh board" button */
+.board-new { color:var(--ink); text-decoration:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+.board-new:hover { color:var(--accent); text-decoration:none; }
+.board-new .plus { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid currentColor; border-radius:5px; font-size:13px; line-height:1; }
 .board-head .n { font:400 11px/1 'IBM Plex Mono',monospace; color:var(--meta); }
 
 /* form controls */
@@ -139,47 +143,55 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 .foot { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); font:400 12px/1.6 'Public Sans',sans-serif; color:var(--dim); text-align:center; }
 .foot strong { color:var(--accent); font-weight:600; }
 
+/* save / load board actions (in the board-head) */
+.board-actions { display:flex; gap:8px; align-items:center; }
+.board-actions .n { margin-right:4px; }
+.board-actions .btn.sm { padding:7px 11px; }
+
+/* modal: save / load a board via its seed-phrase paragraph */
+.modal-overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:flex-start; justify-content:center; padding:6vh 18px 40px; background:rgba(20,18,14,.55); backdrop-filter:blur(3px); overflow-y:auto; }
+body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
+.modal { position:relative; width:100%; max-width:560px; background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:14px; box-shadow:0 40px 90px -40px rgba(20,18,14,.7); padding:30px 32px 28px; }
+.modal-x { position:absolute; top:14px; right:16px; background:none; border:none; color:var(--dim); font-size:24px; line-height:1; cursor:pointer; padding:2px 6px; }
+.modal-x:hover { color:var(--accent); }
+.modal-title { margin:0 0 10px; font:600 18px/1.2 'Public Sans',sans-serif; color:var(--ink); }
+.modal-lead { margin:0 0 16px; font:400 14px/1.6 'Public Sans',sans-serif; color:var(--ink-soft); }
+.modal-lead strong { color:var(--accent); font-weight:600; }
+.seed-prose { background:var(--input-bg); border:1px dashed color-mix(in srgb, var(--error) 45%, var(--input-bd)); border-radius:10px; padding:16px 18px; font:400 16px/1.72 'Spectral',serif; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+.modal-actions { display:flex; align-items:center; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.modal-actions .muted { margin-left:auto; font:400 12px/1.3 'IBM Plex Mono',monospace; }
+.modal-foot { margin:16px 0 0; font:400 12px/1.55 'Public Sans',sans-serif; }
+#c-seed-input { width:100%; min-height:120px; }
+
 /* live preview */
-.pv-head { display:flex; align-items:center; gap:8px; margin-bottom:14px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); }
-.pv-head .accent { color:var(--accent); }
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
-.out-card { margin-top:20px; margin-bottom:0; padding:24px 26px; }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
-.board-loaded .loaded-npub { background:var(--input-bg); border:1px solid var(--input-bd); border-radius:8px; padding:11px 13px; font:400 13px/1.4 'IBM Plex Mono',monospace; color:var(--ink); word-break:break-all; }
+.share-btn { margin-top:2px; padding:10px 16px; font-size:12.5px; display:inline-flex; align-items:center; gap:8px; }
+.share-btn svg { width:14px; height:14px; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
 .preview[data-style="terminal"]    { background:#f0eee8; border:1px solid #17161a; color:#17161a; border-radius:0; box-shadow:0 20px 50px -34px rgba(23,22,26,.5); }
-.pv-meta { display:flex; justify-content:space-between; gap:10px; font:500 10px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px; }
-.preview[data-style="letterpress"] .pv-meta { color:#a29c88; }
-.preview[data-style="midnight"]    .pv-meta { color:#5c5a63; }
-.preview[data-style="terminal"]    .pv-meta { color:#a29c8b; letter-spacing:.04em; }
+/* subject (shown only when one is set) */
+.pv-subject { font:500 10px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px; }
 .preview[data-style="letterpress"] .pv-subject { color:#9a5b3f; }
 .preview[data-style="midnight"]    .pv-subject { color:#c9a25f; }
-.preview[data-style="terminal"]    .pv-subject { color:#274bd6; }
-/* encrypted / encoded-only indicator */
-.pv-mode { display:inline-flex; align-items:center; gap:6px; margin-bottom:14px; padding:4px 9px; border-radius:999px; font:600 9px/1.2 'IBM Plex Mono',monospace; letter-spacing:.12em; text-transform:uppercase; }
-.pv-mode svg { width:11px; height:11px; }
-.pv-mode[data-mode="enc"]   { background:rgba(79,122,63,.14); color:#3f6a32; }
-.pv-mode[data-mode="plain"] { background:rgba(154,91,63,.12); color:#9a5b3f; }
-.preview[data-style="midnight"] .pv-mode[data-mode="enc"]   { background:rgba(127,214,160,.14); color:#7fd6a0; }
-.preview[data-style="midnight"] .pv-mode[data-mode="plain"] { background:rgba(201,162,95,.16); color:#c9a25f; }
-.preview[data-style="terminal"] .pv-mode { border-radius:0; }
-.preview[data-style="terminal"] .pv-mode[data-mode="enc"]   { background:#17161a; color:#7fd6a0; }
-.preview[data-style="terminal"] .pv-mode[data-mode="plain"] { background:#17161a; color:#e8e4da; }
+.preview[data-style="terminal"]    .pv-subject { color:#274bd6; letter-spacing:.04em; }
 
 /* realtime-generated prose (mirrors the viewer's bulletin prose) */
 .pv-prose { margin:0 0 4px; }
 .preview[data-style="letterpress"] .pv-prose { font:italic 300 17px/1.7 'Spectral',serif; color:#413d33; }
 .preview[data-style="midnight"]    .pv-prose { font:300 18px/1.65 'Newsreader',serif; color:#cfcabf; }
 .preview[data-style="terminal"]    .pv-prose { font:400 13px/1.7 'IBM Plex Mono',monospace; color:#3a382f; }
-.pv-prose .pw { }
-.preview[data-style="letterpress"] .pv-prose .pw { font-weight:600; font-style:normal; color:#26241d; }
-.preview[data-style="midnight"]    .pv-prose .pw { font-weight:500; color:#f4efe4; }
-.preview[data-style="terminal"]    .pv-prose .pw { font-weight:600; color:#17161a; border-bottom:1px dotted #9a937f; }
+/* payload words read as plain prose by default; the "highlight payload words"
+   setting (body[data-hl="on"]) emphasizes them per reading style */
+.pv-prose .pw { font:inherit; color:inherit; border-bottom:none; }
+body[data-hl="on"] .preview[data-style="letterpress"] .pv-prose .pw { font-weight:600; font-style:normal; color:#26241d; }
+body[data-hl="on"] .preview[data-style="midnight"]    .pv-prose .pw { font-weight:500; color:#f4efe4; }
+body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weight:600; color:#17161a; border-bottom:1px dotted #9a937f; }
 .pv-attr { margin-bottom:16px; }
 .pv-attr:empty { margin-bottom:16px; }
 .preview[data-style="letterpress"] .pv-attr { text-align:right; font:italic 400 13px/1.4 'Spectral',serif; color:#8a8573; }
@@ -199,7 +211,7 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 .preview[data-style="terminal"]    .pv-dec-text { font:400 13px/1.6 'IBM Plex Mono',monospace; color:#f0eee8; }
 </style>
 </head>
-<body data-style="letterpress">
+<body data-style="letterpress" data-hl="off">
 <div class="wrap">
   <div class="masthead">
     <span class="title">Glossia · Compose</span>
@@ -212,8 +224,12 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
       <form id="c-form" autocomplete="on" onsubmit="return false;">
       <div class="board">
         <div class="board-head">
-          <span class="k">New bulletin</span>
-          <span class="n" id="c-head-npub">not yet published</span>
+          <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span> New bulletin</a>
+          <div class="board-actions">
+            <span class="n" id="c-head-npub">not yet published</span>
+            <button type="button" class="btn sm" id="c-save" title="Show this board's private key as a Glossia seed phrase to save">💾 Save</button>
+            <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂 Load</button>
+          </div>
         </div>
         <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
 
@@ -222,12 +238,6 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 
         <!-- on narrow screens the live preview is moved here, directly below the message -->
         <div id="c-preview-slot"></div>
-
-        <div class="board-loaded hidden" id="c-nsec-banner">
-          <label>Board <span class="muted">(saved — you're continuing this board)</span></label>
-          <div class="loaded-npub" id="c-nsec-npub"></div>
-          <p class="hint">New bulletins post to this same board. <a href="./compose.html">start a new board →</a></p>
-        </div>
 
         <details class="settings" id="c-settings">
           <summary>
@@ -261,6 +271,8 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
             <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
           </div>
 
+          <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words <span class="muted">(saved in the shareable link)</span></label>
+
           <label>Relays</label>
           <input type="text" id="c-relays" spellcheck="false">
         </details>
@@ -268,60 +280,70 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
       </form>
 
       <div class="board" id="c-share-card">
-        <div class="share">
-          <label>Public link <span class="muted">· read the prose (npub)</span></label>
-          <div class="linkbox">
-            <div class="u" id="c-link-npub">glossia.io/bulletin.html#npub…</div>
-            <button type="button" class="btn sm" data-copy="npub">copy</button>
-            <a class="btn sm" id="c-open-npub" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
+        <!-- Keep this — for you -->
+        <div class="share keep">
+          <label>Keep this <span class="muted">· for you</span></label>
+          <p class="hint" style="margin:0 0 12px">
+            <strong>Bookmark this page.</strong> Its address is your author link — the only way back in to publish more.
+            Losing it means you can't post to this board again. For a durable backup, save the seed phrase.
+          </p>
+          <button type="button" class="btn sm" id="c-save-keep">💾 Save bulletin</button>
+        </div>
 
-          <label>Reader link + key <span class="lab warn">· includes the decryption key — readers unlock instantly</span></label>
-          <div class="linkbox private">
-            <div class="u" id="c-link-key">glossia.io/bulletin.html#npub…&amp;key=…</div>
-            <button type="button" class="btn sm" data-copy="key">copy</button>
-            <a class="btn sm" id="c-open-key" href="#" target="_blank" rel="noopener">open ↗</a>
-          </div>
+        <!-- Share these — for others -->
+        <div class="share" style="margin-top:24px">
+          <label>Share these <span class="muted">· for others</span></label>
 
-          <label>Author link <span class="lab warn">· includes the nwrite — post more to this board</span></label>
+          <label style="margin-top:14px">Reader link <span class="lab warn">· includes the decryption key — readers unlock instantly (avoid pasting where the link is logged)</span></label>
+          <button type="button" class="btn sm share-btn" id="c-btn-reader"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Reader link</button>
+
+          <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
+          <button type="button" class="btn sm share-btn" id="c-btn-public"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button>
+        </div>
+
+        <div id="c-relay-results"></div>
+
+        <!-- Advanced — raw keys & the author link, for power users -->
+        <details class="settings" id="c-advanced">
+          <summary>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Advanced — keys &amp; author link</span>
+          </summary>
+
+          <label>Author link <span class="lab warn">· includes the nwrite — full access, keep private</span></label>
           <div class="linkbox private">
             <div class="u" id="c-link-nsec">glossia.io/compose.html#nwrite…</div>
             <button type="button" class="btn sm" data-copy="nsec">copy</button>
             <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
           </div>
-          <p class="hint" style="margin-top:12px">This page's address <em>is</em> the author link — <strong>bookmark it</strong> to keep publishing to this board later.</p>
-        </div>
-      </div>
 
-      <div class="board out-card hidden" id="c-out-card">
-        <label>Keys to share</label>
-        <div class="keyrow" id="c-readkey-row">
-          <span class="lab">Read key — share with readers to <strong>decrypt</strong> (cannot post)</span>
-          <div class="keyval read" id="c-out-nread"></div>
-          <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
-        </div>
-        <div class="keyrow hidden" id="c-pass-note">
-          <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
-        </div>
-        <div class="keyrow">
-          <span class="lab" style="color:var(--error)">nwrite — <strong>keep private</strong>; grants posting AND decrypting</span>
-          <div class="keyval sec" id="c-out-nsec"></div>
-          <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nwrite</button>
-        </div>
-        <div class="keyrow">
-          <span class="lab">npub — the board's public address</span>
-          <div class="keyval pub" id="c-out-npub"></div>
-        </div>
-        <div id="c-relay-results"></div>
+          <div class="keyrow" id="c-readkey-row">
+            <span class="lab">Read key <span class="muted">— decrypt only, cannot post</span></span>
+            <div class="keyval read" id="c-out-nread"></div>
+            <button type="button" class="btn sm" id="c-copy-nread" style="margin-top:6px">copy read key</button>
+          </div>
+          <div class="keyrow hidden" id="c-pass-note">
+            <span class="lab">Readers decrypt with the <strong>passphrase</strong> you set — share it with them separately.</span>
+          </div>
+          <div class="keyrow">
+            <span class="lab" style="color:var(--error)">nwrite <span class="muted">— keep private; posting AND decrypting</span></span>
+            <div class="keyval sec" id="c-out-nsec"></div>
+            <button type="button" class="btn sm" id="c-copy-nsec" style="margin-top:6px">copy nwrite</button>
+          </div>
+          <div class="keyrow">
+            <span class="lab">npub <span class="muted">— the board's public address</span></span>
+            <div class="keyval pub" id="c-out-npub"></div>
+          </div>
+        </details>
       </div>
 
       <div class="note">
-        <strong>How it works.</strong> A board lives at an <span class="mono">npub</span> derived from its write key
-        (the <strong>nwrite</strong>). The message is always encrypted — by default with a key derived from that same
-        write key (a hash of the nwrite), then encoded into Glossia prose, signed, and published to public nostr relays.
-        <strong>nwrite</strong> → post and decrypt; <strong>read key</strong> → decrypt only; <strong>npub</strong> → read
-        the prose but not decrypt. Set a passphrase to encrypt with a shared secret instead — readers then decrypt with
-        that passphrase rather than the read key.
+        <strong>How it works.</strong> Every board has three things: a <strong>public address</strong> anyone can open,
+        an <strong>author link</strong> that lets you publish, and a <strong>read key</strong> that lets readers decrypt.
+        All three come from one secret, so there's no separate password to set. Every message is encrypted and encoded into
+        Glossia prose before it's published — share a <strong>reader link</strong> (or the read key) for read-only access,
+        and keep your author link to keep posting. Prefer a shared secret? Set a passphrase, and readers decrypt with that
+        instead of the read key.
       </div>
 
       <div class="foot">
@@ -333,10 +355,8 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 
     <aside class="col-preview">
       <div id="c-live-preview">
-        <div class="pv-head"><span>Live preview</span><span class="muted">·</span><span class="accent" id="c-style-name">Letterpress</span></div>
         <div class="preview" id="c-preview-card" data-style="letterpress">
-          <div class="pv-meta"><span>New bulletin</span><span class="pv-subject" id="c-pv-subject">no subject</span></div>
-          <div class="pv-mode" id="c-pv-mode" data-mode="plain"></div>
+          <div class="pv-subject hidden" id="c-pv-subject"></div>
           <p class="pv-prose" id="c-pv-prose">Your prose will appear here as you type…</p>
           <div class="pv-attr" id="c-pv-attr"></div>
           <div class="pv-decoded">
@@ -352,9 +372,44 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
   </div>
 </div>
 
+<!-- Save / Load a board via its seed-phrase paragraph -->
+<div class="modal-overlay hidden" id="c-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button type="button" class="modal-x" id="c-modal-close" aria-label="Close">&times;</button>
+
+    <!-- SAVE: show the board's private key as a Glossia seed phrase -->
+    <div id="c-save-view">
+      <h2 class="modal-title">Save this board</h2>
+      <p class="modal-lead">This is your board's <strong>seed phrase</strong> — keep it secret, keep it safe! With this,
+        anyone can post updates to this board, and it's the only way back in if you lose the link.</p>
+      <div class="seed-prose" id="c-seed-prose"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn sm" id="c-seed-copy">Copy</button>
+        <button type="button" class="btn sm" id="c-seed-download">Download .txt</button>
+        <span class="muted" id="c-seed-npub"></span>
+      </div>
+      <p class="modal-foot muted" id="c-seed-note">The key never leaves your device. The seed phrase carries a checksum,
+        so a mistyped word is caught when you load it back.</p>
+    </div>
+
+    <!-- LOAD: restore a board from a saved seed phrase -->
+    <div id="c-load-view" class="hidden">
+      <h2 class="modal-title">Load a saved board</h2>
+      <p class="modal-lead">Paste a Glossia seed phrase you saved earlier to restore its board. You'll be able to
+        post to and decrypt it again.</p>
+      <textarea id="c-seed-input" spellcheck="false" placeholder="Paste your seed phrase paragraph…"></textarea>
+      <div class="err" id="c-load-err"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="c-load-go">Restore board</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
-import { init, encodeMessage } from './glossia-msg.js';
-import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, DEFAULT_RELAYS } from './glossia-nostr.js';
+import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
+         seedPayloadHex, identityFromSeedPayloadHex, SEED_PAYLOAD_LEN, DEFAULT_RELAYS } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -374,15 +429,19 @@ function splitProse(text) {
   return { body: text, attr: '' };
 }
 function baseUrl() { return location.href.replace(/[^/]*$/, ''); }
+// "Highlight payload words" is a reading preference carried in the link (like the
+// reading style); off by default, so it only appears in the hash when on.
+function hlOn() { return document.body.dataset.hl === 'on'; }
+function hlParam() { return hlOn() ? '&hl=1' : ''; }
 function readLink(npub, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'bulletin.html#' + npub + '&style=' + s;
+  return baseUrl() + 'bulletin.html#' + npub + '&style=' + s + hlParam();
 }
 // Author link: carries the nwrite (the board's write key) so the same board can
 // be reused to publish more bulletins. Private — grants posting AND decrypting.
 function authorLink(nwrite, style) {
   const s = style || $('c-style').value || 'letterpress';
-  return baseUrl() + 'compose.html#' + nwrite + '&style=' + s;
+  return baseUrl() + 'compose.html#' + nwrite + '&style=' + s + hlParam();
 }
 
 // The board's signing identity: a fresh random key for a new board, or the write
@@ -394,11 +453,17 @@ function boardIdentity() {
   if (!randomIdentity) randomIdentity = generateIdentity();
   return randomIdentity;
 }
-// The passphrase field is pre-filled with the board's own read key (nread) by
-// default; that counts as "no override". Anything else is a custom passphrase.
+// Adopt a saved/loaded board as the signing identity (from an author link or a
+// seed phrase).
+function applyLoadedIdentity(id) {
+  nsecIdentity = id;
+}
+// The passphrase field is left EMPTY by default — the placeholder explains that
+// encryption then falls back to the board's own key. Any non-empty value is a
+// custom passphrase override. (We never write the read key into the field: it is
+// the board's secret, not something to surface in an input.)
 function overridePass() {
-  const v = $('c-id-value').value.trim();
-  return (v && v !== boardIdentity().nread) ? v : '';
+  return $('c-id-value').value.trim();
 }
 
 // The reader's decryption credential to embed in a key link: the board's read
@@ -417,10 +482,14 @@ const strip = (u) => u.replace(/^https?:\/\//, '');
 // The three shareable links live under the preview and update as the board,
 // reading style, or passphrase change.
 function updateLinks() {
-  const npubL = readerNpubLink(), keyL = readerKeyLink(), authL = shareAuthorLink();
-  $('c-link-npub').textContent = strip(npubL); $('c-open-npub').href = npubL;
-  $('c-link-key').textContent = strip(keyL);   $('c-open-key').href = keyL;
+  // reader/public links are computed on click by their buttons; only the author
+  // link (in Advanced) is shown as text.
+  const authL = shareAuthorLink();
   $('c-link-nsec').textContent = strip(authL); $('c-open-nsec').href = authL;
+  // raw keys in the Advanced disclosure, kept in sync with the current board
+  $('c-out-npub').textContent = boardIdentity().npub;
+  $('c-out-nsec').textContent = boardIdentity().nwrite;
+  $('c-out-nread').textContent = boardIdentity().nread;
   // the read key (nread) only decrypts the default board-key form; when a
   // passphrase is set, readers use it instead — keep this in sync live
   const custom = !!overridePass();
@@ -431,6 +500,23 @@ document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click'
   const link = b.dataset.copy === 'npub' ? readerNpubLink() : b.dataset.copy === 'key' ? readerKeyLink() : shareAuthorLink();
   navigator.clipboard.writeText(link).catch(() => {});
 }));
+
+// "Share these" buttons compute their URL on click (no link text shown):
+// the reader button copies the key-bearing link; the public button opens the
+// native share sheet where available, else copies.
+function flashBtn(btn, msg) {
+  if (!btn.dataset.html) btn.dataset.html = btn.innerHTML;   // preserve the icon markup
+  btn.textContent = msg;
+  setTimeout(() => { btn.innerHTML = btn.dataset.html; }, 1400);
+}
+$('c-btn-reader').addEventListener('click', () => {
+  navigator.clipboard.writeText(readerKeyLink()).then(() => flashBtn($('c-btn-reader'), 'Copied ✓')).catch(() => {});
+});
+$('c-btn-public').addEventListener('click', async () => {
+  const url = readerNpubLink();
+  if (navigator.share) { try { await navigator.share({ title: 'Glossia bulletin board', url }); } catch { /* share cancelled */ } return; }
+  navigator.clipboard.writeText(url).then(() => flashBtn($('c-btn-public'), 'Copied ✓')).catch(() => {});
+});
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
 function setEngine(state, msg) {
@@ -453,28 +539,33 @@ function applyStyle(style) {
   $('c-style').value = style;
   document.body.dataset.style = style;        // theme the whole page
   $('c-preview-card').dataset.style = style;  // and the live-preview box
-  $('c-style-name').textContent = STYLE_NAMES[style];
   document.querySelectorAll('[data-set-style]').forEach(b =>
     b.setAttribute('aria-pressed', String(b.dataset.setStyle === style)));
   $('c-style').dispatchEvent(new Event('change'));   // refresh the open link if published
 }
+
+// ── highlight payload words (off by default) ──────────────────────────
+// Pure CSS toggle: body[data-hl] gates the .pw emphasis, so no re-render is
+// needed. Persisted in the shareable link (updateLinks + writeHash).
+function applyHl(on, { persist = true } = {}) {
+  document.body.dataset.hl = on ? 'on' : 'off';
+  $('c-hl').checked = on;
+  if (persist) { updateLinks(); writeHash(); }
+}
+$('c-hl').addEventListener('change', () => applyHl($('c-hl').checked));
 document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
 // ── live preview: realtime prose + decoded, exactly as a reader sees it ─
-const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 function syncMeta() {
   $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
-  $('c-pv-subject').textContent = $('c-subject').value.trim() || 'no subject';
+  const subj = $('c-subject').value.trim();   // only show the subject when one is set
+  $('c-pv-subject').textContent = subj;
+  $('c-pv-subject').classList.toggle('hidden', !subj);
 }
-// Reflect whether a passphrase is set: encrypted vs encoded-only, in both the
-// publish button label and the preview badge.
+// The message is always encrypted; keep the publish button label in sync.
 function updateMode() {
-  const custom = !!overridePass();
   $('c-publish').textContent = 'Encode & publish';
-  const el = $('c-pv-mode');
-  el.dataset.mode = 'enc';
-  el.innerHTML = LOCK_SVG + '<span>encrypted · ' + (custom ? 'your passphrase' : 'board key') + '</span>';
 }
 // Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
 // and drop stale runs. The board key is cached so retyping the message alone
@@ -560,24 +651,12 @@ async function buildBulletin() {
 
 function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.slice(-6) : (v || ''); }
 
-function showBoard(identity, enc) {
-  const c = $('c-out-card');
-  c.classList.remove('hidden');
-  $('c-out-npub').textContent = identity.npub;
-  $('c-out-nsec').textContent = identity.nwrite;
-  $('c-out-nread').textContent = identity.nread;
-  updateLinks();                       // keep links + read-key/passphrase note in sync with the current credential
-  $('c-head-npub').textContent = shortNpub(identity.npub);
-  c.dataset.npub = identity.npub; c.dataset.nsec = identity.nwrite; c.dataset.nread = identity.nread;
-}
-
 $('c-publish').addEventListener('click', async () => {
   $('c-err').textContent = ''; $('c-status').textContent = '';
   if (!ready) return;
-  let identity, enc, ev;
-  try { ({ identity, enc, ev } = await buildBulletin()); }
+  let ev;
+  try { ({ ev } = await buildBulletin()); }
   catch (e) { $('c-err').textContent = e.message || String(e); return; }
-  showBoard(identity, enc);
   const relays = parseRelays($('c-relays').value);
   if (!relays.length) { $('c-err').textContent = 'Add at least one wss:// relay.'; return; }
   $('c-status').textContent = 'Publishing to ' + relays.length + ' relays…';
@@ -595,9 +674,103 @@ $('c-publish').addEventListener('click', async () => {
   finally { $('c-publish').disabled = false; }
 });
 
-function copy(id) { navigator.clipboard.writeText($('c-out-card').dataset[id] || '').catch(() => {}); }
-$('c-copy-nread').addEventListener('click', () => copy('nread'));
-$('c-copy-nsec').addEventListener('click', () => copy('nsec'));
+$('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nread).catch(() => {}));
+$('c-copy-nsec').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nwrite).catch(() => {}));
+
+// ── save / load a board via its seed-phrase paragraph ─────────────────
+// A board's private key (its signing key / nwrite) is rendered as readable
+// Glossia prose so it can be written down and later re-entered to restore the
+// board — the project's core idea applied to a private key.
+function showModal(view) {
+  $('c-save-view').classList.toggle('hidden', view !== 'save');
+  $('c-load-view').classList.toggle('hidden', view !== 'load');
+  $('c-modal').classList.remove('hidden');
+}
+function closeModal() { $('c-modal').classList.add('hidden'); }
+$('c-modal-close').addEventListener('click', closeModal);
+$('c-modal').addEventListener('click', (e) => { if (e.target === $('c-modal')) closeModal(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('c-modal').classList.contains('hidden')) closeModal(); });
+
+// "+ New bulletin" resets to a fresh, unsaved board: drop the board from the URL
+// and reload, so init generates a brand-new random signing key. (The href on the
+// element is the no-JS fallback.)
+$('c-new').addEventListener('click', (e) => {
+  e.preventDefault();
+  history.replaceState(null, '', baseUrl() + 'compose.html');
+  location.reload();
+});
+
+let currentSeed = '';   // the seed phrase currently shown in the save dialog
+function openSaveDialog() {
+  if (!ready) { $('c-status').textContent = 'Engine still loading — try again in a moment.'; return; }
+  const id = boardIdentity();
+  try {
+    currentSeed = encodeSeedPhrase(seedPayloadHex(id), $('c-lang').value).prose;
+    $('c-seed-prose').textContent = currentSeed;
+  } catch (e) {
+    currentSeed = '';
+    $('c-seed-prose').textContent = 'Could not render the seed phrase — ' + (e.message || e);
+  }
+  $('c-seed-npub').textContent = shortNpub(id.npub);
+  // when a custom passphrase is set, note that it's separate from the signing key
+  $('c-seed-note').textContent = overridePass()
+    ? 'This restores the board’s signing key. Your custom passphrase is separate — keep it too, or readers can’t decrypt.'
+    : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
+  showModal('save');
+}
+$('c-save').addEventListener('click', openSaveDialog);
+$('c-save-keep').addEventListener('click', openSaveDialog);
+$('c-seed-copy').addEventListener('click', () => { if (currentSeed) navigator.clipboard.writeText(currentSeed).catch(() => {}); });
+$('c-seed-download').addEventListener('click', () => {
+  if (!currentSeed) return;
+  const blob = new Blob([currentSeed + '\n'], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'glossia-board-seed.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$('c-load').addEventListener('click', () => { $('c-load-err').textContent = ''; $('c-seed-input').value = ''; showModal('load'); });
+// Decode a pasted seed phrase back into a board identity. The language is
+// unknown, so try the detected one first, then each supported language; the
+// checksum rejects a wrong-language decode, so the first that verifies wins.
+function identityFromSeed(prose) {
+  const seen = new Set();
+  for (const lang of [detectLang(prose), 'english', 'latin', 'czech']) {
+    if (seen.has(lang)) continue;
+    seen.add(lang);
+    try {
+      const { hex } = decodeSeedPhrase(prose, SEED_PAYLOAD_LEN, lang);
+      return identityFromSeedPayloadHex(hex);
+    } catch { /* try the next language */ }
+  }
+  throw new Error('Could not read that seed phrase — check the words and try again.');
+}
+$('c-load-go').addEventListener('click', () => {
+  $('c-load-err').textContent = '';
+  const text = $('c-seed-input').value.trim();
+  if (!text) { $('c-load-err').textContent = 'Paste a seed phrase first.'; return; }
+  if (!ready) { $('c-load-err').textContent = 'Engine still loading — try again in a moment.'; return; }
+  let id;
+  try { id = identityFromSeed(text); }
+  catch (e) { $('c-load-err').textContent = e.message || String(e); return; }
+  restoreBoard(id);
+  closeModal();
+  $('c-status').textContent = 'Board restored from its seed phrase — you can publish to it again.';
+});
+
+// Switch the whole page over to a restored board: adopt its identity, reset the
+// credential to that board's default, and refresh links, address bar, preview.
+function restoreBoard(id) {
+  applyLoadedIdentity(id);
+  hashKey = '';                                 // a seed carries only the signing key
+  $('c-id-value').value = '';                   // no custom passphrase → use the board key
+  showEntropy('');
+  $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
+  $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
+  updateMode(); updateLinks(); writeHash(); schedulePreview();
+}
 
 // keep the share links + address bar in sync when the reading style changes
 $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
@@ -609,7 +782,7 @@ $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 function writeHash() {
   const k = overridePass();
   const hash = '#' + boardIdentity().nwrite + '&style=' + ($('c-style').value || 'letterpress')
-    + (k ? '&key=' + encodeURIComponent(k) : '');
+    + (k ? '&key=' + encodeURIComponent(k) : '') + hlParam();
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
 let hashKey = '';   // a custom passphrase carried in the opened author link, if any
@@ -617,16 +790,13 @@ function loadFromHash() {
   const raw = location.hash.replace(/^#/, '');
   const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
+  applyHl(/(?:^|&)hl=1(?:&|$)/i.test(raw), { persist: false });   // off unless the link says on
   // Prefer an nwrite write key; fall back to nsec so older author links still open.
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
   try {
-    if (wm) nsecIdentity = identityFromNwrite(wm[0]);
-    else if (nm) nsecIdentity = identityFromNsec(nm[0]);
-    if (nsecIdentity) {
-      $('c-nsec-banner').classList.remove('hidden');
-      $('c-nsec-npub').textContent = nsecIdentity.npub;
-    }
+    if (wm) applyLoadedIdentity(identityFromNwrite(wm[0]));
+    else if (nm) applyLoadedIdentity(identityFromNsec(nm[0]));
   } catch { /* malformed write key — ignore, start a fresh board */ }
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { try { hashKey = decodeURIComponent(keyM[1]); } catch { hashKey = keyM[1]; } }
@@ -644,9 +814,9 @@ mqStack.addEventListener('change', placePreview);
 placePreview();
 
 loadFromHash();
-// prefill the passphrase: the custom key from an author link, or the board's
-// own read key (nread) as the default
-$('c-id-value').value = hashKey || boardIdentity().nread;
+// prefill the passphrase only with a custom key carried in an author link;
+// otherwise leave it empty so encryption defaults to the board's own key
+$('c-id-value').value = hashKey || '';
 $('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
 syncMeta();
 updateMode();
