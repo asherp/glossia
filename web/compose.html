@@ -409,8 +409,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 <script type="module">
 import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
-         seedPayloadHex, identityFromSeedPayloadHex, SEED_PAYLOAD_LEN, DEFAULT_RELAYS,
-         deriveIdentity, resolveContentKey, isNread } from './glossia-nostr.js';
+         seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
+         deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -740,20 +740,22 @@ $('c-new').addEventListener('click', (e) => {
 });
 
 let currentSeed = '';   // the seed phrase currently shown in the save dialog
-function openSaveDialog() {
+async function openSaveDialog() {
   if (!ready) { $('c-status').textContent = 'Engine still loading — try again in a moment.'; return; }
+  await syncCustomKey();                       // make sure a just-typed passphrase is derived
   const id = boardIdentity();
   try {
-    currentSeed = encodeSeedPhrase(seedPayloadHex(id), $('c-lang').value).prose;
+    // a custom read key rides along in the seed (extended layout) so loading restores it too
+    currentSeed = encodeSeedPhrase(seedPayloadHex(id, customActive() ? customKey.readKey : null), $('c-lang').value).prose;
     $('c-seed-prose').textContent = currentSeed;
   } catch (e) {
     currentSeed = '';
     $('c-seed-prose').textContent = 'Could not render the seed phrase — ' + (e.message || e);
   }
   $('c-seed-npub').textContent = shortNpub(id.npub);
-  // when a custom passphrase is set, note that it's separate from the signing key
+  // the seed carries the custom read key too, so loading it restores full access
   $('c-seed-note').textContent = customActive()
-    ? 'This restores the board’s signing key. Its custom read key is separate — keep the reader link (or passphrase) too, or readers can’t decrypt.'
+    ? 'This carries the board’s signing key and its custom read key, so loading it restores full access — publishing and decrypting.'
     : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
   showModal('save');
 }
@@ -771,17 +773,19 @@ $('c-seed-download').addEventListener('click', () => {
 });
 
 $('c-load').addEventListener('click', () => { $('c-load-err').textContent = ''; $('c-seed-input').value = ''; showModal('load'); });
-// Decode a pasted seed phrase back into a board identity. The language is
-// unknown, so try the detected one first, then each supported language; the
-// checksum rejects a wrong-language decode, so the first that verifies wins.
-function identityFromSeed(prose) {
+// Decode a pasted seed phrase back into a board. The language is unknown, so try
+// the detected one first, then each supported language; decode ALL payload words
+// (count 0) and let the payload length pick the layout — the checksum rejects a
+// wrong-language decode, so the first that verifies wins. Returns { identity,
+// readKey } (readKey is null for a signing-key-only seed).
+function boardFromSeed(prose) {
   const seen = new Set();
   for (const lang of [detectLang(prose), 'english', 'latin', 'czech']) {
     if (seen.has(lang)) continue;
     seen.add(lang);
     try {
-      const { hex } = decodeSeedPhrase(prose, SEED_PAYLOAD_LEN, lang);
-      return identityFromSeedPayloadHex(hex);
+      const { hex } = decodeSeedPhrase(prose, 0, lang);   // 0 = decode all; length selects the layout
+      return parseSeedPayloadHex(hex);
     } catch { /* try the next language */ }
   }
   throw new Error('Could not read that seed phrase — check the words and try again.');
@@ -791,21 +795,25 @@ $('c-load-go').addEventListener('click', () => {
   const text = $('c-seed-input').value.trim();
   if (!text) { $('c-load-err').textContent = 'Paste a seed phrase first.'; return; }
   if (!ready) { $('c-load-err').textContent = 'Engine still loading — try again in a moment.'; return; }
-  let id;
-  try { id = identityFromSeed(text); }
+  let board;
+  try { board = boardFromSeed(text); }
   catch (e) { $('c-load-err').textContent = e.message || String(e); return; }
-  restoreBoard(id);
+  restoreBoard(board.identity, board.readKey);
   closeModal();
-  $('c-status').textContent = 'Board restored from its seed phrase — you can publish to it again.';
+  $('c-status').textContent = board.readKey
+    ? 'Board and its custom read key restored — you can publish again and readers can decrypt.'
+    : 'Board restored from its seed phrase — you can publish to it again.';
 });
 
-// Switch the whole page over to a restored board: adopt its identity, reset the
-// credential to that board's default, and refresh links, address bar, preview.
-function restoreBoard(id) {
+// Switch the whole page over to a restored board: adopt its identity, restore its
+// custom read key if the seed carried one (else fall back to the board key), and
+// refresh links, address bar, preview.
+function restoreBoard(id, readKey = null) {
   applyLoadedIdentity(id);
-  hashKey = '';                                 // a seed carries only the signing key
-  $('c-id-value').value = '';                   // no custom passphrase → use the board key
-  customKey = null; customKeyPass = null;       // drop any custom read key
+  hashKey = '';                                 // the seed itself carries the keys, not the hash
+  $('c-id-value').value = '';                   // a seed never carries a typed passphrase
+  if (readKey && readKey.length === 32) { customKey = { readKey, nread: nreadFromKey(readKey) }; customKeyPass = null; }
+  else { customKey = null; customKeyPass = null; }
   showEntropy('');
   $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
   $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
