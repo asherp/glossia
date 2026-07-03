@@ -251,7 +251,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
           <div class="row">
             <input type="password" id="c-id-value" autocomplete="new-password" placeholder="defaults to this board's key (hash of the nwrite) — type to override" spellcheck="false">
             <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
-            <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
           </div>
           <div class="entropy" id="c-entropy"></div>
 
@@ -401,7 +400,6 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
          seedPayloadHex, seedFromPayloadHex, DEFAULT_RELAYS } from './glossia-nostr.js';
-import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
 let ready = false;
@@ -485,7 +483,7 @@ document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click'
   navigator.clipboard.writeText(link).catch(() => {});
 }));
 
-const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
+const ENGINE_BTNS = ['c-publish'];
 function setEngine(state, msg) {
   const disabled = state !== 'ready';
   ENGINE_BTNS.forEach(id => { $(id).disabled = disabled; });
@@ -555,23 +553,6 @@ $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', schedulePreview);
 
 // ── board passphrase ──────────────────────────────────────────────────
-// The board's signing key is derived from this passphrase, so the same
-// passphrase always reaches the same board. The 🎲 fills a strong one.
-function genPassphrase() {
-  try { const w = JSON.parse(random_words(9, 'latin', 'default', BigInt(Date.now()))); return Array.isArray(w) ? w.join(' ') : ''; }
-  catch { return ''; }
-}
-$('c-id-gen').addEventListener('click', () => {
-  const p = genPassphrase();
-  if (!p) { $('c-status').textContent = 'Could not generate a passphrase — is the engine ready?'; return; }
-  $('c-id-value').value = p;
-  showEntropy(p);
-  updateMode();
-  updateLinks();
-  writeHash();
-  schedulePreview();
-  $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
-});
 function estimateBits(p) {
   p = p.trim(); if (!p) return 0;
   const words = p.split(/\s+/);
