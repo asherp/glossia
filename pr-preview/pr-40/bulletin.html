@@ -111,6 +111,8 @@ body[data-style="letterpress"] .keybar input:focus { border-bottom-color:var(--a
 .settings label { display:block; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:16px 0 7px; }
 .settings input { width:100%; background:var(--input-bg); color:var(--ink); border:1px solid var(--input-bd); border-radius:var(--radius); font:400 13px/1.5 'IBM Plex Mono',monospace; padding:9px 11px; }
 .settings input:focus { outline:none; border-color:var(--accent); }
+.settings .hl-check { display:flex; align-items:center; gap:9px; text-transform:none; letter-spacing:0; color:var(--ink); font:400 13px/1.4 'Public Sans',sans-serif; cursor:pointer; }
+.settings .hl-check input { width:auto; margin:0; }
 .mini-btn { flex:0 0 auto; background:var(--accent); color:#faf8f3; border:none; border-radius:var(--radius); padding:10px 16px; font:600 12px/1 'Public Sans',sans-serif; letter-spacing:.02em; cursor:pointer; }
 .mini-btn:hover { filter:brightness(.92); }
 .mini-btn:disabled { opacity:.5; cursor:not-allowed; }
@@ -133,10 +135,13 @@ body[data-style="letterpress"] .b-prose { font:italic 300 20px/1.72 'Spectral',s
 body[data-style="midnight"]    .b-prose { font:300 21px/1.7 'Newsreader',serif; }
 body[data-style="terminal"]    .b-prose { font:400 14px/1.75 'IBM Plex Mono',monospace; }
 
-.pw { color:var(--ink); }
-body[data-style="letterpress"] .pw { font-weight:600; font-style:normal; }
-body[data-style="midnight"]    .pw { font-weight:500; color:#f4efe4; }
-body[data-style="terminal"]    .pw { font-weight:600; border-bottom:1px dotted #9a937f; }
+/* payload words read as plain prose by default; the "highlight payload words"
+   setting (body[data-hl="on"]) emphasizes them per reading style */
+.pw { color:inherit; font:inherit; border-bottom:none; }
+body[data-hl="on"] .pw { color:var(--ink); }
+body[data-hl="on"][data-style="letterpress"] .pw { font-weight:600; font-style:normal; }
+body[data-hl="on"][data-style="midnight"]    .pw { font-weight:500; color:#f4efe4; }
+body[data-hl="on"][data-style="terminal"]    .pw { font-weight:600; border-bottom:1px dotted #9a937f; }
 
 .b-attr { color:var(--dim); }
 body[data-style="letterpress"] .b-attr { text-align:right; font:italic 400 14px/1.4 'Spectral',serif; margin-top:8px; }
@@ -175,7 +180,7 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
 .hidden { display:none !important; }
 </style>
 </head>
-<body data-style="letterpress">
+<body data-style="letterpress" data-hl="off">
 <div class="wrap">
   <div class="board">
     <!-- masthead -->
@@ -214,6 +219,8 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
         <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
       </div>
 
+      <label class="hl-check"><input type="checkbox" id="r-hl"> Highlight payload words</label>
+
       <label for="r-relays">Relays</label>
       <input type="text" id="r-relays" autocomplete="off" spellcheck="false">
     </details>
@@ -251,6 +258,15 @@ function applyStyle(style, { persist = true } = {}) {
 }
 document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
+
+// ── highlight payload words (off by default) ──────────────────────────
+// Pure CSS toggle via body[data-hl]; persisted in the URL like the reading style.
+function applyHl(on, { persist = true } = {}) {
+  document.body.dataset.hl = on ? 'on' : 'off';
+  $('r-hl').checked = on;
+  if (persist) writeHash();
+}
+$('r-hl').addEventListener('change', () => applyHl($('r-hl').checked));
 
 // ── engine load state ─────────────────────────────────────────────────
 function setEngine(state, msg) {
@@ -293,6 +309,7 @@ function writeHash() {
   const parts = [];
   if (npub) parts.push(npub[0]);
   parts.push('style=' + currentStyle());
+  if (document.body.dataset.hl === 'on') parts.push('hl=1');
   // keep the decryption key in the URL so a reader can bookmark the unlocked page
   const key = $('r-key').value.trim();
   if (key) parts.push('key=' + encodeURIComponent(key));
@@ -305,6 +322,7 @@ function routeFromHash() {
   h = h.trim();
   const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
   applyStyle(styleM ? styleM[1].toLowerCase() : 'letterpress', { persist: false });
+  applyHl(/(?:^|&)hl=1(?:&|$)/i.test(raw), { persist: false });   // off unless the link says on
   // a decryption key embedded in the link (the "reader link + key") unlocks on open
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { let k = keyM[1]; try { k = decodeURIComponent(k); } catch { /* keep */ } $('r-key').value = k; }
@@ -433,6 +451,7 @@ $('r-key').addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTi
 (function initStyle() {
   const m = (location.hash || '').match(/style=(letterpress|midnight|terminal)/i);
   applyStyle(m ? m[1].toLowerCase() : 'letterpress', { persist: false });
+  applyHl(/(?:^|&)hl=1(?:&|$)/i.test(location.hash || ''), { persist: false });
 })();
 </script>
 </body>
