@@ -246,12 +246,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           </summary>
 
           <label>Passphrase <span class="muted">(optional — overrides the board key)</span></label>
-          <div class="row">
-            <input type="password" id="c-id-value" autocomplete="new-password" placeholder="defaults to this board's key (hash of the nwrite) — type to override" spellcheck="false">
-            <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
-            <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
-          </div>
-          <div class="entropy" id="c-entropy"></div>
+          <button type="button" class="btn sm" id="c-pass-btn">Set passphrase</button>
+          <div class="entropy" id="c-pass-state"></div>
 
           <label>Prose language</label>
           <select id="c-lang">
@@ -342,14 +338,14 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         an <strong>author link</strong> that lets you publish, and a <strong>read key</strong> that lets readers decrypt.
         All three come from one secret, so there's no separate password to set. Every message is encrypted and encoded into
         Glossia prose before it's published — share a <strong>reader link</strong> (or the read key) for read-only access,
-        and keep your author link to keep posting. Prefer a shared secret? Set a passphrase, and readers decrypt with that
-        instead of the read key.
+        and keep your author link to keep posting. Prefer a memorable secret? Set a passphrase — it derives this board's
+        read key, so the reader link still unlocks it and anyone who knows the passphrase can decrypt too.
       </div>
 
       <div class="foot">
-        Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
-        so a wrong key or tampering fails cleanly. The board's signing key has full entropy; a custom passphrase is only as
-        strong as you make it (generated ones target ≥128 bits).
+        Glossia is <strong>not steganography</strong>. It does not try to hide the fact that data is encoded. By avoiding
+        the constraints of steganographic techniques, Glossia can use a much more compact and efficient encoding while
+        remaining human-readable.
       </div>
     </div>
 
@@ -364,7 +360,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
           </div>
         </div>
-        <button type="button" class="btn block" id="c-publish" disabled>Encode &amp; publish</button>
+        <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
         <div class="hint" id="c-status" style="margin-top:10px"></div>
         <div class="err" id="c-err"></div>
       </div>
@@ -406,10 +402,31 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
   </div>
 </div>
 
+<!-- Set / update the board passphrase -->
+<div class="modal-overlay hidden" id="c-pass-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button type="button" class="modal-x" id="c-pass-close" aria-label="Close">&times;</button>
+    <h2 class="modal-title" id="c-pass-title">Set a passphrase</h2>
+    <p class="modal-lead">A passphrase overrides the board key — it derives this board's read key, so the reader link still
+      unlocks it and anyone who knows the passphrase can decrypt too. Leave it empty to use the board's own key.</p>
+    <div class="row">
+      <input type="password" id="c-id-value" autocomplete="new-password" placeholder="type a passphrase, or use 🎲" spellcheck="false">
+      <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
+      <button type="button" class="btn sm" id="c-id-gen" title="Generate a strong passphrase">🎲</button>
+    </div>
+    <div class="entropy" id="c-entropy"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="c-pass-apply">Set passphrase</button>
+      <button type="button" class="btn sm" id="c-pass-clear">Use board key</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
-         seedPayloadHex, identityFromSeedPayloadHex, SEED_PAYLOAD_LEN, DEFAULT_RELAYS } from './glossia-nostr.js';
+         seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
+         deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
 
 const $ = (id) => document.getElementById(id);
@@ -458,23 +475,39 @@ function boardIdentity() {
 function applyLoadedIdentity(id) {
   nsecIdentity = id;
 }
-// The passphrase field is left EMPTY by default — the placeholder explains that
-// encryption then falls back to the board's own key. Any non-empty value is a
-// custom passphrase override. (We never write the read key into the field: it is
-// the board's secret, not something to surface in an input.)
-function overridePass() {
-  return $('c-id-value').value.trim();
+// A custom passphrase never travels in a link. Instead we derive a board identity
+// from it (deterministic, fixed-salt PBKDF2) and take its read key — a 32-byte
+// content key encoded as nread1…, exactly like the default board key. The link
+// carries that nread; a reader with only the passphrase re-derives the same key.
+// customKey holds the derived (or link/seed-loaded) read key; customKeyPass records
+// the passphrase it came from (null when only the key is known, e.g. from a seed).
+let customKey = null;        // { readKey: Uint8Array(32), nread: string } | null
+let customKeyPass = null;    // passphrase customKey was derived from, or null
+// Apply a passphrase from the passphrase dialog: derive its read key (or clear the
+// custom key when empty). Deriving runs PBKDF2 (200k), so it's awaited on commit,
+// not on every keystroke.
+async function applyPassphrase(pass) {
+  pass = (pass || '').trim();
+  if (!pass) { customKey = null; customKeyPass = null; return; }
+  const id = await deriveIdentity(pass);
+  customKey = { readKey: id.readKey, nread: id.nread };
+  customKeyPass = pass;
 }
+function customActive() { return !!customKey; }
+// The active content credential (a 32-byte read key) and its shareable nread form:
+// the passphrase-derived key when custom, else the board's own read key.
+function contentKey()   { return customKey ? customKey.readKey : boardIdentity().readKey; }
+function contentNread() { return customKey ? customKey.nread   : boardIdentity().nread; }
 
-// The reader's decryption credential to embed in a key link: the board's read
-// key (nread) by default, or the custom passphrase if one is set.
-function shareCred() { return overridePass() || boardIdentity().nread; }
+// The reader's decryption credential to embed in a key link: always a read key
+// (nread) — the board's by default, or the one derived from the passphrase.
+function shareCred() { return contentNread(); }
 function readerNpubLink() { return readLink(boardIdentity().npub); }
 function readerKeyLink() { return readLink(boardIdentity().npub) + '&key=' + encodeURIComponent(shareCred()); }
 // The author link (also the bookmarkable page URL) carries the nwrite and, when a
-// custom passphrase is set, that key too — so reopening restores the board fully.
+// custom read key is set, its nread too — so reopening restores the board fully.
 function shareAuthorLink() {
-  const k = overridePass();
+  const k = customActive() ? contentNread() : '';
   return authorLink(boardIdentity().nwrite) + (k ? '&key=' + encodeURIComponent(k) : '');
 }
 const strip = (u) => u.replace(/^https?:\/\//, '');
@@ -489,12 +522,11 @@ function updateLinks() {
   // raw keys in the Advanced disclosure, kept in sync with the current board
   $('c-out-npub').textContent = boardIdentity().npub;
   $('c-out-nsec').textContent = boardIdentity().nwrite;
-  $('c-out-nread').textContent = boardIdentity().nread;
-  // the read key (nread) only decrypts the default board-key form; when a
-  // passphrase is set, readers use it instead — keep this in sync live
-  const custom = !!overridePass();
-  $('c-readkey-row').classList.toggle('hidden', custom);
-  $('c-pass-note').classList.toggle('hidden', !custom);
+  // the read key readers use: the board's own, or the one derived from the
+  // passphrase — either way an nread, and either way carried in the reader link
+  $('c-out-nread').textContent = contentNread();
+  $('c-readkey-row').classList.remove('hidden');
+  $('c-pass-note').classList.add('hidden');
 }
 document.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', () => {
   const link = b.dataset.copy === 'npub' ? readerNpubLink() : b.dataset.copy === 'key' ? readerKeyLink() : shareAuthorLink();
@@ -565,7 +597,7 @@ function syncMeta() {
 }
 // The message is always encrypted; keep the publish button label in sync.
 function updateMode() {
-  $('c-publish').textContent = 'Encode & publish';
+  $('c-publish').textContent = 'Publish';
 }
 // Encoding runs the engine (and PBKDF2 when a passphrase is set), so debounce
 // and drop stale runs. The board key is cached so retyping the message alone
@@ -579,8 +611,7 @@ async function regenPreview() {
   if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
-    const cred = overridePass() || boardIdentity().readKey;   // default = board key; override = passphrase
-    if (my !== pvToken) return;
+    const cred = contentKey();                                // board key by default; custom read key when set
     const enc = await encodeMessage(msg, cred, $('c-lang').value);
     if (my !== pvToken) return;
     const { body, attr } = splitProse(enc.prose);
@@ -597,24 +628,13 @@ $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', schedulePreview);
 
-// ── board passphrase ──────────────────────────────────────────────────
-// The board's signing key is derived from this passphrase, so the same
-// passphrase always reaches the same board. The 🎲 fills a strong one.
+// ── board passphrase (set / update via a dialog) ──────────────────────
+// The passphrase field lives in a dialog opened by the "Set / Update passphrase"
+// button; the key is derived (and links refreshed) only when the user commits.
 function genPassphrase() {
   try { const w = JSON.parse(random_words(9, 'latin', 'default', BigInt(Date.now()))); return Array.isArray(w) ? w.join(' ') : ''; }
   catch { return ''; }
 }
-$('c-id-gen').addEventListener('click', () => {
-  const p = genPassphrase();
-  if (!p) { $('c-status').textContent = 'Could not generate a passphrase — is the engine ready?'; return; }
-  $('c-id-value').value = p;
-  showEntropy(p);
-  updateMode();
-  updateLinks();
-  writeHash();
-  schedulePreview();
-  $('c-status').textContent = 'Strong passphrase generated — save it to post again.';
-});
 function estimateBits(p) {
   p = p.trim(); if (!p) return 0;
   const words = p.split(/\s+/);
@@ -629,7 +649,69 @@ function showEntropy(p) {
   el.textContent = bits ? `≈ ${bits}-bit passphrase` : '';
   el.classList.toggle('strong', bits >= 80);
 }
-$('c-id-value').addEventListener('input', (e) => { showEntropy(e.target.value); updateMode(); updateLinks(); writeHash(); schedulePreview(); });
+// The form button reflects the current state: no custom key → "Set passphrase";
+// a custom key (typed, or restored from a link/seed) → "Update passphrase".
+function updatePassButton() {
+  $('c-pass-btn').textContent = customActive() ? 'Update passphrase' : 'Set passphrase';
+  const st = $('c-pass-state');
+  if (!customActive()) {
+    st.textContent = 'Using this board’s key.'; st.classList.remove('strong');
+  } else if (customKeyPass) {
+    const b = estimateBits(customKeyPass);
+    st.textContent = `Custom passphrase set${b ? ` · ≈ ${b}-bit` : ''}.`; st.classList.toggle('strong', b >= 80);
+  } else {
+    st.textContent = 'Custom read key set (restored — passphrase not shown).'; st.classList.remove('strong');
+  }
+}
+// The dialog prefills the known passphrase (empty when only the read key is known,
+// e.g. after restoring from a seed — the passphrase can't be recovered from a key).
+function openPassModal() {
+  $('c-id-value').value = customKeyPass || '';
+  $('c-id-value').type = 'password';
+  const rev = document.querySelector('[data-reveal="c-id-value"]'); if (rev) rev.textContent = '👁';
+  showEntropy($('c-id-value').value);
+  $('c-pass-title').textContent = customActive() ? 'Update passphrase' : 'Set a passphrase';
+  $('c-pass-modal').classList.remove('hidden');
+  setTimeout(() => $('c-id-value').focus(), 0);
+}
+function closePassModal() { $('c-pass-modal').classList.add('hidden'); }
+async function commitPass(pass) {
+  await applyPassphrase(pass);
+  closePassModal();
+  updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
+  $('c-status').textContent = customActive()
+    ? 'Passphrase set — readers can decrypt with it or the reader link.'
+    : 'Using this board’s key.';
+}
+$('c-pass-btn').addEventListener('click', openPassModal);
+$('c-pass-close').addEventListener('click', closePassModal);
+$('c-pass-modal').addEventListener('click', (e) => { if (e.target === $('c-pass-modal')) closePassModal(); });
+// "Set passphrase" applies a typed value; empty is a no-op (clearing is the
+// explicit job of "Use board key", so an empty apply can't drop a restored key).
+$('c-pass-apply').addEventListener('click', () => {
+  const v = $('c-id-value').value.trim();
+  if (!v) { closePassModal(); return; }
+  commitPass(v);
+});
+$('c-pass-clear').addEventListener('click', () => commitPass(''));
+// 🎲 fills a strong passphrase into the dialog and reveals it so it can be saved;
+// it's applied when the user clicks "Set passphrase".
+$('c-id-gen').addEventListener('click', () => {
+  const p = genPassphrase();
+  if (!p) { $('c-status').textContent = 'Could not generate a passphrase — is the engine ready?'; return; }
+  $('c-id-value').value = p;
+  $('c-id-value').type = 'text';
+  const rev = document.querySelector('[data-reveal="c-id-value"]'); if (rev) rev.textContent = '🙈';
+  showEntropy(p);
+});
+// In the dialog the field only previews entropy live; the key is derived on commit.
+$('c-id-value').addEventListener('input', (e) => showEntropy(e.target.value));
+$('c-id-value').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  const v = $('c-id-value').value.trim();
+  if (v) commitPass(v); else closePassModal();
+});
 
 document.querySelectorAll('[data-reveal]').forEach(btn => btn.addEventListener('click', () => {
   const inp = $(btn.dataset.reveal);
@@ -643,7 +725,7 @@ async function buildBulletin() {
   const msg = $('c-msg').value;
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
-  const cred = overridePass() || identity.readKey;   // default = board key (hash of nwrite); override = passphrase
+  const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
   const enc = await encodeMessage(msg, cred, $('c-lang').value);
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
@@ -674,7 +756,7 @@ $('c-publish').addEventListener('click', async () => {
   finally { $('c-publish').disabled = false; }
 });
 
-$('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nread).catch(() => {}));
+$('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(contentNread()).catch(() => {}));
 $('c-copy-nsec').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nwrite).catch(() => {}));
 
 // ── save / load a board via its seed-phrase paragraph ─────────────────
@@ -689,7 +771,11 @@ function showModal(view) {
 function closeModal() { $('c-modal').classList.add('hidden'); }
 $('c-modal-close').addEventListener('click', closeModal);
 $('c-modal').addEventListener('click', (e) => { if (e.target === $('c-modal')) closeModal(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('c-modal').classList.contains('hidden')) closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('c-modal').classList.contains('hidden')) closeModal();
+  if (!$('c-pass-modal').classList.contains('hidden')) closePassModal();
+});
 
 // "+ New bulletin" resets to a fresh, unsaved board: drop the board from the URL
 // and reload, so init generates a brand-new random signing key. (The href on the
@@ -705,16 +791,17 @@ function openSaveDialog() {
   if (!ready) { $('c-status').textContent = 'Engine still loading — try again in a moment.'; return; }
   const id = boardIdentity();
   try {
-    currentSeed = encodeSeedPhrase(seedPayloadHex(id), $('c-lang').value).prose;
+    // a custom read key rides along in the seed (extended layout) so loading restores it too
+    currentSeed = encodeSeedPhrase(seedPayloadHex(id, customActive() ? customKey.readKey : null), $('c-lang').value).prose;
     $('c-seed-prose').textContent = currentSeed;
   } catch (e) {
     currentSeed = '';
     $('c-seed-prose').textContent = 'Could not render the seed phrase — ' + (e.message || e);
   }
   $('c-seed-npub').textContent = shortNpub(id.npub);
-  // when a custom passphrase is set, note that it's separate from the signing key
-  $('c-seed-note').textContent = overridePass()
-    ? 'This restores the board’s signing key. Your custom passphrase is separate — keep it too, or readers can’t decrypt.'
+  // the seed carries the custom read key too, so loading it restores full access
+  $('c-seed-note').textContent = customActive()
+    ? 'This carries the board’s signing key and its custom read key, so loading it restores full access — publishing and decrypting.'
     : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
   showModal('save');
 }
@@ -732,17 +819,19 @@ $('c-seed-download').addEventListener('click', () => {
 });
 
 $('c-load').addEventListener('click', () => { $('c-load-err').textContent = ''; $('c-seed-input').value = ''; showModal('load'); });
-// Decode a pasted seed phrase back into a board identity. The language is
-// unknown, so try the detected one first, then each supported language; the
-// checksum rejects a wrong-language decode, so the first that verifies wins.
-function identityFromSeed(prose) {
+// Decode a pasted seed phrase back into a board. The language is unknown, so try
+// the detected one first, then each supported language; decode ALL payload words
+// (count 0) and let the payload length pick the layout — the checksum rejects a
+// wrong-language decode, so the first that verifies wins. Returns { identity,
+// readKey } (readKey is null for a signing-key-only seed).
+function boardFromSeed(prose) {
   const seen = new Set();
   for (const lang of [detectLang(prose), 'english', 'latin', 'czech']) {
     if (seen.has(lang)) continue;
     seen.add(lang);
     try {
-      const { hex } = decodeSeedPhrase(prose, SEED_PAYLOAD_LEN, lang);
-      return identityFromSeedPayloadHex(hex);
+      const { hex } = decodeSeedPhrase(prose, 0, lang);   // 0 = decode all; length selects the layout
+      return parseSeedPayloadHex(hex);
     } catch { /* try the next language */ }
   }
   throw new Error('Could not read that seed phrase — check the words and try again.');
@@ -752,24 +841,27 @@ $('c-load-go').addEventListener('click', () => {
   const text = $('c-seed-input').value.trim();
   if (!text) { $('c-load-err').textContent = 'Paste a seed phrase first.'; return; }
   if (!ready) { $('c-load-err').textContent = 'Engine still loading — try again in a moment.'; return; }
-  let id;
-  try { id = identityFromSeed(text); }
+  let board;
+  try { board = boardFromSeed(text); }
   catch (e) { $('c-load-err').textContent = e.message || String(e); return; }
-  restoreBoard(id);
+  restoreBoard(board.identity, board.readKey);
   closeModal();
-  $('c-status').textContent = 'Board restored from its seed phrase — you can publish to it again.';
+  $('c-status').textContent = board.readKey
+    ? 'Board and its custom read key restored — you can publish again and readers can decrypt.'
+    : 'Board restored from its seed phrase — you can publish to it again.';
 });
 
-// Switch the whole page over to a restored board: adopt its identity, reset the
-// credential to that board's default, and refresh links, address bar, preview.
-function restoreBoard(id) {
+// Switch the whole page over to a restored board: adopt its identity, restore its
+// custom read key if the seed carried one (else fall back to the board key), and
+// refresh links, address bar, preview.
+function restoreBoard(id, readKey = null) {
   applyLoadedIdentity(id);
-  hashKey = '';                                 // a seed carries only the signing key
-  $('c-id-value').value = '';                   // no custom passphrase → use the board key
-  showEntropy('');
+  hashKey = '';                                 // the seed itself carries the keys, not the hash
+  if (readKey && readKey.length === 32) { customKey = { readKey, nread: nreadFromKey(readKey) }; customKeyPass = null; }
+  else { customKey = null; customKeyPass = null; }
   $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
   $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
-  updateMode(); updateLinks(); writeHash(); schedulePreview();
+  updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
 }
 
 // keep the share links + address bar in sync when the reading style changes
@@ -780,7 +872,7 @@ $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 // bookmark restores the same board so you can keep publishing to it. The hash
 // fragment is never sent to the server.
 function writeHash() {
-  const k = overridePass();
+  const k = customActive() ? contentNread() : '';   // carry the derived read key (nread), never the raw passphrase
   const hash = '#' + boardIdentity().nwrite + '&style=' + ($('c-style').value || 'letterpress')
     + (k ? '&key=' + encodeURIComponent(k) : '') + hlParam();
   if (location.hash !== hash) history.replaceState(null, '', hash);
@@ -814,16 +906,25 @@ mqStack.addEventListener('change', placePreview);
 placePreview();
 
 loadFromHash();
-// prefill the passphrase only with a custom key carried in an author link;
-// otherwise leave it empty so encryption defaults to the board's own key
-$('c-id-value').value = hashKey || '';
-$('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
-syncMeta();
-updateMode();
-updateLinks();
-applyStyle($('c-style').value);   // mark the default reading-style tile selected
-writeHash();                      // pin the board in the address bar so it's bookmarkable
-schedulePreview();
+// A custom read key carried in the link is either an nread (the derived/board read
+// key) or, for older links, a raw passphrase. An nread is adopted as the content
+// key directly; a raw passphrase is applied so the dialog can show it as "Update".
+(async () => {
+  if (hashKey && isNread(hashKey)) {
+    try { customKey = { readKey: await resolveContentKey(hashKey), nread: hashKey }; customKeyPass = null; }
+    catch { /* malformed nread — start from the board key */ }
+  } else if (hashKey) {
+    await applyPassphrase(hashKey);   // legacy: a raw passphrase author link
+  }
+  $('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
+  syncMeta();
+  updatePassButton();
+  updateMode();
+  updateLinks();
+  applyStyle($('c-style').value);   // mark the default reading-style tile selected
+  writeHash();                      // pin the board in the address bar so it's bookmarkable
+  schedulePreview();
+})();
 </script>
 </body>
 </html>
