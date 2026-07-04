@@ -343,9 +343,9 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
       </div>
 
       <div class="foot">
-        Glossia is a <strong>readable encoding, not steganography</strong>. Encrypted bulletins use authenticated AES-256-GCM,
-        so a wrong key or tampering fails cleanly. The board's signing key has full entropy; a custom passphrase is only as
-        strong as you make it (generated ones target ≥128 bits).
+        Glossia is <strong>not steganography</strong>. It does not try to hide the fact that data is encoded. By avoiding
+        the constraints of steganographic techniques, Glossia can use a much more compact and efficient encoding while
+        remaining human-readable.
       </div>
     </div>
 
