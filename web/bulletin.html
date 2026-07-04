@@ -176,6 +176,14 @@ body[data-hl="on"][data-style="letterpress"] .pw { font-weight:600; font-style:n
 body[data-hl="on"][data-style="midnight"]    .pw { font-weight:500; color:#f4efe4; }
 body[data-hl="on"][data-style="terminal"]    .pw { font-weight:600; border-bottom:1px dotted #9a937f; }
 
+/* "show cover words" setting (body[data-cover]): on → the full natural-language
+   prose; off → only the payload words (the raw encoded tokens), with the cover
+   words and the attribution dropped */
+.b-prose-bare { word-spacing:.14em; }
+body[data-cover="on"]  .b-prose-bare { display:none; }
+body[data-cover="off"] .b-prose-full { display:none; }
+body[data-cover="off"] .b-attr { display:none; }
+
 .b-attr { color:var(--dim); }
 body[data-style="letterpress"] .b-attr { text-align:right; font:italic 400 14px/1.4 'Spectral',serif; margin-top:8px; }
 body[data-style="midnight"]    .b-attr { text-align:right; font:italic 300 15px/1.4 'Newsreader',serif; margin-top:9px; }
@@ -214,7 +222,7 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
 .hidden { display:none !important; }
 </style>
 </head>
-<body data-style="letterpress" data-hl="off">
+<body data-style="letterpress" data-hl="off" data-cover="on">
 <div class="wrap">
   <div class="board">
     <!-- masthead -->
@@ -271,6 +279,7 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
         <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
       </div>
 
+      <label class="hl-check"><input type="checkbox" id="r-cover" checked> Show cover words</label>
       <label class="hl-check"><input type="checkbox" id="r-hl"> Highlight payload words</label>
 
       <label for="r-relays">Relays</label>
@@ -320,6 +329,16 @@ function applyHl(on, { persist = true } = {}) {
 }
 $('r-hl').addEventListener('change', () => applyHl($('r-hl').checked));
 
+// ── show cover words (on by default) ──────────────────────────────────
+// Pure CSS toggle via body[data-cover]: off shows only the payload words.
+// Persisted in the URL like the reading style; only written when turned OFF.
+function applyCover(on, { persist = true } = {}) {
+  document.body.dataset.cover = on ? 'on' : 'off';
+  $('r-cover').checked = on;
+  if (persist) writeHash();
+}
+$('r-cover').addEventListener('change', () => applyCover($('r-cover').checked));
+
 // ── engine load state ─────────────────────────────────────────────────
 function setEngine(state, msg) {
   $('r-load').disabled = state !== 'ready';
@@ -338,6 +357,12 @@ function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': 
 function boldPayload(text, words) {
   const set = new Set((words || []).map(w => w.toLowerCase()));
   return escapeHtml(text).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<b class="pw">${w}</b>` : w);
+}
+// the payload words alone, in order — the raw encoded tokens, cover words dropped
+function payloadOnly(text, words) {
+  const set = new Set((words || []).map(w => w.toLowerCase()));
+  const kept = (text.match(/[A-Za-zÀ-ÿ]+/g) || []).filter(w => set.has(w.toLowerCase()));
+  return escapeHtml(kept.join(' '));
 }
 // split "<body> — <attribution>" for display
 function splitProse(text) {
@@ -363,6 +388,7 @@ function writeHash() {
   if (npub) parts.push(npub[0]);
   parts.push('style=' + currentStyle());
   if (document.body.dataset.hl === 'on') parts.push('hl=1');
+  if (document.body.dataset.cover === 'off') parts.push('cover=0');   // on by default
   // keep the decryption key in the URL so a reader can bookmark the unlocked page
   const key = $('r-key').value.trim();
   if (key) parts.push('key=' + encodeURIComponent(key));
@@ -376,6 +402,7 @@ function routeFromHash() {
   const styleM = h.match(/style=(letterpress|midnight|terminal)/i);
   applyStyle(styleM ? styleM[1].toLowerCase() : 'letterpress', { persist: false });
   applyHl(/(?:^|&)hl=1(?:&|$)/i.test(raw), { persist: false });   // off unless the link says on
+  applyCover(!/(?:^|&)cover=0(?:&|$)/i.test(raw), { persist: false });   // on unless the link says off
   // a decryption key embedded in the link (the "reader link + key") unlocks on open
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { let k = keyM[1]; try { k = decodeURIComponent(k); } catch { /* keep */ } $('r-key').value = k; }
@@ -433,23 +460,25 @@ async function renderBulletin(ev, creds) {
     // Unlocked: bold the body's payload words, show the attribution, reveal the plaintext.
     const { body, attr } = splitProse(dec.prose);
     const proseHtml = boldPayload(body, dec.payloadWords);
+    const bareHtml = payloadOnly(body, dec.payloadWords);
     const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
     const decoded = `<div class="b-decoded"><div class="b-decoded-label">decoded</div><div class="b-decoded-text">${escapeHtml(dec.message)}</div></div>`;
     // Unlocked bulletins start open (unlock icon). The toggle re-hides the
     // plaintext in place and swaps back to the closed lock.
     const toggle = `<button type="button" class="b-lock b-toggle" data-toggle title="Hide the decoded message">${ICON_LOCK}${ICON_UNLOCK}</button>`;
     const shareOne = `<button type="button" class="b-lock b-share" data-share-ev="${ev.id}" title="Share this dispatch">${ICON_SHARE}</button>`;
-    return { unlocked: true, encrypted: !!dec.encrypted, html: `<article class="bulletin is-open">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}<div class="b-actions">${shareOne}${toggle}</div></article>` };
+    return { unlocked: true, encrypted: !!dec.encrypted, html: `<article class="bulletin is-open">${meta}<p class="b-prose b-prose-full">${proseHtml}</p><p class="b-prose b-prose-bare">${bareHtml}</p>${attrHtml}${decoded}<div class="b-actions">${shareOne}${toggle}</div></article>` };
   }
 
   // Locked: skim the prose (no key needed) so payload words still read as emphasis.
   const skim = skimArtifact(ev.content);
   const { body, attr } = splitProse(skim.prose);
   const proseHtml = boldPayload(body, skim.payloadWords);
+  const bareHtml = payloadOnly(body, skim.payloadWords);
   const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
   const lock = `<button type="button" class="b-lock" data-lock title="Add a decryption key to unlock">${ICON_LOCK}</button>`;
   const shareOne = `<button type="button" class="b-lock b-share" data-share-ev="${ev.id}" title="Share this dispatch">${ICON_SHARE}</button>`;
-  return { unlocked: false, encrypted: !!skim.encrypted, html: `<article class="bulletin">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}<div class="b-actions">${shareOne}${lock}</div></article>` };
+  return { unlocked: false, encrypted: !!skim.encrypted, html: `<article class="bulletin">${meta}<p class="b-prose b-prose-full">${proseHtml}</p><p class="b-prose b-prose-bare">${bareHtml}</p>${attrHtml}<div class="b-actions">${shareOne}${lock}</div></article>` };
 }
 
 // clicking a lock (no key yet) focuses the key field and explains why it's
@@ -637,6 +666,7 @@ shareMenu.addEventListener('click', async (e) => {
   const m = (location.hash || '').match(/style=(letterpress|midnight|terminal)/i);
   applyStyle(m ? m[1].toLowerCase() : 'letterpress', { persist: false });
   applyHl(/(?:^|&)hl=1(?:&|$)/i.test(location.hash || ''), { persist: false });
+  applyCover(!/(?:^|&)cover=0(?:&|$)/i.test(location.hash || ''), { persist: false });
 })();
 </script>
 </body>
