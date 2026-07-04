@@ -5,6 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glossia Bulletin — read an encrypted board</title>
 <meta name="description" content="Open a Glossia bulletin board by its #npub and decrypt it with a read key or passphrase. A static page that reads encrypted messages published as natural-language prose on nostr — in your choice of reading style.">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+<!-- Social / rich unfurl. The board id lives in the URL fragment, so crawlers
+     see this generic card; the card describes what a Glossia bulletin board is. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Glossia">
+<meta property="og:title" content="Glossia Bulletin — read an encrypted board">
+<meta property="og:description" content="Encrypted messages published as natural-language prose on nostr. Open the board, add a read key or passphrase, and read it in your choice of style.">
+<meta property="og:url" content="https://glossia.io/bulletin.html">
+<meta property="og:image" content="https://glossia.io/og-bulletin.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A Glossia bulletin — an encrypted dispatch rendered as natural-language prose.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glossia Bulletin — read an encrypted board">
+<meta name="twitter:description" content="Encrypted messages published as natural-language prose on nostr. Open the board, add a read key, and read it in your choice of style.">
+<meta name="twitter:image" content="https://glossia.io/og-bulletin.png">
 <!-- Resolve the vendored @noble crypto (schnorr / sha256 / bech32 deps) for the
      browser's native ES module loader. These files are the audited @noble ESM
      builds, vendored under ./vendor/noble so the page stays offline-capable. -->
@@ -72,6 +89,20 @@ body[data-style="midnight"] .board { box-shadow: 0 24px 60px -30px rgba(0,0,0,.7
 .brand { font:600 12.5px/1 var(--brand-font); letter-spacing:var(--brand-ls); text-transform:uppercase; color:var(--ink); }
 .compose-link { font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color:var(--accent); text-decoration:none; }
 .compose-link:hover { text-decoration:underline; }
+.masthead-actions { display:flex; align-items:center; gap:16px; }
+
+/* share button + menu — shares the PUBLIC board link (no decryption key) */
+.share-wrap { position:relative; }
+.share-btn { display:inline-flex; align-items:center; gap:6px; background:transparent; border:1.5px solid var(--rule); border-radius:calc(var(--radius) + 3px); color:var(--dim); font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; padding:7px 11px; cursor:pointer; transition:border-color .2s, color .2s; }
+.share-btn svg { width:13px; height:13px; }
+.share-btn:hover:not(:disabled) { color:var(--ink); border-color:var(--accent); }
+.share-btn[aria-expanded="true"] { color:var(--ink); border-color:var(--accent); }
+.share-btn:disabled { opacity:.4; cursor:not-allowed; }
+.share-menu { position:absolute; top:calc(100% + 8px); right:0; z-index:20; min-width:172px; background:var(--card); border:1px solid var(--card-bd); border-radius:calc(var(--radius) + 4px); box-shadow:0 18px 44px -20px rgba(20,18,14,.55); padding:6px; display:flex; flex-direction:column; animation:reveal .18s ease both; }
+body[data-style="midnight"] .share-menu { box-shadow:0 18px 44px -18px rgba(0,0,0,.75); }
+.share-menu button { text-align:left; background:transparent; border:none; border-radius:var(--radius); color:var(--ink-soft); font:500 12.5px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; padding:9px 11px; cursor:pointer; transition:background .15s, color .15s; }
+.share-menu button:hover { background:var(--rule); color:var(--ink); }
+.share-sep { height:1px; background:var(--rule); margin:5px 6px; }
 
 /* reading-style switch */
 .style-switch { display:flex; gap:6px; margin-top:8px; }
@@ -186,7 +217,25 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
     <!-- masthead -->
     <div class="masthead">
       <span class="brand">Glossia Bulletin</span>
-      <a class="compose-link" href="./compose.html">compose →</a>
+      <div class="masthead-actions">
+        <div class="share-wrap">
+          <button type="button" class="share-btn" id="r-share" aria-haspopup="menu" aria-expanded="false" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
+            Share
+          </button>
+          <div class="share-menu hidden" id="r-share-menu" role="menu" aria-label="Share this board">
+            <button type="button" role="menuitem" data-share="native" class="hidden">Share…</button>
+            <button type="button" role="menuitem" data-share="copy">Copy link</button>
+            <div class="share-sep"></div>
+            <button type="button" role="menuitem" data-share="x">X / Twitter</button>
+            <button type="button" role="menuitem" data-share="nostr">Nostr</button>
+            <button type="button" role="menuitem" data-share="mastodon">Mastodon</button>
+            <button type="button" role="menuitem" data-share="reddit">Reddit</button>
+            <button type="button" role="menuitem" data-share="facebook">Facebook</button>
+          </div>
+        </div>
+        <a class="compose-link" href="./compose.html">compose →</a>
+      </div>
     </div>
 
     <!-- board id: the board's npub, shown at the top as its identifier -->
@@ -329,6 +378,7 @@ function routeFromHash() {
   const m = h.match(/npub1[0-9a-z]+/i);
   if (m && isNpub(m[0])) { $('r-npub').value = m[0]; loadBoard(); }
   else { $('r-npub').focus(); }   // no board yet — prompt for the id at the top
+  updateShareState();
 }
 window.addEventListener('hashchange', routeFromHash);
 
@@ -415,6 +465,7 @@ async function loadBoard() {
   const m = $('r-npub').value.trim().match(/npub1[0-9a-z]+/i);
   if (!m || !isNpub(m[0])) { $('r-err').textContent = 'Enter a valid npub.'; $('r-npub').focus(); return; }
   const npub = m[0];
+  updateShareState();
   const relays = parseRelays($('r-relays').value);
   if (!relays.length) { $('r-err').textContent = 'Add at least one wss:// relay.'; return; }
   $('r-status').textContent = 'Querying ' + relays.length + ' relays…';
@@ -434,6 +485,7 @@ async function loadBoard() {
 }
 $('r-load').addEventListener('click', loadBoard);
 $('r-npub').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadBoard(); });
+$('r-npub').addEventListener('input', updateShareState);
 
 // typing the key re-decrypts the loaded bulletins in place (debounced — each
 // attempt runs PBKDF2)
@@ -445,6 +497,80 @@ $('r-key').addEventListener('input', () => {
   keyTimer = setTimeout(() => { if (loadedEvents.length) renderLoaded(); }, 350);
 });
 $('r-key').addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTimeout(keyTimer); renderLoaded(); } });
+
+// ── share: publish the PUBLIC board link (never the decryption key) ─────
+// Shares carry only the npub + reading style. The decryption key that may be
+// in this page's own URL is deliberately dropped so a shared link can't leak it.
+const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
+function publicBoardLink() {
+  const m = $('r-npub').value.trim().match(/npub1[0-9a-z]+/i);
+  if (!m) return null;
+  const parts = [m[0], 'style=' + currentStyle()];
+  if (document.body.dataset.hl === 'on') parts.push('hl=1');
+  return location.origin + location.pathname + '#' + parts.join('&');
+}
+function updateShareState() {
+  const ok = /npub1[0-9a-z]+/i.test($('r-npub').value.trim());
+  $('r-share').disabled = !ok;
+  if (!ok) closeShareMenu();
+}
+
+const shareBtn = $('r-share');
+const shareMenu = $('r-share-menu');
+function openShareMenu() { shareMenu.classList.remove('hidden'); shareBtn.setAttribute('aria-expanded', 'true'); }
+function closeShareMenu() { shareMenu.classList.add('hidden'); shareBtn.setAttribute('aria-expanded', 'false'); }
+// the native share sheet is only offered where the Web Share API exists
+if (navigator.share) shareMenu.querySelector('[data-share="native"]').classList.remove('hidden');
+
+shareBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (shareBtn.disabled) return;
+  shareMenu.classList.contains('hidden') ? openShareMenu() : closeShareMenu();
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.share-wrap')) closeShareMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeShareMenu(); });
+
+function flashShare(msg) {
+  if (!shareBtn.dataset.html) shareBtn.dataset.html = shareBtn.innerHTML;   // preserve the icon markup
+  shareBtn.textContent = msg;
+  setTimeout(() => { shareBtn.innerHTML = shareBtn.dataset.html; }, 1500);
+}
+
+shareMenu.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-share]');
+  if (!btn) return;
+  const url = publicBoardLink();
+  if (!url) return;
+  closeShareMenu();
+  const enc = encodeURIComponent;
+  const kind = btn.dataset.share;
+
+  if (kind === 'native') {
+    try { await navigator.share({ title: 'Glossia bulletin board', text: SHARE_TEXT, url }); } catch { /* share cancelled */ }
+    return;
+  }
+  if (kind === 'copy') {
+    navigator.clipboard.writeText(url).then(() => flashShare('Copied ✓')).catch(() => {});
+    return;
+  }
+  if (kind === 'nostr') {
+    // there's no universal nostr web-share intent — copy the note (text + link)
+    // so it can be pasted into any nostr client, which is where the board lives
+    navigator.clipboard.writeText(SHARE_TEXT + '\n\n' + url).then(() => flashShare('Copied for nostr ✓')).catch(() => {});
+    return;
+  }
+  let target = null;
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(SHARE_TEXT) + '&url=' + enc(url);
+  else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(SHARE_TEXT);
+  else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
+  else if (kind === 'mastodon') {
+    const instance = (prompt('Share to which Mastodon instance?', 'mastodon.social') || '')
+      .trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (!instance) return;
+    target = 'https://' + instance + '/share?text=' + enc(SHARE_TEXT + ' ' + url);
+  }
+  if (target) window.open(target, '_blank', 'noopener,noreferrer');
+});
 
 // apply the reading style from the hash immediately — even before the engine
 // loads (or if it fails), the board still reads in the shared style
