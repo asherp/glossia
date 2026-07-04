@@ -131,6 +131,8 @@ export function isNwrite(s) { try { nwriteToHex(s); return true; } catch { retur
 export function nreadEncode(keyHex) { return encodeBech32Entity('nread', keyHex); }
 export function nreadToHex(nread) { return decodeBech32Entity('nread', nread.trim()); }
 export function isNread(s) { try { nreadToHex(s); return true; } catch { return false; } }
+// A 32-byte read key (Uint8Array) -> its nread1… string.
+export function nreadFromKey(readKey) { return nreadEncode(bytesToHex(readKey)); }
 
 // ─── identity: passphrase -> deterministic secp256k1 keypair ──────────
 const IDENTITY_SALT = TE.encode('glossia/nostr-identity/v1');
@@ -172,32 +174,63 @@ export function identityFromSk(sk) {
   };
 }
 
-// ─── seed phrase: a board's signing key ⇆ a checksummed hex payload ────
-// A board can be "saved" as a Glossia seed phrase — its 32-byte signing key
-// rendered as readable prose (the prose rendering lives in glossia-msg.js). We
-// append a short checksum here so a transcription error (a mistyped word) is
-// caught on load instead of silently restoring a different board. Layout:
-//   [signing key : 32][checksum : 4]     checksum = sha256(signing key)[..4]
+// ─── seed phrase: a board's keys ⇆ a checksummed hex payload ───────────
+// A board can be "saved" as a Glossia seed phrase — its keys rendered as readable
+// prose (the prose rendering lives in glossia-msg.js). We append a short checksum
+// so a transcription error (a mistyped word) is caught on load instead of silently
+// restoring a different board. The PAYLOAD LENGTH selects the layout:
+//   36 = [signing key : 32][checksum : 4]                 — signing key only
+//   68 = [signing key : 32][read key : 32][checksum : 4]  — + a custom read key
+// A custom (passphrase-derived) read key can't be recovered from the signing key,
+// so when one is set it rides along in the seed; loading reads the length to tell
+// the two apart. The checksum always covers everything before it.
 const SEED_CHECK_LEN = 4;
-export const SEED_PAYLOAD_LEN = 32 + SEED_CHECK_LEN;   // decodeSeedPhrase's byte count
+export const SEED_PAYLOAD_LEN = 32 + SEED_CHECK_LEN;              // 36: signing key only
+export const SEED_PAYLOAD_LEN_EXT = 32 + 32 + SEED_CHECK_LEN;    // 68: + custom read key
 
-// The checksummed seed payload (hex) for an identity — feed to encodeSeedPhrase.
-export function seedPayloadHex(identity) {
-  const sk = identity.sk;
-  const sum = sha256(sk).subarray(0, SEED_CHECK_LEN);
-  return bytesToHex(concatBytes(sk, sum));
+function seedChecksum(material) { return sha256(material).subarray(0, SEED_CHECK_LEN); }
+function bytesEq(a, b) {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
 }
 
-// Parse a checksummed seed payload (hex) back into an identity. Throws if the
-// payload is too short or the checksum fails (a mistyped / garbled seed phrase).
-export function identityFromSeedPayloadHex(hex) {
+// The checksummed seed payload (hex) for an identity — feed to encodeSeedPhrase.
+// Pass a 32-byte custom read key to embed it too (the extended, 68-byte layout).
+export function seedPayloadHex(identity, readKey = null) {
+  const sk = identity.sk;
+  const material = (readKey && readKey.length === 32) ? concatBytes(sk, readKey) : sk;
+  return bytesToHex(concatBytes(material, seedChecksum(material)));
+}
+
+// Parse a checksummed seed payload (hex) back into a board. Returns
+// { identity, readKey } — readKey is a Uint8Array(32) for the extended layout, or
+// null for the signing-key-only layout. The decoder may append a byte or two of
+// bit-pack padding, so the payload bytes are read as a PREFIX and the layout is
+// chosen by length (extended first) and confirmed by the checksum. Throws if
+// neither layout's checksum verifies (a mistyped / garbled / wrong-language seed).
+export function parseSeedPayloadHex(hex) {
   const bytes = hexToBytes((hex || '').trim().toLowerCase());
-  if (bytes.length < SEED_PAYLOAD_LEN) throw new Error('seed phrase too short');
-  const sk = bytes.slice(0, 32);
-  const got = bytes.subarray(32, SEED_PAYLOAD_LEN);
-  const want = sha256(sk).subarray(0, SEED_CHECK_LEN);
-  for (let i = 0; i < SEED_CHECK_LEN; i++) if (got[i] !== want[i]) throw new Error('seed phrase checksum failed');
-  return identityFromSk(sk);
+  // extended (longer, more specific): [sk:32][readKey:32][sum:4]
+  if (bytes.length >= SEED_PAYLOAD_LEN_EXT) {
+    const material = bytes.subarray(0, 64);
+    if (bytesEq(bytes.subarray(64, SEED_PAYLOAD_LEN_EXT), seedChecksum(material))) {
+      return { identity: identityFromSk(bytes.slice(0, 32)), readKey: bytes.slice(32, 64) };
+    }
+  }
+  // base: [sk:32][sum:4]
+  if (bytes.length >= SEED_PAYLOAD_LEN) {
+    const sk = bytes.slice(0, 32);
+    if (bytesEq(bytes.subarray(32, SEED_PAYLOAD_LEN), seedChecksum(sk))) {
+      return { identity: identityFromSk(sk), readKey: null };
+    }
+  }
+  throw new Error('seed phrase checksum failed');
+}
+
+// Back-compat: just the identity from a seed payload (drops any custom read key).
+export function identityFromSeedPayloadHex(hex) {
+  return parseSeedPayloadHex(hex).identity;
 }
 
 // Bring an existing nostr publishing key (nsec or 64-char hex) as the board's
