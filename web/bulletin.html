@@ -98,7 +98,9 @@ body[data-style="midnight"] .board { box-shadow: 0 24px 60px -30px rgba(0,0,0,.7
 .share-btn:hover:not(:disabled) { color:var(--ink); border-color:var(--accent); }
 .share-btn[aria-expanded="true"] { color:var(--ink); border-color:var(--accent); }
 .share-btn:disabled { opacity:.4; cursor:not-allowed; }
-.share-menu { position:absolute; top:calc(100% + 8px); right:0; z-index:20; min-width:172px; background:var(--card); border:1px solid var(--card-bd); border-radius:calc(var(--radius) + 4px); box-shadow:0 18px 44px -20px rgba(20,18,14,.55); padding:6px; display:flex; flex-direction:column; animation:reveal .18s ease both; }
+/* one floating menu reused by the masthead button and each bulletin's share
+   button — positioned at the trigger on open (position:fixed, coords set in JS) */
+.share-menu { position:fixed; z-index:40; min-width:184px; background:var(--card); border:1px solid var(--card-bd); border-radius:calc(var(--radius) + 4px); box-shadow:0 18px 44px -20px rgba(20,18,14,.55); padding:6px; display:flex; flex-direction:column; animation:reveal .18s ease both; }
 body[data-style="midnight"] .share-menu { box-shadow:0 18px 44px -18px rgba(0,0,0,.75); }
 .share-menu button { text-align:left; background:transparent; border:none; border-radius:var(--radius); color:var(--ink-soft); font:500 12.5px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; padding:9px 11px; cursor:pointer; transition:background .15s, color .15s; }
 .share-menu button:hover { background:var(--rule); color:var(--ink); }
@@ -192,8 +194,9 @@ body[data-style="letterpress"] .b-decoded-text { font:400 16px/1.55 'Spectral',s
 body[data-style="midnight"]    .b-decoded-text { font:400 17px/1.55 'Newsreader',serif; color:#f4efe4; }
 body[data-style="terminal"]    .b-decoded-text { font:400 13px/1.6 'IBM Plex Mono',monospace; color:#f0eee8; }
 
-/* lock affordance */
-.b-lock { margin-top:14px; color:var(--meta); background:none; border:none; padding:0; cursor:pointer; display:inline-flex; }
+/* per-bulletin action row: share + lock/unlock */
+.b-actions { display:flex; align-items:center; gap:16px; margin-top:14px; }
+.b-lock { color:var(--meta); background:none; border:none; padding:0; cursor:pointer; display:inline-flex; align-items:center; }
 .b-lock:hover { color:var(--accent); }
 /* lock/unlock toggle on decoded bulletins: is-open reveals the plaintext and
    shows the open padlock; toggling off re-hides it and shows the closed lock */
@@ -351,6 +354,7 @@ function fmtDate(sec) {
 }
 const ICON_LOCK = '<svg class="ic-lock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>';
 const ICON_UNLOCK = '<svg class="ic-unlock" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2.1"/></svg>';
+const ICON_SHARE = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>';
 
 // ── URL routing: bulletin.html#<npub>&style=<style> ───────────────────
 function writeHash() {
@@ -434,7 +438,8 @@ async function renderBulletin(ev, creds) {
     // Unlocked bulletins start open (unlock icon). The toggle re-hides the
     // plaintext in place and swaps back to the closed lock.
     const toggle = `<button type="button" class="b-lock b-toggle" data-toggle title="Hide the decoded message">${ICON_LOCK}${ICON_UNLOCK}</button>`;
-    return { unlocked: true, encrypted: !!dec.encrypted, html: `<article class="bulletin is-open">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}${toggle}</article>` };
+    const shareOne = `<button type="button" class="b-lock b-share" data-share-ev="${ev.id}" title="Share this dispatch">${ICON_SHARE}</button>`;
+    return { unlocked: true, encrypted: !!dec.encrypted, html: `<article class="bulletin is-open">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}<div class="b-actions">${shareOne}${toggle}</div></article>` };
   }
 
   // Locked: skim the prose (no key needed) so payload words still read as emphasis.
@@ -443,7 +448,8 @@ async function renderBulletin(ev, creds) {
   const proseHtml = boldPayload(body, skim.payloadWords);
   const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
   const lock = `<button type="button" class="b-lock" data-lock title="Add a decryption key to unlock">${ICON_LOCK}</button>`;
-  return { unlocked: false, encrypted: !!skim.encrypted, html: `<article class="bulletin">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${lock}</article>` };
+  const shareOne = `<button type="button" class="b-lock b-share" data-share-ev="${ev.id}" title="Share this dispatch">${ICON_SHARE}</button>`;
+  return { unlocked: false, encrypted: !!skim.encrypted, html: `<article class="bulletin">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}<div class="b-actions">${shareOne}${lock}</div></article>` };
 }
 
 // clicking a lock (no key yet) focuses the key field and explains why it's
@@ -456,6 +462,14 @@ function wireLocks() {
   document.querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', () => {
     const open = btn.closest('.bulletin').classList.toggle('is-open');
     btn.title = open ? 'Hide the decoded message' : 'Reveal the decoded message';
+  }));
+  // a bulletin's share button opens the shared menu with THAT bulletin's prose
+  document.querySelectorAll('[data-share-ev]').forEach(btn => btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (shareMenu._trigger === btn && !shareMenu.classList.contains('hidden')) { closeShareMenu(); return; }
+    const ev = loadedEvents.find(x => x.id === btn.dataset.shareEv);
+    setShareContext(ev ? skimArtifact(ev.content).body : '');
+    openShareMenu(btn);
   }));
 }
 
@@ -501,6 +515,9 @@ $('r-key').addEventListener('keydown', (e) => { if (e.key === 'Enter') { clearTi
 // ── share: publish the PUBLIC board link (never the decryption key) ─────
 // Shares carry only the npub + reading style. The decryption key that may be
 // in this page's own URL is deliberately dropped so a shared link can't leak it.
+// The post BODY carries the bulletin's encoded prose — already public on nostr
+// and readable without the key (the cover text, not the decoded plaintext) — so
+// the post reads as natural language and the link lets people decode it.
 const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
 function publicBoardLink() {
   const m = $('r-npub').value.trim().match(/npub1[0-9a-z]+/i);
@@ -515,25 +532,61 @@ function updateShareState() {
   if (!ok) closeShareMenu();
 }
 
+// the prose that goes into the post body; set just before the menu opens
+let shareBody = '';
+function setShareContext(body) { shareBody = (body || '').replace(/\s+/g, ' ').trim(); }
+// what to write as the post: the bulletin's own prose, quoted, else a tagline
+function sharePost() { return shareBody ? '“' + shareBody + '”' : SHARE_TEXT; }
+function truncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
+
 const shareBtn = $('r-share');
 const shareMenu = $('r-share-menu');
-function openShareMenu() { shareMenu.classList.remove('hidden'); shareBtn.setAttribute('aria-expanded', 'true'); }
-function closeShareMenu() { shareMenu.classList.add('hidden'); shareBtn.setAttribute('aria-expanded', 'false'); }
 // the native share sheet is only offered where the Web Share API exists
 if (navigator.share) shareMenu.querySelector('[data-share="native"]').classList.remove('hidden');
+
+// One floating menu, positioned at whichever trigger opened it (masthead button
+// or a bulletin's share button), clamped to the viewport and flipped if needed.
+function openShareMenu(trigger) {
+  shareMenu.classList.remove('hidden');
+  const r = trigger.getBoundingClientRect();
+  const mw = shareMenu.offsetWidth, mh = shareMenu.offsetHeight, pad = 8;
+  // right-align to triggers on the right (masthead), left-align to those on the
+  // left (a bulletin's icon), so the menu opens toward the open space; then clamp
+  let left = (r.left + r.right) / 2 > window.innerWidth / 2 ? r.right - mw : r.left;
+  left = Math.min(Math.max(pad, left), window.innerWidth - mw - pad);
+  // open below, or flip above when it would overflow the bottom
+  let top = r.bottom + pad;
+  if (top + mh > window.innerHeight - pad) top = Math.max(pad, r.top - mh - pad);
+  shareMenu.style.left = left + 'px';
+  shareMenu.style.top = top + 'px';
+  trigger.setAttribute('aria-expanded', 'true');
+  shareMenu._trigger = trigger;
+}
+function closeShareMenu() {
+  shareMenu.classList.add('hidden');
+  if (shareMenu._trigger) { shareMenu._trigger.setAttribute('aria-expanded', 'false'); shareMenu._trigger = null; }
+}
 
 shareBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   if (shareBtn.disabled) return;
-  shareMenu.classList.contains('hidden') ? openShareMenu() : closeShareMenu();
+  if (shareMenu._trigger === shareBtn && !shareMenu.classList.contains('hidden')) { closeShareMenu(); return; }
+  // board-level share carries the most recent bulletin's prose
+  setShareContext(loadedEvents.length ? skimArtifact(loadedEvents[0].content).body : '');
+  openShareMenu(shareBtn);
 });
-document.addEventListener('click', (e) => { if (!e.target.closest('.share-wrap')) closeShareMenu(); });
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#r-share-menu') && !e.target.closest('[data-share-ev]') && !e.target.closest('.share-wrap')) closeShareMenu();
+});
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeShareMenu(); });
+// a fixed-position menu shouldn't drift away from its trigger on scroll
+window.addEventListener('scroll', () => { if (!shareMenu.classList.contains('hidden')) closeShareMenu(); }, true);
 
-function flashShare(msg) {
-  if (!shareBtn.dataset.html) shareBtn.dataset.html = shareBtn.innerHTML;   // preserve the icon markup
-  shareBtn.textContent = msg;
-  setTimeout(() => { shareBtn.innerHTML = shareBtn.dataset.html; }, 1500);
+function flashOn(el, msg) {
+  if (!el) return;
+  if (!el.dataset.html) el.dataset.html = el.innerHTML;   // preserve the icon markup
+  el.textContent = msg;
+  setTimeout(() => { el.innerHTML = el.dataset.html; delete el.dataset.html; }, 1500);
 }
 
 shareMenu.addEventListener('click', async (e) => {
@@ -541,33 +594,39 @@ shareMenu.addEventListener('click', async (e) => {
   if (!btn) return;
   const url = publicBoardLink();
   if (!url) return;
+  const trigger = shareMenu._trigger;
   closeShareMenu();
   const enc = encodeURIComponent;
   const kind = btn.dataset.share;
+  const post = sharePost();
+  // per-bulletin (icon-only) triggers get a short ✓; the masthead button has room for a word
+  const done = (msg) => flashOn(trigger || shareBtn, trigger && trigger !== shareBtn ? '✓' : msg);
 
   if (kind === 'native') {
-    try { await navigator.share({ title: 'Glossia bulletin board', text: SHARE_TEXT, url }); } catch { /* share cancelled */ }
+    try { await navigator.share({ title: 'Glossia bulletin', text: post, url }); } catch { /* share cancelled */ }
     return;
   }
   if (kind === 'copy') {
-    navigator.clipboard.writeText(url).then(() => flashShare('Copied ✓')).catch(() => {});
+    navigator.clipboard.writeText(url).then(() => done('Copied ✓')).catch(() => {});
     return;
   }
   if (kind === 'nostr') {
-    // there's no universal nostr web-share intent — copy the note (text + link)
+    // there's no universal nostr web-share intent — copy the note (prose + link)
     // so it can be pasted into any nostr client, which is where the board lives
-    navigator.clipboard.writeText(SHARE_TEXT + '\n\n' + url).then(() => flashShare('Copied for nostr ✓')).catch(() => {});
+    navigator.clipboard.writeText(post + '\n\n' + url).then(() => done('Copied for nostr ✓')).catch(() => {});
     return;
   }
   let target = null;
-  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(SHARE_TEXT) + '&url=' + enc(url);
-  else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(SHARE_TEXT);
+  // X counts the URL as ~23 chars; Reddit/Mastodon carry the prose in the title/body.
+  // Facebook's sharer only accepts a URL, so its post can't carry the prose.
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(truncate(post, 250)) + '&url=' + enc(url);
+  else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(truncate(post, 290));
   else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
   else if (kind === 'mastodon') {
     const instance = (prompt('Share to which Mastodon instance?', 'mastodon.social') || '')
       .trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
     if (!instance) return;
-    target = 'https://' + instance + '/share?text=' + enc(SHARE_TEXT + ' ' + url);
+    target = 'https://' + instance + '/share?text=' + enc(truncate(post, 450) + '\n\n' + url);
   }
   if (target) window.open(target, '_blank', 'noopener,noreferrer');
 });
