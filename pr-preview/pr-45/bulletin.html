@@ -632,7 +632,9 @@ shareMenu.addEventListener('click', async (e) => {
   const done = (msg) => flashOn(trigger || shareBtn, trigger && trigger !== shareBtn ? '✓' : msg);
 
   if (kind === 'native') {
-    try { await navigator.share({ title: 'Glossia bulletin', text: post, url }); } catch { /* share cancelled */ }
+    // fold the link into the text: some Android share targets (e.g. X) keep only
+    // the url field and drop text, losing the prose. One combined field is safe.
+    try { await navigator.share({ title: 'Glossia bulletin', text: post + '\n\n' + url }); } catch { /* share cancelled */ }
     return;
   }
   if (kind === 'copy') {
@@ -646,9 +648,12 @@ shareMenu.addEventListener('click', async (e) => {
     return;
   }
   let target = null;
-  // X counts the URL as ~23 chars; Reddit/Mastodon carry the prose in the title/body.
-  // Facebook's sharer only accepts a URL, so its post can't carry the prose.
-  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(truncate(post, 250)) + '&url=' + enc(url);
+  // Put the link INSIDE the tweet text rather than the separate url= param: the
+  // X mobile app often keeps only url= and drops text=, dropping the prose. X
+  // still shortens the URL (~23 chars) and unfurls its card from the body.
+  // Reddit/Mastodon carry the prose in the title/body; Facebook's sharer is
+  // URL-only, so its post can't carry the prose.
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(truncate(post, 240) + '\n\n' + url);
   else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(truncate(post, 290));
   else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
   else if (kind === 'mastodon') {
