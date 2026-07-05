@@ -187,6 +187,12 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .share-btn svg { width:14px; height:14px; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
+/* share menu — one floating menu positioned at the Share button (see bulletin.html) */
+.share-wrap { position:relative; display:inline-block; }
+.share-menu { position:fixed; z-index:60; min-width:184px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; box-shadow:0 18px 44px -20px rgba(20,18,14,.5); padding:6px; display:flex; flex-direction:column; }
+.share-menu button { text-align:left; background:transparent; border:none; border-radius:6px; color:var(--ink-soft); font:500 12.5px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; padding:9px 11px; cursor:pointer; transition:background .15s, color .15s; }
+.share-menu button:hover { background:var(--chip-bg); color:var(--ink); }
+.share-sep { height:1px; background:var(--rule); margin:5px 6px; }
 .pv-len { font-variant-numeric:tabular-nums; }
 .pv-len.over { color:var(--error); }
 .pv-len.fits { color:var(--success); }
@@ -315,7 +321,19 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <button type="button" class="btn sm share-btn" id="c-btn-reader"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Reader link</button>
 
           <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
-          <button type="button" class="btn sm share-btn" id="c-btn-public"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button>
+          <div class="share-wrap">
+            <button type="button" class="btn sm share-btn" id="c-btn-public" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button>
+            <div class="share-menu hidden" id="c-share-menu" role="menu" aria-label="Share this board">
+              <button type="button" role="menuitem" data-share="native" class="hidden">Share…</button>
+              <button type="button" role="menuitem" data-share="copy">Copy link</button>
+              <div class="share-sep"></div>
+              <button type="button" role="menuitem" data-share="x">X / Twitter</button>
+              <button type="button" role="menuitem" data-share="nostr">Nostr</button>
+              <button type="button" role="menuitem" data-share="mastodon">Mastodon</button>
+              <button type="button" role="menuitem" data-share="reddit">Reddit</button>
+              <button type="button" role="menuitem" data-share="facebook">Facebook</button>
+            </div>
+          </div>
         </div>
 
         <div id="c-relay-results"></div>
@@ -566,10 +584,67 @@ function flashBtn(btn, msg) {
 $('c-btn-reader').addEventListener('click', () => {
   navigator.clipboard.writeText(readerKeyLink()).then(() => flashBtn($('c-btn-reader'), 'Copied ✓')).catch(() => {});
 });
-$('c-btn-public').addEventListener('click', async () => {
+// ── share menu — same as the reader (bulletin.html) ───────────────────
+// Shares the PUBLIC board link (npub + style, no decryption key) with the
+// composed bulletin's prose folded into the post body. The prose is the public
+// cover text, so it exposes nothing the board doesn't already publish.
+let lastBody = '';   // the current preview's body, set by regenPreview
+const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
+function sharePost() { return lastBody ? '“' + lastBody.replace(/\s+/g, ' ').trim() + '”' : SHARE_TEXT; }
+function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
+
+const cShareBtn = $('c-btn-public');
+const cShareMenu = $('c-share-menu');
+if (navigator.share) cShareMenu.querySelector('[data-share="native"]').classList.remove('hidden');
+
+function openCShareMenu() {
+  cShareMenu.classList.remove('hidden');
+  const r = cShareBtn.getBoundingClientRect();
+  const mw = cShareMenu.offsetWidth, mh = cShareMenu.offsetHeight, pad = 8;
+  const left = Math.min(Math.max(pad, r.left), window.innerWidth - mw - pad);
+  let top = r.bottom + pad;
+  if (top + mh > window.innerHeight - pad) top = Math.max(pad, r.top - mh - pad);
+  cShareMenu.style.left = left + 'px';
+  cShareMenu.style.top = top + 'px';
+  cShareBtn.setAttribute('aria-expanded', 'true');
+}
+function closeCShareMenu() { cShareMenu.classList.add('hidden'); cShareBtn.setAttribute('aria-expanded', 'false'); }
+
+cShareBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  cShareMenu.classList.contains('hidden') ? openCShareMenu() : closeCShareMenu();
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.share-wrap')) closeCShareMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCShareMenu(); });
+window.addEventListener('scroll', () => { if (!cShareMenu.classList.contains('hidden')) closeCShareMenu(); }, true);
+
+cShareMenu.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-share]');
+  if (!b) return;
   const url = readerNpubLink();
-  if (navigator.share) { try { await navigator.share({ title: 'Glossia bulletin board', url }); } catch { /* share cancelled */ } return; }
-  navigator.clipboard.writeText(url).then(() => flashBtn($('c-btn-public'), 'Copied ✓')).catch(() => {});
+  closeCShareMenu();
+  const enc = encodeURIComponent;
+  const kind = b.dataset.share;
+  const post = sharePost();
+
+  if (kind === 'native') {
+    // fold the link into the text so a share target can't drop the prose
+    try { await navigator.share({ title: 'Glossia bulletin', text: post + '\n\n' + url }); } catch { /* share cancelled */ }
+    return;
+  }
+  if (kind === 'copy') { navigator.clipboard.writeText(url).then(() => flashBtn(cShareBtn, 'Copied ✓')).catch(() => {}); return; }
+  if (kind === 'nostr') { navigator.clipboard.writeText(post + '\n\n' + url).then(() => flashBtn(cShareBtn, 'Copied for nostr ✓')).catch(() => {}); return; }
+  let target = null;
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(shareTruncate(post, 240) + '\n\n' + url);
+  else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(shareTruncate(post, 290));
+  else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
+  else if (kind === 'mastodon') {
+    const instance = (prompt('Share to which Mastodon instance?', 'mastodon.social') || '')
+      .trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (!instance) return;
+    target = 'https://' + instance + '/share?text=' + enc(shareTruncate(post, 450) + '\n\n' + url);
+  }
+  if (target) window.open(target, '_blank', 'noopener,noreferrer');
 });
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
@@ -630,7 +705,7 @@ async function regenPreview() {
   syncMeta();
   updateMode();
   const msg = $('c-msg').value;
-  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
+  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; lastBody = ''; updateLen(null); return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
@@ -639,11 +714,13 @@ async function regenPreview() {
     const { body, attr } = splitProse(enc.prose);
     $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
+    lastBody = enc.body;
     updateLen(enc.body);
   } catch (e) {
     if (my !== pvToken) return;
     $('c-pv-prose').textContent = 'Could not generate prose — ' + (e.message || e);
     $('c-pv-attr').textContent = '';
+    lastBody = '';
     updateLen(null);
   }
 }
