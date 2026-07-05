@@ -203,9 +203,11 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .share-menu button { text-align:left; background:transparent; border:none; border-radius:6px; color:var(--ink-soft); font:500 12.5px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; padding:9px 11px; cursor:pointer; transition:background .15s, color .15s; }
 .share-menu button:hover { background:var(--chip-bg); color:var(--ink); }
 .share-sep { height:1px; background:var(--rule); margin:5px 6px; }
-.pv-len { font-variant-numeric:tabular-nums; }
-.pv-len.over { color:var(--error); }
-.pv-len.fits { color:var(--success); }
+/* X-length footnote inside the share menu */
+.share-len { padding:6px 11px 3px; font:500 11px/1.45 'IBM Plex Mono',monospace; letter-spacing:.02em; color:var(--dim); font-variant-numeric:tabular-nums; }
+.share-len:empty { display:none; }
+.share-len.over { color:var(--error); }
+.share-len.fits { color:var(--ok); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
@@ -345,6 +347,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
               <button type="button" role="menuitem" data-share="mastodon">Mastodon</button>
               <button type="button" role="menuitem" data-share="reddit">Reddit</button>
               <button type="button" role="menuitem" data-share="facebook">Facebook</button>
+              <div class="share-sep"></div>
+              <div class="share-len" id="c-share-len"></div>
             </div>
           </div>
         </div>
@@ -412,7 +416,6 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
           </div>
         </div>
-        <div class="hint pv-len" id="c-pv-len" style="margin-top:10px"></div>
         <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
         <div class="hint" id="c-status" style="margin-top:10px"></div>
         <div class="err" id="c-err"></div>
@@ -738,19 +741,19 @@ async function regenPreview() {
   }
 }
 // A shared post carries the bulletin's body and adds the board link; X counts a
-// link as 23 chars. Show whether that post fits X's 280 and, when it doesn't,
-// nudge toward turning cover words off to slim the body.
+// link as 23 chars. The share menu shows whether that post fits X's 280 and,
+// when it doesn't, nudges toward turning cover words off to slim the body.
 const TWEET_MAX = 280, TWEET_URL = 23;
 function updateLen(body) {
-  const el = $('c-pv-len');
-  if (body == null) { el.textContent = ''; el.className = 'hint pv-len'; return; }
+  const el = $('c-share-len');
+  if (body == null) { el.textContent = ''; el.className = 'share-len'; return; }
   const post = body.length + 2 /* \n\n */ + TWEET_URL;
   const fits = post <= TWEET_MAX;
   el.classList.toggle('over', !fits);
   el.classList.toggle('fits', fits);
   el.textContent = fits
-    ? `Shareable post ≈ ${post}/${TWEET_MAX} on X ✓`
-    : `Shareable post ≈ ${post}/${TWEET_MAX} on X — over the limit${$('c-cover').checked ? '; turn off cover words to slim it' : ''}`;
+    ? `X post ≈ ${post}/${TWEET_MAX} ✓`
+    : `X post ≈ ${post}/${TWEET_MAX} — over${$('c-cover').checked ? '; turn off cover words to slim it' : ''}`;
 }
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPreview, 400); }
 $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
