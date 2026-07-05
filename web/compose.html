@@ -648,7 +648,7 @@ cShareMenu.addEventListener('click', async (e) => {
   if (kind === 'copy') { navigator.clipboard.writeText(url).then(() => flashBtn(cShareBtn, 'Copied ✓')).catch(() => {}); return; }
   if (kind === 'nostr') { navigator.clipboard.writeText(post + '\n\n' + url).then(() => flashBtn(cShareBtn, 'Copied for nostr ✓')).catch(() => {}); return; }
   let target = null;
-  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(shareTruncate(post, 240) + '\n\n' + url);
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(shareTruncate(post, TWEET_MAX - 2 /* \n\n */ - TWEET_URL) + '\n\n' + url);
   else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(shareTruncate(post, 290));
   else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
   else if (kind === 'mastodon') {
@@ -744,7 +744,7 @@ const TWEET_MAX = 280, TWEET_URL = 23;
 function updateLen(body) {
   const el = $('c-pv-len');
   if (body == null) { el.textContent = ''; el.className = 'hint pv-len'; return; }
-  const post = body.length + 1 /* space */ + TWEET_URL;
+  const post = body.length + 2 /* \n\n */ + TWEET_URL;
   const fits = post <= TWEET_MAX;
   el.classList.toggle('over', !fits);
   el.classList.toggle('fits', fits);

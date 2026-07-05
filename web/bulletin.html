@@ -653,7 +653,7 @@ shareMenu.addEventListener('click', async (e) => {
   // still shortens the URL (~23 chars) and unfurls its card from the body.
   // Reddit/Mastodon carry the prose in the title/body; Facebook's sharer is
   // URL-only, so its post can't carry the prose.
-  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(truncate(post, 240) + '\n\n' + url);
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(truncate(post, 255 /* 280 − "\n\n" − t.co url(23) */) + '\n\n' + url);
   else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(truncate(post, 290));
   else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
   else if (kind === 'mastodon') {
