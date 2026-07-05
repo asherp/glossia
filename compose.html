@@ -5,6 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Create a Glossia Bulletin — publish an encrypted board</title>
 <meta name="description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to a nostr identity. Share the board's #npub to read the prose, the read key to decrypt, the nwrite to post — in your choice of reading style.">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+<!-- Social / rich unfurl -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Glossia">
+<meta property="og:title" content="Create a Glossia Bulletin — publish an encrypted board">
+<meta property="og:description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to nostr. Share a public link to read the prose, a reader link to decrypt.">
+<meta property="og:url" content="https://glossia.io/compose.html">
+<meta property="og:image" content="https://glossia.io/og-glossia.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Glossia — machine data, made human. A lossless linguistic codec.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Create a Glossia Bulletin — publish an encrypted board">
+<meta name="twitter:description" content="Compose an encrypted message, encode it into Glossia prose, and publish it to nostr.">
+<meta name="twitter:image" content="https://glossia.io/og-glossia.png">
 <script type="importmap">
 {
   "imports": {
@@ -171,6 +187,15 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .share-btn svg { width:14px; height:14px; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
+/* share menu — one floating menu positioned at the Share button (see bulletin.html) */
+.share-wrap { position:relative; display:inline-block; }
+.share-menu { position:fixed; z-index:60; min-width:184px; background:var(--card); border:1px solid var(--card-bd); border-radius:10px; box-shadow:0 18px 44px -20px rgba(20,18,14,.5); padding:6px; display:flex; flex-direction:column; }
+.share-menu button { text-align:left; background:transparent; border:none; border-radius:6px; color:var(--ink-soft); font:500 12.5px/1 'IBM Plex Mono',monospace; letter-spacing:.02em; padding:9px 11px; cursor:pointer; transition:background .15s, color .15s; }
+.share-menu button:hover { background:var(--chip-bg); color:var(--ink); }
+.share-sep { height:1px; background:var(--rule); margin:5px 6px; }
+.pv-len { font-variant-numeric:tabular-nums; }
+.pv-len.over { color:var(--error); }
+.pv-len.fits { color:var(--success); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
@@ -256,10 +281,12 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <option value="czech">Czech</option>
           </select>
 
+          <label class="check"><input type="checkbox" id="c-cover" checked> Cover words <span class="muted">· natural prose; off publishes payload words only — much shorter</span></label>
+
           <label>Subject <span class="muted">(optional, public)</span></label>
           <input type="text" id="c-subject" placeholder="label" spellcheck="false">
 
-          <label>Reading style <span class="muted">(saved in the shareable link)</span></label>
+          <label>Reading style</label>
           <input type="hidden" id="c-style" value="letterpress">
           <div class="tiles" role="group" aria-label="Reading style">
             <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
@@ -267,7 +294,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
           </div>
 
-          <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words <span class="muted">(saved in the shareable link)</span></label>
+          <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words</label>
 
           <label>Relays</label>
           <input type="text" id="c-relays" spellcheck="false">
@@ -294,7 +321,19 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <button type="button" class="btn sm share-btn" id="c-btn-reader"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Reader link</button>
 
           <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
-          <button type="button" class="btn sm share-btn" id="c-btn-public"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button>
+          <div class="share-wrap">
+            <button type="button" class="btn sm share-btn" id="c-btn-public" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>Share</button>
+            <div class="share-menu hidden" id="c-share-menu" role="menu" aria-label="Share this board">
+              <button type="button" role="menuitem" data-share="native" class="hidden">Share…</button>
+              <button type="button" role="menuitem" data-share="copy">Copy link</button>
+              <div class="share-sep"></div>
+              <button type="button" role="menuitem" data-share="x">X / Twitter</button>
+              <button type="button" role="menuitem" data-share="nostr">Nostr</button>
+              <button type="button" role="menuitem" data-share="mastodon">Mastodon</button>
+              <button type="button" role="menuitem" data-share="reddit">Reddit</button>
+              <button type="button" role="menuitem" data-share="facebook">Facebook</button>
+            </div>
+          </div>
         </div>
 
         <div id="c-relay-results"></div>
@@ -360,6 +399,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
           </div>
         </div>
+        <div class="hint pv-len" id="c-pv-len" style="margin-top:10px"></div>
         <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
         <div class="hint" id="c-status" style="margin-top:10px"></div>
         <div class="err" id="c-err"></div>
@@ -544,10 +584,67 @@ function flashBtn(btn, msg) {
 $('c-btn-reader').addEventListener('click', () => {
   navigator.clipboard.writeText(readerKeyLink()).then(() => flashBtn($('c-btn-reader'), 'Copied ✓')).catch(() => {});
 });
-$('c-btn-public').addEventListener('click', async () => {
+// ── share menu — same as the reader (bulletin.html) ───────────────────
+// Shares the PUBLIC board link (npub + style, no decryption key) with the
+// composed bulletin's prose folded into the post body. The prose is the public
+// cover text, so it exposes nothing the board doesn't already publish.
+let lastBody = '';   // the current preview's body, set by regenPreview
+const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
+function sharePost() { return lastBody ? '“' + lastBody.replace(/\s+/g, ' ').trim() + '”' : SHARE_TEXT; }
+function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
+
+const cShareBtn = $('c-btn-public');
+const cShareMenu = $('c-share-menu');
+if (navigator.share) cShareMenu.querySelector('[data-share="native"]').classList.remove('hidden');
+
+function openCShareMenu() {
+  cShareMenu.classList.remove('hidden');
+  const r = cShareBtn.getBoundingClientRect();
+  const mw = cShareMenu.offsetWidth, mh = cShareMenu.offsetHeight, pad = 8;
+  const left = Math.min(Math.max(pad, r.left), window.innerWidth - mw - pad);
+  let top = r.bottom + pad;
+  if (top + mh > window.innerHeight - pad) top = Math.max(pad, r.top - mh - pad);
+  cShareMenu.style.left = left + 'px';
+  cShareMenu.style.top = top + 'px';
+  cShareBtn.setAttribute('aria-expanded', 'true');
+}
+function closeCShareMenu() { cShareMenu.classList.add('hidden'); cShareBtn.setAttribute('aria-expanded', 'false'); }
+
+cShareBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  cShareMenu.classList.contains('hidden') ? openCShareMenu() : closeCShareMenu();
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.share-wrap')) closeCShareMenu(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCShareMenu(); });
+window.addEventListener('scroll', () => { if (!cShareMenu.classList.contains('hidden')) closeCShareMenu(); }, true);
+
+cShareMenu.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-share]');
+  if (!b) return;
   const url = readerNpubLink();
-  if (navigator.share) { try { await navigator.share({ title: 'Glossia bulletin board', url }); } catch { /* share cancelled */ } return; }
-  navigator.clipboard.writeText(url).then(() => flashBtn($('c-btn-public'), 'Copied ✓')).catch(() => {});
+  closeCShareMenu();
+  const enc = encodeURIComponent;
+  const kind = b.dataset.share;
+  const post = sharePost();
+
+  if (kind === 'native') {
+    // fold the link into the text so a share target can't drop the prose
+    try { await navigator.share({ title: 'Glossia bulletin', text: post + '\n\n' + url }); } catch { /* share cancelled */ }
+    return;
+  }
+  if (kind === 'copy') { navigator.clipboard.writeText(url).then(() => flashBtn(cShareBtn, 'Copied ✓')).catch(() => {}); return; }
+  if (kind === 'nostr') { navigator.clipboard.writeText(post + '\n\n' + url).then(() => flashBtn(cShareBtn, 'Copied for nostr ✓')).catch(() => {}); return; }
+  let target = null;
+  if (kind === 'x') target = 'https://twitter.com/intent/tweet?text=' + enc(shareTruncate(post, 240) + '\n\n' + url);
+  else if (kind === 'reddit') target = 'https://www.reddit.com/submit?url=' + enc(url) + '&title=' + enc(shareTruncate(post, 290));
+  else if (kind === 'facebook') target = 'https://www.facebook.com/sharer/sharer.php?u=' + enc(url);
+  else if (kind === 'mastodon') {
+    const instance = (prompt('Share to which Mastodon instance?', 'mastodon.social') || '')
+      .trim().replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (!instance) return;
+    target = 'https://' + instance + '/share?text=' + enc(shareTruncate(post, 450) + '\n\n' + url);
+  }
+  if (target) window.open(target, '_blank', 'noopener,noreferrer');
 });
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
@@ -608,25 +705,45 @@ async function regenPreview() {
   syncMeta();
   updateMode();
   const msg = $('c-msg').value;
-  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; return; }
+  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; lastBody = ''; updateLen(null); return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
-    const enc = await encodeMessage(msg, cred, $('c-lang').value);
+    const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
     if (my !== pvToken) return;
     const { body, attr } = splitProse(enc.prose);
     $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
+    lastBody = enc.body;
+    updateLen(enc.body);
   } catch (e) {
     if (my !== pvToken) return;
     $('c-pv-prose').textContent = 'Could not generate prose — ' + (e.message || e);
     $('c-pv-attr').textContent = '';
+    lastBody = '';
+    updateLen(null);
   }
+}
+// A shared post quotes the bulletin's body and adds the board link; X counts a
+// link as 23 chars. Show whether that post fits X's 280 and, when it doesn't,
+// nudge toward turning cover words off to slim the body.
+const TWEET_MAX = 280, TWEET_URL = 23;
+function updateLen(body) {
+  const el = $('c-pv-len');
+  if (body == null) { el.textContent = ''; el.className = 'hint pv-len'; return; }
+  const post = body.length + 2 /* quotes */ + 1 /* space */ + TWEET_URL;
+  const fits = post <= TWEET_MAX;
+  el.classList.toggle('over', !fits);
+  el.classList.toggle('fits', fits);
+  el.textContent = fits
+    ? `Shareable post ≈ ${post}/${TWEET_MAX} on X ✓`
+    : `Shareable post ≈ ${post}/${TWEET_MAX} on X — over the limit${$('c-cover').checked ? '; turn off cover words to slim it' : ''}`;
 }
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPreview, 400); }
 $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', schedulePreview);
+$('c-cover').addEventListener('change', schedulePreview);
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
@@ -726,7 +843,7 @@ async function buildBulletin() {
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
   const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
-  const enc = await encodeMessage(msg, cred, $('c-lang').value);
+  const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
 }
