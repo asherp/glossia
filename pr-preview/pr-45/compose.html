@@ -187,6 +187,9 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .share-btn svg { width:14px; height:14px; }
 .linkbox.private .u { border-color:color-mix(in srgb, var(--error) 45%, transparent); }
 .lab.warn { color:var(--error); }
+.pv-len { font-variant-numeric:tabular-nums; }
+.pv-len.over { color:var(--error); }
+.pv-len.fits { color:var(--success); }
 .preview { padding:26px 28px; transition:background .3s ease, border-color .3s ease; }
 .preview[data-style="letterpress"] { background:#f6f3ec; border:1px solid #d8d2c4; color:#26241d; border-radius:3px; box-shadow:0 20px 50px -30px rgba(38,36,29,.5); }
 .preview[data-style="midnight"]    { background:#0d0d10; border:1px solid #232228; color:#e8e4da; border-radius:6px; box-shadow:0 20px 50px -30px rgba(0,0,0,.7); }
@@ -271,6 +274,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <option value="latin">Latin</option>
             <option value="czech">Czech</option>
           </select>
+
+          <label class="check"><input type="checkbox" id="c-cover" checked> Cover words <span class="muted">· natural prose; off publishes payload words only — much shorter</span></label>
 
           <label>Subject <span class="muted">(optional, public)</span></label>
           <input type="text" id="c-subject" placeholder="label" spellcheck="false">
@@ -376,6 +381,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
           </div>
         </div>
+        <div class="hint pv-len" id="c-pv-len" style="margin-top:10px"></div>
         <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
         <div class="hint" id="c-status" style="margin-top:10px"></div>
         <div class="err" id="c-err"></div>
@@ -628,21 +634,39 @@ async function regenPreview() {
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
-    const enc = await encodeMessage(msg, cred, $('c-lang').value);
+    const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
     if (my !== pvToken) return;
     const { body, attr } = splitProse(enc.prose);
     $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
+    updateLen(enc.body);
   } catch (e) {
     if (my !== pvToken) return;
     $('c-pv-prose').textContent = 'Could not generate prose — ' + (e.message || e);
     $('c-pv-attr').textContent = '';
+    updateLen(null);
   }
+}
+// A shared post quotes the bulletin's body and adds the board link; X counts a
+// link as 23 chars. Show whether that post fits X's 280 and, when it doesn't,
+// nudge toward turning cover words off to slim the body.
+const TWEET_MAX = 280, TWEET_URL = 23;
+function updateLen(body) {
+  const el = $('c-pv-len');
+  if (body == null) { el.textContent = ''; el.className = 'hint pv-len'; return; }
+  const post = body.length + 2 /* quotes */ + 1 /* space */ + TWEET_URL;
+  const fits = post <= TWEET_MAX;
+  el.classList.toggle('over', !fits);
+  el.classList.toggle('fits', fits);
+  el.textContent = fits
+    ? `Shareable post ≈ ${post}/${TWEET_MAX} on X ✓`
+    : `Shareable post ≈ ${post}/${TWEET_MAX} on X — over the limit${$('c-cover').checked ? '; turn off cover words to slim it' : ''}`;
 }
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPreview, 400); }
 $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', schedulePreview);
+$('c-cover').addEventListener('change', schedulePreview);
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
@@ -742,7 +766,7 @@ async function buildBulletin() {
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
   const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
-  const enc = await encodeMessage(msg, cred, $('c-lang').value);
+  const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
 }
