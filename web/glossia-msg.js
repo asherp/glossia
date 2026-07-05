@@ -210,9 +210,16 @@ export async function sealMessage(message, cred) {
 // states become "<body> — <latin attribution>"; unencrypted ones are bare prose.
 // The body and trailer are returned split out (with their payload words) so
 // callers can style and underline each independently.
-export function renderArtifact(state, langId = 'english') {
+//
+// `cover` (default true) fills the body's grammar with cover words for natural
+// prose. Set it false to emit only the payload words — a much shorter body that
+// still decodes (the decoder filters prose against the wordlist either way), so
+// a bulletin can be slimmed to fit tight length limits. The Latin trailer is
+// already just its payload words, so it is unaffected.
+export function renderArtifact(state, langId = 'english', { cover = true } = {}) {
   const lang = msgLangById(langId);
-  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, SEED));
+  const bodyDialect = cover ? lang.dialect : '';
+  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, bodyDialect, SEED));
   if (bodyR.error) throw new Error(bodyR.error);
   const body = (bodyR.encoded_text || '').trim();
   const bodyWords = bodyR.payload_words || [];
@@ -228,9 +235,10 @@ export function renderArtifact(state, langId = 'english') {
   return { artifact, prose: artifact, body, trailer, bodyWords, trailerWords, payloadWords: bodyWords.concat(trailerWords), langId: lang.id, encrypted: true, authenticated: true };
 }
 
-// Convenience: seal + render in one step.
-export async function encodeMessage(message, cred, langId = 'english') {
-  return renderArtifact(await sealMessage(message, cred), langId);
+// Convenience: seal + render in one step. `opts` is forwarded to renderArtifact
+// (e.g. { cover: false } to publish a slimmed, payload-only body).
+export async function encodeMessage(message, cred, langId = 'english', opts = {}) {
+  return renderArtifact(await sealMessage(message, cred), langId, opts);
 }
 
 // Detect the language of some prose, restricted to MSG_LANGS. Falls back to english.
