@@ -564,8 +564,8 @@ function updateShareState() {
 // the prose that goes into the post body; set just before the menu opens
 let shareBody = '';
 function setShareContext(body) { shareBody = (body || '').replace(/\s+/g, ' ').trim(); }
-// what to write as the post: the bulletin's own prose, quoted, else a tagline
-function sharePost() { return shareBody ? '“' + shareBody + '”' : SHARE_TEXT; }
+// what to write as the post: the bulletin's own prose, else a tagline
+function sharePost() { return shareBody ? shareBody : SHARE_TEXT; }
 function truncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
 
 const shareBtn = $('r-share');

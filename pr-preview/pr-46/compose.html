@@ -603,7 +603,7 @@ $('c-btn-reader').addEventListener('click', () => {
 // cover text, so it exposes nothing the board doesn't already publish.
 let lastBody = '';   // the current preview's body, set by regenPreview
 const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
-function sharePost() { return lastBody ? '“' + lastBody.replace(/\s+/g, ' ').trim() + '”' : SHARE_TEXT; }
+function sharePost() { return lastBody ? lastBody.replace(/\s+/g, ' ').trim() : SHARE_TEXT; }
 function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
 
 const cShareBtn = $('c-btn-public');
@@ -737,14 +737,14 @@ async function regenPreview() {
     updateLen(null);
   }
 }
-// A shared post quotes the bulletin's body and adds the board link; X counts a
+// A shared post carries the bulletin's body and adds the board link; X counts a
 // link as 23 chars. Show whether that post fits X's 280 and, when it doesn't,
 // nudge toward turning cover words off to slim the body.
 const TWEET_MAX = 280, TWEET_URL = 23;
 function updateLen(body) {
   const el = $('c-pv-len');
   if (body == null) { el.textContent = ''; el.className = 'hint pv-len'; return; }
-  const post = body.length + 2 /* quotes */ + 1 /* space */ + TWEET_URL;
+  const post = body.length + 1 /* space */ + TWEET_URL;
   const fits = post <= TWEET_MAX;
   el.classList.toggle('over', !fits);
   el.classList.toggle('fits', fits);
