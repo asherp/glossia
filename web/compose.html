@@ -159,6 +159,16 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 .foot { margin-top:20px; padding-top:16px; border-top:1px solid var(--rule); font:400 12px/1.6 'Public Sans',sans-serif; color:var(--dim); text-align:center; }
 .foot strong { color:var(--accent); font-weight:600; }
 
+/* inline "?" explainers — educational content folded away by default so the
+   page reads as a short form; the philosophy is one click away, never in the way */
+.qa { margin-top:10px; }
+.qa > summary { list-style:none; cursor:pointer; display:inline-flex; align-items:center; gap:7px; font:600 12px/1.4 'Public Sans',sans-serif; color:var(--accent); }
+.qa > summary::-webkit-details-marker { display:none; }
+.qa > summary::before { content:"?"; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border:1px solid currentColor; border-radius:50%; font:600 10px/1 'IBM Plex Mono',monospace; }
+.qa > summary:hover { color:var(--accent-2); }
+.qa p { margin:10px 0 0; font:400 13px/1.6 'Public Sans',sans-serif; color:var(--ink-soft); text-align:left; }
+.qa p strong { color:var(--accent); font-weight:600; }
+
 /* save / load board actions (in the board-head) */
 .board-actions { display:flex; gap:8px; align-items:center; }
 .board-actions .n { margin-right:4px; }
@@ -270,11 +280,13 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <span>Settings</span>
           </summary>
 
-          <label>Passphrase <span class="muted">(optional — overrides the board key)</span></label>
+          <label>Passphrase <span class="muted">(optional)</span></label>
+          <p class="hint" style="margin:0 0 9px">Sets a memorable key. Anyone with the passphrase can read the bulletin.</p>
           <button type="button" class="btn sm" id="c-pass-btn">Set passphrase</button>
           <div class="entropy" id="c-pass-state"></div>
 
           <label>Prose language</label>
+          <p class="hint" style="margin:0 0 9px">Which language the prose reads in. The data stays the same.</p>
           <select id="c-lang">
             <option value="english">English</option>
             <option value="latin">Latin</option>
@@ -287,6 +299,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <input type="text" id="c-subject" placeholder="label" spellcheck="false">
 
           <label>Reading style</label>
+          <p class="hint" style="margin:0 0 9px">Changes how the bulletin looks to readers. The data stays the same.</p>
           <input type="hidden" id="c-style" value="letterpress">
           <div class="tiles" role="group" aria-label="Reading style">
             <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
@@ -307,8 +320,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         <div class="share keep">
           <label>Keep this <span class="muted">· for you</span></label>
           <p class="hint" style="margin:0 0 12px">
-            <strong>Bookmark this page.</strong> Its address is your author link — the only way back in to publish more.
-            Losing it means you can't post to this board again. For a durable backup, save the seed phrase.
+            <strong>Bookmark this page</strong> — it's the only way back in to post again. Save the seed phrase for a durable backup.
           </p>
           <button type="button" class="btn sm" id="c-save-keep">💾 Save bulletin</button>
         </div>
@@ -317,7 +329,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         <div class="share" style="margin-top:24px">
           <label>Share these <span class="muted">· for others</span></label>
 
-          <label style="margin-top:14px">Reader link <span class="lab warn">· includes the decryption key — readers unlock instantly (avoid pasting where the link is logged)</span></label>
+          <label style="margin-top:14px">Reader link <span class="lab warn">· unlocks instantly — carries the key, so keep it off public logs</span></label>
           <button type="button" class="btn sm share-btn" id="c-btn-reader"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Reader link</button>
 
           <label>Public link <span class="muted">· read the encoded prose only (npub)</span></label>
@@ -373,18 +385,18 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
       </div>
 
       <div class="note">
-        <strong>How it works.</strong> Every board has three things: a <strong>public address</strong> anyone can open,
-        an <strong>author link</strong> that lets you publish, and a <strong>read key</strong> that lets readers decrypt.
-        All three come from one secret, so there's no separate password to set. Every message is encrypted and encoded into
-        Glossia prose before it's published — share a <strong>reader link</strong> (or the read key) for read-only access,
-        and keep your author link to keep posting. Prefer a memorable secret? Set a passphrase — it derives this board's
-        read key, so the reader link still unlocks it and anyone who knows the passphrase can decrypt too.
+        <strong>How it works.</strong> A bulletin is a stream of posts anyone with the link can read; keep your author link to keep posting.
+        <details class="qa">
+          <summary>Which link is which?</summary>
+          <p>One secret gives every board three things: a <strong>public address</strong> anyone can open, an <strong>author link</strong> that lets you publish, and a <strong>read key</strong> that lets readers decrypt. Share a reader link for read-only access; keep your author link to keep posting. Set a passphrase and the reader link still unlocks it.</p>
+        </details>
       </div>
 
       <div class="foot">
-        Glossia is <strong>not steganography</strong>. It does not try to hide the fact that data is encoded. By avoiding
-        the constraints of steganographic techniques, Glossia can use a much more compact and efficient encoding while
-        remaining human-readable.
+        <details class="qa">
+          <summary>What is Glossia?</summary>
+          <p>A <strong>readable encoding — not steganography</strong>. It doesn't hide that data is present; it makes machine data speakable and transcribable. Skipping steganography's constraints keeps the encoding compact and efficient while staying human-readable.</p>
+        </details>
       </div>
     </div>
 
@@ -447,8 +459,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
   <div class="modal" role="dialog" aria-modal="true">
     <button type="button" class="modal-x" id="c-pass-close" aria-label="Close">&times;</button>
     <h2 class="modal-title" id="c-pass-title">Set a passphrase</h2>
-    <p class="modal-lead">A passphrase overrides the board key — it derives this board's read key, so the reader link still
-      unlocks it and anyone who knows the passphrase can decrypt too. Leave it empty to use the board's own key.</p>
+    <p class="modal-lead">Readers unlock with the passphrase or with the reader link. <strong>Wrong passphrase → can't decrypt.</strong>
+      Leave it empty to use the board's own key.</p>
     <div class="row">
       <input type="password" id="c-id-value" autocomplete="new-password" placeholder="type a passphrase, or use 🎲" spellcheck="false">
       <button type="button" class="btn sm" data-reveal="c-id-value" title="Show / hide">👁</button>
