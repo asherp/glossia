@@ -177,6 +177,19 @@ export const EMDASH = ' — ';
 
 function capWords(s) { return s.replace(/(^|\s)(\p{L})/gu, (_, sp, c) => sp + c.toUpperCase()); }
 
+// Slim a body's prose down to just its payload words, in order — dropping the
+// cover words. The decoder filters prose against the wordlist, so the result
+// still decodes to the same bytes; payload words are lowercased to their
+// canonical wordlist form. Used for the cover-off view (see renderArtifact).
+function payloadOnlyProse(prose, words) {
+  const set = new Set((words || []).map(w => w.toLowerCase()));
+  return prose.split(/\s+/)
+    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(t => t && set.has(t.toLowerCase()))
+    .map(t => t.toLowerCase())
+    .join(' ');
+}
+
 // ─── public API ───────────────────────────────────────────────────────
 
 // Phase 1 — encrypt (or just pack, with no credential) into an opaque, language-
@@ -216,13 +229,19 @@ export async function sealMessage(message, cred) {
 // still decodes (the decoder filters prose against the wordlist either way), so
 // a bulletin can be slimmed to fit tight length limits. The Latin trailer is
 // already just its payload words, so it is unaffected.
+//
+// The body is ALWAYS encoded with the full grammar (lang.dialect): the base-n
+// codec is grammar-controlled (payload words differ per dialect, and the decoder
+// always decodes with the "body" grammar), so re-encoding with a bare dialect
+// would change the payload words. Instead, cover-off just drops the cover words
+// from the already-generated prose — the payload words are byte-identical either
+// way (mirrors index.html's cover toggle, which re-renders rather than re-encodes).
 export function renderArtifact(state, langId = 'english', { cover = true } = {}) {
   const lang = msgLangById(langId);
-  const bodyDialect = cover ? lang.dialect : '';
-  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, bodyDialect, SEED));
+  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, SEED));
   if (bodyR.error) throw new Error(bodyR.error);
-  const body = (bodyR.encoded_text || '').trim();
   const bodyWords = bodyR.payload_words || [];
+  const body = cover ? (bodyR.encoded_text || '').trim() : payloadOnlyProse(bodyR.encoded_text || '', bodyWords);
   if (!state.encrypted) {
     return { artifact: body, prose: body, body, trailer: '', bodyWords, trailerWords: [], payloadWords: bodyWords, langId: lang.id, encrypted: false };
   }

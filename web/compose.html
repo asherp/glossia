@@ -482,7 +482,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 </div>
 
 <script type="module">
-import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { init, sealMessage, renderArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
          seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
          deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
@@ -608,6 +608,26 @@ $('c-btn-reader').addEventListener('click', () => {
 // composed bulletin's prose folded into the post body. The prose is the public
 // cover text, so it exposes nothing the board doesn't already publish.
 let lastBody = '';   // the current preview's body, set by regenPreview
+
+// Cache the sealed cipher state so toggling cover words (or switching language /
+// style) re-renders the SAME ciphertext instead of re-encrypting. A fresh seal
+// draws a new random salt, which would change every payload word — the demo never
+// re-encodes on a cover toggle, and neither should we. Re-seal only when the
+// message or the credential actually changes (both fold into the cache key); this
+// also keeps publish identical to the preview the author is looking at.
+let sealCache = null;   // { key: string, state }
+function credFingerprint(cred) {
+  if (typeof cred === 'string') return 's:' + cred;
+  if (cred instanceof Uint8Array) return 'k:' + Array.from(cred).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'none';
+}
+async function sealFor(msg, cred) {
+  const key = credFingerprint(cred) + '\x00' + msg;
+  if (sealCache && sealCache.key === key) return sealCache.state;
+  const state = await sealMessage(msg, cred);
+  sealCache = { key, state };
+  return state;
+}
 const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
 function sharePost() { return lastBody ? lastBody.replace(/\s+/g, ' ').trim() : SHARE_TEXT; }
 function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
@@ -728,8 +748,9 @@ async function regenPreview() {
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
-    const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
+    const state = await sealFor(msg, cred);                   // seal once; cover/lang toggles only re-render
     if (my !== pvToken) return;
+    const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked });
     const { body, attr } = splitProse(enc.prose);
     $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
@@ -862,7 +883,8 @@ async function buildBulletin() {
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
   const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
-  const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
+  const state = await sealFor(msg, cred);   // reuse the preview's seal so publish matches what the author sees
+  const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked });
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
 }
