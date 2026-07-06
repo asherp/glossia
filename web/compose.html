@@ -808,7 +808,7 @@ function updatePassButton() {
   $('c-pass-btn').textContent = customActive() ? 'Update passphrase' : 'Set passphrase';
   const st = $('c-pass-state');
   if (!customActive()) {
-    st.textContent = 'Using this board’s key.'; st.classList.remove('strong');
+    st.textContent = ''; st.classList.remove('strong');
   } else if (customKeyPass) {
     const b = estimateBits(customKeyPass);
     st.textContent = `Custom passphrase set${b ? ` · ≈ ${b}-bit` : ''}.`; st.classList.toggle('strong', b >= 80);
@@ -834,7 +834,7 @@ async function commitPass(pass) {
   updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
   $('c-status').textContent = customActive()
     ? 'Passphrase set — readers can decrypt with it or the reader link.'
-    : 'Using this board’s key.';
+    : '';
 }
 $('c-pass-btn').addEventListener('click', openPassModal);
 $('c-pass-close').addEventListener('click', closePassModal);
