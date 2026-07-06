@@ -130,6 +130,21 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .check { display:flex; align-items:center; gap:9px; font:400 13px/1.4 'Public Sans',sans-serif; color:var(--ink); text-transform:none; letter-spacing:0; margin:22px 0 0; }
 .check input { width:auto; accent-color: var(--accent); }
 
+/* compact control rows: cover variant stepper + regenerate payload action */
+.ctl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 0; }
+.ctl .ctl-lab { font:600 10px/1.3 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+.ctl .ctl-lab[title] { cursor:help; }
+.ctl.off { opacity:.4; }
+.ctl.off .stepper { pointer-events:none; }
+.stepper { display:flex; align-items:center; gap:6px; }
+.stepper input[type=number] {
+  width:56px; text-align:center; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:7px;
+  color:var(--ink); font:400 13px/1 'IBM Plex Mono',monospace; padding:8px 6px; -moz-appearance:textfield; appearance:textfield;
+}
+.stepper input[type=number]::-webkit-inner-spin-button, .stepper input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.stepper input[type=number]:focus { outline:none; border-color:var(--accent); }
+.btn.sm.step { padding:8px 0; min-width:34px; text-align:center; }
+
 /* settings disclosure */
 .settings { margin-top:22px; border-top:1px solid var(--rule); padding-top:16px; }
 .settings > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); }
@@ -297,6 +312,21 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           </select>
 
           <label class="check"><input type="checkbox" id="c-cover" checked> Cover words</label>
+
+          <div class="ctl" id="c-cv-row">
+            <span class="ctl-lab" title="Choose a deterministic variation of the cover text. The same number always produces the same wording; the payload words don't change.">Cover variant</span>
+            <span class="stepper">
+              <button type="button" class="btn sm step" id="c-cv-dec" aria-label="Previous cover variant">–</button>
+              <input type="number" id="c-cv" min="0" step="1" value="0" aria-label="Cover variant number">
+              <button type="button" class="btn sm step" id="c-cv-inc" aria-label="Next cover variant">+</button>
+              <button type="button" class="btn sm step" id="c-cv-rand" title="Random cover variant" aria-label="Random cover variant">🎲</button>
+            </span>
+          </div>
+
+          <div class="ctl">
+            <span class="ctl-lab" title="A fresh encryption nonce is used each time, so the payload words change. The cover text stays on the chosen variant.">Payload</span>
+            <button type="button" class="btn sm" id="c-regen" title="A fresh encryption nonce is used each time.">↻ Regenerate</button>
+          </div>
 
           <label>Subject <span class="muted">(optional, public)</span></label>
           <input type="text" id="c-subject" placeholder="label" spellcheck="false">
@@ -625,6 +655,16 @@ async function sealFor(msg, cred) {
   sealCache = { key, state };
   return state;
 }
+
+// Two independent knobs on what words appear (see renderArtifact):
+//  • Cover variant — a deterministic seed for the cover text. Same number → same
+//    wording, and the payload words never change, so it's a stable, reproducible
+//    parameter (persisted in the URL). No effect when cover words are off.
+//  • Payload — the payload words follow the encryption nonce, a cryptographic
+//    requirement rather than a style choice, so it's exposed as an action
+//    ("Regenerate") that draws a fresh nonce, never as an editable value.
+let coverVariant = 0;
+function coverSeed() { return BigInt(Math.max(0, Math.floor(Number(coverVariant) || 0))); }
 const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
 function sharePost() { return lastBody ? lastBody.replace(/\s+/g, ' ').trim() : SHARE_TEXT; }
 function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
@@ -747,7 +787,7 @@ async function regenPreview() {
     const cred = contentKey();                                // board key by default; custom read key when set
     const state = await sealFor(msg, cred);                   // seal once; cover/lang toggles only re-render
     if (my !== pvToken) return;
-    const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked });
+    const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked, seed: coverSeed() });
     const { body, attr } = splitProse(enc.prose);
     $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
@@ -780,7 +820,28 @@ function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPr
 $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', schedulePreview);
-$('c-cover').addEventListener('change', schedulePreview);
+$('c-cover').addEventListener('change', () => { syncCoverVariantEnabled(); schedulePreview(); });
+
+// ── cover variant (deterministic) + payload regenerate (fresh nonce) ──────
+// Cover variant re-renders from the cached seal, so the payload words stay put; it
+// has no effect when cover words are off, so the stepper is disabled then. Regenerate
+// clears the seal cache so the next render draws a fresh nonce → new payload words.
+function syncCoverVariantEnabled() {
+  const on = $('c-cover').checked;
+  $('c-cv-row').classList.toggle('off', !on);
+  ['c-cv', 'c-cv-dec', 'c-cv-inc', 'c-cv-rand'].forEach(id => { $(id).disabled = !on; });
+}
+function setCoverVariant(n, { persist = true } = {}) {
+  coverVariant = Math.max(0, Math.floor(Number(n) || 0));
+  $('c-cv').value = String(coverVariant);
+  if (persist) writeHash();
+  schedulePreview();
+}
+$('c-cv').addEventListener('input', () => setCoverVariant($('c-cv').value));
+$('c-cv-dec').addEventListener('click', () => setCoverVariant(coverVariant - 1));
+$('c-cv-inc').addEventListener('click', () => setCoverVariant(coverVariant + 1));
+$('c-cv-rand').addEventListener('click', () => setCoverVariant(Math.floor(Math.random() * 1e6)));
+$('c-regen').addEventListener('click', () => { sealCache = null; regenPreview(); });
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
@@ -881,7 +942,7 @@ async function buildBulletin() {
   const identity = boardIdentity();
   const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
   const state = await sealFor(msg, cred);   // reuse the preview's seal so publish matches what the author sees
-  const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked });
+  const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked, seed: coverSeed() });
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
   return { identity, enc, ev };
 }
@@ -1047,6 +1108,7 @@ function writeHash() {
   parts.push('style=' + ($('c-style').value || 'letterpress'));
   if (k) parts.push('key=' + encodeURIComponent(k));
   if (hlOn()) parts.push('hl=1');
+  if (coverVariant > 0) parts.push('cv=' + coverVariant);   // the deterministic cover variant, when not the default 0
   const hash = '#' + parts.join('&');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
@@ -1056,6 +1118,8 @@ function loadFromHash() {
   const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
   applyHl(/(?:^|&)hl=1(?:&|$)/i.test(raw), { persist: false });   // off unless the link says on
+  const cvM = raw.match(/(?:^|&)cv=(\d+)/i);                       // restore the chosen cover variant (default 0)
+  if (cvM) coverVariant = Math.max(0, parseInt(cvM[1], 10) || 0);
   // Prefer an nwrite write key; fall back to nsec so older author links still open.
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
@@ -1097,6 +1161,8 @@ loadFromHash();
   updateMode();
   updateLinks();
   applyStyle($('c-style').value);   // mark the default reading-style tile selected
+  $('c-cv').value = String(coverVariant);   // reflect any restored cover variant, and gray it out if cover is off
+  syncCoverVariantEnabled();
   writeHash();                      // sync style/prefs (and the write key, if opened from a bookmark) into the URL
   schedulePreview();
 })();

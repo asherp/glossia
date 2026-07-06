@@ -236,9 +236,17 @@ export async function sealMessage(message, cred) {
 // would change the payload words. Instead, cover-off just drops the cover words
 // from the already-generated prose — the payload words are byte-identical either
 // way (mirrors index.html's cover toggle, which re-renders rather than re-encodes).
-export function renderArtifact(state, langId = 'english', { cover = true } = {}) {
+//
+// `seed` (default SEED) picks a deterministic cover variation: the RNG only drives
+// cover-word choice and sentence shape, NOT the payload words (those come from the
+// ciphertext bytes via the grammar codec), so changing it re-wraps the SAME payload
+// in different prose. Same seed + same state always yields identical prose, so a
+// "cover variant" is a stable, reproducible parameter. The trailer stays on the base
+// SEED so the Latin attribution doesn't shift as the body variant changes.
+export function renderArtifact(state, langId = 'english', { cover = true, seed = SEED } = {}) {
   const lang = msgLangById(langId);
-  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, SEED));
+  const bodySeed = typeof seed === 'bigint' ? seed : BigInt(seed);
+  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed));
   if (bodyR.error) throw new Error(bodyR.error);
   const bodyWords = bodyR.payload_words || [];
   const body = cover ? (bodyR.encoded_text || '').trim() : payloadOnlyProse(bodyR.encoded_text || '', bodyWords);
