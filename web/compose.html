@@ -129,6 +129,9 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .ok { color:var(--ok); }
 .check { display:flex; align-items:center; gap:9px; font:400 13px/1.4 'Public Sans',sans-serif; color:var(--ink); text-transform:none; letter-spacing:0; margin:22px 0 0; }
 .check input { width:auto; accent-color: var(--accent); }
+.check-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; margin:22px 0 0; }
+.check-row .check { margin:0; }
+#c-lang { width:auto; max-width:100%; min-width:120px; }
 
 /* compact control rows: cover variant stepper + regenerate payload action */
 .ctl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 0; }
@@ -282,7 +285,6 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span> New bulletin</a>
           <div class="board-actions">
             <span class="n" id="c-head-npub">not yet published</span>
-            <button type="button" class="btn sm" id="c-save" title="Show this board's private key as a Glossia seed phrase to save">💾 Save</button>
             <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂 Load</button>
           </div>
         </div>
@@ -304,14 +306,17 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <button type="button" class="btn sm" id="c-pass-btn">Set passphrase</button>
           <div class="entropy" id="c-pass-state"></div>
 
-          <label>Prose language</label>
+          <label>Encoding language</label>
           <select id="c-lang">
             <option value="english">English</option>
             <option value="latin">Latin</option>
             <option value="czech">Czech</option>
           </select>
 
-          <label class="check"><input type="checkbox" id="c-cover" checked> Cover words</label>
+          <div class="check-row">
+            <label class="check"><input type="checkbox" id="c-cover" checked> Cover words</label>
+            <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words</label>
+          </div>
 
           <div class="ctl" id="c-cv-row">
             <span class="ctl-lab" title="Choose a deterministic variation of the cover text. The same number always produces the same wording; the payload words don't change.">Cover variant</span>
@@ -338,11 +343,13 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
           </div>
 
-          <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words</label>
-
           <label>Relays</label>
           <input type="text" id="c-relays" spellcheck="false">
         </details>
+
+        <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
+        <div class="hint" id="c-status" style="margin-top:10px"></div>
+        <div class="err" id="c-err"></div>
       </div>
       </form>
 
@@ -445,9 +452,6 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
           </div>
         </div>
-        <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
-        <div class="hint" id="c-status" style="margin-top:10px"></div>
-        <div class="err" id="c-err"></div>
       </div>
     </aside>
   </div>
@@ -1020,7 +1024,6 @@ function openSaveDialog() {
     : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
   showModal('save');
 }
-$('c-save').addEventListener('click', openSaveDialog);
 $('c-save-keep').addEventListener('click', openSaveDialog);
 
 // "Bookmark this board" folds the write key into the address bar (see writeHash)
