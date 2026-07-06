@@ -658,8 +658,10 @@ async function sealFor(msg, cred) {
 
 // Two independent knobs on what words appear (see renderArtifact):
 //  • Cover variant — a deterministic seed for the cover text. Same number → same
-//    wording, and the payload words never change, so it's a stable, reproducible
-//    parameter (persisted in the URL). No effect when cover words are off.
+//    wording, and the payload words never change. It's a live, in-session control
+//    (not persisted): every publish draws a fresh nonce, so a nonce×variant pair is
+//    unique per bulletin and pinning the variant could never reproduce an exact
+//    published wording anyway. No effect when cover words are off.
 //  • Payload — the payload words follow the encryption nonce, a cryptographic
 //    requirement rather than a style choice, so it's exposed as an action
 //    ("Regenerate") that draws a fresh nonce, never as an editable value.
@@ -831,10 +833,9 @@ function syncCoverVariantEnabled() {
   $('c-cv-row').classList.toggle('off', !on);
   ['c-cv', 'c-cv-dec', 'c-cv-inc', 'c-cv-rand'].forEach(id => { $(id).disabled = !on; });
 }
-function setCoverVariant(n, { persist = true } = {}) {
+function setCoverVariant(n) {
   coverVariant = Math.max(0, Math.floor(Number(n) || 0));
   $('c-cv').value = String(coverVariant);
-  if (persist) writeHash();
   schedulePreview();
 }
 $('c-cv').addEventListener('input', () => setCoverVariant($('c-cv').value));
@@ -1108,7 +1109,6 @@ function writeHash() {
   parts.push('style=' + ($('c-style').value || 'letterpress'));
   if (k) parts.push('key=' + encodeURIComponent(k));
   if (hlOn()) parts.push('hl=1');
-  if (coverVariant > 0) parts.push('cv=' + coverVariant);   // the deterministic cover variant, when not the default 0
   const hash = '#' + parts.join('&');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
@@ -1118,8 +1118,6 @@ function loadFromHash() {
   const styleM = raw.match(/style=(letterpress|midnight|terminal)/i);
   if (styleM) applyStyle(styleM[1].toLowerCase());
   applyHl(/(?:^|&)hl=1(?:&|$)/i.test(raw), { persist: false });   // off unless the link says on
-  const cvM = raw.match(/(?:^|&)cv=(\d+)/i);                       // restore the chosen cover variant (default 0)
-  if (cvM) coverVariant = Math.max(0, parseInt(cvM[1], 10) || 0);
   // Prefer an nwrite write key; fall back to nsec so older author links still open.
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
@@ -1161,8 +1159,7 @@ loadFromHash();
   updateMode();
   updateLinks();
   applyStyle($('c-style').value);   // mark the default reading-style tile selected
-  $('c-cv').value = String(coverVariant);   // reflect any restored cover variant, and gray it out if cover is off
-  syncCoverVariantEnabled();
+  syncCoverVariantEnabled();         // gray out the cover variant stepper when cover words are off
   writeHash();                      // sync style/prefs (and the write key, if opened from a bookmark) into the URL
   schedulePreview();
 })();
