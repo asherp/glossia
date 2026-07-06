@@ -321,8 +321,9 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         <!-- Keep this — for you -->
         <div class="share keep">
           <label>Keep this <span class="muted">· for you</span></label>
-          <p class="hint" style="margin:0 0 12px">
-            <strong>Bookmark this page</strong> — it's the only way back in to post again. Save the seed phrase for a durable backup.
+          <button type="button" class="btn sm" id="c-bookmark" style="margin:0 0 12px">🔖 Bookmark this board</button>
+          <p class="hint hidden" id="c-bookmark-hint" style="margin:0 0 12px">
+            <strong>Board key added to the address bar.</strong> Bookmark this page now (press <kbd>⌘/Ctrl</kbd>+<kbd>D</kbd>) — the bookmark is your only way back in to post again. Save the seed phrase for a durable backup.
           </p>
           <button type="button" class="btn sm" id="c-save-keep">💾 Save bulletin</button>
         </div>
@@ -961,6 +962,15 @@ function openSaveDialog() {
 }
 $('c-save').addEventListener('click', openSaveDialog);
 $('c-save-keep').addEventListener('click', openSaveDialog);
+
+// "Bookmark this board" folds the write key into the address bar (see writeHash)
+// and reveals the instruction to bookmark the page — the nwrite is kept out of the
+// URL until the author explicitly opts in.
+$('c-bookmark').addEventListener('click', () => {
+  bookmarkArmed = true;
+  writeHash();
+  $('c-bookmark-hint').classList.remove('hidden');
+});
 $('c-seed-copy').addEventListener('click', () => { if (currentSeed) navigator.clipboard.writeText(currentSeed).catch(() => {}); });
 $('c-seed-download').addEventListener('click', () => {
   if (!currentSeed) return;
@@ -1021,14 +1031,23 @@ function restoreBoard(id, readKey = null) {
 // keep the share links + address bar in sync when the reading style changes
 $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 
-// ── the address bar IS the board: compose.html#nwrite…&style=… ─────────
-// Writing the board into the hash makes the page bookmarkable — reopening the
-// bookmark restores the same board so you can keep publishing to it. The hash
-// fragment is never sent to the server.
+// ── the address bar as an opt-in board bookmark: compose.html#nwrite…&style=… ─
+// The write key (nwrite) is the board's posting credential, so it is NOT put in
+// the URL by default — that would leave it in history, screenshots, and shared
+// links. "Bookmark this board" arms bookmarkArmed, which folds the nwrite into the
+// hash so the page can be bookmarked and reopened to keep publishing. Boards opened
+// from an existing bookmark stay armed (see loadFromHash) so refresh keeps working.
+// The hash fragment is never sent to the server. Style, reading prefs and the
+// derived read key (never the raw passphrase) always ride along.
+let bookmarkArmed = false;
 function writeHash() {
   const k = customActive() ? contentNread() : '';   // carry the derived read key (nread), never the raw passphrase
-  const hash = '#' + boardIdentity().nwrite + '&style=' + ($('c-style').value || 'letterpress')
-    + (k ? '&key=' + encodeURIComponent(k) : '') + hlParam();
+  const parts = [];
+  if (bookmarkArmed) parts.push(boardIdentity().nwrite);   // the posting key — only after "Bookmark this board"
+  parts.push('style=' + ($('c-style').value || 'letterpress'));
+  if (k) parts.push('key=' + encodeURIComponent(k));
+  if (hlOn()) parts.push('hl=1');
+  const hash = '#' + parts.join('&');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
 let hashKey = '';   // a custom passphrase carried in the opened author link, if any
@@ -1041,8 +1060,8 @@ function loadFromHash() {
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
   try {
-    if (wm) applyLoadedIdentity(identityFromNwrite(wm[0]));
-    else if (nm) applyLoadedIdentity(identityFromNsec(nm[0]));
+    if (wm) { applyLoadedIdentity(identityFromNwrite(wm[0])); bookmarkArmed = true; }
+    else if (nm) { applyLoadedIdentity(identityFromNsec(nm[0])); bookmarkArmed = true; }
   } catch { /* malformed write key — ignore, start a fresh board */ }
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { try { hashKey = decodeURIComponent(keyM[1]); } catch { hashKey = keyM[1]; } }
@@ -1078,7 +1097,7 @@ loadFromHash();
   updateMode();
   updateLinks();
   applyStyle($('c-style').value);   // mark the default reading-style tile selected
-  writeHash();                      // pin the board in the address bar so it's bookmarkable
+  writeHash();                      // sync style/prefs (and the write key, if opened from a bookmark) into the URL
   schedulePreview();
 })();
 </script>
