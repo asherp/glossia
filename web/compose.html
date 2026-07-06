@@ -319,7 +319,6 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
               <button type="button" class="btn sm step" id="c-cv-dec" aria-label="Previous cover variant">–</button>
               <input type="number" id="c-cv" min="0" step="1" value="0" aria-label="Cover variant number">
               <button type="button" class="btn sm step" id="c-cv-inc" aria-label="Next cover variant">+</button>
-              <button type="button" class="btn sm step" id="c-cv-rand" title="Random cover variant" aria-label="Random cover variant">🎲</button>
             </span>
           </div>
 
@@ -831,7 +830,7 @@ $('c-cover').addEventListener('change', () => { syncCoverVariantEnabled(); sched
 function syncCoverVariantEnabled() {
   const on = $('c-cover').checked;
   $('c-cv-row').classList.toggle('off', !on);
-  ['c-cv', 'c-cv-dec', 'c-cv-inc', 'c-cv-rand'].forEach(id => { $(id).disabled = !on; });
+  ['c-cv', 'c-cv-dec', 'c-cv-inc'].forEach(id => { $(id).disabled = !on; });
 }
 function setCoverVariant(n) {
   coverVariant = Math.max(0, Math.floor(Number(n) || 0));
@@ -841,7 +840,6 @@ function setCoverVariant(n) {
 $('c-cv').addEventListener('input', () => setCoverVariant($('c-cv').value));
 $('c-cv-dec').addEventListener('click', () => setCoverVariant(coverVariant - 1));
 $('c-cv-inc').addEventListener('click', () => setCoverVariant(coverVariant + 1));
-$('c-cv-rand').addEventListener('click', () => setCoverVariant(Math.floor(Math.random() * 1e6)));
 $('c-regen').addEventListener('click', () => { sealCache = null; regenPreview(); });
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
