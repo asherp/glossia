@@ -286,12 +286,10 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           </summary>
 
           <label>Passphrase <span class="muted">(optional)</span></label>
-          <p class="hint" style="margin:0 0 9px">Sets a memorable key. Anyone with the passphrase can read the bulletin.</p>
           <button type="button" class="btn sm" id="c-pass-btn">Set passphrase</button>
           <div class="entropy" id="c-pass-state"></div>
 
           <label>Prose language</label>
-          <p class="hint" style="margin:0 0 9px">Which language the prose reads in. The data stays the same.</p>
           <select id="c-lang">
             <option value="english">English</option>
             <option value="latin">Latin</option>
@@ -299,13 +297,11 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           </select>
 
           <label class="check"><input type="checkbox" id="c-cover" checked> Cover words</label>
-          <p class="hint" style="margin:6px 0 0">Wraps the payload in natural prose. Off = just the payload words, much shorter.</p>
 
           <label>Subject <span class="muted">(optional, public)</span></label>
           <input type="text" id="c-subject" placeholder="label" spellcheck="false">
 
           <label>Reading style</label>
-          <p class="hint" style="margin:0 0 9px">Changes how the bulletin looks to readers. The data stays the same.</p>
           <input type="hidden" id="c-style" value="letterpress">
           <div class="tiles" role="group" aria-label="Reading style">
             <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
