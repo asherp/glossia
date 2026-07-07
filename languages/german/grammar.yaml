@@ -155,6 +155,13 @@ grammar:
           lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
 
   dialects:
+    # Word-preserving seed dialect for the web BIP39 panel. Inherits the base
+    # (body) rules and morphology; base_n weaves the seed words in verbatim.
+    bip39:
+      codec: base_n
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+
     # Longer, flowing sentences for paragraph text.
     prose:
       payload_wordlist: "default"
