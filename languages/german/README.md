@@ -64,10 +64,29 @@ Chinese (Traditional), French, Italian, Czech, and Portuguese. This German
 wordlist is a community-maintained alternative that follows BIP39 principles but
 is not part of the official Bitcoin BIPs specification.
 
-## Known limitations (first pass)
+## Morphological agreement
 
-The grammar generates legible, plausible German but does not yet enforce full
-gender/case agreement (e.g. article and adjective endings), so some noun phrases
-read as "der rot galerie" rather than "die rote Galerie". This does not affect
-round-trip correctness — decoding filters payload words regardless of the
-surrounding cover words. Tightening agreement is future work.
+The German grammar declares `morphology: german`, which runs a post-generation
+agreement pass (`src/generator/agreement.rs`) over each sentence:
+
+* **Determiner gender/case agreement.** Definite and indefinite articles are
+  rewritten to agree with their head noun's gender and the NP's case
+  (der/die/das/den/dem, ein/eine/einen/einem/einer). Case is inferred from
+  local structure: nominative by default, accusative for a direct object (right
+  after a verb), and a preposition's governed case inside a PP (two-way
+  prepositions default to dative). Gender comes from the `gender:` annotations
+  in `payload.yaml`/`cover.yaml`.
+* **Noun capitalization.** Tokens in noun slots are capitalized, per German
+  orthography.
+
+The pass only rewrites *cover* determiners (whose forms never collide with any
+payload word) and noun casing, so payload words and round-tripping are
+unaffected — decoding lowercases and filters on the payload wordlist.
+
+### Not yet handled
+
+Attributive adjectives require declension (strong/weak/mixed endings), which
+this pass does not do, so the grammar keeps adjectives in **predicative**
+position ("Der Becher ist gut"), where they are uninflected. Plurals, genitive
+NPs, and verb conjugation for payload verbs are also future work. None of these
+affect round-trip correctness.

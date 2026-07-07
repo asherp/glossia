@@ -502,8 +502,13 @@ pub fn fill_slots<R: Rng>(
     payload_only_mode: bool,
     prime_constraint_enabled: bool,
     dot_is_punctuation: bool,
+    agreement: Option<&crate::generator::agreement::Agreement>,
 ) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
+    // Slot / refinement of each emitted token in `out` (Dot slots that only
+    // append punctuation are not represented). Used by the agreement post-pass.
+    let mut emitted_slots: Vec<Pos> = Vec::new();
+    let mut emitted_refs: Vec<Option<String>> = Vec::new();
     const REPETITION_WINDOW: usize = 3;
     // Track which payload words have been used (by index)
     let mut used_payload_indices: HashSet<usize> = HashSet::new();
@@ -558,6 +563,8 @@ pub fn fill_slots<R: Rng>(
                 payload[idx].word, ref_tag, i
             );
             out.push(payload[idx].word.clone());
+            emitted_slots.push(slot);
+            emitted_refs.push(ref_tag.map(|s| s.to_string()));
             used_payload_indices.insert(idx);
             if forced_placements.is_none() {
                 *payload_i += 1;
@@ -666,11 +673,21 @@ pub fn fill_slots<R: Rng>(
         };
 
         out.push(cover_word);
+        emitted_slots.push(slot);
+        emitted_refs.push(ref_tag.map(|s| s.to_string()));
     }
 
     // Advance payload_i past used words
     while *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
         *payload_i += 1;
+    }
+
+    // Language-specific morphological agreement (e.g. German determiner
+    // gender/case agreement + noun capitalization). Rewrites only cover
+    // determiners and noun casing, so payload words and round-tripping are
+    // unaffected.
+    if let Some(ag) = agreement {
+        ag.apply(&emitted_slots, &emitted_refs, &mut out);
     }
 
     out
@@ -841,6 +858,11 @@ pub fn generate_text_with_original_payload<R: Rng>(
         .and_then(|constraints| constraints.prime_ordering.as_ref())
         .map(|c| c.enabled)
         .unwrap_or(false);
+
+    // Optional language-specific agreement post-pass (e.g. German).
+    let agreement = grammar.morphology()
+        .and_then(|m| crate::generator::agreement::for_morphology(m, language));
+    let agreement_ref = agreement.as_ref();
 
     // Load precomputed sequences
     let cache = match SequenceCache::load_with_dialect(mode, language, dialect_str, k_max, verbose) {
@@ -1042,6 +1064,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 payload_only_mode,
                 prime_constraint_enabled,
                 grammar.dot_is_punctuation(),
+                agreement_ref,
             );
 
             // Update current_payload_i to reflect what was actually used
@@ -1121,9 +1144,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 length_mode,
                 prime_constraint_enabled,
                 &cache,
+                agreement_ref,
             );
         }
-        
+
         let mut sentence_count = 0;
         // Dynamic limit: at worst 1 payload word per sentence, plus buffer for rejected sentences
         let max_sentences = payload.len().max(200) + 50;
@@ -1349,6 +1373,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             payload_only_mode,
             prime_constraint_enabled,
             grammar.dot_is_punctuation(),
+            agreement_ref,
         );
 
         // Update payload_i to reflect what was actually used
@@ -1504,6 +1529,7 @@ fn generate_text_merkle_segmented<R: Rng>(
     length_mode: SentenceLengthMode,
     prime_constraint_enabled: bool,
     cache: &SequenceCache,
+    agreement: Option<&crate::generator::agreement::Agreement>,
 ) -> (String, HashSet<String>) {
     use super::utils::normalize_token_for_bip39;
 
@@ -1703,6 +1729,7 @@ fn generate_text_merkle_segmented<R: Rng>(
             false,
             prime_constraint_enabled,
             grammar.dot_is_punctuation(),
+            agreement,
         );
 
         // Update payload_i to reflect what was actually used

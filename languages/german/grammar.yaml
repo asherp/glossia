@@ -19,6 +19,13 @@ grammar:
   codec: base_n
   default_wordlist: default
 
+  # Apply the German morphological agreement post-pass: determiner gender/case
+  # agreement (der/die/das/den/dem, ein/eine/einen/einem/einer) and noun
+  # capitalization. See src/generator/agreement.rs. Adjectives are kept in
+  # predicative position (uninflected) below, so attributive declension is not
+  # yet required.
+  morphology: german
+
   # Cap sequence enumeration. The recursive VP_PP_TAIL / conjoined-clause
   # productions make exhaustive enumeration explode past k≈14 (as noted in the
   # meta grammar). k=12 keeps first-run enumeration well under a second while
@@ -80,26 +87,23 @@ grammar:
           lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
 
     noun_phrase:
+      # No attributive "Det Adj N" — German attributive adjectives must decline
+      # (strong/weak/mixed), which the Phase-1 agreement pass does not yet do.
+      # Adjectives appear predicatively (Cop Adj), where they are uninflected.
       lambda: "λn:(e->t). n"
       cfg_productions:
         - production: "N"
           weight: 1.0
           lambda: "λn:(e->t). n"
         - production: "Det[def] N"
-          weight: 0.50
+          weight: 0.55
           lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
         - production: "Det[indef] N"
-          weight: 0.25
+          weight: 0.30
           lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
         - production: "Det[quant] N"
           weight: 0.15
           lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
-        - production: "Det[def] Adj N"
-          weight: 0.15
-          lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). det(n)"
-        - production: "Det[indef] Adj N"
-          weight: 0.10
-          lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). det(n)"
 
     verb_phrase:
       lambda: "λv:(e->(e->t)). v"
@@ -115,19 +119,19 @@ grammar:
       lambda: "λv:(e->(e->t)). v"
       cfg_productions:
         - production: "V NP"
-          weight: 0.30
+          weight: 0.28
           lambda: "λnp:(e->t). λv:(e->(e->t)). v(np)"
         - production: "Modal V NP"
-          weight: 0.25
+          weight: 0.22
           lambda: "λnp:(e->t). λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v(np))"
         - production: "Cop[sg] Adj"
-          weight: 0.15
+          weight: 0.28
           lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
         - production: "Cop[pl] Adj"
-          weight: 0.05
+          weight: 0.10
           lambda: "λadj:(e->e). λcop:((e->t)->(e->t)). cop(adj)"
         - production: "Modal V"
-          weight: 0.05
+          weight: 0.07
           lambda: "λv:(e->(e->t)). λmod:((e->t)->(e->t)). mod(v)"
         - production: "V To V"
           weight: 0.05
@@ -179,26 +183,21 @@ grammar:
               lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
 
         noun_phrase:
+          # Attributive "Det Adj N" omitted (see body noun_phrase note).
           lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "Det[def] N"
-              weight: 0.25
+              weight: 0.45
               lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
             - production: "Det[indef] N"
-              weight: 0.15
+              weight: 0.30
               lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
-            - production: "Det[def] Adj N"
-              weight: 0.25
-              lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). det(n)"
-            - production: "Det[indef] Adj N"
-              weight: 0.15
-              lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). det(n)"
             - production: "Det[quant] N"
-              weight: 0.10
+              weight: 0.15
               lambda: "λn:(e->t). λdet:((e->t)->(e->t)). det(n)"
-            - production: "Det[quant] Adj N"
+            - production: "N"
               weight: 0.05
-              lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). det(n)"
+              lambda: "λn:(e->t). n"
             - production: "Pron"
               weight: 0.05
               lambda: "λpron:e. pron"
@@ -238,14 +237,11 @@ grammar:
               weight: 0.60
               lambda: "λnp:(e->t). λprep:(e->(e->t)). prep(np)"
             - production: "Prep Det[def] N"
-              weight: 0.20
+              weight: 0.25
               lambda: "λn:(e->t). λdet:((e->t)->(e->t)). λprep:(e->(e->t)). prep(det(n))"
             - production: "Prep Det[indef] N"
-              weight: 0.10
+              weight: 0.15
               lambda: "λn:(e->t). λdet:((e->t)->(e->t)). λprep:(e->(e->t)). prep(det(n))"
-            - production: "Prep Det[def] Adj N"
-              weight: 0.10
-              lambda: "λn:(e->t). λadj:(e->e). λdet:((e->t)->(e->t)). λprep:(e->(e->t)). prep(det(n))"
 
     # Bare payload words separated by sentence stops — maximum density,
     # minimum cover. Useful for compact mnemonic display.
@@ -268,9 +264,6 @@ grammar:
             - production: "N N N N Dot"
               weight: 0.15
               lambda: "λn:(e->t). n"
-            - production: "Adj N Dot"
-              weight: 0.05
-              lambda: "λn:(e->t). λadj:(e->e). adj(n)"
-            - production: "V N Dot"
-              weight: 0.05
-              lambda: "λn:(e->t). λv:(e->(e->t)). v(n)"
+            - production: "N N N N N Dot"
+              weight: 0.10
+              lambda: "λn:(e->t). n"

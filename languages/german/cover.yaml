@@ -36,6 +36,9 @@ einen:
 einem:
   Det: 1.0
   refinement: indef
+einer:
+  Det: 1.0
+  refinement: indef
 jede:
   Det: 1.0
   refinement: quant
@@ -250,7 +253,10 @@ manchmal:
 # ── Cover nouns (structural, non-payload) ────────────────────
 ort:
   N: 1.0
+  gender: m
 stelle:
   N: 1.0
+  gender: f
 weise:
   N: 1.0
+  gender: f

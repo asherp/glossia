@@ -37,6 +37,29 @@ def map_stts(tag: str) -> str:
     return tag                        # FM, XY, PTKVZ, CARD ... -> handled below
 
 
+_GENUS_TO_CHAR = {
+    "m": "m", "männlich": "m",
+    "f": "f", "weiblich": "f",
+    "n": "n", "neutrum": "n", "sächlich": "n",
+}
+
+
+def lookup_gender(word: str, nouns) -> str | None:
+    """Grammatical gender (m/f/n) for a noun, from german-nouns' `genus`.
+
+    Takes the first entry's genus; words tagged with several genera keep the
+    most common (first-listed) reading, which is a fine default for a word list.
+    """
+    for entry in nouns[word.capitalize()]:
+        for key in ("genus", "genus 1"):
+            g = entry.get(key)
+            if isinstance(g, str):
+                c = _GENUS_TO_CHAR.get(g.strip().lower())
+                if c:
+                    return c
+    return None
+
+
 def classify(word: str, tagger, nouns) -> dict:
     """Return a weighted {POS: weight} dict for one payload word."""
     _lemma, tag = tagger.analyze(word, taglevel=1)
@@ -72,12 +95,15 @@ def main() -> None:
     nouns = Nouns()
 
     dist = Counter()
+    gender_count = 0
     lines = [
         "# German payload wordlist — dys2p de-2048-v1 (BIP39-compatible)",
         "#",
         "# POS tags generated offline by glossia-tools/py/generate_german_payload.py",
-        "# (HanTa POS tagger + german-nouns Wiktionary lexicon). Word order is the",
-        "# canonical dys2p ordering and is authoritative for codec indices.",
+        "# (HanTa POS tagger + german-nouns Wiktionary lexicon). Nouns also carry a",
+        "# `gender` (m/f/n) used by the German agreement pass for article",
+        "# gender/case selection. Word order is the canonical dys2p ordering and is",
+        "# authoritative for codec indices.",
         "#",
         f"# Total words: {len(words)}",
         "",
@@ -89,12 +115,19 @@ def main() -> None:
         lines.append(f"{w}:")
         for pos, weight in tags.items():
             lines.append(f"  {pos}: {weight}")
+        # Annotate gender for anything the noun lexicon recognizes (the
+        # agreement pass only consults it for words landing in N slots).
+        gender = lookup_gender(w, nouns)
+        if gender:
+            lines.append(f"  gender: {gender}")
+            gender_count += 1
 
     with open(dst, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
     print(f"wrote {dst}: {len(words)} words")
     print("POS distribution (tag occurrences):", dict(dist))
+    print(f"words with gender: {gender_count}")
 
 
 if __name__ == "__main__":
