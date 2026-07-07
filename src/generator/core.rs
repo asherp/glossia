@@ -636,22 +636,30 @@ pub fn fill_slots<R: Rng>(
 
             constrained.unwrap_or_else(|| lex.pick_cover_refined(rng, slot, ref_tag, &recent_words))
         } else if slot == Pos::Det && ref_tag == Some("indef") {
-            // Special phonological rule for indefinite article: a/an based on next word
-            let next_word_str: Option<String> = if let Some(forced) = forced_placements {
-                forced
-                    .get(&(i + 1))
-                    .and_then(|&pidx| payload.get(pidx))
-                    .map(|t| t.word.clone())
-            } else if *payload_i < payload.len()
-                && !used_payload_indices.contains(payload_i)
-                && slots.get(i + 1).map_or(false, |&ns| payload_fits(&payload[*payload_i], ns))
-            {
-                Some(payload[*payload_i].word.clone())
+            // Pick the language's indefinite determiner from the cover list.
+            // English's article is "a"/"an", which needs a phonological choice
+            // based on the following word; other languages (e.g. German ein/eine)
+            // carry their own indefinite determiners and must not be overridden.
+            let base = lex.pick_cover_refined(rng, slot, ref_tag, &recent_words);
+            if base == "a" || base == "an" {
+                let next_word_str: Option<String> = if let Some(forced) = forced_placements {
+                    forced
+                        .get(&(i + 1))
+                        .and_then(|&pidx| payload.get(pidx))
+                        .map(|t| t.word.clone())
+                } else if *payload_i < payload.len()
+                    && !used_payload_indices.contains(payload_i)
+                    && slots.get(i + 1).map_or(false, |&ns| payload_fits(&payload[*payload_i], ns))
+                {
+                    Some(payload[*payload_i].word.clone())
+                } else {
+                    // Peek at what cover word would be chosen for next slot
+                    slots.get(i + 1).map(|&ns| lex.pick_cover(rng, ns, &recent_words))
+                };
+                apply_indef_phonology(next_word_str.as_deref())
             } else {
-                // Peek at what cover word would be chosen for next slot
-                slots.get(i + 1).map(|&ns| lex.pick_cover(rng, ns, &recent_words))
-            };
-            apply_indef_phonology(next_word_str.as_deref())
+                base
+            }
         } else {
             // All other POS: use refinement-aware cover word selection
             lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)

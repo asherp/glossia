@@ -1,0 +1,4408 @@
+# German payload wordlist — dys2p de-2048-v1 (BIP39-compatible)
+#
+# POS tags generated offline by glossia-tools/py/generate_german_payload.py
+# (HanTa POS tagger + german-nouns Wiktionary lexicon). Word order is the
+# canonical dys2p ordering and is authoritative for codec indices.
+#
+# Total words: 2048
+
+abbau:
+  N: 1.0
+abbild:
+  N: 1.0
+abbruch:
+  N: 1.0
+abdruck:
+  N: 1.0
+abend:
+  N: 0.6
+  Adv: 0.4
+abfall:
+  N: 1.0
+abflug:
+  N: 1.0
+abgas:
+  N: 1.0
+abgrund:
+  N: 1.0
+abitur:
+  N: 1.0
+abkommen:
+  N: 1.0
+ablauf:
+  N: 1.0
+ablehnen:
+  N: 0.6
+  V: 0.4
+abluft:
+  N: 1.0
+abpfiff:
+  N: 0.6
+  V: 0.4
+abreise:
+  N: 0.6
+  V: 0.4
+abriss:
+  N: 0.6
+  V: 0.4
+absage:
+  N: 1.0
+abschied:
+  N: 1.0
+abseits:
+  N: 0.6
+  Adv: 0.4
+absicht:
+  N: 1.0
+absolut:
+  Adj: 1.0
+abstand:
+  N: 1.0
+absurd:
+  Adj: 1.0
+abteil:
+  N: 1.0
+abwarten:
+  V: 1.0
+abwehr:
+  N: 1.0
+abzug:
+  N: 1.0
+achse:
+  N: 1.0
+acht:
+  N: 1.0
+acker:
+  N: 1.0
+adapter:
+  N: 1.0
+ader:
+  N: 1.0
+adler:
+  N: 1.0
+adresse:
+  N: 1.0
+advent:
+  N: 1.0
+affe:
+  N: 1.0
+agent:
+  N: 1.0
+agieren:
+  V: 1.0
+ahnen:
+  N: 0.6
+  V: 0.4
+ahnung:
+  N: 1.0
+ahorn:
+  N: 1.0
+akademie:
+  N: 1.0
+akkord:
+  N: 1.0
+akte:
+  N: 1.0
+aktie:
+  N: 1.0
+aktuell:
+  Adj: 1.0
+akustik:
+  N: 1.0
+akzent:
+  N: 1.0
+alarm:
+  N: 1.0
+albatros:
+  N: 1.0
+album:
+  N: 1.0
+alge:
+  N: 1.0
+alkohol:
+  N: 1.0
+allee:
+  N: 0.6
+  Pron: 0.4
+allianz:
+  N: 1.0
+alltag:
+  N: 1.0
+alpen:
+  N: 1.0
+alptraum:
+  N: 1.0
+alter:
+  N: 0.6
+  Adj: 0.4
+altglas:
+  N: 1.0
+altstadt:
+  N: 1.0
+alufolie:
+  N: 1.0
+amboss:
+  N: 1.0
+ameise:
+  N: 1.0
+ampel:
+  N: 1.0
+amsel:
+  N: 1.0
+amulett:
+  N: 1.0
+analyse:
+  N: 1.0
+ananas:
+  N: 1.0
+anbau:
+  N: 1.0
+anbieten:
+  V: 1.0
+anblick:
+  N: 1.0
+anfang:
+  N: 1.0
+anfrage:
+  N: 1.0
+angabe:
+  N: 0.6
+  V: 0.4
+angel:
+  N: 1.0
+angriff:
+  N: 1.0
+angst:
+  N: 0.6
+  Adv: 0.4
+anhand:
+  Prep: 1.0
+anheben:
+  V: 1.0
+anhieb:
+  N: 1.0
+anker:
+  N: 1.0
+anklage:
+  N: 1.0
+ankommt:
+  V: 1.0
+ankunft:
+  N: 1.0
+anlage:
+  N: 1.0
+anleiten:
+  V: 1.0
+anliegen:
+  N: 1.0
+anmelden:
+  V: 1.0
+annehmen:
+  V: 1.0
+annonce:
+  N: 1.0
+anomalie:
+  N: 1.0
+anpassen:
+  V: 1.0
+anregung:
+  N: 1.0
+anruf:
+  N: 1.0
+ansatz:
+  N: 1.0
+anschein:
+  N: 1.0
+ansehen:
+  N: 0.6
+  V: 0.4
+ansicht:
+  N: 1.0
+anspruch:
+  N: 1.0
+anstalt:
+  N: 1.0
+anteil:
+  N: 1.0
+antik:
+  Adj: 1.0
+antrag:
+  N: 1.0
+antwort:
+  N: 1.0
+anwalt:
+  N: 1.0
+anwesen:
+  N: 1.0
+anwohner:
+  N: 1.0
+anzahl:
+  N: 1.0
+anzeige:
+  N: 0.6
+  V: 0.4
+anzug:
+  N: 1.0
+apfel:
+  N: 1.0
+apotheke:
+  N: 1.0
+apparat:
+  N: 1.0
+appell:
+  N: 1.0
+applaus:
+  N: 1.0
+april:
+  N: 1.0
+aquarell:
+  N: 1.0
+arbeit:
+  N: 1.0
+archiv:
+  N: 1.0
+areal:
+  N: 1.0
+arena:
+  N: 1.0
+argument:
+  N: 1.0
+armband:
+  N: 1.0
+armut:
+  N: 1.0
+aroma:
+  N: 1.0
+arten:
+  N: 1.0
+artikel:
+  N: 1.0
+arzt:
+  N: 1.0
+asche:
+  N: 1.0
+aspekt:
+  N: 1.0
+asphalt:
+  N: 1.0
+atelier:
+  N: 1.0
+atem:
+  N: 1.0
+athlet:
+  N: 1.0
+atlas:
+  N: 1.0
+atom:
+  N: 1.0
+attacke:
+  N: 1.0
+auerhahn:
+  N: 0.6
+  V: 0.4
+aufbau:
+  N: 1.0
+aufgabe:
+  N: 1.0
+auflage:
+  N: 1.0
+aufnahme:
+  N: 1.0
+aufruf:
+  N: 1.0
+aufstand:
+  N: 0.6
+  V: 0.4
+auftrag:
+  N: 1.0
+aufwand:
+  N: 1.0
+aufzug:
+  N: 1.0
+auge:
+  N: 1.0
+august:
+  N: 1.0
+auktion:
+  N: 1.0
+aula:
+  N: 1.0
+ausbruch:
+  N: 1.0
+ausdruck:
+  N: 1.0
+ausflug:
+  N: 1.0
+ausgang:
+  N: 1.0
+auskunft:
+  N: 1.0
+ausnahme:
+  N: 1.0
+aussicht:
+  N: 1.0
+auswahl:
+  N: 1.0
+auszug:
+  N: 1.0
+autark:
+  Adj: 1.0
+auto:
+  N: 1.0
+avocado:
+  N: 1.0
+baby:
+  N: 1.0
+bach:
+  N: 1.0
+backen:
+  N: 0.6
+  V: 0.4
+baden:
+  N: 0.6
+  V: 0.4
+bagger:
+  N: 1.0
+bahn:
+  N: 1.0
+baldrian:
+  N: 1.0
+balkon:
+  N: 1.0
+ball:
+  N: 1.0
+balsam:
+  N: 1.0
+bambus:
+  N: 1.0
+banane:
+  N: 1.0
+band:
+  N: 0.6
+  V: 0.4
+bank:
+  N: 1.0
+bargeld:
+  N: 1.0
+barsch:
+  N: 0.6
+  Adj: 0.4
+bart:
+  N: 1.0
+basis:
+  N: 1.0
+bass:
+  N: 1.0
+basteln:
+  V: 1.0
+batterie:
+  N: 1.0
+bauch:
+  N: 1.0
+bauer:
+  N: 1.0
+bauland:
+  N: 1.0
+baum:
+  N: 1.0
+bauplan:
+  N: 1.0
+bausatz:
+  N: 1.0
+baut:
+  V: 1.0
+bauwagen:
+  N: 1.0
+bauzaun:
+  N: 1.0
+beachten:
+  V: 1.0
+beamte:
+  N: 1.0
+bebauung:
+  N: 1.0
+beben:
+  N: 0.6
+  V: 0.4
+becher:
+  N: 1.0
+becken:
+  N: 1.0
+bedarf:
+  N: 0.6
+  V: 0.4
+bedenken:
+  N: 0.6
+  V: 0.4
+bedienen:
+  V: 1.0
+bedroht:
+  V: 1.0
+beenden:
+  V: 1.0
+beere:
+  N: 1.0
+befahren:
+  V: 1.0
+befehl:
+  N: 1.0
+befinden:
+  N: 0.6
+  V: 0.4
+befragen:
+  V: 1.0
+befund:
+  N: 1.0
+begabt:
+  V: 1.0
+begeben:
+  V: 1.0
+beginn:
+  N: 1.0
+begonnen:
+  V: 1.0
+begriff:
+  N: 0.6
+  V: 0.4
+behalten:
+  V: 1.0
+beide:
+  Pron: 1.0
+beifall:
+  N: 1.0
+beige:
+  N: 1.0
+beihilfe:
+  N: 1.0
+beil:
+  N: 1.0
+bein:
+  N: 1.0
+beirat:
+  N: 1.0
+beispiel:
+  N: 1.0
+beitrag:
+  N: 1.0
+bekannt:
+  Adj: 1.0
+bekennen:
+  V: 1.0
+beklagen:
+  V: 1.0
+bekommen:
+  V: 1.0
+belasten:
+  V: 1.0
+belegen:
+  N: 0.6
+  V: 0.4
+beliebt:
+  Adj: 1.0
+belohnen:
+  V: 1.0
+bemerkt:
+  V: 1.0
+benannt:
+  V: 1.0
+benutzen:
+  V: 1.0
+benzin:
+  N: 1.0
+bequem:
+  Adj: 1.0
+beraten:
+  V: 1.0
+bereich:
+  N: 1.0
+berg:
+  N: 1.0
+bericht:
+  N: 1.0
+beruf:
+  N: 1.0
+bescheid:
+  N: 1.0
+besen:
+  N: 1.0
+besitz:
+  N: 1.0
+besorgen:
+  V: 1.0
+besser:
+  Adj: 1.0
+bestand:
+  N: 0.6
+  V: 0.4
+besuch:
+  N: 1.0
+beton:
+  N: 0.6
+  V: 0.4
+betrieb:
+  N: 0.6
+  V: 0.4
+bett:
+  N: 1.0
+beule:
+  N: 0.6
+  V: 0.4
+beute:
+  N: 0.6
+  V: 0.4
+bewahren:
+  V: 1.0
+bewegen:
+  V: 1.0
+bewirken:
+  V: 1.0
+bewohner:
+  N: 1.0
+bezahlen:
+  V: 1.0
+bezirk:
+  N: 1.0
+bezog:
+  V: 1.0
+bezug:
+  N: 1.0
+biber:
+  N: 1.0
+bieder:
+  Adj: 1.0
+biene:
+  N: 1.0
+bier:
+  N: 1.0
+biest:
+  N: 1.0
+bieten:
+  V: 1.0
+bilanz:
+  N: 1.0
+bild:
+  N: 1.0
+billig:
+  Adj: 1.0
+binden:
+  N: 0.6
+  V: 0.4
+binnen:
+  Prep: 1.0
+biologie:
+  N: 1.0
+biotonne:
+  N: 1.0
+birgt:
+  V: 1.0
+birke:
+  N: 1.0
+birne:
+  N: 1.0
+bitter:
+  N: 0.6
+  Adj: 0.4
+blasen:
+  N: 0.6
+  V: 0.4
+blatt:
+  N: 1.0
+blau:
+  N: 0.6
+  Adj: 0.4
+blech:
+  N: 1.0
+blick:
+  N: 1.0
+blind:
+  Adj: 1.0
+blitz:
+  N: 1.0
+block:
+  N: 1.0
+blume:
+  N: 1.0
+blut:
+  N: 1.0
+boden:
+  N: 1.0
+bogen:
+  N: 0.6
+  V: 0.4
+bohne:
+  N: 1.0
+bohren:
+  V: 1.0
+boje:
+  N: 1.0
+bolzen:
+  N: 1.0
+bombe:
+  N: 1.0
+bonus:
+  N: 1.0
+boot:
+  N: 1.0
+bord:
+  N: 1.0
+botanik:
+  N: 1.0
+bote:
+  N: 0.6
+  V: 0.4
+boxen:
+  N: 0.6
+  V: 0.4
+boxring:
+  N: 1.0
+boykott:
+  N: 1.0
+brachten:
+  V: 1.0
+brand:
+  N: 1.0
+braten:
+  N: 0.6
+  V: 0.4
+braun:
+  N: 0.6
+  Adj: 0.4
+brav:
+  Adj: 1.0
+brechen:
+  V: 1.0
+brei:
+  N: 1.0
+bremsen:
+  N: 0.6
+  V: 0.4
+brennen:
+  V: 1.0
+brett:
+  N: 1.0
+brief:
+  N: 1.0
+brille:
+  N: 1.0
+bringen:
+  V: 1.0
+brisant:
+  Adj: 1.0
+brokkoli:
+  N: 1.0
+bronze:
+  N: 1.0
+brosche:
+  N: 0.6
+  Adj: 0.4
+brot:
+  N: 1.0
+bruch:
+  N: 1.0
+bruder:
+  N: 1.0
+brunnen:
+  N: 1.0
+brust:
+  N: 1.0
+bube:
+  N: 1.0
+buch:
+  N: 1.0
+bude:
+  N: 1.0
+budget:
+  N: 1.0
+bunker:
+  N: 1.0
+bunt:
+  Adj: 1.0
+burg:
+  N: 1.0
+busch:
+  N: 1.0
+busfahrt:
+  N: 1.0
+bussard:
+  N: 1.0
+butter:
+  N: 1.0
+campen:
+  V: 1.0
+caravan:
+  N: 1.0
+chance:
+  N: 1.0
+chaos:
+  N: 1.0
+charme:
+  N: 1.0
+chat:
+  N: 1.0
+chemie:
+  N: 1.0
+chillen:
+  V: 1.0
+chlor:
+  N: 1.0
+chor:
+  N: 1.0
+chrom:
+  N: 1.0
+clever:
+  Adj: 1.0
+clown:
+  N: 1.0
+code:
+  N: 1.0
+computer:
+  N: 1.0
+couch:
+  N: 1.0
+creme:
+  N: 1.0
+dach:
+  N: 1.0
+damals:
+  Adv: 1.0
+dame:
+  N: 1.0
+damm:
+  N: 1.0
+dampf:
+  N: 1.0
+danken:
+  V: 1.0
+darm:
+  N: 1.0
+datei:
+  N: 1.0
+dattel:
+  N: 1.0
+datum:
+  N: 1.0
+dauer:
+  N: 1.0
+daumen:
+  N: 1.0
+deal:
+  N: 1.0
+debatte:
+  N: 1.0
+decke:
+  N: 0.6
+  V: 0.4
+defekt:
+  N: 0.6
+  Adj: 0.4
+defizit:
+  N: 1.0
+dehnen:
+  V: 1.0
+deich:
+  N: 1.0
+delfin:
+  N: 1.0
+delle:
+  N: 0.6
+  V: 0.4
+denkmal:
+  N: 1.0
+depot:
+  N: 1.0
+design:
+  N: 1.0
+dessert:
+  N: 1.0
+detail:
+  N: 1.0
+detektiv:
+  N: 1.0
+deuten:
+  V: 1.0
+devise:
+  N: 1.0
+dezember:
+  N: 1.0
+diagnose:
+  N: 1.0
+dialog:
+  N: 1.0
+dichter:
+  N: 1.0
+dick:
+  Adj: 1.0
+dieb:
+  N: 1.0
+dienstag:
+  N: 1.0
+diesel:
+  N: 1.0
+digital:
+  Adj: 1.0
+diktat:
+  N: 1.0
+dilemma:
+  N: 1.0
+dill:
+  N: 1.0
+ding:
+  N: 1.0
+diplomat:
+  N: 1.0
+direktor:
+  N: 1.0
+dirigent:
+  N: 0.6
+  Adj: 0.4
+diskette:
+  N: 1.0
+distel:
+  N: 1.0
+diverse:
+  Adj: 1.0
+docht:
+  N: 0.6
+  V: 0.4
+doktor:
+  N: 1.0
+dokument:
+  N: 1.0
+dolch:
+  N: 1.0
+domizil:
+  N: 1.0
+donner:
+  N: 1.0
+doppelt:
+  Adj: 1.0
+dorf:
+  N: 1.0
+dorn:
+  N: 1.0
+dose:
+  N: 1.0
+dozent:
+  N: 1.0
+drache:
+  N: 1.0
+draht:
+  N: 1.0
+drama:
+  N: 1.0
+dreck:
+  N: 1.0
+drehbuch:
+  N: 1.0
+drei:
+  N: 1.0
+dringend:
+  Adj: 1.0
+drohne:
+  N: 0.6
+  Adj: 0.4
+drossel:
+  N: 0.6
+  V: 0.4
+drucker:
+  N: 1.0
+ducken:
+  V: 1.0
+duell:
+  N: 1.0
+duft:
+  N: 1.0
+dunkel:
+  N: 0.6
+  Adj: 0.4
+dunst:
+  N: 1.0
+durst:
+  N: 1.0
+dusche:
+  N: 0.6
+  V: 0.4
+dynamik:
+  N: 1.0
+ebbe:
+  N: 0.6
+  V: 0.4
+ebene:
+  N: 1.0
+echo:
+  N: 1.0
+echse:
+  N: 1.0
+echt:
+  Adj: 1.0
+ecke:
+  N: 1.0
+efeu:
+  N: 1.0
+effekt:
+  N: 1.0
+egal:
+  Adv: 1.0
+ehefrau:
+  N: 1.0
+ehemann:
+  N: 1.0
+ehepaar:
+  N: 1.0
+ehre:
+  N: 1.0
+ehrgeiz:
+  N: 1.0
+ehrlich:
+  N: 0.6
+  Adj: 0.4
+eichel:
+  N: 1.0
+eidechse:
+  N: 1.0
+eier:
+  N: 1.0
+eigentum:
+  N: 1.0
+eile:
+  N: 0.6
+  V: 0.4
+eimer:
+  N: 1.0
+einblick:
+  N: 1.0
+eindruck:
+  N: 1.0
+einfach:
+  Adv: 1.0
+eingang:
+  N: 1.0
+einheit:
+  N: 1.0
+einigung:
+  N: 1.0
+einkauf:
+  N: 1.0
+einladen:
+  V: 1.0
+einmal:
+  Adv: 1.0
+einnahme:
+  N: 0.6
+  V: 0.4
+einrad:
+  N: 1.0
+eins:
+  N: 1.0
+eintritt:
+  N: 0.6
+  V: 0.4
+einzeln:
+  N: 0.6
+  Adj: 0.4
+eisberg:
+  N: 1.0
+eisdecke:
+  N: 1.0
+eisen:
+  N: 1.0
+eistee:
+  N: 1.0
+eisvogel:
+  N: 1.0
+eiszeit:
+  N: 1.0
+elch:
+  N: 1.0
+elefant:
+  N: 1.0
+elegant:
+  N: 0.6
+  Adj: 0.4
+element:
+  N: 1.0
+elend:
+  N: 0.6
+  Adj: 0.4
+elite:
+  N: 1.0
+elle:
+  N: 0.6
+  V: 0.4
+elster:
+  N: 1.0
+eltern:
+  N: 1.0
+empfang:
+  N: 1.0
+ende:
+  N: 1.0
+endlich:
+  Adv: 1.0
+energie:
+  N: 1.0
+engel:
+  N: 1.0
+engpass:
+  N: 1.0
+enkel:
+  N: 1.0
+enorm:
+  Adj: 1.0
+ensemble:
+  N: 1.0
+ente:
+  N: 1.0
+entgegen:
+  V: 1.0
+entlang:
+  Prep: 1.0
+entwurf:
+  N: 1.0
+entzogen:
+  V: 1.0
+epoche:
+  N: 1.0
+erbe:
+  N: 1.0
+erbracht:
+  V: 1.0
+erbse:
+  N: 1.0
+erdbeere:
+  N: 1.0
+erde:
+  N: 1.0
+erdgas:
+  N: 1.0
+erdnuss:
+  N: 1.0
+ereignis:
+  N: 1.0
+erfassen:
+  V: 1.0
+erfinden:
+  V: 1.0
+erfolg:
+  N: 1.0
+erfreuen:
+  V: 1.0
+ergebnis:
+  N: 1.0
+erhalten:
+  V: 1.0
+erheben:
+  V: 1.0
+erholung:
+  N: 1.0
+erinnern:
+  V: 1.0
+erkennen:
+  V: 1.0
+erlauben:
+  V: 1.0
+erlebnis:
+  N: 1.0
+erlitten:
+  V: 1.0
+erneut:
+  Adj: 1.0
+ernst:
+  N: 0.6
+  Adj: 0.4
+ernte:
+  N: 1.0
+erobern:
+  V: 1.0
+erproben:
+  V: 1.0
+erregen:
+  V: 1.0
+ersatz:
+  N: 1.0
+ersetzen:
+  V: 1.0
+ersparen:
+  V: 1.0
+erteilen:
+  V: 1.0
+ertrag:
+  N: 1.0
+erwarten:
+  N: 0.6
+  V: 0.4
+erwerben:
+  N: 0.6
+  V: 0.4
+erwiesen:
+  V: 1.0
+erworben:
+  V: 1.0
+erzeugen:
+  N: 0.6
+  V: 0.4
+erzielen:
+  V: 1.0
+esel:
+  N: 1.0
+essen:
+  N: 0.6
+  V: 0.4
+essig:
+  N: 1.0
+esstisch:
+  N: 1.0
+etage:
+  N: 1.0
+etappe:
+  N: 1.0
+etat:
+  N: 1.0
+ethik:
+  N: 1.0
+etikett:
+  N: 1.0
+etliche:
+  Pron: 1.0
+eule:
+  N: 1.0
+euphorie:
+  N: 1.0
+event:
+  N: 1.0
+ewig:
+  Adj: 1.0
+exakt:
+  Adj: 1.0
+examen:
+  N: 1.0
+exil:
+  N: 1.0
+existenz:
+  N: 1.0
+exkurs:
+  N: 1.0
+experte:
+  N: 1.0
+export:
+  N: 1.0
+express:
+  N: 1.0
+extern:
+  Adj: 1.0
+extrem:
+  N: 0.6
+  Adj: 0.4
+fabel:
+  N: 1.0
+fabrik:
+  N: 1.0
+fach:
+  N: 1.0
+fackel:
+  N: 1.0
+faden:
+  N: 0.6
+  Adj: 0.4
+fahne:
+  N: 1.0
+fahrrad:
+  N: 1.0
+faktor:
+  N: 1.0
+falke:
+  N: 1.0
+fallen:
+  N: 0.6
+  V: 0.4
+falsch:
+  Adj: 1.0
+falter:
+  N: 1.0
+familie:
+  N: 1.0
+fangen:
+  N: 0.6
+  V: 0.4
+fans:
+  N: 1.0
+fantasie:
+  N: 1.0
+farbe:
+  N: 1.0
+farn:
+  N: 1.0
+fasching:
+  N: 1.0
+fass:
+  N: 0.6
+  V: 0.4
+faultier:
+  N: 1.0
+fauna:
+  N: 1.0
+faust:
+  N: 1.0
+favorit:
+  N: 1.0
+faxen:
+  N: 0.6
+  V: 0.4
+fazit:
+  N: 1.0
+februar:
+  N: 1.0
+fechten:
+  N: 0.6
+  V: 0.4
+feder:
+  N: 1.0
+fegen:
+  V: 1.0
+fehler:
+  N: 1.0
+feier:
+  N: 0.6
+  V: 0.4
+feile:
+  N: 0.6
+  V: 0.4
+fein:
+  Adj: 1.0
+feld:
+  N: 1.0
+fell:
+  N: 1.0
+fels:
+  N: 1.0
+fenchel:
+  N: 1.0
+fenster:
+  N: 1.0
+ferien:
+  N: 1.0
+fern:
+  Adj: 1.0
+ferse:
+  N: 1.0
+fertig:
+  Adj: 1.0
+fest:
+  N: 1.0
+fett:
+  N: 0.6
+  Adj: 0.4
+feucht:
+  Adj: 1.0
+feuer:
+  N: 1.0
+fichte:
+  N: 0.6
+  V: 0.4
+fieber:
+  N: 1.0
+figur:
+  N: 1.0
+fiktion:
+  N: 1.0
+filiale:
+  N: 1.0
+film:
+  N: 1.0
+filter:
+  N: 0.6
+  V: 0.4
+filz:
+  N: 1.0
+finale:
+  N: 0.6
+  Adj: 0.4
+finden:
+  V: 1.0
+finger:
+  N: 1.0
+fink:
+  N: 1.0
+finster:
+  Adj: 1.0
+firma:
+  N: 1.0
+fisch:
+  N: 1.0
+flach:
+  N: 0.6
+  Adj: 0.4
+flagge:
+  N: 1.0
+flamme:
+  N: 0.6
+  V: 0.4
+flasche:
+  N: 1.0
+fleck:
+  N: 1.0
+fleisch:
+  N: 1.0
+flexibel:
+  Adj: 1.0
+fliege:
+  N: 0.6
+  V: 0.4
+flink:
+  Adj: 1.0
+flocke:
+  N: 0.6
+  V: 0.4
+floh:
+  N: 0.6
+  V: 0.4
+flora:
+  N: 1.0
+flucht:
+  N: 1.0
+flugzeug:
+  N: 1.0
+flur:
+  N: 1.0
+fluss:
+  N: 1.0
+flut:
+  N: 1.0
+fokus:
+  N: 1.0
+folge:
+  N: 1.0
+folie:
+  N: 1.0
+fordern:
+  V: 1.0
+forelle:
+  N: 1.0
+formel:
+  N: 1.0
+forst:
+  N: 1.0
+foto:
+  N: 1.0
+foyer:
+  N: 1.0
+fracht:
+  N: 1.0
+frage:
+  N: 0.6
+  V: 0.4
+fraktion:
+  N: 1.0
+frau:
+  N: 1.0
+frech:
+  Adj: 1.0
+freizeit:
+  N: 1.0
+fremd:
+  Adj: 1.0
+frequenz:
+  N: 1.0
+freund:
+  N: 1.0
+frieden:
+  N: 1.0
+friseur:
+  N: 1.0
+froh:
+  Adj: 1.0
+front:
+  N: 1.0
+frosch:
+  N: 1.0
+frucht:
+  N: 1.0
+frust:
+  N: 1.0
+fuchs:
+  N: 1.0
+fund:
+  N: 1.0
+funktion:
+  N: 1.0
+furcht:
+  N: 1.0
+fusion:
+  N: 1.0
+futter:
+  N: 1.0
+gabel:
+  N: 1.0
+galaxie:
+  N: 1.0
+galerie:
+  N: 1.0
+gang:
+  N: 1.0
+ganove:
+  N: 1.0
+gans:
+  N: 1.0
+ganz:
+  Adv: 1.0
+garage:
+  N: 1.0
+gardine:
+  N: 1.0
+garn:
+  N: 0.6
+  V: 0.4
+garten:
+  N: 1.0
+gasse:
+  N: 1.0
+gast:
+  N: 1.0
+gattung:
+  N: 1.0
+gauner:
+  N: 1.0
+gazelle:
+  N: 1.0
+geben:
+  V: 1.0
+gebiet:
+  N: 1.0
+geboren:
+  V: 1.0
+gebracht:
+  V: 1.0
+geburt:
+  N: 1.0
+gecko:
+  N: 1.0
+gedanke:
+  N: 1.0
+gedicht:
+  N: 1.0
+geduld:
+  N: 1.0
+gefahr:
+  N: 1.0
+gefieder:
+  N: 1.0
+geflecht:
+  N: 1.0
+gegend:
+  N: 1.0
+gegner:
+  N: 1.0
+gehen:
+  N: 0.6
+  V: 0.4
+gehirn:
+  N: 1.0
+geier:
+  N: 1.0
+geige:
+  N: 1.0
+geist:
+  N: 1.0
+geiz:
+  N: 0.6
+  V: 0.4
+gelassen:
+  N: 0.6
+  V: 0.4
+gelb:
+  N: 0.6
+  Adj: 0.4
+geld:
+  N: 1.0
+gelee:
+  N: 0.6
+  V: 0.4
+gelten:
+  V: 1.0
+gelungen:
+  V: 1.0
+gemacht:
+  V: 1.0
+gemein:
+  N: 0.6
+  Adj: 0.4
+genau:
+  Adj: 1.0
+generell:
+  Adj: 1.0
+genie:
+  N: 1.0
+genug:
+  Adv: 1.0
+gepard:
+  N: 1.0
+gerade:
+  N: 0.6
+  Adv: 0.4
+gerecht:
+  Adj: 1.0
+gericht:
+  N: 1.0
+gern:
+  Adv: 1.0
+gerste:
+  N: 1.0
+geruch:
+  N: 1.0
+gesamt:
+  V: 1.0
+geschenk:
+  N: 1.0
+gesetz:
+  N: 1.0
+gesicht:
+  N: 1.0
+gespenst:
+  N: 1.0
+gestalt:
+  N: 1.0
+gesund:
+  Adj: 1.0
+getan:
+  V: 1.0
+getreide:
+  N: 1.0
+gewalt:
+  N: 1.0
+gewerbe:
+  N: 1.0
+gewitter:
+  N: 1.0
+gewonnen:
+  V: 1.0
+giebel:
+  N: 1.0
+gier:
+  N: 1.0
+gift:
+  N: 1.0
+gigant:
+  N: 1.0
+gipfel:
+  N: 1.0
+gips:
+  N: 1.0
+giraffe:
+  N: 1.0
+girlande:
+  N: 1.0
+gitarre:
+  N: 1.0
+gitter:
+  N: 1.0
+glanz:
+  N: 1.0
+glas:
+  N: 1.0
+glatt:
+  Adj: 1.0
+glaube:
+  N: 0.6
+  V: 0.4
+gleis:
+  N: 1.0
+glitzer:
+  N: 0.6
+  V: 0.4
+globus:
+  N: 1.0
+glocke:
+  N: 1.0
+glut:
+  N: 1.0
+gnade:
+  N: 1.0
+gold:
+  N: 0.6
+  Adj: 0.4
+golf:
+  N: 1.0
+gondel:
+  N: 1.0
+gorilla:
+  N: 1.0
+grab:
+  N: 1.0
+grad:
+  N: 1.0
+grafik:
+  N: 1.0
+gramm:
+  N: 1.0
+granit:
+  N: 1.0
+gras:
+  N: 1.0
+gratis:
+  Adv: 1.0
+grau:
+  N: 0.6
+  Adj: 0.4
+gravur:
+  N: 1.0
+greifen:
+  N: 0.6
+  V: 0.4
+gremium:
+  N: 1.0
+grenze:
+  N: 0.6
+  V: 0.4
+griff:
+  N: 0.6
+  V: 0.4
+grill:
+  N: 1.0
+grinsen:
+  N: 0.6
+  V: 0.4
+groll:
+  N: 1.0
+grotte:
+  N: 1.0
+grube:
+  N: 0.6
+  V: 0.4
+gruft:
+  N: 1.0
+grund:
+  N: 1.0
+gruppe:
+  N: 1.0
+gruselig:
+  Adj: 1.0
+gulasch:
+  N: 1.0
+gully:
+  N: 1.0
+gummi:
+  N: 1.0
+gunst:
+  N: 1.0
+gurke:
+  N: 1.0
+gurt:
+  N: 1.0
+guthaben:
+  N: 1.0
+haar:
+  N: 1.0
+habgier:
+  N: 1.0
+habicht:
+  N: 1.0
+hacken:
+  N: 0.6
+  V: 0.4
+hafen:
+  N: 1.0
+haft:
+  N: 1.0
+hagel:
+  N: 0.6
+  V: 0.4
+hahn:
+  N: 1.0
+haken:
+  N: 0.6
+  V: 0.4
+halb:
+  Adj: 1.0
+halde:
+  N: 1.0
+halle:
+  N: 1.0
+halm:
+  N: 1.0
+hals:
+  N: 1.0
+halten:
+  N: 0.6
+  V: 0.4
+hammer:
+  N: 1.0
+hamster:
+  N: 1.0
+hand:
+  N: 1.0
+hanger:
+  N: 1.0
+hantel:
+  N: 1.0
+harfe:
+  N: 1.0
+harke:
+  N: 1.0
+harmonie:
+  N: 1.0
+hart:
+  N: 0.6
+  Adj: 0.4
+hase:
+  N: 1.0
+haube:
+  N: 1.0
+hauch:
+  N: 1.0
+haufen:
+  N: 1.0
+haus:
+  N: 1.0
+haut:
+  N: 1.0
+hebamme:
+  N: 1.0
+hebel:
+  N: 1.0
+hecht:
+  N: 1.0
+hecke:
+  N: 0.6
+  V: 0.4
+hefe:
+  N: 0.6
+  Adj: 0.4
+heft:
+  N: 1.0
+heilen:
+  V: 1.0
+heim:
+  N: 1.0
+heiraten:
+  N: 0.6
+  V: 0.4
+heizung:
+  N: 1.0
+hektar:
+  N: 1.0
+held:
+  N: 1.0
+helfen:
+  V: 1.0
+hell:
+  Adj: 1.0
+helm:
+  N: 1.0
+hemd:
+  N: 1.0
+henkel:
+  N: 1.0
+herbst:
+  N: 1.0
+herd:
+  N: 1.0
+hering:
+  N: 1.0
+herkunft:
+  N: 1.0
+herr:
+  N: 1.0
+herz:
+  N: 1.0
+heute:
+  N: 0.6
+  Adv: 0.4
+hilfe:
+  N: 1.0
+himbeere:
+  N: 1.0
+himmel:
+  N: 1.0
+hinblick:
+  N: 1.0
+hinsicht:
+  N: 1.0
+hinten:
+  Adv: 1.0
+hinweis:
+  N: 1.0
+hirse:
+  N: 1.0
+hirte:
+  N: 1.0
+hitze:
+  N: 1.0
+hobel:
+  N: 1.0
+hoch:
+  N: 0.6
+  Adj: 0.4
+hoffen:
+  V: 1.0
+hohl:
+  Adj: 1.0
+holen:
+  V: 1.0
+holunder:
+  N: 1.0
+holz:
+  N: 1.0
+honig:
+  N: 1.0
+honorar:
+  N: 1.0
+hopfen:
+  N: 1.0
+horizont:
+  N: 1.0
+horn:
+  N: 1.0
+hose:
+  N: 1.0
+hotel:
+  N: 1.0
+hufeisen:
+  N: 1.0
+huhn:
+  N: 1.0
+hummer:
+  N: 1.0
+humor:
+  N: 1.0
+hund:
+  N: 1.0
+hunger:
+  N: 1.0
+hupe:
+  N: 1.0
+husten:
+  N: 0.6
+  V: 0.4
+hydrant:
+  N: 1.0
+hygiene:
+  N: 1.0
+ideal:
+  N: 0.6
+  Adj: 0.4
+idee:
+  N: 1.0
+idol:
+  N: 1.0
+idyll:
+  N: 0.6
+  Adj: 0.4
+igel:
+  N: 1.0
+illegal:
+  Adj: 1.0
+illusion:
+  N: 1.0
+imbiss:
+  N: 1.0
+imker:
+  N: 1.0
+immun:
+  Adj: 1.0
+impfen:
+  V: 1.0
+import:
+  N: 1.0
+impuls:
+  N: 1.0
+index:
+  N: 1.0
+indiz:
+  N: 1.0
+infolge:
+  Prep: 1.0
+ingwer:
+  N: 1.0
+inhalt:
+  N: 1.0
+innen:
+  Adv: 1.0
+insasse:
+  N: 1.0
+insel:
+  N: 1.0
+institut:
+  N: 1.0
+internet:
+  N: 1.0
+investor:
+  N: 1.0
+irgendwo:
+  Adv: 1.0
+ironie:
+  N: 1.0
+irrtum:
+  N: 1.0
+isoliert:
+  V: 1.0
+jacht:
+  N: 1.0
+jacke:
+  N: 1.0
+jagd:
+  N: 1.0
+jagen:
+  V: 1.0
+jaguar:
+  N: 1.0
+jahr:
+  N: 1.0
+januar:
+  N: 1.0
+jargon:
+  N: 1.0
+jazz:
+  N: 1.0
+jemand:
+  Pron: 1.0
+joggen:
+  V: 1.0
+joghurt:
+  N: 1.0
+jubel:
+  N: 1.0
+jugend:
+  N: 1.0
+juli:
+  N: 1.0
+jung:
+  N: 0.6
+  Adj: 0.4
+juni:
+  N: 1.0
+jurist:
+  N: 1.0
+jury:
+  N: 1.0
+justiz:
+  N: 1.0
+juwel:
+  N: 1.0
+kabarett:
+  N: 1.0
+kabel:
+  N: 1.0
+kabine:
+  N: 1.0
+kaffee:
+  N: 1.0
+kahl:
+  Adj: 1.0
+kajak:
+  N: 1.0
+kakao:
+  N: 1.0
+kaktus:
+  N: 1.0
+kalender:
+  N: 1.0
+kalt:
+  Adj: 1.0
+kamera:
+  N: 1.0
+kamin:
+  N: 1.0
+kamm:
+  N: 1.0
+kampf:
+  N: 1.0
+kanal:
+  N: 1.0
+kandidat:
+  N: 1.0
+kanister:
+  N: 1.0
+kanne:
+  N: 0.6
+  V: 0.4
+kante:
+  N: 1.0
+kanu:
+  N: 1.0
+kapelle:
+  N: 1.0
+kapitel:
+  N: 1.0
+kapsel:
+  N: 1.0
+kaputt:
+  Adj: 1.0
+karneval:
+  N: 1.0
+karotte:
+  N: 1.0
+karriere:
+  N: 1.0
+karte:
+  N: 1.0
+kasse:
+  N: 1.0
+kasten:
+  N: 1.0
+katalog:
+  N: 1.0
+katze:
+  N: 1.0
+kaufhaus:
+  N: 1.0
+kauz:
+  N: 1.0
+kegel:
+  N: 1.0
+kehren:
+  N: 0.6
+  V: 0.4
+keks:
+  N: 1.0
+kelch:
+  N: 1.0
+keller:
+  N: 1.0
+kennen:
+  V: 1.0
+keramik:
+  N: 1.0
+kern:
+  N: 1.0
+kerze:
+  N: 1.0
+kessel:
+  N: 1.0
+ketchup:
+  N: 1.0
+kette:
+  N: 1.0
+keule:
+  N: 1.0
+kiefer:
+  N: 1.0
+kiesel:
+  N: 1.0
+kilo:
+  N: 1.0
+kind:
+  N: 1.0
+kino:
+  N: 1.0
+kiosk:
+  N: 1.0
+kirsche:
+  N: 1.0
+kissen:
+  N: 1.0
+kiste:
+  N: 1.0
+kittel:
+  N: 1.0
+kiwi:
+  N: 1.0
+klage:
+  N: 1.0
+klammer:
+  N: 0.6
+  Adj: 0.4
+klang:
+  N: 0.6
+  V: 0.4
+klappe:
+  N: 0.6
+  V: 0.4
+klar:
+  Adj: 1.0
+klasse:
+  N: 1.0
+klavier:
+  N: 1.0
+kleben:
+  N: 0.6
+  V: 0.4
+klee:
+  N: 1.0
+kleid:
+  N: 1.0
+klettern:
+  V: 1.0
+klientel:
+  N: 1.0
+klima:
+  N: 1.0
+klinik:
+  N: 1.0
+klippe:
+  N: 1.0
+klon:
+  N: 1.0
+klopfen:
+  N: 0.6
+  V: 0.4
+klotz:
+  N: 1.0
+klug:
+  Adj: 1.0
+knapp:
+  Adv: 1.0
+kneipe:
+  N: 1.0
+knie:
+  N: 1.0
+knochen:
+  N: 1.0
+knopf:
+  N: 1.0
+knoten:
+  N: 1.0
+koala:
+  N: 1.0
+kochen:
+  N: 0.6
+  V: 0.4
+koffer:
+  N: 1.0
+kohle:
+  N: 1.0
+koje:
+  N: 1.0
+kolibri:
+  N: 1.0
+kollege:
+  N: 1.0
+komisch:
+  Adj: 1.0
+kommen:
+  V: 1.0
+komplett:
+  Adj: 1.0
+konflikt:
+  N: 1.0
+konkurs:
+  N: 1.0
+konsum:
+  N: 1.0
+kontakt:
+  N: 1.0
+konzert:
+  N: 1.0
+kopf:
+  N: 1.0
+kopie:
+  N: 1.0
+korb:
+  N: 1.0
+korn:
+  N: 1.0
+korrekt:
+  Adj: 1.0
+kosten:
+  N: 0.6
+  V: 0.4
+krabbe:
+  N: 1.0
+kraft:
+  N: 0.6
+  Prep: 0.4
+kralle:
+  N: 0.6
+  V: 0.4
+kran:
+  N: 1.0
+kraut:
+  N: 1.0
+krawatte:
+  N: 1.0
+krebs:
+  N: 1.0
+kredit:
+  N: 1.0
+kreis:
+  N: 1.0
+kresse:
+  N: 1.0
+kreuz:
+  N: 0.6
+  Adv: 0.4
+kriegen:
+  N: 0.6
+  V: 0.4
+krippe:
+  N: 1.0
+krise:
+  N: 1.0
+kritik:
+  N: 1.0
+krokodil:
+  N: 1.0
+krone:
+  N: 1.0
+krug:
+  N: 1.0
+krumm:
+  Adj: 1.0
+kruste:
+  N: 1.0
+kuchen:
+  N: 1.0
+kugel:
+  N: 1.0
+kuhstall:
+  N: 1.0
+kulisse:
+  N: 1.0
+kultur:
+  N: 1.0
+kunde:
+  N: 1.0
+kunst:
+  N: 1.0
+kupfer:
+  N: 1.0
+kurier:
+  N: 1.0
+kurs:
+  N: 1.0
+kurve:
+  N: 0.6
+  V: 0.4
+kurz:
+  Adj: 1.0
+kuss:
+  N: 1.0
+kutsche:
+  N: 1.0
+label:
+  N: 1.0
+labor:
+  N: 1.0
+lachen:
+  N: 0.6
+  V: 0.4
+lack:
+  N: 1.0
+laden:
+  N: 0.6
+  V: 0.4
+ladung:
+  N: 1.0
+lager:
+  N: 1.0
+laie:
+  N: 1.0
+lama:
+  N: 1.0
+lamm:
+  N: 1.0
+lampe:
+  N: 1.0
+land:
+  N: 1.0
+lang:
+  N: 0.6
+  Adj: 0.4
+lappen:
+  N: 1.0
+larve:
+  N: 1.0
+lassen:
+  V: 1.0
+last:
+  N: 0.6
+  V: 0.4
+laterne:
+  N: 1.0
+latte:
+  N: 1.0
+laub:
+  N: 1.0
+lauch:
+  N: 1.0
+laufen:
+  N: 0.6
+  V: 0.4
+laune:
+  N: 1.0
+laut:
+  N: 0.6
+  Prep: 0.4
+lavendel:
+  N: 1.0
+lawine:
+  N: 1.0
+leben:
+  N: 0.6
+  V: 0.4
+lecker:
+  N: 1.0
+leder:
+  N: 1.0
+leer:
+  N: 0.6
+  Adj: 0.4
+legen:
+  V: 1.0
+lehm:
+  N: 1.0
+lehnen:
+  N: 0.6
+  V: 0.4
+lehrer:
+  N: 1.0
+leib:
+  N: 1.0
+leicht:
+  Adj: 1.0
+leid:
+  N: 0.6
+  Adj: 0.4
+leim:
+  N: 1.0
+leinwand:
+  N: 1.0
+leiste:
+  N: 0.6
+  V: 0.4
+leiter:
+  N: 1.0
+lektor:
+  N: 1.0
+lemming:
+  N: 1.0
+lenken:
+  V: 1.0
+leopard:
+  N: 1.0
+lernen:
+  N: 0.6
+  V: 0.4
+lesen:
+  N: 0.6
+  V: 0.4
+lesung:
+  N: 1.0
+leuchte:
+  N: 0.6
+  V: 0.4
+leute:
+  N: 1.0
+lexikon:
+  N: 1.0
+libelle:
+  N: 1.0
+licht:
+  N: 1.0
+liebe:
+  N: 0.6
+  V: 0.4
+lied:
+  N: 1.0
+liefern:
+  V: 1.0
+liegen:
+  N: 0.6
+  V: 0.4
+lila:
+  N: 1.0
+lilie:
+  N: 1.0
+limette:
+  N: 0.6
+  Adj: 0.4
+linde:
+  N: 1.0
+lineal:
+  N: 1.0
+linie:
+  N: 1.0
+links:
+  N: 0.6
+  Adv: 0.4
+lippe:
+  N: 1.0
+liste:
+  N: 1.0
+liter:
+  N: 1.0
+lizenz:
+  N: 1.0
+loch:
+  N: 1.0
+locke:
+  N: 0.6
+  V: 0.4
+logistik:
+  N: 1.0
+lohn:
+  N: 1.0
+lokal:
+  N: 0.6
+  Adj: 0.4
+lotse:
+  N: 0.6
+  V: 0.4
+loyal:
+  Adj: 1.0
+luchs:
+  N: 1.0
+luft:
+  N: 1.0
+lunge:
+  N: 1.0
+lupe:
+  N: 1.0
+lustig:
+  Adj: 1.0
+luxus:
+  N: 1.0
+lyrik:
+  N: 1.0
+machen:
+  V: 1.0
+made:
+  N: 1.0
+magazin:
+  N: 1.0
+magen:
+  N: 0.6
+  V: 0.4
+magie:
+  N: 1.0
+magnet:
+  N: 1.0
+mahnen:
+  V: 1.0
+mais:
+  N: 1.0
+malen:
+  N: 0.6
+  V: 0.4
+mama:
+  N: 1.0
+mango:
+  N: 1.0
+mann:
+  N: 1.0
+mantel:
+  N: 1.0
+marder:
+  N: 1.0
+markt:
+  N: 1.0
+marmor:
+  N: 1.0
+marsch:
+  N: 0.6
+  Adv: 0.4
+maschine:
+  N: 1.0
+maske:
+  N: 1.0
+masse:
+  N: 1.0
+mast:
+  N: 1.0
+material:
+  N: 1.0
+matrose:
+  N: 1.0
+matte:
+  N: 0.6
+  Adj: 0.4
+mauer:
+  N: 1.0
+maulwurf:
+  N: 1.0
+maus:
+  N: 1.0
+maximal:
+  Adj: 1.0
+medaille:
+  N: 1.0
+medizin:
+  N: 1.0
+meer:
+  N: 1.0
+mehl:
+  N: 1.0
+mehrweg:
+  N: 1.0
+meinung:
+  N: 1.0
+meister:
+  N: 1.0
+melden:
+  N: 0.6
+  V: 0.4
+melken:
+  V: 1.0
+melone:
+  N: 1.0
+membran:
+  N: 1.0
+menge:
+  N: 1.0
+mensch:
+  N: 1.0
+mentor:
+  N: 1.0
+merkmal:
+  N: 1.0
+messer:
+  N: 1.0
+metall:
+  N: 1.0
+meter:
+  N: 1.0
+methode:
+  N: 1.0
+miene:
+  N: 1.0
+mieten:
+  N: 0.6
+  V: 0.4
+milan:
+  N: 1.0
+milch:
+  N: 1.0
+milde:
+  N: 0.6
+  Adj: 0.4
+milieu:
+  N: 1.0
+mimik:
+  N: 1.0
+mineral:
+  N: 1.0
+minigolf:
+  N: 1.0
+minute:
+  N: 1.0
+minze:
+  N: 1.0
+mischung:
+  N: 1.0
+mitglied:
+  N: 1.0
+mitleid:
+  N: 1.0
+mittag:
+  N: 0.6
+  Adv: 0.4
+mode:
+  N: 1.0
+molch:
+  N: 1.0
+moment:
+  N: 1.0
+monat:
+  N: 1.0
+mond:
+  N: 1.0
+monitor:
+  N: 1.0
+monster:
+  N: 1.0
+montag:
+  N: 1.0
+moos:
+  N: 1.0
+moped:
+  N: 1.0
+moral:
+  N: 1.0
+morgen:
+  N: 0.6
+  Adv: 0.4
+motiv:
+  N: 1.0
+motor:
+  N: 1.0
+motte:
+  N: 0.6
+  V: 0.4
+mulde:
+  N: 1.0
+mund:
+  N: 1.0
+muschel:
+  N: 1.0
+museum:
+  N: 1.0
+musik:
+  N: 1.0
+muskel:
+  N: 1.0
+muster:
+  N: 1.0
+mutig:
+  Adj: 1.0
+mutter:
+  N: 1.0
+mythos:
+  N: 1.0
+nacht:
+  N: 0.6
+  Adv: 0.4
+nacken:
+  N: 1.0
+nadel:
+  N: 1.0
+nagel:
+  N: 1.0
+nahrung:
+  N: 1.0
+name:
+  N: 1.0
+napf:
+  N: 1.0
+narbe:
+  N: 1.0
+narr:
+  N: 1.0
+narzisse:
+  N: 0.6
+  V: 0.4
+nase:
+  N: 1.0
+nashorn:
+  N: 1.0
+nass:
+  N: 0.6
+  Adj: 0.4
+natter:
+  N: 1.0
+natur:
+  N: 1.0
+nebel:
+  N: 1.0
+negativ:
+  N: 0.6
+  Adj: 0.4
+nehmen:
+  V: 1.0
+neid:
+  N: 1.0
+neigung:
+  N: 1.0
+nektar:
+  N: 1.0
+nennen:
+  V: 1.0
+nerven:
+  N: 0.6
+  V: 0.4
+nest:
+  N: 1.0
+nett:
+  Adj: 1.0
+netz:
+  N: 1.0
+neubau:
+  N: 1.0
+neugier:
+  N: 1.0
+neuland:
+  N: 1.0
+neun:
+  N: 1.0
+niedrig:
+  Adj: 1.0
+niemand:
+  N: 0.6
+  Pron: 0.4
+nilpferd:
+  N: 1.0
+niveau:
+  N: 1.0
+nobel:
+  Adj: 1.0
+nochmal:
+  Adv: 1.0
+norden:
+  N: 1.0
+normal:
+  N: 0.6
+  Adj: 0.4
+note:
+  N: 0.6
+  Adj: 0.4
+notfall:
+  N: 1.0
+notiz:
+  N: 1.0
+november:
+  N: 1.0
+nudel:
+  N: 1.0
+null:
+  N: 1.0
+nummer:
+  N: 1.0
+nuss:
+  N: 1.0
+nutzen:
+  N: 0.6
+  V: 0.4
+oase:
+  N: 1.0
+oben:
+  Adv: 1.0
+objekt:
+  N: 1.0
+obst:
+  N: 1.0
+ofen:
+  N: 1.0
+offen:
+  Adj: 1.0
+ohne:
+  Prep: 1.0
+ohren:
+  N: 1.0
+ohrring:
+  N: 1.0
+oktober:
+  N: 1.0
+olive:
+  N: 1.0
+olympia:
+  N: 1.0
+omelett:
+  N: 0.6
+  Adj: 0.4
+onkel:
+  N: 1.0
+online:
+  Adv: 1.0
+oper:
+  N: 1.0
+option:
+  N: 1.0
+orange:
+  N: 0.6
+  Adj: 0.4
+ordnung:
+  N: 1.0
+organ:
+  N: 1.0
+orgel:
+  N: 1.0
+original:
+  N: 0.6
+  Adj: 0.4
+orkan:
+  N: 1.0
+ortsrand:
+  N: 1.0
+ostern:
+  N: 1.0
+otter:
+  N: 0.6
+  Adj: 0.4
+oval:
+  N: 0.6
+  Adj: 0.4
+paar:
+  N: 0.6
+  Pron: 0.4
+packen:
+  N: 0.6
+  V: 0.4
+paket:
+  N: 1.0
+palast:
+  N: 1.0
+palette:
+  N: 1.0
+palme:
+  N: 1.0
+panda:
+  N: 1.0
+panik:
+  N: 1.0
+papagei:
+  N: 1.0
+papier:
+  N: 1.0
+pappe:
+  N: 1.0
+paprika:
+  N: 1.0
+parade:
+  N: 1.0
+park:
+  N: 1.0
+parole:
+  N: 1.0
+party:
+  N: 1.0
+passage:
+  N: 1.0
+patent:
+  N: 1.0
+pathos:
+  N: 1.0
+patient:
+  N: 1.0
+pause:
+  N: 1.0
+pavian:
+  N: 1.0
+pech:
+  N: 1.0
+pedal:
+  N: 1.0
+pegel:
+  N: 1.0
+peinlich:
+  Adj: 1.0
+peitsche:
+  N: 0.6
+  V: 0.4
+pelikan:
+  N: 1.0
+pelz:
+  N: 1.0
+pendel:
+  N: 0.6
+  V: 0.4
+perfekt:
+  N: 0.6
+  Adj: 0.4
+periode:
+  N: 1.0
+perle:
+  N: 0.6
+  V: 0.4
+person:
+  N: 1.0
+pfad:
+  N: 1.0
+pfahl:
+  N: 1.0
+pfanne:
+  N: 1.0
+pfau:
+  N: 1.0
+pfeffer:
+  N: 1.0
+pfeil:
+  N: 1.0
+pferd:
+  N: 1.0
+pfiff:
+  N: 0.6
+  V: 0.4
+pfirsich:
+  N: 1.0
+pflaume:
+  N: 1.0
+pflegen:
+  V: 1.0
+pflicht:
+  N: 1.0
+pflug:
+  N: 1.0
+pforte:
+  N: 1.0
+pfosten:
+  N: 1.0
+pfote:
+  N: 1.0
+phase:
+  N: 1.0
+physik:
+  N: 1.0
+picknick:
+  N: 1.0
+pier:
+  N: 0.6
+  Adj: 0.4
+pigment:
+  N: 1.0
+pille:
+  N: 1.0
+pilot:
+  N: 1.0
+pilz:
+  N: 1.0
+pinguin:
+  N: 1.0
+pink:
+  Adj: 1.0
+pinnwand:
+  N: 1.0
+pinsel:
+  N: 1.0
+pinzette:
+  N: 0.6
+  Adj: 0.4
+pirat:
+  N: 1.0
+piste:
+  N: 1.0
+pixel:
+  N: 1.0
+plakat:
+  N: 1.0
+planet:
+  N: 0.6
+  V: 0.4
+plastik:
+  N: 1.0
+platz:
+  N: 1.0
+pleite:
+  N: 0.6
+  Adj: 0.4
+plus:
+  N: 0.6
+  Prep: 0.4
+podest:
+  N: 1.0
+podium:
+  N: 1.0
+poesie:
+  N: 1.0
+pokal:
+  N: 1.0
+politik:
+  N: 1.0
+pollen:
+  N: 1.0
+polster:
+  N: 1.0
+pommes:
+  N: 1.0
+pony:
+  N: 1.0
+pool:
+  N: 1.0
+portrait:
+  N: 1.0
+positiv:
+  N: 0.6
+  Adj: 0.4
+post:
+  N: 1.0
+pracht:
+  N: 1.0
+praxis:
+  N: 1.0
+preis:
+  N: 1.0
+presse:
+  N: 1.0
+prinzip:
+  N: 1.0
+privat:
+  Adj: 1.0
+probe:
+  N: 0.6
+  V: 0.4
+produkt:
+  N: 1.0
+profil:
+  N: 1.0
+programm:
+  N: 1.0
+projekt:
+  N: 1.0
+prospekt:
+  N: 1.0
+protest:
+  N: 1.0
+provinz:
+  N: 1.0
+prozent:
+  N: 1.0
+psyche:
+  N: 1.0
+publikum:
+  N: 1.0
+pudding:
+  N: 1.0
+puder:
+  N: 1.0
+puls:
+  N: 1.0
+pulver:
+  N: 1.0
+puma:
+  N: 1.0
+pumpe:
+  N: 0.6
+  V: 0.4
+punkt:
+  N: 0.6
+  Adj: 0.4
+punsch:
+  N: 1.0
+puppe:
+  N: 1.0
+pute:
+  N: 1.0
+putzen:
+  N: 0.6
+  V: 0.4
+puzzel:
+  N: 1.0
+pyjama:
+  N: 1.0
+pyramide:
+  N: 1.0
+quadrat:
+  N: 1.0
+qualle:
+  N: 0.6
+  V: 0.4
+quark:
+  N: 1.0
+quatsch:
+  N: 1.0
+quelle:
+  N: 1.0
+quer:
+  Adv: 1.0
+quittung:
+  N: 1.0
+quiz:
+  N: 1.0
+quote:
+  N: 1.0
+rabatt:
+  N: 1.0
+rabe:
+  N: 1.0
+rache:
+  N: 1.0
+radar:
+  N: 1.0
+radio:
+  N: 1.0
+radtour:
+  N: 1.0
+radweg:
+  N: 1.0
+rahmen:
+  N: 0.6
+  V: 0.4
+rakete:
+  N: 1.0
+rampe:
+  N: 1.0
+rand:
+  N: 1.0
+rang:
+  N: 1.0
+ranke:
+  N: 0.6
+  V: 0.4
+raps:
+  N: 1.0
+rasen:
+  N: 0.6
+  V: 0.4
+rassel:
+  N: 0.6
+  V: 0.4
+rast:
+  N: 0.6
+  V: 0.4
+rasur:
+  N: 1.0
+raten:
+  N: 0.6
+  V: 0.4
+ratgeber:
+  N: 1.0
+rathaus:
+  N: 1.0
+ratte:
+  N: 0.6
+  V: 0.4
+rauch:
+  N: 0.6
+  V: 0.4
+raum:
+  N: 1.0
+raupe:
+  N: 1.0
+raus:
+  Adj: 1.0
+raute:
+  N: 1.0
+razzia:
+  N: 1.0
+reaktion:
+  N: 1.0
+real:
+  N: 0.6
+  Adj: 0.4
+rebell:
+  N: 1.0
+rechnen:
+  V: 1.0
+reden:
+  N: 0.6
+  V: 0.4
+redner:
+  N: 1.0
+referent:
+  N: 1.0
+reform:
+  N: 1.0
+regal:
+  N: 1.0
+regen:
+  N: 0.6
+  Adj: 0.4
+region:
+  N: 1.0
+rehkitz:
+  N: 1.0
+reibe:
+  N: 0.6
+  V: 0.4
+reich:
+  N: 0.6
+  Adj: 0.4
+reifen:
+  N: 0.6
+  V: 0.4
+reihe:
+  N: 1.0
+reim:
+  N: 1.0
+rein:
+  N: 0.6
+  Adv: 0.4
+reise:
+  N: 0.6
+  V: 0.4
+reiten:
+  N: 0.6
+  V: 0.4
+reiz:
+  N: 0.6
+  V: 0.4
+rekord:
+  N: 1.0
+rektor:
+  N: 1.0
+relativ:
+  Adj: 1.0
+rennen:
+  N: 0.6
+  V: 0.4
+rentier:
+  N: 1.0
+reporter:
+  N: 1.0
+reptil:
+  N: 1.0
+reserve:
+  N: 1.0
+residenz:
+  N: 1.0
+resonanz:
+  N: 1.0
+respekt:
+  N: 1.0
+rest:
+  N: 1.0
+resultat:
+  N: 1.0
+retten:
+  N: 0.6
+  V: 0.4
+revier:
+  N: 1.0
+rezept:
+  N: 1.0
+rhythmus:
+  N: 1.0
+richtig:
+  Adj: 1.0
+riechen:
+  N: 0.6
+  V: 0.4
+riegel:
+  N: 1.0
+riesig:
+  Adj: 1.0
+rind:
+  N: 1.0
+ring:
+  N: 1.0
+rinnsaal:
+  N: 1.0
+risiko:
+  N: 1.0
+riss:
+  N: 0.6
+  V: 0.4
+ritter:
+  N: 1.0
+ritual:
+  N: 1.0
+ritze:
+  N: 0.6
+  V: 0.4
+robbe:
+  N: 0.6
+  V: 0.4
+roboter:
+  N: 1.0
+rock:
+  N: 1.0
+roggen:
+  N: 1.0
+rohbau:
+  N: 1.0
+rohkost:
+  N: 1.0
+rohr:
+  N: 1.0
+rohstoff:
+  N: 1.0
+roller:
+  N: 1.0
+roman:
+  N: 1.0
+rosa:
+  N: 0.6
+  Adj: 0.4
+rose:
+  N: 1.0
+rosine:
+  N: 1.0
+rost:
+  N: 1.0
+rotkohl:
+  N: 1.0
+rotor:
+  N: 1.0
+rucksack:
+  N: 1.0
+rudel:
+  N: 1.0
+rufen:
+  N: 0.6
+  V: 0.4
+ruhe:
+  N: 0.6
+  V: 0.4
+ruhig:
+  Adj: 1.0
+ruhm:
+  N: 1.0
+ruine:
+  N: 1.0
+rummel:
+  N: 1.0
+rund:
+  N: 0.6
+  Adv: 0.4
+runter:
+  Adj: 1.0
+rute:
+  N: 0.6
+  V: 0.4
+rutsche:
+  N: 0.6
+  V: 0.4
+saal:
+  N: 1.0
+saat:
+  N: 1.0
+sache:
+  N: 1.0
+sack:
+  N: 1.0
+safran:
+  N: 1.0
+saft:
+  N: 1.0
+sagen:
+  N: 0.6
+  V: 0.4
+sahne:
+  N: 1.0
+saison:
+  N: 1.0
+salat:
+  N: 1.0
+salbe:
+  N: 0.6
+  V: 0.4
+saloon:
+  N: 1.0
+salz:
+  N: 1.0
+samen:
+  N: 0.6
+  V: 0.4
+sammeln:
+  N: 0.6
+  V: 0.4
+samstag:
+  N: 1.0
+samt:
+  N: 0.6
+  Prep: 0.4
+sand:
+  N: 1.0
+sanft:
+  Adj: 1.0
+saniert:
+  V: 1.0
+sardine:
+  N: 1.0
+satellit:
+  N: 1.0
+satire:
+  N: 1.0
+sattel:
+  N: 1.0
+satz:
+  N: 1.0
+sauber:
+  Adj: 1.0
+sauer:
+  N: 0.6
+  Adj: 0.4
+saugen:
+  N: 0.6
+  V: 0.4
+sauna:
+  N: 1.0
+saurier:
+  N: 1.0
+schaf:
+  N: 1.0
+schere:
+  N: 0.6
+  V: 0.4
+schirm:
+  N: 1.0
+schlange:
+  N: 1.0
+schmuck:
+  N: 0.6
+  Adj: 0.4
+schnee:
+  N: 1.0
+schock:
+  N: 1.0
+schrank:
+  N: 1.0
+schuh:
+  N: 1.0
+schwan:
+  N: 0.6
+  V: 0.4
+sechs:
+  N: 1.0
+seefahrt:
+  N: 1.0
+seehund:
+  N: 1.0
+seekuh:
+  N: 1.0
+seele:
+  N: 1.0
+seestern:
+  N: 1.0
+segel:
+  N: 1.0
+segment:
+  N: 1.0
+sehen:
+  N: 0.6
+  V: 0.4
+seide:
+  N: 1.0
+seife:
+  N: 1.0
+seil:
+  N: 1.0
+seite:
+  N: 1.0
+sektor:
+  N: 1.0
+sekunde:
+  N: 1.0
+sellerie:
+  N: 1.0
+selten:
+  Adj: 1.0
+semester:
+  N: 1.0
+seminar:
+  N: 1.0
+senden:
+  N: 0.6
+  V: 0.4
+senf:
+  N: 1.0
+senior:
+  N: 0.6
+  Adj: 0.4
+senken:
+  N: 0.6
+  V: 0.4
+sense:
+  N: 1.0
+serie:
+  N: 1.0
+serum:
+  N: 1.0
+server:
+  N: 1.0
+sessel:
+  N: 1.0
+setzen:
+  V: 1.0
+shop:
+  N: 1.0
+sichel:
+  N: 1.0
+sieb:
+  N: 1.0
+siedlung:
+  N: 1.0
+sieg:
+  N: 1.0
+signal:
+  N: 1.0
+silber:
+  N: 1.0
+simpel:
+  N: 0.6
+  Adj: 0.4
+singen:
+  N: 0.6
+  V: 0.4
+sinken:
+  V: 1.0
+sinn:
+  N: 1.0
+sirene:
+  N: 1.0
+sirup:
+  N: 1.0
+sitzen:
+  N: 0.6
+  V: 0.4
+skala:
+  N: 1.0
+skandal:
+  N: 1.0
+skelett:
+  N: 1.0
+skizze:
+  N: 1.0
+skript:
+  N: 1.0
+skulptur:
+  N: 1.0
+socke:
+  N: 1.0
+sofa:
+  N: 1.0
+sohle:
+  N: 1.0
+sohn:
+  N: 1.0
+soja:
+  N: 1.0
+solide:
+  Adj: 1.0
+sollen:
+  V: 1.0
+sommer:
+  N: 1.0
+sonne:
+  N: 1.0
+sorge:
+  N: 0.6
+  V: 0.4
+sorte:
+  N: 1.0
+sozial:
+  Adj: 1.0
+spachtel:
+  N: 1.0
+spagat:
+  N: 1.0
+spalten:
+  N: 0.6
+  V: 0.4
+spange:
+  N: 1.0
+spargel:
+  N: 1.0
+spaten:
+  N: 1.0
+specht:
+  N: 1.0
+speise:
+  N: 0.6
+  V: 0.4
+spektrum:
+  N: 1.0
+spende:
+  N: 0.6
+  V: 0.4
+sperling:
+  N: 1.0
+speziell:
+  Adj: 1.0
+spiegel:
+  N: 1.0
+spinne:
+  N: 0.6
+  V: 0.4
+spion:
+  N: 1.0
+spitze:
+  N: 0.6
+  Adj: 0.4
+sponsor:
+  N: 1.0
+sport:
+  N: 1.0
+sprache:
+  N: 1.0
+sprechen:
+  N: 0.6
+  V: 0.4
+springen:
+  V: 1.0
+sprotte:
+  N: 0.6
+  Adj: 0.4
+sprung:
+  N: 1.0
+spur:
+  N: 1.0
+stabil:
+  Adj: 1.0
+stachel:
+  N: 1.0
+stadt:
+  N: 1.0
+stahl:
+  N: 0.6
+  V: 0.4
+stall:
+  N: 1.0
+stamm:
+  N: 1.0
+standort:
+  N: 1.0
+stapel:
+  N: 0.6
+  V: 0.4
+stark:
+  Adj: 1.0
+station:
+  N: 1.0
+staub:
+  N: 1.0
+stecken:
+  N: 0.6
+  V: 0.4
+steg:
+  N: 1.0
+stehen:
+  V: 1.0
+stein:
+  N: 1.0
+stellen:
+  N: 0.6
+  V: 0.4
+stempel:
+  N: 1.0
+steppe:
+  N: 1.0
+stern:
+  N: 1.0
+stetig:
+  Adj: 1.0
+steuer:
+  N: 1.0
+stichtag:
+  N: 1.0
+stier:
+  N: 1.0
+stift:
+  N: 0.6
+  V: 0.4
+still:
+  Adj: 1.0
+stimme:
+  N: 0.6
+  V: 0.4
+stirn:
+  N: 1.0
+stock:
+  N: 1.0
+stoff:
+  N: 1.0
+stolz:
+  N: 0.6
+  Adj: 0.4
+stoppen:
+  V: 1.0
+storch:
+  N: 1.0
+strand:
+  N: 1.0
+strecke:
+  N: 1.0
+strich:
+  N: 0.6
+  V: 0.4
+strom:
+  N: 1.0
+strumpf:
+  N: 1.0
+stube:
+  N: 1.0
+stuck:
+  N: 1.0
+studium:
+  N: 1.0
+stufe:
+  N: 1.0
+stuhl:
+  N: 1.0
+stumm:
+  Adj: 1.0
+stunde:
+  N: 1.0
+sturm:
+  N: 1.0
+substanz:
+  N: 1.0
+suche:
+  N: 0.6
+  V: 0.4
+summe:
+  N: 1.0
+sumpf:
+  N: 1.0
+suppe:
+  N: 1.0
+surfen:
+  N: 0.6
+  V: 0.4
+symbol:
+  N: 1.0
+symptome:
+  N: 1.0
+system:
+  N: 1.0
+szenario:
+  N: 1.0
+tabelle:
+  N: 1.0
+tabu:
+  N: 0.6
+  Adj: 0.4
+tacker:
+  N: 0.6
+  Adj: 0.4
+tadel:
+  N: 1.0
+tafel:
+  N: 1.0
+tagebuch:
+  N: 1.0
+takt:
+  N: 1.0
+talent:
+  N: 1.0
+talfahrt:
+  N: 1.0
+tango:
+  N: 1.0
+tank:
+  N: 1.0
+tanne:
+  N: 1.0
+tante:
+  N: 1.0
+tanz:
+  N: 1.0
+tapfer:
+  Adj: 1.0
+tapir:
+  N: 1.0
+tarif:
+  N: 1.0
+tarnen:
+  V: 1.0
+tasche:
+  N: 1.0
+tasse:
+  N: 1.0
+tastatur:
+  N: 1.0
+tatort:
+  N: 1.0
+tatsache:
+  N: 1.0
+taube:
+  N: 0.6
+  Adj: 0.4
+tauchen:
+  V: 1.0
+tausch:
+  N: 0.6
+  V: 0.4
+taxi:
+  N: 1.0
+team:
+  N: 1.0
+technik:
+  N: 1.0
+teekanne:
+  N: 1.0
+teer:
+  N: 0.6
+  V: 0.4
+teesieb:
+  N: 1.0
+teich:
+  N: 1.0
+teig:
+  N: 1.0
+teilen:
+  N: 0.6
+  V: 0.4
+telefon:
+  N: 1.0
+teller:
+  N: 1.0
+tempo:
+  N: 1.0
+tendenz:
+  N: 1.0
+tennis:
+  N: 1.0
+tenor:
+  N: 1.0
+teppich:
+  N: 1.0
+termin:
+  N: 1.0
+terrasse:
+  N: 1.0
+test:
+  N: 1.0
+teuer:
+  Adj: 1.0
+text:
+  N: 1.0
+theater:
+  N: 1.0
+thema:
+  N: 1.0
+theorie:
+  N: 1.0
+therapie:
+  N: 1.0
+these:
+  N: 1.0
+tief:
+  N: 0.6
+  Adj: 0.4
+tier:
+  N: 1.0
+tiger:
+  N: 1.0
+tinte:
+  N: 1.0
+tipp:
+  N: 0.6
+  V: 0.4
+tisch:
+  N: 1.0
+titel:
+  N: 1.0
+tochter:
+  N: 1.0
+toilette:
+  N: 1.0
+toleranz:
+  N: 1.0
+toll:
+  Adj: 1.0
+tomate:
+  N: 1.0
+tonband:
+  N: 1.0
+tonne:
+  N: 1.0
+topf:
+  N: 1.0
+torbogen:
+  N: 1.0
+torte:
+  N: 1.0
+torwart:
+  N: 1.0
+total:
+  N: 0.6
+  Adj: 0.4
+tracht:
+  N: 1.0
+tragen:
+  N: 0.6
+  V: 0.4
+training:
+  N: 1.0
+trapez:
+  N: 1.0
+trasse:
+  N: 1.0
+traum:
+  N: 1.0
+treffen:
+  N: 0.6
+  V: 0.4
+treiben:
+  N: 0.6
+  V: 0.4
+trennen:
+  V: 1.0
+treppe:
+  N: 1.0
+tresor:
+  N: 1.0
+treten:
+  V: 1.0
+treu:
+  Adj: 1.0
+triangel:
+  N: 1.0
+trick:
+  N: 1.0
+trinken:
+  N: 0.6
+  V: 0.4
+trocken:
+  Adj: 1.0
+trommel:
+  N: 1.0
+tropfen:
+  N: 1.0
+trost:
+  N: 1.0
+trubel:
+  N: 1.0
+truhe:
+  N: 1.0
+trumpf:
+  N: 1.0
+trunk:
+  N: 1.0
+truthahn:
+  N: 1.0
+tuch:
+  N: 1.0
+tukan:
+  N: 1.0
+tulpe:
+  N: 1.0
+tunnel:
+  N: 1.0
+turbine:
+  N: 1.0
+turm:
+  N: 1.0
+turnen:
+  N: 0.6
+  V: 0.4
+tusche:
+  N: 1.0
+typisch:
+  Adj: 1.0
+ufer:
+  N: 1.0
+uhrwerk:
+  N: 1.0
+umbau:
+  N: 1.0
+umbruch:
+  N: 1.0
+umfang:
+  N: 1.0
+umfeld:
+  N: 1.0
+umfrage:
+  N: 1.0
+umgang:
+  N: 1.0
+umgebung:
+  N: 1.0
+umhang:
+  N: 1.0
+umkreis:
+  N: 1.0
+umland:
+  N: 1.0
+umriss:
+  N: 0.6
+  V: 0.4
+umsatz:
+  N: 1.0
+umschlag:
+  N: 1.0
+umsetzen:
+  V: 1.0
+umsonst:
+  Adv: 1.0
+umstand:
+  N: 0.6
+  V: 0.4
+umwelt:
+  N: 1.0
+umzug:
+  N: 1.0
+unfall:
+  N: 1.0
+unikat:
+  N: 1.0
+unmut:
+  N: 1.0
+unrat:
+  N: 1.0
+unrecht:
+  N: 0.6
+  Adj: 0.4
+unruhe:
+  N: 1.0
+unschuld:
+  N: 1.0
+unsinn:
+  N: 1.0
+unten:
+  Adv: 1.0
+unweit:
+  Prep: 1.0
+urkunde:
+  N: 1.0
+urlaub:
+  N: 1.0
+ursache:
+  N: 1.0
+ursprung:
+  N: 1.0
+urteil:
+  N: 1.0
+utopie:
+  N: 1.0
+vage:
+  Adj: 1.0
+vakuum:
+  N: 1.0
+vanille:
+  N: 1.0
+variante:
+  N: 1.0
+vase:
+  N: 1.0
+vater:
+  N: 1.0
+ventil:
+  N: 1.0
+veranda:
+  N: 1.0
+verband:
+  N: 0.6
+  V: 0.4
+verdacht:
+  N: 1.0
+verein:
+  N: 1.0
+verfall:
+  N: 1.0
+verkehr:
+  N: 1.0
+verloren:
+  V: 1.0
+vernunft:
+  N: 1.0
+verrat:
+  N: 1.0
+verstand:
+  N: 0.6
+  V: 0.4
+vertrag:
+  N: 1.0
+verwandt:
+  V: 1.0
+verzicht:
+  N: 1.0
+video:
+  N: 1.0
+vieh:
+  N: 1.0
+viel:
+  N: 0.6
+  Adv: 0.4
+vier:
+  N: 1.0
+villa:
+  N: 1.0
+virus:
+  N: 1.0
+vision:
+  N: 1.0
+vitamine:
+  N: 1.0
+vitrine:
+  N: 1.0
+vogel:
+  N: 1.0
+voliere:
+  N: 0.6
+  V: 0.4
+voll:
+  Adj: 1.0
+volumen:
+  N: 1.0
+vorbild:
+  N: 1.0
+vorfall:
+  N: 1.0
+vorgabe:
+  N: 0.6
+  V: 0.4
+vorhang:
+  N: 1.0
+vorlage:
+  N: 1.0
+vorn:
+  Adv: 1.0
+vorort:
+  N: 1.0
+vorrat:
+  N: 1.0
+vorsicht:
+  N: 1.0
+vortrag:
+  N: 1.0
+vorwurf:
+  N: 1.0
+votum:
+  N: 1.0
+vulkan:
+  N: 1.0
+waage:
+  N: 1.0
+wachs:
+  N: 0.6
+  V: 0.4
+wade:
+  N: 1.0
+waffel:
+  N: 1.0
+wagen:
+  V: 1.0
+waggon:
+  N: 1.0
+wahl:
+  N: 1.0
+wahrheit:
+  N: 1.0
+wald:
+  N: 1.0
+walnuss:
+  N: 1.0
+walross:
+  N: 1.0
+walze:
+  N: 0.6
+  V: 0.4
+wand:
+  N: 1.0
+wanne:
+  N: 1.0
+wanze:
+  N: 1.0
+wappen:
+  N: 1.0
+ware:
+  N: 1.0
+warm:
+  Adj: 1.0
+warnung:
+  N: 1.0
+warten:
+  N: 0.6
+  V: 0.4
+warze:
+  N: 1.0
+waschen:
+  N: 0.6
+  V: 0.4
+wasser:
+  N: 1.0
+webstuhl:
+  N: 1.0
+wechsel:
+  N: 1.0
+wecker:
+  N: 1.0
+wedel:
+  N: 1.0
+weggabel:
+  N: 1.0
+wehren:
+  N: 0.6
+  V: 0.4
+weich:
+  Adj: 1.0
+weide:
+  N: 0.6
+  V: 0.4
+wein:
+  N: 1.0
+weisheit:
+  N: 1.0
+weit:
+  Adj: 1.0
+weizen:
+  N: 1.0
+welken:
+  V: 1.0
+welle:
+  N: 1.0
+welpe:
+  N: 1.0
+welt:
+  N: 1.0
+wende:
+  N: 1.0
+wenig:
+  Pron: 1.0
+werbung:
+  N: 1.0
+werfen:
+  V: 1.0
+werkzeug:
+  N: 1.0
+wert:
+  N: 0.6
+  Adj: 0.4
+wesen:
+  N: 1.0
+wespe:
+  N: 1.0
+weste:
+  N: 0.6
+  Adj: 0.4
+wetter:
+  N: 1.0
+wichtig:
+  Adj: 1.0
+widder:
+  N: 1.0
+wiegen:
+  N: 0.6
+  V: 0.4
+wiese:
+  N: 1.0
+wild:
+  N: 0.6
+  Adj: 0.4
+wille:
+  N: 1.0
+wimper:
+  N: 1.0
+wind:
+  N: 1.0
+winkel:
+  N: 1.0
+winter:
+  N: 1.0
+winzig:
+  Adj: 1.0
+wippe:
+  N: 0.6
+  V: 0.4
+wirbel:
+  N: 1.0
+wirkung:
+  N: 1.0
+wirt:
+  N: 0.6
+  V: 0.4
+wischen:
+  N: 0.6
+  V: 0.4
+wisent:
+  N: 0.6
+  Adj: 0.4
+wissen:
+  N: 0.6
+  V: 0.4
+witz:
+  N: 1.0
+woche:
+  N: 1.0
+wohl:
+  N: 0.6
+  Adv: 0.4
+wohnen:
+  N: 0.6
+  V: 0.4
+wolf:
+  N: 1.0
+wolke:
+  N: 1.0
+wolle:
+  N: 0.6
+  V: 0.4
+wort:
+  N: 1.0
+wunder:
+  N: 1.0
+wunsch:
+  N: 1.0
+wurm:
+  N: 1.0
+wurzel:
+  N: 1.0
+zacke:
+  N: 0.6
+  V: 0.4
+zahl:
+  N: 1.0
+zahm:
+  Adj: 1.0
+zahn:
+  N: 1.0
+zander:
+  N: 0.6
+  Adv: 0.4
+zange:
+  N: 1.0
+zapfen:
+  N: 0.6
+  V: 0.4
+zart:
+  Adj: 1.0
+zauber:
+  N: 1.0
+zaun:
+  N: 1.0
+zebra:
+  N: 1.0
+zeche:
+  N: 0.6
+  V: 0.4
+zecke:
+  N: 1.0
+zehe:
+  N: 1.0
+zehn:
+  N: 1.0
+zeichen:
+  N: 1.0
+zeigen:
+  V: 1.0
+zeile:
+  N: 1.0
+zeit:
+  N: 1.0
+zelle:
+  N: 1.0
+zelt:
+  N: 1.0
+zement:
+  N: 1.0
+zensur:
+  N: 1.0
+zentrum:
+  N: 1.0
+zettel:
+  N: 1.0
+zeug:
+  N: 1.0
+ziege:
+  N: 1.0
+ziehen:
+  V: 1.0
+ziel:
+  N: 1.0
+ziffer:
+  N: 1.0
+zimmer:
+  N: 1.0
+zimt:
+  N: 0.6
+  V: 0.4
+zins:
+  N: 1.0
+zipfel:
+  N: 1.0
+zirkus:
+  N: 1.0
+zitat:
+  N: 1.0
+zitrone:
+  N: 1.0
+zocken:
+  V: 1.0
+zollfrei:
+  Adj: 1.0
+zone:
+  N: 1.0
+zorn:
+  N: 1.0
+zucchini:
+  N: 1.0
+zucker:
+  N: 1.0
+zufall:
+  N: 1.0
+zuflucht:
+  N: 1.0
+zugang:
+  N: 1.0
+zugriff:
+  N: 1.0
+zukunft:
+  N: 1.0
+zunge:
+  N: 1.0
+zusatz:
+  N: 1.0
+zuschlag:
+  N: 1.0
+zustand:
+  N: 1.0
+zutat:
+  N: 0.6
+  V: 0.4
+zwang:
+  N: 0.6
+  V: 0.4
+zweck:
+  N: 1.0
+zwei:
+  N: 1.0
+zwiebel:
+  N: 1.0
+zwilling:
+  N: 1.0
+zwingen:
+  N: 0.6
+  V: 0.4
+zwirn:
+  N: 1.0
+zyklus:
+  N: 1.0

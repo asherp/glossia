@@ -1,0 +1,256 @@
+# German Cover Wordlist — grammatical skeleton for German prose
+#
+# Cover words fill the function-word slots (Det, Prep, Conj, Cop, Modal, Aux,
+# To, Dot) and the non-payload-bearing content slots (V, Adj, Adv, N) that give
+# the generated sentences their shape. Payload words (the 2048 dys2p de-2048
+# entries in payload.yaml) are woven into the remaining N/V/Adj/Adv slots.
+#
+# INVARIANT: this set is disjoint from payload.yaml. Verified by
+# glossia-tools/py/generate_german_payload.py's companion check.
+
+# ── Determiners (nominative; def / indef / quant) ────────────
+der:
+  Det: 1.0
+  refinement: def
+die:
+  Det: 1.0
+  refinement: def
+das:
+  Det: 1.0
+  refinement: def
+den:
+  Det: 1.0
+  refinement: def
+dem:
+  Det: 1.0
+  refinement: def
+ein:
+  Det: 1.0
+  refinement: indef
+eine:
+  Det: 1.0
+  refinement: indef
+einen:
+  Det: 1.0
+  refinement: indef
+einem:
+  Det: 1.0
+  refinement: indef
+jede:
+  Det: 1.0
+  refinement: quant
+jeder:
+  Det: 1.0
+  refinement: quant
+viele:
+  Det: 1.0
+  refinement: quant
+manche:
+  Det: 1.0
+  refinement: quant
+einige:
+  Det: 1.0
+  refinement: quant
+alle:
+  Det: 1.0
+  refinement: quant
+
+# ── Prepositions ─────────────────────────────────────────────
+in:
+  Prep: 1.0
+mit:
+  Prep: 1.0
+auf:
+  Prep: 1.0
+für:
+  Prep: 1.0
+von:
+  Prep: 1.0
+an:
+  Prep: 1.0
+bei:
+  Prep: 1.0
+über:
+  Prep: 1.0
+unter:
+  Prep: 1.0
+nach:
+  Prep: 1.0
+aus:
+  Prep: 1.0
+durch:
+  Prep: 1.0
+um:
+  Prep: 1.0
+vor:
+  Prep: 1.0
+neben:
+  Prep: 1.0
+gegen:
+  Prep: 1.0
+seit:
+  Prep: 1.0
+zwischen:
+  Prep: 1.0
+
+# ── Conjunctions ─────────────────────────────────────────────
+und:
+  Conj: 1.0
+oder:
+  Conj: 1.0
+aber:
+  Conj: 1.0
+denn:
+  Conj: 1.0
+sondern:
+  Conj: 1.0
+sowie:
+  Conj: 1.0
+doch:
+  Conj: 1.0
+
+# ── Copula (sg / pl) ─────────────────────────────────────────
+ist:
+  Cop: 1.0
+  refinement: sg
+sind:
+  Cop: 1.0
+  refinement: pl
+war:
+  Cop: 1.0
+  refinement: sg
+waren:
+  Cop: 1.0
+  refinement: pl
+bleibt:
+  Cop: 1.0
+  refinement: sg
+bleiben:
+  Cop: 1.0
+  refinement: pl
+
+# ── Modals ───────────────────────────────────────────────────
+kann:
+  Modal: 1.0
+soll:
+  Modal: 1.0
+muss:
+  Modal: 1.0
+will:
+  Modal: 1.0
+darf:
+  Modal: 1.0
+mag:
+  Modal: 1.0
+können:
+  Modal: 1.0
+
+# ── Auxiliaries ──────────────────────────────────────────────
+hat:
+  Aux: 1.0
+haben:
+  Aux: 1.0
+hatte:
+  Aux: 1.0
+wurde:
+  Aux: 1.0
+wird:
+  Aux: 1.0
+werden:
+  Aux: 1.0
+
+# ── Infinitive marker ────────────────────────────────────────
+zu:
+  To: 1.0
+
+# ── Sentence terminator ──────────────────────────────────────
+".":
+  Dot: 1.0
+
+# ── Cover verbs (non-payload) ────────────────────────────────
+sieht:
+  V: 1.0
+findet:
+  V: 1.0
+zeigt:
+  V: 1.0
+macht:
+  V: 1.0
+kennt:
+  V: 1.0
+bringt:
+  V: 1.0
+nimmt:
+  V: 1.0
+gibt:
+  V: 1.0
+hört:
+  V: 1.0
+liebt:
+  V: 1.0
+sucht:
+  V: 1.0
+trägt:
+  V: 1.0
+trifft:
+  V: 1.0
+ruht:
+  V: 1.0
+schaut:
+  V: 1.0
+begleitet:
+  V: 1.0
+umgibt:
+  V: 1.0
+berührt:
+  V: 1.0
+
+# ── Cover adjectives (non-payload) ───────────────────────────
+gut:
+  Adj: 1.0
+neu:
+  Adj: 1.0
+alt:
+  Adj: 1.0
+groß:
+  Adj: 1.0
+klein:
+  Adj: 1.0
+schön:
+  Adj: 1.0
+rot:
+  Adj: 1.0
+leise:
+  Adj: 1.0
+frei:
+  Adj: 1.0
+
+# ── Cover adverbs (non-payload) ──────────────────────────────
+oft:
+  Adv: 1.0
+sehr:
+  Adv: 1.0
+hier:
+  Adv: 1.0
+dort:
+  Adv: 1.0
+bald:
+  Adv: 1.0
+immer:
+  Adv: 1.0
+nun:
+  Adv: 1.0
+stets:
+  Adv: 1.0
+wieder:
+  Adv: 1.0
+manchmal:
+  Adv: 1.0
+
+# ── Cover nouns (structural, non-payload) ────────────────────
+ort:
+  N: 1.0
+stelle:
+  N: 1.0
+weise:
+  N: 1.0
