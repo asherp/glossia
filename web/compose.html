@@ -512,7 +512,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 </div>
 
 <script type="module">
-import { init, sealMessage, renderArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { init, sealMessage, renderArtifact, decodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
          seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
          deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
@@ -670,6 +670,42 @@ async function sealFor(msg, cred) {
 //    ("Regenerate") that draws a fresh nonce, never as an editable value.
 let coverVariant = 0;
 function coverSeed() { return BigInt(Math.max(0, Math.floor(Number(coverVariant) || 0))); }
+
+// ── nonce-reuse guard ──────────────────────────────────────────────────
+// AES-GCM breaks catastrophically if one (key, nonce) ever encrypts two DIFFERENT
+// messages: it leaks the plaintext XOR and the authentication key. Each seal draws
+// a random 6-byte salt and derives the nonce from (key, salt), so a salt collision
+// under a board's key is the hazard. We keep a per-board ledger of salts already
+// used — persisted in localStorage, keyed by the PUBLIC board id — and, before
+// posting, re-seal if the salt was seen, so a board never reuses a nonce even
+// across sessions on this device. Salts are public (they ride in the trailer), so
+// the ledger stores nothing secret. (48-bit salts collide only around ~2^24 posts,
+// so this practically never fires — it's a hard guarantee, and groundwork for
+// payload variants, which would draw many seals per message.)
+function saltHexOf(state) {
+  // trailer = [flag|len : 2 bytes][salt : 6][tag : 12]; salt is hex chars 4..16
+  return (state && state.trailerHex) ? state.trailerHex.slice(4, 16) : '';
+}
+function saltLedgerKey() { return 'glossia:salts:' + boardIdentity().npub; }
+function loadSaltLedger() {
+  try { return new Set(JSON.parse(localStorage.getItem(saltLedgerKey()) || '[]')); }
+  catch { return new Set(); }
+}
+function recordSalt(hex) {
+  if (!hex) return;
+  const s = loadSaltLedger(); s.add(hex);
+  try { localStorage.setItem(saltLedgerKey(), JSON.stringify([...s])); } catch { /* storage blocked/full — ignore */ }
+}
+// A seal whose salt this board hasn't used before, re-drawing on the rare collision.
+async function freshSeal(msg, cred) {
+  const ledger = loadSaltLedger();
+  let state = await sealFor(msg, cred);
+  for (let i = 0; state.encrypted && ledger.has(saltHexOf(state)) && i < 8; i++) {
+    sealCache = null;                 // drop the cached seal so sealFor draws a new salt
+    state = await sealFor(msg, cred);
+  }
+  return state;
+}
 const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
 function sharePost() { return lastBody ? lastBody.replace(/\s+/g, ' ').trim() : SHARE_TEXT; }
 function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
@@ -767,8 +803,10 @@ document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
 // ── live preview: realtime prose + decoded, exactly as a reader sees it ─
+// The decoded panel (c-pv-msg) is NOT an echo of the input — it shows the message
+// recovered by actually decoding the prose we just generated (see regenPreview), a
+// live round-trip that proves the encoding reverses.
 function syncMeta() {
-  $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
   const subj = $('c-subject').value.trim();   // only show the subject when one is set
   $('c-pv-subject').textContent = subj;
   $('c-pv-subject').classList.toggle('hidden', !subj);
@@ -786,11 +824,11 @@ async function regenPreview() {
   syncMeta();
   updateMode();
   const msg = $('c-msg').value;
-  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; lastBody = ''; updateLen(null); return; }
+  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; $('c-pv-msg').textContent = 'Your decrypted message appears here.'; lastBody = ''; updateLen(null); return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
-    const state = await sealFor(msg, cred);                   // seal once; cover/lang toggles only re-render
+    const state = await freshSeal(msg, cred);                 // seal once (nonce-reuse-guarded); toggles only re-render
     if (my !== pvToken) return;
     const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked, seed: coverSeed() });
     const { body, attr } = splitProse(enc.prose);
@@ -798,6 +836,16 @@ async function regenPreview() {
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
     lastBody = enc.body;
     updateLen(enc.body);
+    // Live round-trip: decode the artifact we just built and show the recovered
+    // message — a real reversal check, not an echo of the input.
+    try {
+      const dec = await decodeMessage(enc.artifact, cred);
+      if (my !== pvToken) return;
+      $('c-pv-msg').textContent = (dec.message === msg) ? dec.message : '⚠ round-trip mismatch: ' + dec.message;
+    } catch (e) {
+      if (my !== pvToken) return;
+      $('c-pv-msg').textContent = '⚠ could not decode — ' + (e.message || e);
+    }
   } catch (e) {
     if (my !== pvToken) return;
     $('c-pv-prose').textContent = 'Could not generate prose — ' + (e.message || e);
@@ -944,10 +992,10 @@ async function buildBulletin() {
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
   const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
-  const state = await sealFor(msg, cred);   // reuse the preview's seal so publish matches what the author sees
+  const state = await freshSeal(msg, cred);   // reuse the preview's seal (nonce-reuse-guarded) so publish matches it
   const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked, seed: coverSeed() });
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
-  return { identity, enc, ev };
+  return { identity, enc, ev, saltHex: saltHexOf(state) };
 }
 
 function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.slice(-6) : (v || ''); }
@@ -955,8 +1003,8 @@ function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.s
 $('c-publish').addEventListener('click', async () => {
   $('c-err').textContent = ''; $('c-status').textContent = '';
   if (!ready) return;
-  let ev;
-  try { ({ ev } = await buildBulletin()); }
+  let ev, saltHex;
+  try { ({ ev, saltHex } = await buildBulletin()); }
   catch (e) { $('c-err').textContent = e.message || String(e); return; }
   const relays = parseRelays($('c-relays').value);
   if (!relays.length) { $('c-err').textContent = 'Add at least one wss:// relay.'; return; }
@@ -965,6 +1013,7 @@ $('c-publish').addEventListener('click', async () => {
   try {
     const results = await publishEvent(ev, relays);
     const okN = results.filter(r => r.ok).length;
+    if (okN) recordSalt(saltHex);   // this salt is now spent for this board — never reuse its nonce
     $('c-relay-results').innerHTML = '<label>Relay results</label>' + results.map(r =>
       `<div class="relay-line ${r.ok ? 'ok' : 'muted'}">${r.ok ? '✓' : '✗'} ${escapeHtml(r.relay)} <span class="muted">${escapeHtml(r.message || '')}</span></div>`
     ).join('');
