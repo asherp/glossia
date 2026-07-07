@@ -39,6 +39,7 @@ export const MSG_LANGS = [
   { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
   { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
   { id: 'czech',   label: 'Czech',   language: 'czech',   wordlist: 'default', dialect: 'body' },
+  { id: 'german',  label: 'German',  language: 'german',  wordlist: 'default', dialect: 'body' },
 ];
 export function msgLangById(id) { return MSG_LANGS.find(l => l.id === id) || MSG_LANGS[0]; }
 
