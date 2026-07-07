@@ -48,6 +48,10 @@ pub struct Grammar {
     /// "base_n" for big-integer base-N encoding.
     /// Declared in grammar.yaml; defaults to "bitpack" for backward compat.
     pub(crate) codec: String,
+    /// Optional language-specific morphology to apply as a post-generation
+    /// agreement pass (e.g. "german" for determiner gender/case agreement and
+    /// noun capitalization). `None` = no agreement pass.
+    pub(crate) morphology: Option<String>,
 }
 
 /// A POS sequence with its probability according to the grammar
@@ -442,6 +446,11 @@ impl Grammar {
         &self.codec
     }
 
+    /// Language-specific morphology to apply as an agreement post-pass, if any.
+    pub fn morphology(&self) -> Option<&str> {
+        self.morphology.as_deref()
+    }
+
     /// Load grammar from grammar.yaml (type-driven)
     pub fn default() -> Result<Self, Box<dyn std::error::Error>> {
         Self::from_language_dialect("latin", "body")
@@ -672,9 +681,10 @@ impl Grammar {
         Ok((symbols, refinements))
     }
     
-    /// Extract payload_separator, dot_is_punctuation, payload_line_width, max_k, and codec from grammar YAML.
+    /// Extract payload_separator, dot_is_punctuation, payload_line_width, max_k, codec,
+    /// and morphology from grammar YAML.
     /// Dialect-level overrides take precedence over grammar-level defaults.
-    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>, Option<usize>, String) {
+    fn parse_payload_format(yaml_content: &str, dialect: &str) -> (String, bool, Option<usize>, Option<usize>, String, Option<String>) {
         let doc: Result<serde_yaml::Value, _> = serde_yaml::from_str(yaml_content);
         if let Ok(doc) = doc {
             if let Some(grammar) = doc.get("grammar") {
@@ -699,6 +709,9 @@ impl Grammar {
                         "bitpack"
                     })
                     .to_string();
+                let mut morphology = grammar.get("morphology")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
                 // Dialect-level overrides (if dialect != "body")
                 if dialect != "body" {
                     if let Some(dialect_data) = grammar.get("dialects")
@@ -722,13 +735,19 @@ impl Grammar {
                         {
                             codec = c.to_string();
                         }
+                        // morphology override
+                        if let Some(m) = dialect_data.get("morphology")
+                            .and_then(|v| v.as_str())
+                        {
+                            morphology = Some(m.to_string());
+                        }
                     }
                 }
 
-                return (payload_sep, dot_is_punct, payload_line_width, max_k, codec);
+                return (payload_sep, dot_is_punct, payload_line_width, max_k, codec, morphology);
             }
         }
-        (" ".to_string(), true, None, None, "bitpack".to_string())
+        (" ".to_string(), true, None, None, "bitpack".to_string(), None)
     }
 
     /// Load grammar from language and dialect (YAML-only)
@@ -745,7 +764,7 @@ impl Grammar {
             match LanguageConfig::from_yaml(yaml_content) {
                 Ok(language_config) => {
                     let rules = Self::build_rules_from_cfg_productions(yaml_content, dialect)?;
-                    let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec) =
+                    let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec, morphology) =
                         Self::parse_payload_format(yaml_content, dialect);
                     return Ok(Grammar {
                         rules,
@@ -756,6 +775,7 @@ impl Grammar {
                         payload_line_width,
                         max_k,
                         codec,
+                        morphology,
                         });
                 }
                 Err(e) => {
@@ -773,7 +793,7 @@ impl Grammar {
                 let grammar_yaml = std::fs::read_to_string(&path)?;
                 let language_config = LanguageConfig::from_yaml(&grammar_yaml)?;
                 let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, dialect)?;
-                let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec) =
+                let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec, morphology) =
                     Self::parse_payload_format(&grammar_yaml, dialect);
                 return Ok(Grammar {
                     rules,
@@ -784,6 +804,7 @@ impl Grammar {
                     payload_line_width,
                     max_k,
                     codec,
+                    morphology,
                 });
             }
         }
@@ -797,7 +818,7 @@ impl Grammar {
     pub fn from_file(grammar_path: impl AsRef<Path>) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar_yaml = std::fs::read_to_string(grammar_path)?;
         let rules = Self::build_rules_from_cfg_productions(&grammar_yaml, "body")?;
-        let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec) =
+        let (payload_separator, dot_is_punctuation, payload_line_width, max_k, codec, morphology) =
             Self::parse_payload_format(&grammar_yaml, "body");
         Ok(Grammar {
             rules,
@@ -808,6 +829,7 @@ impl Grammar {
             payload_line_width,
             max_k,
             codec,
+            morphology,
         })
     }
 

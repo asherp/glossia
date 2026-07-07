@@ -1,0 +1,6292 @@
+# German payload wordlist — dys2p de-2048-v1 (BIP39-compatible)
+#
+# POS tags generated offline by glossia-tools/py/generate_german_payload.py
+# (HanTa POS tagger + german-nouns Wiktionary lexicon). Nouns also carry a
+# `gender` (m/f/n) used by the German agreement pass for article
+# gender/case selection. Word order is the canonical dys2p ordering and is
+# authoritative for codec indices.
+#
+# Total words: 2048
+
+abbau:
+  N: 1.0
+  gender: m
+abbild:
+  N: 1.0
+  gender: n
+abbruch:
+  N: 1.0
+  gender: m
+abdruck:
+  N: 1.0
+  gender: m
+abend:
+  N: 0.6
+  Adv: 0.4
+  gender: m
+abfall:
+  N: 1.0
+  gender: m
+abflug:
+  N: 1.0
+  gender: m
+abgas:
+  N: 1.0
+  gender: n
+abgrund:
+  N: 1.0
+  gender: m
+abitur:
+  N: 1.0
+  gender: n
+abkommen:
+  N: 1.0
+  gender: n
+ablauf:
+  N: 1.0
+  gender: m
+ablehnen:
+  N: 0.6
+  V: 0.4
+  gender: n
+abluft:
+  N: 1.0
+  gender: f
+abpfiff:
+  N: 0.6
+  V: 0.4
+  gender: m
+abreise:
+  N: 0.6
+  V: 0.4
+  gender: f
+abriss:
+  N: 0.6
+  V: 0.4
+  gender: m
+absage:
+  N: 1.0
+  gender: f
+abschied:
+  N: 1.0
+  gender: m
+abseits:
+  N: 0.6
+  Adv: 0.4
+  gender: n
+absicht:
+  N: 1.0
+  gender: f
+absolut:
+  Adj: 1.0
+abstand:
+  N: 1.0
+  gender: m
+absurd:
+  Adj: 1.0
+abteil:
+  N: 1.0
+  gender: n
+abwarten:
+  N: 1.0
+  gender: n
+abwehr:
+  N: 1.0
+  gender: f
+abzug:
+  N: 1.0
+  gender: m
+achse:
+  N: 1.0
+  gender: f
+acht:
+  N: 1.0
+  gender: f
+acker:
+  N: 1.0
+  gender: m
+adapter:
+  N: 1.0
+  gender: m
+ader:
+  N: 1.0
+  gender: f
+adler:
+  N: 1.0
+  gender: m
+adresse:
+  N: 1.0
+  gender: f
+advent:
+  N: 1.0
+  gender: m
+affe:
+  N: 1.0
+  gender: m
+agent:
+  N: 1.0
+  gender: m
+agieren:
+  N: 1.0
+  gender: n
+ahnen:
+  N: 0.6
+  V: 0.4
+  gender: m
+ahnung:
+  N: 1.0
+  gender: f
+ahorn:
+  N: 1.0
+  gender: m
+akademie:
+  N: 1.0
+  gender: f
+akkord:
+  N: 1.0
+  gender: m
+akte:
+  N: 1.0
+  gender: f
+aktie:
+  N: 1.0
+  gender: f
+aktuell:
+  Adj: 1.0
+akustik:
+  N: 1.0
+  gender: f
+akzent:
+  N: 1.0
+  gender: m
+alarm:
+  N: 1.0
+  gender: m
+albatros:
+  N: 1.0
+  gender: m
+album:
+  N: 1.0
+  gender: n
+alge:
+  N: 1.0
+  gender: f
+alkohol:
+  N: 1.0
+  gender: m
+allee:
+  N: 0.6
+  Pron: 0.4
+  gender: f
+allianz:
+  N: 1.0
+  gender: f
+alltag:
+  N: 1.0
+  gender: m
+alpen:
+  N: 1.0
+  gender: f
+alptraum:
+  N: 1.0
+  gender: m
+alter:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+altglas:
+  N: 1.0
+  gender: n
+altstadt:
+  N: 1.0
+  gender: f
+alufolie:
+  N: 1.0
+  gender: f
+amboss:
+  N: 1.0
+  gender: m
+ameise:
+  N: 1.0
+  gender: f
+ampel:
+  N: 1.0
+  gender: f
+amsel:
+  N: 1.0
+  gender: f
+amulett:
+  N: 1.0
+  gender: n
+analyse:
+  N: 1.0
+  gender: f
+ananas:
+  N: 1.0
+  gender: f
+anbau:
+  N: 1.0
+  gender: m
+anbieten:
+  N: 1.0
+  gender: n
+anblick:
+  N: 1.0
+  gender: m
+anfang:
+  N: 1.0
+  gender: m
+anfrage:
+  N: 1.0
+  gender: f
+angabe:
+  N: 0.6
+  V: 0.4
+  gender: f
+angel:
+  N: 1.0
+  gender: f
+angriff:
+  N: 1.0
+  gender: m
+angst:
+  N: 0.6
+  Adv: 0.4
+  gender: f
+anhand:
+  Prep: 1.0
+anheben:
+  N: 1.0
+  gender: n
+anhieb:
+  N: 1.0
+  gender: m
+anker:
+  N: 1.0
+  gender: m
+anklage:
+  N: 1.0
+  gender: f
+ankommt:
+  V: 1.0
+ankunft:
+  N: 1.0
+  gender: f
+anlage:
+  N: 1.0
+  gender: f
+anleiten:
+  N: 1.0
+  gender: n
+anliegen:
+  N: 1.0
+  gender: n
+anmelden:
+  N: 1.0
+  gender: n
+annehmen:
+  N: 1.0
+  gender: n
+annonce:
+  N: 1.0
+  gender: f
+anomalie:
+  N: 1.0
+  gender: f
+anpassen:
+  N: 1.0
+  gender: n
+anregung:
+  N: 1.0
+  gender: f
+anruf:
+  N: 1.0
+  gender: m
+ansatz:
+  N: 1.0
+  gender: m
+anschein:
+  N: 1.0
+  gender: m
+ansehen:
+  N: 0.6
+  V: 0.4
+  gender: n
+ansicht:
+  N: 1.0
+  gender: f
+anspruch:
+  N: 1.0
+  gender: m
+anstalt:
+  N: 1.0
+  gender: f
+anteil:
+  N: 1.0
+  gender: m
+antik:
+  Adj: 1.0
+antrag:
+  N: 1.0
+  gender: m
+antwort:
+  N: 1.0
+  gender: f
+anwalt:
+  N: 1.0
+  gender: m
+anwesen:
+  N: 1.0
+  gender: n
+anwohner:
+  N: 1.0
+  gender: m
+anzahl:
+  N: 1.0
+  gender: f
+anzeige:
+  N: 0.6
+  V: 0.4
+  gender: f
+anzug:
+  N: 1.0
+  gender: m
+apfel:
+  N: 1.0
+  gender: m
+apotheke:
+  N: 1.0
+  gender: f
+apparat:
+  N: 1.0
+  gender: m
+appell:
+  N: 1.0
+  gender: m
+applaus:
+  N: 1.0
+  gender: m
+april:
+  N: 1.0
+  gender: m
+aquarell:
+  N: 1.0
+  gender: n
+arbeit:
+  N: 1.0
+  gender: f
+archiv:
+  N: 1.0
+  gender: n
+areal:
+  N: 1.0
+  gender: n
+arena:
+  N: 1.0
+  gender: f
+argument:
+  N: 1.0
+  gender: n
+armband:
+  N: 1.0
+  gender: n
+armut:
+  N: 1.0
+  gender: f
+aroma:
+  N: 1.0
+  gender: n
+arten:
+  N: 1.0
+  gender: f
+artikel:
+  N: 1.0
+  gender: m
+arzt:
+  N: 1.0
+  gender: m
+asche:
+  N: 1.0
+  gender: f
+aspekt:
+  N: 1.0
+  gender: m
+asphalt:
+  N: 1.0
+  gender: m
+atelier:
+  N: 1.0
+  gender: n
+atem:
+  N: 1.0
+  gender: m
+athlet:
+  N: 1.0
+  gender: m
+atlas:
+  N: 1.0
+  gender: m
+atom:
+  N: 1.0
+  gender: n
+attacke:
+  N: 1.0
+  gender: f
+auerhahn:
+  N: 0.6
+  V: 0.4
+  gender: m
+aufbau:
+  N: 1.0
+  gender: m
+aufgabe:
+  N: 1.0
+  gender: f
+auflage:
+  N: 1.0
+  gender: f
+aufnahme:
+  N: 1.0
+  gender: f
+aufruf:
+  N: 1.0
+  gender: m
+aufstand:
+  N: 0.6
+  V: 0.4
+  gender: m
+auftrag:
+  N: 1.0
+  gender: m
+aufwand:
+  N: 1.0
+  gender: m
+aufzug:
+  N: 1.0
+  gender: m
+auge:
+  N: 1.0
+  gender: n
+august:
+  N: 1.0
+  gender: m
+auktion:
+  N: 1.0
+  gender: f
+aula:
+  N: 1.0
+  gender: f
+ausbruch:
+  N: 1.0
+  gender: m
+ausdruck:
+  N: 1.0
+  gender: m
+ausflug:
+  N: 1.0
+  gender: m
+ausgang:
+  N: 1.0
+  gender: m
+auskunft:
+  N: 1.0
+  gender: f
+ausnahme:
+  N: 1.0
+  gender: f
+aussicht:
+  N: 1.0
+  gender: f
+auswahl:
+  N: 1.0
+  gender: f
+auszug:
+  N: 1.0
+  gender: m
+autark:
+  Adj: 1.0
+auto:
+  N: 1.0
+  gender: n
+avocado:
+  N: 1.0
+  gender: f
+baby:
+  N: 1.0
+  gender: n
+bach:
+  N: 1.0
+  gender: m
+backen:
+  N: 0.6
+  V: 0.4
+  gender: m
+baden:
+  N: 0.6
+  V: 0.4
+  gender: n
+bagger:
+  N: 1.0
+  gender: m
+bahn:
+  N: 1.0
+  gender: f
+baldrian:
+  N: 1.0
+  gender: m
+balkon:
+  N: 1.0
+  gender: m
+ball:
+  N: 1.0
+  gender: m
+balsam:
+  N: 1.0
+  gender: m
+bambus:
+  N: 1.0
+  gender: m
+banane:
+  N: 1.0
+  gender: f
+band:
+  N: 0.6
+  V: 0.4
+  gender: n
+bank:
+  N: 1.0
+  gender: f
+bargeld:
+  N: 1.0
+  gender: n
+barsch:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+bart:
+  N: 1.0
+  gender: m
+basis:
+  N: 1.0
+  gender: f
+bass:
+  N: 1.0
+  gender: m
+basteln:
+  N: 1.0
+  gender: n
+batterie:
+  N: 1.0
+  gender: f
+bauch:
+  N: 1.0
+  gender: m
+bauer:
+  N: 1.0
+  gender: m
+bauland:
+  N: 1.0
+  gender: n
+baum:
+  N: 1.0
+  gender: m
+bauplan:
+  N: 1.0
+  gender: m
+bausatz:
+  N: 1.0
+  gender: m
+baut:
+  V: 1.0
+bauwagen:
+  N: 1.0
+  gender: m
+bauzaun:
+  N: 1.0
+  gender: m
+beachten:
+  N: 1.0
+  gender: n
+beamte:
+  N: 1.0
+  gender: m
+bebauung:
+  N: 1.0
+  gender: f
+beben:
+  N: 0.6
+  V: 0.4
+  gender: n
+becher:
+  N: 1.0
+  gender: m
+becken:
+  N: 1.0
+  gender: n
+bedarf:
+  N: 0.6
+  V: 0.4
+  gender: m
+bedenken:
+  N: 0.6
+  V: 0.4
+  gender: n
+bedienen:
+  N: 1.0
+  gender: n
+bedroht:
+  Adj: 1.0
+beenden:
+  N: 1.0
+  gender: n
+beere:
+  N: 1.0
+  gender: f
+befahren:
+  N: 1.0
+  gender: n
+befehl:
+  N: 1.0
+  gender: m
+befinden:
+  N: 0.6
+  V: 0.4
+  gender: n
+befragen:
+  N: 1.0
+  gender: n
+befund:
+  N: 1.0
+  gender: m
+begabt:
+  V: 1.0
+begeben:
+  Adj: 1.0
+beginn:
+  N: 1.0
+  gender: m
+begonnen:
+  Adj: 1.0
+begriff:
+  N: 0.6
+  V: 0.4
+  gender: m
+behalten:
+  N: 1.0
+  gender: n
+beide:
+  Pron: 1.0
+beifall:
+  N: 1.0
+  gender: m
+beige:
+  N: 1.0
+  gender: n
+beihilfe:
+  N: 1.0
+  gender: f
+beil:
+  N: 1.0
+  gender: n
+bein:
+  N: 1.0
+  gender: n
+beirat:
+  N: 1.0
+  gender: m
+beispiel:
+  N: 1.0
+  gender: n
+beitrag:
+  N: 1.0
+  gender: m
+bekannt:
+  Adj: 1.0
+bekennen:
+  N: 1.0
+  gender: n
+beklagen:
+  N: 1.0
+  gender: n
+bekommen:
+  N: 1.0
+  gender: n
+belasten:
+  N: 1.0
+  gender: n
+belegen:
+  N: 0.6
+  V: 0.4
+  gender: m
+beliebt:
+  Adj: 1.0
+belohnen:
+  N: 1.0
+  gender: n
+bemerkt:
+  Adj: 1.0
+benannt:
+  Adj: 1.0
+benutzen:
+  N: 1.0
+  gender: n
+benzin:
+  N: 1.0
+  gender: n
+bequem:
+  Adj: 1.0
+beraten:
+  N: 1.0
+  gender: n
+bereich:
+  N: 1.0
+  gender: m
+berg:
+  N: 1.0
+  gender: m
+bericht:
+  N: 1.0
+  gender: m
+beruf:
+  N: 1.0
+  gender: m
+bescheid:
+  N: 1.0
+  gender: m
+besen:
+  N: 1.0
+  gender: m
+besitz:
+  N: 1.0
+  gender: m
+besorgen:
+  N: 1.0
+  gender: n
+besser:
+  Adj: 1.0
+bestand:
+  N: 0.6
+  V: 0.4
+  gender: m
+besuch:
+  N: 1.0
+  gender: m
+beton:
+  N: 0.6
+  V: 0.4
+  gender: m
+betrieb:
+  N: 0.6
+  V: 0.4
+  gender: m
+bett:
+  N: 1.0
+  gender: n
+beule:
+  N: 0.6
+  V: 0.4
+  gender: f
+beute:
+  N: 0.6
+  V: 0.4
+  gender: f
+bewahren:
+  N: 1.0
+  gender: n
+bewegen:
+  N: 1.0
+  gender: n
+bewirken:
+  N: 1.0
+  gender: n
+bewohner:
+  N: 1.0
+  gender: m
+bezahlen:
+  N: 1.0
+  gender: n
+bezirk:
+  N: 1.0
+  gender: m
+bezog:
+  V: 1.0
+bezug:
+  N: 1.0
+  gender: m
+biber:
+  N: 1.0
+  gender: m
+bieder:
+  Adj: 1.0
+biene:
+  N: 1.0
+  gender: f
+bier:
+  N: 1.0
+  gender: n
+biest:
+  N: 1.0
+  gender: n
+bieten:
+  N: 1.0
+  gender: n
+bilanz:
+  N: 1.0
+  gender: f
+bild:
+  N: 1.0
+  gender: n
+billig:
+  Adj: 1.0
+binden:
+  N: 0.6
+  V: 0.4
+  gender: f
+binnen:
+  N: 1.0
+  gender: n
+biologie:
+  N: 1.0
+  gender: f
+biotonne:
+  N: 1.0
+  gender: f
+birgt:
+  V: 1.0
+birke:
+  N: 1.0
+  gender: f
+birne:
+  N: 1.0
+  gender: f
+bitter:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+blasen:
+  N: 0.6
+  V: 0.4
+  gender: n
+blatt:
+  N: 1.0
+  gender: n
+blau:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+blech:
+  N: 1.0
+  gender: n
+blick:
+  N: 1.0
+  gender: m
+blind:
+  Adj: 1.0
+blitz:
+  N: 1.0
+  gender: m
+block:
+  N: 1.0
+  gender: m
+blume:
+  N: 1.0
+  gender: f
+blut:
+  N: 1.0
+  gender: n
+boden:
+  N: 1.0
+  gender: m
+bogen:
+  N: 0.6
+  V: 0.4
+  gender: m
+bohne:
+  N: 1.0
+  gender: f
+bohren:
+  N: 1.0
+  gender: n
+boje:
+  N: 1.0
+  gender: f
+bolzen:
+  N: 1.0
+  gender: m
+bombe:
+  N: 1.0
+  gender: f
+bonus:
+  N: 1.0
+  gender: m
+boot:
+  N: 1.0
+  gender: n
+bord:
+  N: 1.0
+  gender: n
+botanik:
+  N: 1.0
+  gender: f
+bote:
+  N: 0.6
+  V: 0.4
+  gender: m
+boxen:
+  N: 0.6
+  V: 0.4
+  gender: n
+boxring:
+  Adj: 1.0
+boykott:
+  N: 1.0
+  gender: m
+brachten:
+  N: 1.0
+  gender: n
+brand:
+  N: 1.0
+  gender: m
+braten:
+  N: 0.6
+  V: 0.4
+  gender: m
+braun:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+brav:
+  Adj: 1.0
+brechen:
+  N: 1.0
+  gender: n
+brei:
+  N: 1.0
+  gender: m
+bremsen:
+  N: 0.6
+  V: 0.4
+  gender: n
+brennen:
+  N: 1.0
+  gender: n
+brett:
+  N: 1.0
+  gender: n
+brief:
+  N: 1.0
+  gender: m
+brille:
+  N: 1.0
+  gender: f
+bringen:
+  N: 1.0
+  gender: n
+brisant:
+  Adj: 1.0
+brokkoli:
+  N: 1.0
+  gender: m
+bronze:
+  N: 1.0
+  gender: f
+brosche:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+brot:
+  N: 1.0
+  gender: n
+bruch:
+  N: 1.0
+  gender: m
+bruder:
+  N: 1.0
+  gender: m
+brunnen:
+  N: 1.0
+  gender: m
+brust:
+  N: 1.0
+  gender: f
+bube:
+  N: 1.0
+  gender: m
+buch:
+  N: 1.0
+  gender: n
+bude:
+  N: 1.0
+  gender: f
+budget:
+  N: 1.0
+  gender: n
+bunker:
+  N: 1.0
+  gender: m
+bunt:
+  Adj: 1.0
+burg:
+  N: 1.0
+  gender: f
+busch:
+  N: 1.0
+  gender: m
+busfahrt:
+  N: 1.0
+  gender: f
+bussard:
+  N: 1.0
+  gender: m
+butter:
+  N: 1.0
+  gender: f
+campen:
+  N: 1.0
+  gender: n
+caravan:
+  Adj: 1.0
+chance:
+  N: 1.0
+  gender: f
+chaos:
+  N: 1.0
+  gender: n
+charme:
+  N: 1.0
+  gender: m
+chat:
+  N: 1.0
+  gender: m
+chemie:
+  N: 1.0
+  gender: f
+chillen:
+  N: 1.0
+  gender: n
+chlor:
+  N: 1.0
+  gender: n
+chor:
+  N: 1.0
+  gender: m
+chrom:
+  N: 1.0
+  gender: n
+clever:
+  Adj: 1.0
+clown:
+  N: 1.0
+  gender: m
+code:
+  N: 1.0
+  gender: m
+computer:
+  N: 1.0
+  gender: m
+couch:
+  N: 1.0
+  gender: f
+creme:
+  N: 1.0
+  gender: f
+dach:
+  N: 1.0
+  gender: n
+damals:
+  Adv: 1.0
+dame:
+  N: 1.0
+  gender: f
+damm:
+  N: 1.0
+  gender: m
+dampf:
+  N: 1.0
+  gender: m
+danken:
+  N: 1.0
+  gender: n
+darm:
+  N: 1.0
+  gender: m
+datei:
+  N: 1.0
+  gender: f
+dattel:
+  N: 1.0
+  gender: f
+datum:
+  N: 1.0
+  gender: n
+dauer:
+  N: 1.0
+  gender: f
+daumen:
+  N: 1.0
+  gender: m
+deal:
+  N: 1.0
+  gender: m
+debatte:
+  N: 1.0
+  gender: f
+decke:
+  N: 0.6
+  V: 0.4
+  gender: f
+defekt:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+defizit:
+  N: 1.0
+  gender: n
+dehnen:
+  N: 1.0
+  gender: n
+deich:
+  N: 1.0
+  gender: m
+delfin:
+  N: 1.0
+  gender: m
+delle:
+  N: 0.6
+  V: 0.4
+  gender: f
+denkmal:
+  N: 1.0
+  gender: n
+depot:
+  N: 1.0
+  gender: n
+design:
+  N: 1.0
+  gender: n
+dessert:
+  N: 1.0
+  gender: n
+detail:
+  N: 1.0
+  gender: n
+detektiv:
+  N: 1.0
+  gender: m
+deuten:
+  N: 1.0
+  gender: n
+devise:
+  N: 1.0
+  gender: f
+dezember:
+  N: 1.0
+  gender: m
+diagnose:
+  N: 1.0
+  gender: f
+dialog:
+  N: 1.0
+  gender: m
+dichter:
+  N: 1.0
+  gender: m
+dick:
+  Adj: 1.0
+dieb:
+  N: 1.0
+  gender: m
+dienstag:
+  N: 1.0
+  gender: m
+diesel:
+  N: 1.0
+  gender: m
+digital:
+  Adj: 1.0
+diktat:
+  N: 1.0
+  gender: n
+dilemma:
+  N: 1.0
+  gender: n
+dill:
+  N: 1.0
+  gender: m
+ding:
+  N: 1.0
+  gender: n
+diplomat:
+  N: 1.0
+  gender: m
+direktor:
+  N: 1.0
+  gender: m
+dirigent:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+diskette:
+  N: 1.0
+  gender: f
+distel:
+  N: 1.0
+  gender: f
+diverse:
+  Adj: 1.0
+docht:
+  N: 0.6
+  V: 0.4
+  gender: m
+doktor:
+  N: 1.0
+  gender: m
+dokument:
+  N: 1.0
+  gender: n
+dolch:
+  N: 1.0
+  gender: m
+domizil:
+  N: 1.0
+  gender: n
+donner:
+  N: 1.0
+  gender: m
+doppelt:
+  Adj: 1.0
+dorf:
+  N: 1.0
+  gender: n
+dorn:
+  N: 1.0
+  gender: m
+dose:
+  N: 1.0
+  gender: f
+dozent:
+  N: 1.0
+  gender: m
+drache:
+  N: 1.0
+  gender: m
+draht:
+  N: 1.0
+  gender: m
+drama:
+  N: 1.0
+  gender: n
+dreck:
+  N: 1.0
+  gender: m
+drehbuch:
+  N: 1.0
+  gender: n
+drei:
+  N: 1.0
+  gender: f
+dringend:
+  Adj: 1.0
+drohne:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+drossel:
+  N: 0.6
+  V: 0.4
+  gender: f
+drucker:
+  N: 1.0
+  gender: m
+ducken:
+  N: 1.0
+  gender: n
+duell:
+  N: 1.0
+  gender: n
+duft:
+  N: 1.0
+  gender: m
+dunkel:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+dunst:
+  N: 1.0
+  gender: m
+durst:
+  N: 1.0
+  gender: m
+dusche:
+  N: 0.6
+  V: 0.4
+  gender: f
+dynamik:
+  N: 1.0
+  gender: f
+ebbe:
+  N: 0.6
+  V: 0.4
+  gender: f
+ebene:
+  N: 1.0
+  gender: f
+echo:
+  N: 1.0
+  gender: n
+echse:
+  N: 1.0
+  gender: f
+echt:
+  Adj: 1.0
+ecke:
+  N: 1.0
+  gender: f
+efeu:
+  N: 1.0
+  gender: m
+effekt:
+  N: 1.0
+  gender: m
+egal:
+  Adv: 1.0
+ehefrau:
+  N: 1.0
+  gender: f
+ehemann:
+  N: 1.0
+  gender: m
+ehepaar:
+  N: 1.0
+  gender: n
+ehre:
+  N: 1.0
+  gender: f
+ehrgeiz:
+  N: 1.0
+  gender: m
+ehrlich:
+  N: 0.6
+  Adj: 0.4
+eichel:
+  N: 1.0
+  gender: f
+eidechse:
+  N: 1.0
+  gender: f
+eier:
+  N: 1.0
+  gender: n
+eigentum:
+  N: 1.0
+  gender: n
+eile:
+  N: 0.6
+  V: 0.4
+  gender: f
+eimer:
+  N: 1.0
+  gender: m
+einblick:
+  N: 1.0
+  gender: m
+eindruck:
+  N: 1.0
+  gender: m
+einfach:
+  Adv: 1.0
+eingang:
+  N: 1.0
+  gender: m
+einheit:
+  N: 1.0
+  gender: f
+einigung:
+  N: 1.0
+  gender: f
+einkauf:
+  N: 1.0
+  gender: m
+einladen:
+  N: 1.0
+  gender: n
+einmal:
+  Adv: 1.0
+einnahme:
+  N: 0.6
+  V: 0.4
+  gender: f
+einrad:
+  N: 1.0
+  gender: n
+eins:
+  N: 1.0
+  gender: f
+eintritt:
+  N: 0.6
+  V: 0.4
+  gender: m
+einzeln:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+eisberg:
+  N: 1.0
+  gender: m
+eisdecke:
+  N: 1.0
+  gender: f
+eisen:
+  N: 1.0
+  gender: n
+eistee:
+  N: 1.0
+  gender: m
+eisvogel:
+  N: 1.0
+  gender: m
+eiszeit:
+  N: 1.0
+  gender: f
+elch:
+  N: 1.0
+  gender: m
+elefant:
+  N: 1.0
+  gender: m
+elegant:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+element:
+  N: 1.0
+  gender: n
+elend:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+elite:
+  N: 1.0
+  gender: f
+elle:
+  N: 0.6
+  V: 0.4
+  gender: f
+elster:
+  N: 1.0
+  gender: f
+eltern:
+  N: 1.0
+  gender: m
+empfang:
+  N: 1.0
+  gender: m
+ende:
+  N: 1.0
+  gender: n
+endlich:
+  Adv: 1.0
+energie:
+  N: 1.0
+  gender: f
+engel:
+  N: 1.0
+  gender: m
+engpass:
+  N: 1.0
+  gender: m
+enkel:
+  N: 1.0
+  gender: m
+enorm:
+  Adj: 1.0
+ensemble:
+  N: 1.0
+  gender: n
+ente:
+  N: 1.0
+  gender: f
+entgegen:
+  N: 1.0
+  gender: n
+entlang:
+  Prep: 1.0
+entwurf:
+  N: 1.0
+  gender: m
+entzogen:
+  Adj: 1.0
+epoche:
+  N: 1.0
+  gender: f
+erbe:
+  N: 1.0
+  gender: n
+erbracht:
+  Adj: 1.0
+erbse:
+  N: 1.0
+  gender: f
+erdbeere:
+  N: 1.0
+  gender: f
+erde:
+  N: 1.0
+  gender: f
+erdgas:
+  N: 1.0
+  gender: n
+erdnuss:
+  N: 1.0
+  gender: f
+ereignis:
+  N: 1.0
+  gender: n
+erfassen:
+  N: 1.0
+  gender: n
+erfinden:
+  N: 1.0
+  gender: n
+erfolg:
+  N: 1.0
+  gender: m
+erfreuen:
+  N: 1.0
+  gender: n
+ergebnis:
+  N: 1.0
+  gender: n
+erhalten:
+  Adj: 1.0
+erheben:
+  N: 1.0
+  gender: n
+erholung:
+  N: 1.0
+  gender: f
+erinnern:
+  N: 1.0
+  gender: n
+erkennen:
+  N: 1.0
+  gender: n
+erlauben:
+  N: 1.0
+  gender: n
+erlebnis:
+  N: 1.0
+  gender: n
+erlitten:
+  Adj: 1.0
+erneut:
+  Adj: 1.0
+ernst:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+ernte:
+  N: 1.0
+  gender: f
+erobern:
+  N: 1.0
+  gender: n
+erproben:
+  N: 1.0
+  gender: n
+erregen:
+  N: 1.0
+  gender: n
+ersatz:
+  N: 1.0
+  gender: m
+ersetzen:
+  N: 1.0
+  gender: n
+ersparen:
+  N: 1.0
+  gender: n
+erteilen:
+  N: 1.0
+  gender: n
+ertrag:
+  N: 1.0
+  gender: m
+erwarten:
+  N: 0.6
+  V: 0.4
+  gender: n
+erwerben:
+  N: 0.6
+  V: 0.4
+  gender: m
+erwiesen:
+  Adj: 1.0
+erworben:
+  Adj: 1.0
+erzeugen:
+  N: 0.6
+  V: 0.4
+  gender: n
+erzielen:
+  N: 1.0
+  gender: n
+esel:
+  N: 1.0
+  gender: m
+essen:
+  N: 0.6
+  V: 0.4
+  gender: n
+essig:
+  N: 1.0
+  gender: m
+esstisch:
+  N: 1.0
+  gender: m
+etage:
+  N: 1.0
+  gender: f
+etappe:
+  N: 1.0
+  gender: f
+etat:
+  N: 1.0
+  gender: m
+ethik:
+  N: 1.0
+  gender: f
+etikett:
+  N: 1.0
+  gender: n
+etliche:
+  Pron: 1.0
+eule:
+  N: 1.0
+  gender: f
+euphorie:
+  N: 1.0
+  gender: f
+event:
+  N: 1.0
+  gender: n
+ewig:
+  Adj: 1.0
+exakt:
+  Adj: 1.0
+examen:
+  N: 1.0
+  gender: n
+exil:
+  N: 1.0
+  gender: n
+existenz:
+  N: 1.0
+  gender: f
+exkurs:
+  N: 1.0
+  gender: m
+experte:
+  N: 1.0
+  gender: m
+export:
+  N: 1.0
+  gender: m
+express:
+  N: 1.0
+  gender: m
+extern:
+  N: 1.0
+  gender: n
+extrem:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+fabel:
+  N: 1.0
+  gender: f
+fabrik:
+  N: 1.0
+  gender: f
+fach:
+  N: 1.0
+  gender: n
+fackel:
+  N: 1.0
+  gender: f
+faden:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+fahne:
+  N: 1.0
+  gender: f
+fahrrad:
+  N: 1.0
+  gender: n
+faktor:
+  N: 1.0
+  gender: m
+falke:
+  N: 1.0
+  gender: m
+fallen:
+  N: 0.6
+  V: 0.4
+  gender: f
+falsch:
+  Adj: 1.0
+falter:
+  N: 1.0
+  gender: m
+familie:
+  N: 1.0
+  gender: f
+fangen:
+  N: 0.6
+  V: 0.4
+  gender: n
+fans:
+  N: 1.0
+  gender: m
+fantasie:
+  N: 1.0
+  gender: f
+farbe:
+  N: 1.0
+  gender: f
+farn:
+  N: 1.0
+  gender: m
+fasching:
+  N: 1.0
+  gender: m
+fass:
+  N: 0.6
+  V: 0.4
+  gender: n
+faultier:
+  N: 1.0
+  gender: n
+fauna:
+  N: 1.0
+  gender: f
+faust:
+  N: 1.0
+  gender: f
+favorit:
+  N: 1.0
+  gender: m
+faxen:
+  N: 0.6
+  V: 0.4
+  gender: f
+fazit:
+  N: 1.0
+  gender: n
+februar:
+  N: 1.0
+  gender: m
+fechten:
+  N: 0.6
+  V: 0.4
+  gender: n
+feder:
+  N: 1.0
+  gender: f
+fegen:
+  N: 1.0
+  gender: n
+fehler:
+  N: 1.0
+  gender: m
+feier:
+  N: 0.6
+  V: 0.4
+  gender: f
+feile:
+  N: 0.6
+  V: 0.4
+  gender: f
+fein:
+  Adj: 1.0
+feld:
+  N: 1.0
+  gender: n
+fell:
+  N: 1.0
+  gender: n
+fels:
+  N: 1.0
+  gender: m
+fenchel:
+  N: 1.0
+  gender: m
+fenster:
+  N: 1.0
+  gender: n
+ferien:
+  N: 1.0
+fern:
+  N: 1.0
+  gender: n
+ferse:
+  N: 1.0
+  gender: f
+fertig:
+  Adj: 1.0
+fest:
+  N: 1.0
+  gender: n
+fett:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+feucht:
+  Adj: 1.0
+feuer:
+  N: 1.0
+  gender: n
+fichte:
+  N: 0.6
+  V: 0.4
+  gender: f
+fieber:
+  N: 1.0
+  gender: n
+figur:
+  N: 1.0
+  gender: f
+fiktion:
+  N: 1.0
+  gender: f
+filiale:
+  N: 1.0
+  gender: f
+film:
+  N: 1.0
+  gender: m
+filter:
+  N: 0.6
+  V: 0.4
+  gender: m
+filz:
+  N: 1.0
+  gender: m
+finale:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+finden:
+  N: 1.0
+  gender: n
+finger:
+  N: 1.0
+  gender: m
+fink:
+  N: 1.0
+  gender: m
+finster:
+  Adj: 1.0
+firma:
+  N: 1.0
+  gender: f
+fisch:
+  N: 1.0
+  gender: m
+flach:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+flagge:
+  N: 1.0
+  gender: f
+flamme:
+  N: 0.6
+  V: 0.4
+  gender: f
+flasche:
+  N: 1.0
+  gender: f
+fleck:
+  N: 1.0
+  gender: m
+fleisch:
+  N: 1.0
+  gender: n
+flexibel:
+  Adj: 1.0
+fliege:
+  N: 0.6
+  V: 0.4
+  gender: f
+flink:
+  Adj: 1.0
+flocke:
+  N: 0.6
+  V: 0.4
+  gender: f
+floh:
+  N: 0.6
+  V: 0.4
+  gender: m
+flora:
+  N: 1.0
+  gender: f
+flucht:
+  N: 1.0
+  gender: f
+flugzeug:
+  N: 1.0
+  gender: n
+flur:
+  N: 1.0
+  gender: m
+fluss:
+  N: 1.0
+  gender: m
+flut:
+  N: 1.0
+  gender: f
+fokus:
+  N: 1.0
+  gender: m
+folge:
+  N: 1.0
+  gender: f
+folie:
+  N: 1.0
+  gender: f
+fordern:
+  N: 1.0
+  gender: n
+forelle:
+  N: 1.0
+  gender: f
+formel:
+  N: 1.0
+  gender: f
+forst:
+  N: 1.0
+  gender: m
+foto:
+  N: 1.0
+  gender: n
+foyer:
+  N: 1.0
+  gender: n
+fracht:
+  N: 1.0
+  gender: f
+frage:
+  N: 0.6
+  V: 0.4
+  gender: f
+fraktion:
+  N: 1.0
+  gender: f
+frau:
+  N: 1.0
+  gender: f
+frech:
+  Adj: 1.0
+freizeit:
+  N: 1.0
+  gender: f
+fremd:
+  Adj: 1.0
+frequenz:
+  N: 1.0
+  gender: f
+freund:
+  N: 1.0
+  gender: m
+frieden:
+  N: 1.0
+  gender: m
+friseur:
+  N: 1.0
+  gender: m
+froh:
+  Adj: 1.0
+front:
+  N: 1.0
+  gender: f
+frosch:
+  N: 1.0
+  gender: m
+frucht:
+  N: 1.0
+  gender: f
+frust:
+  N: 1.0
+  gender: m
+fuchs:
+  N: 1.0
+  gender: m
+fund:
+  N: 1.0
+  gender: m
+funktion:
+  N: 1.0
+  gender: f
+furcht:
+  N: 1.0
+  gender: f
+fusion:
+  N: 1.0
+  gender: f
+futter:
+  N: 1.0
+  gender: n
+gabel:
+  N: 1.0
+  gender: f
+galaxie:
+  N: 1.0
+  gender: f
+galerie:
+  N: 1.0
+  gender: f
+gang:
+  N: 1.0
+  gender: m
+ganove:
+  N: 1.0
+  gender: m
+gans:
+  N: 1.0
+  gender: f
+ganz:
+  Adv: 1.0
+garage:
+  N: 1.0
+  gender: f
+gardine:
+  N: 1.0
+  gender: f
+garn:
+  N: 0.6
+  V: 0.4
+  gender: n
+garten:
+  N: 1.0
+  gender: m
+gasse:
+  N: 1.0
+  gender: f
+gast:
+  N: 1.0
+  gender: m
+gattung:
+  N: 1.0
+  gender: f
+gauner:
+  N: 1.0
+  gender: m
+gazelle:
+  N: 1.0
+  gender: f
+geben:
+  N: 1.0
+  gender: n
+gebiet:
+  N: 1.0
+  gender: n
+geboren:
+  Adj: 1.0
+gebracht:
+  Adj: 1.0
+geburt:
+  N: 1.0
+  gender: f
+gecko:
+  N: 1.0
+  gender: m
+gedanke:
+  N: 1.0
+  gender: m
+gedicht:
+  N: 1.0
+  gender: n
+geduld:
+  N: 1.0
+  gender: f
+gefahr:
+  N: 1.0
+  gender: f
+gefieder:
+  N: 1.0
+  gender: n
+geflecht:
+  N: 1.0
+  gender: n
+gegend:
+  N: 1.0
+  gender: f
+gegner:
+  N: 1.0
+  gender: m
+gehen:
+  N: 0.6
+  V: 0.4
+  gender: n
+gehirn:
+  N: 1.0
+  gender: n
+geier:
+  N: 1.0
+  gender: m
+geige:
+  N: 1.0
+  gender: f
+geist:
+  N: 1.0
+  gender: m
+geiz:
+  N: 0.6
+  V: 0.4
+  gender: m
+gelassen:
+  N: 0.6
+  V: 0.4
+  gender: n
+gelb:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+geld:
+  N: 1.0
+  gender: n
+gelee:
+  N: 0.6
+  V: 0.4
+  gender: n
+gelten:
+  N: 1.0
+  gender: n
+gelungen:
+  Adj: 1.0
+gemacht:
+  Adj: 1.0
+gemein:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+genau:
+  Adj: 1.0
+generell:
+  Adj: 1.0
+genie:
+  N: 1.0
+  gender: n
+genug:
+  Adv: 1.0
+gepard:
+  N: 1.0
+  gender: m
+gerade:
+  N: 0.6
+  Adv: 0.4
+  gender: f
+gerecht:
+  Adj: 1.0
+gericht:
+  N: 1.0
+  gender: n
+gern:
+  N: 1.0
+  gender: n
+gerste:
+  N: 1.0
+  gender: f
+geruch:
+  N: 1.0
+  gender: m
+gesamt:
+  Adj: 1.0
+geschenk:
+  N: 1.0
+  gender: n
+gesetz:
+  N: 1.0
+  gender: n
+gesicht:
+  N: 1.0
+  gender: n
+gespenst:
+  N: 1.0
+  gender: n
+gestalt:
+  N: 1.0
+  gender: f
+gesund:
+  Adj: 1.0
+getan:
+  Adj: 1.0
+getreide:
+  N: 1.0
+  gender: n
+gewalt:
+  N: 1.0
+  gender: f
+gewerbe:
+  N: 1.0
+  gender: n
+gewitter:
+  N: 1.0
+  gender: n
+gewonnen:
+  Adj: 1.0
+giebel:
+  N: 1.0
+  gender: m
+gier:
+  N: 1.0
+  gender: f
+gift:
+  N: 1.0
+  gender: n
+gigant:
+  N: 1.0
+  gender: m
+gipfel:
+  N: 1.0
+  gender: m
+gips:
+  N: 1.0
+  gender: m
+giraffe:
+  N: 1.0
+  gender: f
+girlande:
+  N: 1.0
+  gender: f
+gitarre:
+  N: 1.0
+  gender: f
+gitter:
+  N: 1.0
+  gender: n
+glanz:
+  N: 1.0
+  gender: m
+glas:
+  N: 1.0
+  gender: n
+glatt:
+  Adj: 1.0
+glaube:
+  N: 0.6
+  V: 0.4
+  gender: m
+gleis:
+  N: 1.0
+  gender: n
+glitzer:
+  N: 0.6
+  V: 0.4
+  gender: m
+globus:
+  N: 1.0
+  gender: m
+glocke:
+  N: 1.0
+  gender: f
+glut:
+  N: 1.0
+  gender: f
+gnade:
+  N: 1.0
+  gender: f
+gold:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+golf:
+  N: 1.0
+  gender: m
+gondel:
+  N: 1.0
+  gender: f
+gorilla:
+  N: 1.0
+  gender: m
+grab:
+  N: 1.0
+  gender: n
+grad:
+  N: 1.0
+  gender: m
+grafik:
+  N: 1.0
+  gender: f
+gramm:
+  N: 1.0
+  gender: n
+granit:
+  N: 1.0
+  gender: m
+gras:
+  N: 1.0
+  gender: n
+gratis:
+  Adv: 1.0
+grau:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+gravur:
+  N: 1.0
+  gender: f
+greifen:
+  N: 0.6
+  V: 0.4
+  gender: m
+gremium:
+  N: 1.0
+  gender: n
+grenze:
+  N: 0.6
+  V: 0.4
+  gender: f
+griff:
+  N: 0.6
+  V: 0.4
+  gender: m
+grill:
+  N: 1.0
+  gender: m
+grinsen:
+  N: 0.6
+  V: 0.4
+  gender: n
+groll:
+  N: 1.0
+  gender: m
+grotte:
+  N: 1.0
+  gender: f
+grube:
+  N: 0.6
+  V: 0.4
+  gender: f
+gruft:
+  N: 1.0
+  gender: f
+grund:
+  N: 1.0
+  gender: m
+gruppe:
+  N: 1.0
+  gender: f
+gruselig:
+  Adj: 1.0
+gulasch:
+  N: 1.0
+  gender: n
+gully:
+  N: 1.0
+  gender: m
+gummi:
+  N: 1.0
+  gender: m
+gunst:
+  N: 1.0
+  gender: f
+gurke:
+  N: 1.0
+  gender: f
+gurt:
+  N: 1.0
+  gender: m
+guthaben:
+  N: 1.0
+  gender: n
+haar:
+  N: 1.0
+  gender: n
+habgier:
+  N: 1.0
+  gender: f
+habicht:
+  N: 1.0
+  gender: m
+hacken:
+  N: 0.6
+  V: 0.4
+  gender: n
+hafen:
+  N: 1.0
+  gender: m
+haft:
+  N: 1.0
+  gender: f
+hagel:
+  N: 0.6
+  V: 0.4
+  gender: m
+hahn:
+  N: 1.0
+  gender: m
+haken:
+  N: 0.6
+  V: 0.4
+  gender: m
+halb:
+  Adj: 1.0
+halde:
+  N: 1.0
+  gender: f
+halle:
+  N: 1.0
+  gender: f
+halm:
+  N: 1.0
+  gender: m
+hals:
+  N: 1.0
+  gender: m
+halten:
+  N: 0.6
+  V: 0.4
+  gender: m
+hammer:
+  N: 1.0
+  gender: m
+hamster:
+  N: 1.0
+  gender: m
+hand:
+  N: 1.0
+  gender: f
+hanger:
+  N: 1.0
+  gender: m
+hantel:
+  N: 1.0
+  gender: f
+harfe:
+  N: 1.0
+  gender: f
+harke:
+  N: 1.0
+  gender: f
+harmonie:
+  N: 1.0
+  gender: f
+hart:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+hase:
+  N: 1.0
+  gender: m
+haube:
+  N: 1.0
+  gender: f
+hauch:
+  N: 1.0
+  gender: m
+haufen:
+  N: 1.0
+  gender: m
+haus:
+  N: 1.0
+  gender: n
+haut:
+  N: 1.0
+  gender: f
+hebamme:
+  N: 1.0
+  gender: f
+hebel:
+  N: 1.0
+  gender: m
+hecht:
+  N: 1.0
+  gender: m
+hecke:
+  N: 0.6
+  V: 0.4
+  gender: f
+hefe:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+heft:
+  N: 1.0
+  gender: n
+heilen:
+  N: 1.0
+  gender: n
+heim:
+  N: 1.0
+  gender: n
+heiraten:
+  N: 0.6
+  V: 0.4
+  gender: f
+heizung:
+  N: 1.0
+  gender: f
+hektar:
+  N: 1.0
+  gender: n
+held:
+  N: 1.0
+  gender: m
+helfen:
+  N: 1.0
+  gender: n
+hell:
+  Adj: 1.0
+helm:
+  N: 1.0
+  gender: m
+hemd:
+  N: 1.0
+  gender: n
+henkel:
+  N: 1.0
+  gender: m
+herbst:
+  N: 1.0
+  gender: m
+herd:
+  N: 1.0
+  gender: m
+hering:
+  N: 1.0
+  gender: m
+herkunft:
+  N: 1.0
+  gender: f
+herr:
+  N: 1.0
+  gender: m
+herz:
+  N: 1.0
+  gender: n
+heute:
+  N: 0.6
+  Adv: 0.4
+  gender: n
+hilfe:
+  N: 1.0
+  gender: f
+himbeere:
+  N: 1.0
+  gender: f
+himmel:
+  N: 1.0
+  gender: m
+hinblick:
+  N: 1.0
+  gender: m
+hinsicht:
+  N: 1.0
+  gender: f
+hinten:
+  N: 1.0
+  gender: n
+hinweis:
+  N: 1.0
+  gender: m
+hirse:
+  N: 1.0
+  gender: f
+hirte:
+  N: 1.0
+  gender: m
+hitze:
+  N: 1.0
+  gender: f
+hobel:
+  N: 1.0
+  gender: m
+hoch:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+hoffen:
+  N: 1.0
+  gender: n
+hohl:
+  Adj: 1.0
+holen:
+  N: 1.0
+  gender: n
+holunder:
+  N: 1.0
+  gender: m
+holz:
+  N: 1.0
+  gender: n
+honig:
+  N: 1.0
+  gender: m
+honorar:
+  N: 1.0
+  gender: n
+hopfen:
+  N: 1.0
+  gender: m
+horizont:
+  N: 1.0
+  gender: m
+horn:
+  N: 1.0
+  gender: n
+hose:
+  N: 1.0
+  gender: f
+hotel:
+  N: 1.0
+  gender: n
+hufeisen:
+  N: 1.0
+  gender: n
+huhn:
+  N: 1.0
+  gender: n
+hummer:
+  N: 1.0
+  gender: m
+humor:
+  N: 1.0
+  gender: m
+hund:
+  N: 1.0
+  gender: m
+hunger:
+  N: 1.0
+  gender: m
+hupe:
+  N: 1.0
+  gender: f
+husten:
+  N: 0.6
+  V: 0.4
+  gender: m
+hydrant:
+  N: 1.0
+  gender: m
+hygiene:
+  N: 1.0
+  gender: f
+ideal:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+idee:
+  N: 1.0
+  gender: f
+idol:
+  N: 1.0
+  gender: n
+idyll:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+igel:
+  N: 1.0
+  gender: m
+illegal:
+  Adj: 1.0
+illusion:
+  N: 1.0
+  gender: f
+imbiss:
+  N: 1.0
+  gender: m
+imker:
+  N: 1.0
+  gender: m
+immun:
+  Adj: 1.0
+impfen:
+  N: 1.0
+  gender: n
+import:
+  N: 1.0
+  gender: m
+impuls:
+  N: 1.0
+  gender: m
+index:
+  N: 1.0
+  gender: m
+indiz:
+  N: 1.0
+  gender: n
+infolge:
+  Prep: 1.0
+ingwer:
+  N: 1.0
+  gender: m
+inhalt:
+  N: 1.0
+  gender: m
+innen:
+  N: 1.0
+  gender: n
+insasse:
+  N: 1.0
+  gender: m
+insel:
+  N: 1.0
+  gender: f
+institut:
+  N: 1.0
+  gender: n
+internet:
+  N: 1.0
+  gender: n
+investor:
+  N: 1.0
+  gender: m
+irgendwo:
+  Adv: 1.0
+ironie:
+  N: 1.0
+  gender: f
+irrtum:
+  N: 1.0
+  gender: m
+isoliert:
+  Adj: 1.0
+jacht:
+  N: 1.0
+  gender: f
+jacke:
+  N: 1.0
+  gender: f
+jagd:
+  N: 1.0
+  gender: f
+jagen:
+  N: 1.0
+  gender: n
+jaguar:
+  N: 1.0
+  gender: m
+jahr:
+  N: 1.0
+  gender: n
+januar:
+  N: 1.0
+  gender: m
+jargon:
+  N: 1.0
+  gender: m
+jazz:
+  N: 1.0
+  gender: m
+jemand:
+  Pron: 1.0
+joggen:
+  N: 1.0
+  gender: n
+joghurt:
+  N: 1.0
+  gender: m
+jubel:
+  N: 1.0
+  gender: m
+jugend:
+  N: 1.0
+  gender: f
+juli:
+  N: 1.0
+  gender: m
+jung:
+  N: 0.6
+  Adj: 0.4
+juni:
+  N: 1.0
+  gender: m
+jurist:
+  N: 1.0
+  gender: m
+jury:
+  N: 1.0
+  gender: f
+justiz:
+  N: 1.0
+  gender: f
+juwel:
+  N: 1.0
+  gender: m
+kabarett:
+  N: 1.0
+  gender: n
+kabel:
+  N: 1.0
+  gender: n
+kabine:
+  N: 1.0
+  gender: f
+kaffee:
+  N: 1.0
+  gender: m
+kahl:
+  Adj: 1.0
+kajak:
+  N: 1.0
+  gender: n
+kakao:
+  N: 1.0
+  gender: m
+kaktus:
+  N: 1.0
+  gender: m
+kalender:
+  N: 1.0
+  gender: m
+kalt:
+  Adj: 1.0
+kamera:
+  N: 1.0
+  gender: f
+kamin:
+  N: 1.0
+  gender: m
+kamm:
+  N: 1.0
+  gender: m
+kampf:
+  N: 1.0
+  gender: m
+kanal:
+  N: 1.0
+  gender: m
+kandidat:
+  N: 1.0
+  gender: m
+kanister:
+  N: 1.0
+  gender: m
+kanne:
+  N: 0.6
+  V: 0.4
+  gender: f
+kante:
+  N: 1.0
+  gender: f
+kanu:
+  N: 1.0
+  gender: n
+kapelle:
+  N: 1.0
+  gender: f
+kapitel:
+  N: 1.0
+  gender: n
+kapsel:
+  N: 1.0
+  gender: f
+kaputt:
+  Adj: 1.0
+karneval:
+  N: 1.0
+  gender: m
+karotte:
+  N: 1.0
+  gender: f
+karriere:
+  N: 1.0
+  gender: f
+karte:
+  N: 1.0
+  gender: f
+kasse:
+  N: 1.0
+  gender: f
+kasten:
+  N: 1.0
+  gender: m
+katalog:
+  N: 1.0
+  gender: m
+katze:
+  N: 1.0
+  gender: f
+kaufhaus:
+  N: 1.0
+  gender: n
+kauz:
+  N: 1.0
+  gender: m
+kegel:
+  N: 1.0
+  gender: m
+kehren:
+  N: 0.6
+  V: 0.4
+  gender: f
+keks:
+  N: 1.0
+  gender: m
+kelch:
+  N: 1.0
+  gender: m
+keller:
+  N: 1.0
+  gender: m
+kennen:
+  N: 1.0
+  gender: n
+keramik:
+  N: 1.0
+  gender: f
+kern:
+  N: 1.0
+  gender: m
+kerze:
+  N: 1.0
+  gender: f
+kessel:
+  N: 1.0
+  gender: m
+ketchup:
+  N: 1.0
+  gender: m
+kette:
+  N: 1.0
+  gender: f
+keule:
+  N: 1.0
+  gender: f
+kiefer:
+  N: 1.0
+  gender: f
+kiesel:
+  N: 1.0
+  gender: m
+kilo:
+  N: 1.0
+  gender: n
+kind:
+  N: 1.0
+  gender: n
+kino:
+  N: 1.0
+  gender: n
+kiosk:
+  N: 1.0
+  gender: m
+kirsche:
+  N: 1.0
+  gender: f
+kissen:
+  N: 1.0
+  gender: n
+kiste:
+  N: 1.0
+  gender: f
+kittel:
+  N: 1.0
+  gender: m
+kiwi:
+  N: 1.0
+  gender: m
+klage:
+  N: 1.0
+  gender: f
+klammer:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+klang:
+  N: 0.6
+  V: 0.4
+  gender: m
+klappe:
+  N: 0.6
+  V: 0.4
+  gender: f
+klar:
+  Adj: 1.0
+klasse:
+  N: 1.0
+  gender: f
+klavier:
+  N: 1.0
+  gender: n
+kleben:
+  N: 0.6
+  V: 0.4
+  gender: f
+klee:
+  N: 1.0
+  gender: m
+kleid:
+  N: 1.0
+  gender: n
+klettern:
+  N: 1.0
+  gender: n
+klientel:
+  N: 1.0
+  gender: f
+klima:
+  N: 1.0
+  gender: n
+klinik:
+  N: 1.0
+  gender: f
+klippe:
+  N: 1.0
+  gender: f
+klon:
+  N: 1.0
+  gender: m
+klopfen:
+  N: 0.6
+  V: 0.4
+  gender: n
+klotz:
+  N: 1.0
+  gender: m
+klug:
+  Adj: 1.0
+knapp:
+  Adv: 1.0
+kneipe:
+  N: 1.0
+  gender: f
+knie:
+  N: 1.0
+  gender: n
+knochen:
+  N: 1.0
+  gender: m
+knopf:
+  N: 1.0
+  gender: m
+knoten:
+  N: 1.0
+  gender: m
+koala:
+  N: 1.0
+  gender: m
+kochen:
+  N: 0.6
+  V: 0.4
+  gender: n
+koffer:
+  N: 1.0
+  gender: m
+kohle:
+  N: 1.0
+  gender: f
+koje:
+  N: 1.0
+  gender: f
+kolibri:
+  N: 1.0
+  gender: m
+kollege:
+  N: 1.0
+  gender: m
+komisch:
+  Adj: 1.0
+kommen:
+  N: 1.0
+  gender: n
+komplett:
+  Adj: 1.0
+konflikt:
+  N: 1.0
+  gender: m
+konkurs:
+  N: 1.0
+  gender: m
+konsum:
+  N: 1.0
+  gender: m
+kontakt:
+  N: 1.0
+  gender: m
+konzert:
+  N: 1.0
+  gender: n
+kopf:
+  N: 1.0
+  gender: m
+kopie:
+  N: 1.0
+  gender: f
+korb:
+  N: 1.0
+  gender: m
+korn:
+  N: 1.0
+  gender: n
+korrekt:
+  Adj: 1.0
+kosten:
+  N: 0.6
+  V: 0.4
+krabbe:
+  N: 1.0
+  gender: f
+kraft:
+  N: 0.6
+  Prep: 0.4
+  gender: f
+kralle:
+  N: 0.6
+  V: 0.4
+  gender: f
+kran:
+  N: 1.0
+  gender: m
+kraut:
+  N: 1.0
+  gender: n
+krawatte:
+  N: 1.0
+  gender: f
+krebs:
+  N: 1.0
+  gender: m
+kredit:
+  N: 1.0
+  gender: m
+kreis:
+  N: 1.0
+  gender: m
+kresse:
+  N: 1.0
+  gender: f
+kreuz:
+  N: 0.6
+  Adv: 0.4
+  gender: n
+kriegen:
+  N: 0.6
+  V: 0.4
+  gender: n
+krippe:
+  N: 1.0
+  gender: f
+krise:
+  N: 1.0
+  gender: f
+kritik:
+  N: 1.0
+  gender: f
+krokodil:
+  N: 1.0
+  gender: n
+krone:
+  N: 1.0
+  gender: f
+krug:
+  N: 1.0
+  gender: m
+krumm:
+  Adj: 1.0
+kruste:
+  N: 1.0
+  gender: f
+kuchen:
+  N: 1.0
+  gender: m
+kugel:
+  N: 1.0
+  gender: f
+kuhstall:
+  N: 1.0
+  gender: m
+kulisse:
+  N: 1.0
+  gender: f
+kultur:
+  N: 1.0
+  gender: f
+kunde:
+  N: 1.0
+  gender: m
+kunst:
+  N: 1.0
+  gender: f
+kupfer:
+  N: 1.0
+  gender: n
+kurier:
+  N: 1.0
+  gender: m
+kurs:
+  N: 1.0
+  gender: m
+kurve:
+  N: 0.6
+  V: 0.4
+  gender: f
+kurz:
+  Adj: 1.0
+kuss:
+  N: 1.0
+  gender: m
+kutsche:
+  N: 1.0
+  gender: f
+label:
+  N: 1.0
+  gender: n
+labor:
+  N: 1.0
+  gender: n
+lachen:
+  N: 0.6
+  V: 0.4
+  gender: n
+lack:
+  N: 1.0
+  gender: m
+laden:
+  N: 0.6
+  V: 0.4
+  gender: m
+ladung:
+  N: 1.0
+  gender: f
+lager:
+  N: 1.0
+  gender: n
+laie:
+  N: 1.0
+  gender: m
+lama:
+  N: 1.0
+  gender: n
+lamm:
+  N: 1.0
+  gender: n
+lampe:
+  N: 1.0
+  gender: f
+land:
+  N: 1.0
+  gender: n
+lang:
+  N: 0.6
+  Adj: 0.4
+lappen:
+  N: 1.0
+  gender: m
+larve:
+  N: 1.0
+  gender: f
+lassen:
+  N: 1.0
+  gender: n
+last:
+  N: 0.6
+  V: 0.4
+  gender: f
+laterne:
+  N: 1.0
+  gender: f
+latte:
+  N: 1.0
+  gender: f
+laub:
+  N: 1.0
+  gender: n
+lauch:
+  N: 1.0
+  gender: m
+laufen:
+  N: 0.6
+  V: 0.4
+  gender: n
+laune:
+  N: 1.0
+  gender: f
+laut:
+  N: 0.6
+  Prep: 0.4
+  gender: m
+lavendel:
+  N: 1.0
+  gender: m
+lawine:
+  N: 1.0
+  gender: f
+leben:
+  N: 0.6
+  V: 0.4
+  gender: n
+lecker:
+  N: 1.0
+  gender: m
+leder:
+  N: 1.0
+  gender: n
+leer:
+  N: 0.6
+  Adj: 0.4
+legen:
+  N: 1.0
+  gender: n
+lehm:
+  N: 1.0
+  gender: m
+lehnen:
+  N: 0.6
+  V: 0.4
+  gender: f
+lehrer:
+  N: 1.0
+  gender: m
+leib:
+  N: 1.0
+  gender: m
+leicht:
+  Adj: 1.0
+leid:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+leim:
+  N: 1.0
+  gender: m
+leinwand:
+  N: 1.0
+  gender: f
+leiste:
+  N: 0.6
+  V: 0.4
+  gender: f
+leiter:
+  N: 1.0
+  gender: m
+lektor:
+  N: 1.0
+  gender: m
+lemming:
+  N: 1.0
+  gender: m
+lenken:
+  N: 1.0
+  gender: n
+leopard:
+  N: 1.0
+  gender: m
+lernen:
+  N: 0.6
+  V: 0.4
+  gender: n
+lesen:
+  N: 0.6
+  V: 0.4
+  gender: n
+lesung:
+  N: 1.0
+  gender: f
+leuchte:
+  N: 0.6
+  V: 0.4
+  gender: f
+leute:
+  N: 1.0
+  gender: n
+lexikon:
+  N: 1.0
+  gender: n
+libelle:
+  N: 1.0
+  gender: f
+licht:
+  N: 1.0
+  gender: n
+liebe:
+  N: 0.6
+  V: 0.4
+  gender: f
+lied:
+  N: 1.0
+  gender: n
+liefern:
+  N: 1.0
+  gender: n
+liegen:
+  N: 0.6
+  V: 0.4
+  gender: f
+lila:
+  N: 1.0
+  gender: n
+lilie:
+  N: 1.0
+  gender: f
+limette:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+linde:
+  N: 1.0
+  gender: f
+lineal:
+  N: 1.0
+  gender: n
+linie:
+  N: 1.0
+  gender: f
+links:
+  N: 0.6
+  Adv: 0.4
+  gender: m
+lippe:
+  N: 1.0
+  gender: f
+liste:
+  N: 1.0
+  gender: f
+liter:
+  N: 1.0
+  gender: m
+lizenz:
+  N: 1.0
+  gender: f
+loch:
+  N: 1.0
+  gender: n
+locke:
+  N: 0.6
+  V: 0.4
+  gender: f
+logistik:
+  N: 1.0
+  gender: f
+lohn:
+  N: 1.0
+  gender: m
+lokal:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+lotse:
+  N: 0.6
+  V: 0.4
+  gender: m
+loyal:
+  Adj: 1.0
+luchs:
+  N: 1.0
+  gender: m
+luft:
+  N: 1.0
+  gender: f
+lunge:
+  N: 1.0
+  gender: f
+lupe:
+  N: 1.0
+  gender: f
+lustig:
+  Adj: 1.0
+luxus:
+  N: 1.0
+  gender: m
+lyrik:
+  N: 1.0
+  gender: f
+machen:
+  N: 1.0
+  gender: n
+made:
+  N: 1.0
+  gender: f
+magazin:
+  N: 1.0
+  gender: n
+magen:
+  N: 0.6
+  V: 0.4
+  gender: m
+magie:
+  N: 1.0
+  gender: f
+magnet:
+  N: 1.0
+  gender: m
+mahnen:
+  N: 1.0
+  gender: n
+mais:
+  N: 1.0
+  gender: m
+malen:
+  N: 0.6
+  V: 0.4
+  gender: n
+mama:
+  N: 1.0
+  gender: f
+mango:
+  N: 1.0
+  gender: f
+mann:
+  N: 1.0
+  gender: m
+mantel:
+  N: 1.0
+  gender: m
+marder:
+  N: 1.0
+  gender: m
+markt:
+  N: 1.0
+  gender: m
+marmor:
+  N: 1.0
+  gender: m
+marsch:
+  N: 0.6
+  Adv: 0.4
+  gender: f
+maschine:
+  N: 1.0
+  gender: f
+maske:
+  N: 1.0
+  gender: f
+masse:
+  N: 1.0
+  gender: f
+mast:
+  N: 1.0
+  gender: m
+material:
+  N: 1.0
+  gender: n
+matrose:
+  N: 1.0
+  gender: m
+matte:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+mauer:
+  N: 1.0
+  gender: f
+maulwurf:
+  N: 1.0
+  gender: m
+maus:
+  N: 1.0
+  gender: f
+maximal:
+  Adj: 1.0
+medaille:
+  N: 1.0
+  gender: f
+medizin:
+  N: 1.0
+  gender: f
+meer:
+  N: 1.0
+  gender: n
+mehl:
+  N: 1.0
+  gender: n
+mehrweg:
+  Adj: 1.0
+meinung:
+  N: 1.0
+  gender: f
+meister:
+  N: 1.0
+  gender: m
+melden:
+  N: 0.6
+  V: 0.4
+  gender: f
+melken:
+  N: 1.0
+  gender: n
+melone:
+  N: 1.0
+  gender: f
+membran:
+  N: 1.0
+  gender: f
+menge:
+  N: 1.0
+  gender: f
+mensch:
+  N: 1.0
+  gender: m
+mentor:
+  N: 1.0
+  gender: m
+merkmal:
+  N: 1.0
+  gender: n
+messer:
+  N: 1.0
+  gender: n
+metall:
+  N: 1.0
+  gender: n
+meter:
+  N: 1.0
+  gender: m
+methode:
+  N: 1.0
+  gender: f
+miene:
+  N: 1.0
+  gender: f
+mieten:
+  N: 0.6
+  V: 0.4
+  gender: f
+milan:
+  N: 1.0
+  gender: m
+milch:
+  N: 1.0
+  gender: f
+milde:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+milieu:
+  N: 1.0
+  gender: n
+mimik:
+  N: 1.0
+  gender: f
+mineral:
+  N: 1.0
+  gender: n
+minigolf:
+  N: 1.0
+  gender: n
+minute:
+  N: 1.0
+  gender: f
+minze:
+  N: 1.0
+  gender: f
+mischung:
+  N: 1.0
+  gender: f
+mitglied:
+  N: 1.0
+  gender: n
+mitleid:
+  N: 1.0
+  gender: n
+mittag:
+  N: 0.6
+  Adv: 0.4
+  gender: m
+mode:
+  N: 1.0
+  gender: f
+molch:
+  N: 1.0
+  gender: m
+moment:
+  N: 1.0
+  gender: m
+monat:
+  N: 1.0
+  gender: m
+mond:
+  N: 1.0
+  gender: m
+monitor:
+  N: 1.0
+  gender: m
+monster:
+  N: 1.0
+  gender: n
+montag:
+  N: 1.0
+  gender: m
+moos:
+  N: 1.0
+  gender: n
+moped:
+  N: 1.0
+  gender: n
+moral:
+  N: 1.0
+  gender: f
+morgen:
+  N: 0.6
+  Adv: 0.4
+  gender: m
+motiv:
+  N: 1.0
+  gender: n
+motor:
+  N: 1.0
+  gender: m
+motte:
+  N: 0.6
+  V: 0.4
+  gender: f
+mulde:
+  N: 1.0
+  gender: f
+mund:
+  N: 1.0
+  gender: m
+muschel:
+  N: 1.0
+  gender: f
+museum:
+  N: 1.0
+  gender: n
+musik:
+  N: 1.0
+  gender: f
+muskel:
+  N: 1.0
+  gender: m
+muster:
+  N: 1.0
+  gender: n
+mutig:
+  Adj: 1.0
+mutter:
+  N: 1.0
+  gender: f
+mythos:
+  N: 1.0
+  gender: m
+nacht:
+  N: 0.6
+  Adv: 0.4
+  gender: f
+nacken:
+  N: 1.0
+  gender: m
+nadel:
+  N: 1.0
+  gender: f
+nagel:
+  N: 1.0
+  gender: m
+nahrung:
+  N: 1.0
+  gender: f
+name:
+  N: 1.0
+  gender: m
+napf:
+  N: 1.0
+  gender: m
+narbe:
+  N: 1.0
+  gender: f
+narr:
+  N: 1.0
+  gender: m
+narzisse:
+  N: 0.6
+  V: 0.4
+  gender: f
+nase:
+  N: 1.0
+  gender: f
+nashorn:
+  N: 1.0
+  gender: n
+nass:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+natter:
+  N: 1.0
+  gender: f
+natur:
+  N: 1.0
+  gender: f
+nebel:
+  N: 1.0
+  gender: m
+negativ:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+nehmen:
+  N: 1.0
+  gender: n
+neid:
+  N: 1.0
+  gender: m
+neigung:
+  N: 1.0
+  gender: f
+nektar:
+  N: 1.0
+  gender: m
+nennen:
+  N: 1.0
+  gender: n
+nerven:
+  N: 0.6
+  V: 0.4
+  gender: m
+nest:
+  N: 1.0
+  gender: n
+nett:
+  Adj: 1.0
+netz:
+  N: 1.0
+  gender: n
+neubau:
+  N: 1.0
+  gender: m
+neugier:
+  N: 1.0
+  gender: f
+neuland:
+  N: 1.0
+  gender: n
+neun:
+  N: 1.0
+  gender: f
+niedrig:
+  Adj: 1.0
+niemand:
+  N: 0.6
+  Pron: 0.4
+  gender: m
+nilpferd:
+  N: 1.0
+  gender: n
+niveau:
+  N: 1.0
+  gender: n
+nobel:
+  Adj: 1.0
+nochmal:
+  Adv: 1.0
+norden:
+  N: 1.0
+  gender: m
+normal:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+note:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+notfall:
+  N: 1.0
+  gender: m
+notiz:
+  N: 1.0
+  gender: f
+november:
+  N: 1.0
+  gender: m
+nudel:
+  N: 1.0
+  gender: f
+null:
+  N: 1.0
+  gender: f
+nummer:
+  N: 1.0
+  gender: f
+nuss:
+  N: 1.0
+  gender: f
+nutzen:
+  N: 0.6
+  V: 0.4
+  gender: m
+oase:
+  N: 1.0
+  gender: f
+oben:
+  N: 1.0
+  gender: n
+objekt:
+  N: 1.0
+  gender: n
+obst:
+  N: 1.0
+  gender: n
+ofen:
+  N: 1.0
+  gender: m
+offen:
+  N: 1.0
+  gender: n
+ohne:
+  Prep: 1.0
+ohren:
+  N: 1.0
+  gender: n
+ohrring:
+  N: 1.0
+  gender: m
+oktober:
+  N: 1.0
+  gender: m
+olive:
+  N: 1.0
+  gender: f
+olympia:
+  N: 1.0
+  gender: n
+omelett:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+onkel:
+  N: 1.0
+  gender: m
+online:
+  Adv: 1.0
+oper:
+  N: 1.0
+  gender: f
+option:
+  N: 1.0
+  gender: f
+orange:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+ordnung:
+  N: 1.0
+  gender: f
+organ:
+  N: 1.0
+  gender: n
+orgel:
+  N: 1.0
+  gender: f
+original:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+orkan:
+  N: 1.0
+  gender: m
+ortsrand:
+  N: 1.0
+  gender: m
+ostern:
+  N: 1.0
+  gender: n
+otter:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+oval:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+paar:
+  N: 0.6
+  Pron: 0.4
+  gender: n
+packen:
+  N: 0.6
+  V: 0.4
+  gender: m
+paket:
+  N: 1.0
+  gender: n
+palast:
+  N: 1.0
+  gender: m
+palette:
+  N: 1.0
+  gender: f
+palme:
+  N: 1.0
+  gender: f
+panda:
+  N: 1.0
+  gender: m
+panik:
+  N: 1.0
+  gender: f
+papagei:
+  N: 1.0
+  gender: m
+papier:
+  N: 1.0
+  gender: n
+pappe:
+  N: 1.0
+  gender: f
+paprika:
+  N: 1.0
+  gender: m
+parade:
+  N: 1.0
+  gender: f
+park:
+  N: 1.0
+  gender: m
+parole:
+  N: 1.0
+  gender: f
+party:
+  N: 1.0
+  gender: f
+passage:
+  N: 1.0
+  gender: f
+patent:
+  N: 1.0
+  gender: n
+pathos:
+  N: 1.0
+  gender: n
+patient:
+  N: 1.0
+  gender: m
+pause:
+  N: 1.0
+  gender: f
+pavian:
+  N: 1.0
+  gender: m
+pech:
+  N: 1.0
+  gender: n
+pedal:
+  N: 1.0
+  gender: n
+pegel:
+  N: 1.0
+  gender: m
+peinlich:
+  Adj: 1.0
+peitsche:
+  N: 0.6
+  V: 0.4
+  gender: f
+pelikan:
+  N: 1.0
+  gender: m
+pelz:
+  N: 1.0
+  gender: m
+pendel:
+  N: 0.6
+  V: 0.4
+  gender: n
+perfekt:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+periode:
+  N: 1.0
+  gender: f
+perle:
+  N: 0.6
+  V: 0.4
+  gender: f
+person:
+  N: 1.0
+  gender: f
+pfad:
+  N: 1.0
+  gender: m
+pfahl:
+  N: 1.0
+  gender: m
+pfanne:
+  N: 1.0
+  gender: f
+pfau:
+  N: 1.0
+  gender: m
+pfeffer:
+  N: 1.0
+  gender: m
+pfeil:
+  N: 1.0
+  gender: m
+pferd:
+  N: 1.0
+  gender: n
+pfiff:
+  N: 0.6
+  V: 0.4
+  gender: m
+pfirsich:
+  N: 1.0
+  gender: m
+pflaume:
+  N: 1.0
+  gender: f
+pflegen:
+  N: 1.0
+  gender: n
+pflicht:
+  N: 1.0
+  gender: f
+pflug:
+  N: 1.0
+  gender: m
+pforte:
+  N: 1.0
+  gender: f
+pfosten:
+  N: 1.0
+  gender: m
+pfote:
+  N: 1.0
+  gender: f
+phase:
+  N: 1.0
+  gender: f
+physik:
+  N: 1.0
+  gender: f
+picknick:
+  N: 1.0
+  gender: n
+pier:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+pigment:
+  N: 1.0
+  gender: n
+pille:
+  N: 1.0
+  gender: f
+pilot:
+  N: 1.0
+  gender: m
+pilz:
+  N: 1.0
+  gender: m
+pinguin:
+  N: 1.0
+  gender: m
+pink:
+  Adj: 1.0
+pinnwand:
+  N: 1.0
+  gender: f
+pinsel:
+  N: 1.0
+  gender: m
+pinzette:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+pirat:
+  N: 1.0
+  gender: m
+piste:
+  N: 1.0
+  gender: f
+pixel:
+  N: 1.0
+  gender: n
+plakat:
+  N: 1.0
+  gender: n
+planet:
+  N: 0.6
+  V: 0.4
+  gender: m
+plastik:
+  N: 1.0
+  gender: f
+platz:
+  N: 1.0
+  gender: m
+pleite:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+plus:
+  N: 0.6
+  Prep: 0.4
+  gender: n
+podest:
+  N: 1.0
+  gender: n
+podium:
+  N: 1.0
+  gender: n
+poesie:
+  N: 1.0
+  gender: f
+pokal:
+  N: 1.0
+  gender: m
+politik:
+  N: 1.0
+  gender: f
+pollen:
+  N: 1.0
+  gender: m
+polster:
+  N: 1.0
+  gender: n
+pommes:
+  N: 1.0
+pony:
+  N: 1.0
+  gender: n
+pool:
+  N: 1.0
+  gender: m
+portrait:
+  Adj: 1.0
+positiv:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+post:
+  N: 1.0
+  gender: f
+pracht:
+  N: 1.0
+  gender: f
+praxis:
+  N: 1.0
+  gender: f
+preis:
+  N: 1.0
+  gender: m
+presse:
+  N: 1.0
+  gender: f
+prinzip:
+  N: 1.0
+  gender: n
+privat:
+  Adj: 1.0
+probe:
+  N: 0.6
+  V: 0.4
+  gender: f
+produkt:
+  N: 1.0
+  gender: n
+profil:
+  N: 1.0
+  gender: n
+programm:
+  N: 1.0
+  gender: n
+projekt:
+  N: 1.0
+  gender: n
+prospekt:
+  N: 1.0
+  gender: m
+protest:
+  N: 1.0
+  gender: m
+provinz:
+  N: 1.0
+  gender: f
+prozent:
+  N: 1.0
+  gender: n
+psyche:
+  N: 1.0
+  gender: f
+publikum:
+  N: 1.0
+  gender: n
+pudding:
+  N: 1.0
+  gender: m
+puder:
+  N: 1.0
+  gender: m
+puls:
+  N: 1.0
+  gender: m
+pulver:
+  N: 1.0
+  gender: n
+puma:
+  N: 1.0
+  gender: m
+pumpe:
+  N: 0.6
+  V: 0.4
+  gender: f
+punkt:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+punsch:
+  N: 1.0
+  gender: m
+puppe:
+  N: 1.0
+  gender: f
+pute:
+  N: 1.0
+  gender: f
+putzen:
+  N: 0.6
+  V: 0.4
+  gender: f
+puzzel:
+  Adj: 1.0
+pyjama:
+  N: 1.0
+  gender: m
+pyramide:
+  N: 1.0
+  gender: f
+quadrat:
+  N: 1.0
+  gender: n
+qualle:
+  N: 0.6
+  V: 0.4
+  gender: f
+quark:
+  N: 1.0
+  gender: m
+quatsch:
+  N: 1.0
+  gender: m
+quelle:
+  N: 1.0
+  gender: f
+quer:
+  Adv: 1.0
+quittung:
+  N: 1.0
+  gender: f
+quiz:
+  N: 1.0
+  gender: n
+quote:
+  N: 1.0
+  gender: f
+rabatt:
+  N: 1.0
+  gender: m
+rabe:
+  N: 1.0
+  gender: m
+rache:
+  N: 1.0
+  gender: f
+radar:
+  N: 1.0
+  gender: n
+radio:
+  N: 1.0
+  gender: n
+radtour:
+  N: 1.0
+  gender: f
+radweg:
+  N: 1.0
+  gender: m
+rahmen:
+  N: 0.6
+  V: 0.4
+  gender: m
+rakete:
+  N: 1.0
+  gender: f
+rampe:
+  N: 1.0
+  gender: f
+rand:
+  N: 1.0
+  gender: m
+rang:
+  N: 1.0
+  gender: m
+ranke:
+  N: 0.6
+  V: 0.4
+  gender: f
+raps:
+  N: 1.0
+  gender: m
+rasen:
+  N: 0.6
+  V: 0.4
+  gender: m
+rassel:
+  N: 0.6
+  V: 0.4
+  gender: f
+rast:
+  N: 0.6
+  V: 0.4
+  gender: f
+rasur:
+  N: 1.0
+  gender: f
+raten:
+  N: 0.6
+  V: 0.4
+  gender: f
+ratgeber:
+  N: 1.0
+  gender: m
+rathaus:
+  N: 1.0
+  gender: n
+ratte:
+  N: 0.6
+  V: 0.4
+  gender: f
+rauch:
+  N: 0.6
+  V: 0.4
+  gender: m
+raum:
+  N: 1.0
+  gender: m
+raupe:
+  N: 1.0
+  gender: f
+raus:
+  Adj: 1.0
+raute:
+  N: 1.0
+  gender: f
+razzia:
+  N: 1.0
+  gender: f
+reaktion:
+  N: 1.0
+  gender: f
+real:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+rebell:
+  N: 1.0
+  gender: m
+rechnen:
+  N: 1.0
+  gender: n
+reden:
+  N: 0.6
+  V: 0.4
+  gender: f
+redner:
+  N: 1.0
+  gender: m
+referent:
+  N: 1.0
+  gender: m
+reform:
+  N: 1.0
+  gender: f
+regal:
+  N: 1.0
+  gender: n
+regen:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+region:
+  N: 1.0
+  gender: f
+rehkitz:
+  N: 1.0
+  gender: n
+reibe:
+  N: 0.6
+  V: 0.4
+  gender: f
+reich:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+reifen:
+  N: 0.6
+  V: 0.4
+  gender: m
+reihe:
+  N: 1.0
+  gender: f
+reim:
+  N: 1.0
+  gender: m
+rein:
+  N: 0.6
+  Adv: 0.4
+  gender: f
+reise:
+  N: 0.6
+  V: 0.4
+  gender: f
+reiten:
+  N: 0.6
+  V: 0.4
+  gender: n
+reiz:
+  N: 0.6
+  V: 0.4
+  gender: m
+rekord:
+  N: 1.0
+  gender: m
+rektor:
+  N: 1.0
+  gender: m
+relativ:
+  Adj: 1.0
+rennen:
+  N: 0.6
+  V: 0.4
+  gender: n
+rentier:
+  N: 1.0
+  gender: m
+reporter:
+  N: 1.0
+  gender: m
+reptil:
+  N: 1.0
+  gender: n
+reserve:
+  N: 1.0
+  gender: f
+residenz:
+  N: 1.0
+  gender: f
+resonanz:
+  N: 1.0
+  gender: f
+respekt:
+  N: 1.0
+  gender: m
+rest:
+  N: 1.0
+  gender: m
+resultat:
+  N: 1.0
+  gender: n
+retten:
+  N: 0.6
+  V: 0.4
+  gender: n
+revier:
+  N: 1.0
+  gender: n
+rezept:
+  N: 1.0
+  gender: n
+rhythmus:
+  N: 1.0
+  gender: m
+richtig:
+  Adj: 1.0
+riechen:
+  N: 0.6
+  V: 0.4
+  gender: n
+riegel:
+  N: 1.0
+  gender: m
+riesig:
+  Adj: 1.0
+rind:
+  N: 1.0
+  gender: n
+ring:
+  N: 1.0
+  gender: m
+rinnsaal:
+  Adj: 1.0
+risiko:
+  N: 1.0
+  gender: n
+riss:
+  N: 0.6
+  V: 0.4
+  gender: m
+ritter:
+  N: 1.0
+  gender: m
+ritual:
+  N: 1.0
+  gender: n
+ritze:
+  N: 0.6
+  V: 0.4
+  gender: f
+robbe:
+  N: 0.6
+  V: 0.4
+  gender: f
+roboter:
+  N: 1.0
+  gender: m
+rock:
+  N: 1.0
+  gender: m
+roggen:
+  N: 1.0
+  gender: m
+rohbau:
+  N: 1.0
+  gender: m
+rohkost:
+  Adj: 1.0
+rohr:
+  N: 1.0
+  gender: n
+rohstoff:
+  N: 1.0
+  gender: m
+roller:
+  N: 1.0
+  gender: m
+roman:
+  N: 1.0
+  gender: m
+rosa:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+rose:
+  N: 1.0
+  gender: f
+rosine:
+  N: 1.0
+  gender: f
+rost:
+  N: 1.0
+  gender: m
+rotkohl:
+  N: 1.0
+  gender: m
+rotor:
+  N: 1.0
+  gender: m
+rucksack:
+  N: 1.0
+  gender: m
+rudel:
+  N: 1.0
+  gender: n
+rufen:
+  N: 0.6
+  V: 0.4
+  gender: m
+ruhe:
+  N: 0.6
+  V: 0.4
+  gender: f
+ruhig:
+  Adj: 1.0
+ruhm:
+  N: 1.0
+  gender: m
+ruine:
+  N: 1.0
+  gender: f
+rummel:
+  N: 1.0
+  gender: m
+rund:
+  N: 0.6
+  Adv: 0.4
+  gender: n
+runter:
+  Adj: 1.0
+rute:
+  N: 0.6
+  V: 0.4
+  gender: f
+rutsche:
+  N: 0.6
+  V: 0.4
+  gender: f
+saal:
+  N: 1.0
+  gender: m
+saat:
+  N: 1.0
+  gender: f
+sache:
+  N: 1.0
+  gender: f
+sack:
+  N: 1.0
+  gender: m
+safran:
+  N: 1.0
+  gender: m
+saft:
+  N: 1.0
+  gender: m
+sagen:
+  N: 0.6
+  V: 0.4
+  gender: n
+sahne:
+  N: 1.0
+  gender: f
+saison:
+  N: 1.0
+  gender: f
+salat:
+  N: 1.0
+  gender: m
+salbe:
+  N: 0.6
+  V: 0.4
+  gender: f
+saloon:
+  N: 1.0
+  gender: m
+salz:
+  N: 1.0
+  gender: n
+samen:
+  N: 0.6
+  V: 0.4
+  gender: m
+sammeln:
+  N: 0.6
+  V: 0.4
+  gender: n
+samstag:
+  N: 1.0
+  gender: m
+samt:
+  N: 0.6
+  Prep: 0.4
+  gender: m
+sand:
+  N: 1.0
+  gender: m
+sanft:
+  Adj: 1.0
+saniert:
+  Adj: 1.0
+sardine:
+  N: 1.0
+  gender: f
+satellit:
+  N: 1.0
+  gender: m
+satire:
+  N: 1.0
+  gender: f
+sattel:
+  N: 1.0
+  gender: m
+satz:
+  N: 1.0
+  gender: m
+sauber:
+  Adj: 1.0
+sauer:
+  N: 0.6
+  Adj: 0.4
+saugen:
+  N: 0.6
+  V: 0.4
+  gender: n
+sauna:
+  N: 1.0
+  gender: f
+saurier:
+  N: 1.0
+  gender: m
+schaf:
+  N: 1.0
+  gender: n
+schere:
+  N: 0.6
+  V: 0.4
+  gender: f
+schirm:
+  N: 1.0
+  gender: m
+schlange:
+  N: 1.0
+  gender: f
+schmuck:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+schnee:
+  N: 1.0
+  gender: m
+schock:
+  N: 1.0
+  gender: m
+schrank:
+  N: 1.0
+  gender: m
+schuh:
+  N: 1.0
+  gender: m
+schwan:
+  N: 0.6
+  V: 0.4
+  gender: m
+sechs:
+  N: 1.0
+  gender: f
+seefahrt:
+  N: 1.0
+  gender: f
+seehund:
+  N: 1.0
+  gender: m
+seekuh:
+  N: 1.0
+  gender: f
+seele:
+  N: 1.0
+  gender: f
+seestern:
+  N: 1.0
+  gender: m
+segel:
+  N: 1.0
+  gender: n
+segment:
+  N: 1.0
+  gender: n
+sehen:
+  N: 0.6
+  V: 0.4
+  gender: n
+seide:
+  N: 1.0
+  gender: f
+seife:
+  N: 1.0
+  gender: f
+seil:
+  N: 1.0
+  gender: n
+seite:
+  N: 1.0
+  gender: f
+sektor:
+  N: 1.0
+  gender: m
+sekunde:
+  N: 1.0
+  gender: f
+sellerie:
+  N: 1.0
+  gender: m
+selten:
+  N: 1.0
+  gender: n
+semester:
+  N: 1.0
+  gender: n
+seminar:
+  N: 1.0
+  gender: n
+senden:
+  N: 0.6
+  V: 0.4
+senf:
+  N: 1.0
+  gender: m
+senior:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+senken:
+  N: 0.6
+  V: 0.4
+  gender: f
+sense:
+  N: 1.0
+  gender: f
+serie:
+  N: 1.0
+  gender: f
+serum:
+  N: 1.0
+  gender: n
+server:
+  N: 1.0
+  gender: m
+sessel:
+  N: 1.0
+  gender: m
+setzen:
+  N: 1.0
+  gender: n
+shop:
+  N: 1.0
+  gender: m
+sichel:
+  N: 1.0
+  gender: f
+sieb:
+  N: 1.0
+  gender: n
+siedlung:
+  N: 1.0
+  gender: f
+sieg:
+  N: 1.0
+  gender: m
+signal:
+  N: 1.0
+  gender: n
+silber:
+  N: 1.0
+  gender: n
+simpel:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+singen:
+  N: 0.6
+  V: 0.4
+  gender: n
+sinken:
+  N: 1.0
+  gender: n
+sinn:
+  N: 1.0
+  gender: m
+sirene:
+  N: 1.0
+  gender: f
+sirup:
+  N: 1.0
+  gender: m
+sitzen:
+  N: 0.6
+  V: 0.4
+  gender: m
+skala:
+  N: 1.0
+  gender: f
+skandal:
+  N: 1.0
+  gender: m
+skelett:
+  N: 1.0
+  gender: n
+skizze:
+  N: 1.0
+  gender: f
+skript:
+  N: 1.0
+  gender: n
+skulptur:
+  N: 1.0
+  gender: f
+socke:
+  N: 1.0
+  gender: f
+sofa:
+  N: 1.0
+  gender: n
+sohle:
+  N: 1.0
+  gender: f
+sohn:
+  N: 1.0
+  gender: m
+soja:
+  N: 1.0
+  gender: f
+solide:
+  Adj: 1.0
+sollen:
+  N: 1.0
+  gender: n
+sommer:
+  N: 1.0
+  gender: m
+sonne:
+  N: 1.0
+  gender: f
+sorge:
+  N: 0.6
+  V: 0.4
+  gender: f
+sorte:
+  N: 1.0
+  gender: f
+sozial:
+  Adj: 1.0
+spachtel:
+  N: 1.0
+  gender: m
+spagat:
+  N: 1.0
+  gender: m
+spalten:
+  N: 0.6
+  V: 0.4
+  gender: f
+spange:
+  N: 1.0
+  gender: f
+spargel:
+  N: 1.0
+  gender: m
+spaten:
+  N: 1.0
+  gender: m
+specht:
+  N: 1.0
+  gender: m
+speise:
+  N: 0.6
+  V: 0.4
+  gender: f
+spektrum:
+  N: 1.0
+  gender: n
+spende:
+  N: 0.6
+  V: 0.4
+  gender: f
+sperling:
+  N: 1.0
+  gender: m
+speziell:
+  Adj: 1.0
+spiegel:
+  N: 1.0
+  gender: m
+spinne:
+  N: 0.6
+  V: 0.4
+  gender: f
+spion:
+  N: 1.0
+  gender: m
+spitze:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+sponsor:
+  N: 1.0
+  gender: m
+sport:
+  N: 1.0
+  gender: m
+sprache:
+  N: 1.0
+  gender: f
+sprechen:
+  N: 0.6
+  V: 0.4
+  gender: n
+springen:
+  N: 1.0
+  gender: n
+sprotte:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+sprung:
+  N: 1.0
+  gender: m
+spur:
+  N: 1.0
+  gender: f
+stabil:
+  Adj: 1.0
+stachel:
+  N: 1.0
+  gender: m
+stadt:
+  N: 1.0
+  gender: f
+stahl:
+  N: 0.6
+  V: 0.4
+  gender: m
+stall:
+  N: 1.0
+  gender: m
+stamm:
+  N: 1.0
+  gender: m
+standort:
+  N: 1.0
+  gender: m
+stapel:
+  N: 0.6
+  V: 0.4
+  gender: m
+stark:
+  Adj: 1.0
+station:
+  N: 1.0
+  gender: f
+staub:
+  N: 1.0
+  gender: m
+stecken:
+  N: 0.6
+  V: 0.4
+  gender: m
+steg:
+  N: 1.0
+  gender: m
+stehen:
+  N: 1.0
+  gender: n
+stein:
+  N: 1.0
+  gender: m
+stellen:
+  N: 0.6
+  V: 0.4
+  gender: f
+stempel:
+  N: 1.0
+  gender: m
+steppe:
+  N: 1.0
+  gender: f
+stern:
+  N: 1.0
+  gender: m
+stetig:
+  Adj: 1.0
+steuer:
+  N: 1.0
+  gender: n
+stichtag:
+  N: 1.0
+  gender: m
+stier:
+  N: 1.0
+  gender: m
+stift:
+  N: 0.6
+  V: 0.4
+  gender: m
+still:
+  Adj: 1.0
+stimme:
+  N: 0.6
+  V: 0.4
+  gender: f
+stirn:
+  N: 1.0
+  gender: f
+stock:
+  N: 1.0
+  gender: m
+stoff:
+  N: 1.0
+  gender: m
+stolz:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+stoppen:
+  N: 1.0
+  gender: n
+storch:
+  N: 1.0
+  gender: m
+strand:
+  N: 1.0
+  gender: m
+strecke:
+  N: 1.0
+  gender: f
+strich:
+  N: 0.6
+  V: 0.4
+  gender: m
+strom:
+  N: 1.0
+  gender: m
+strumpf:
+  N: 1.0
+  gender: m
+stube:
+  N: 1.0
+  gender: f
+stuck:
+  N: 1.0
+  gender: m
+studium:
+  N: 1.0
+  gender: n
+stufe:
+  N: 1.0
+  gender: f
+stuhl:
+  N: 1.0
+  gender: m
+stumm:
+  Adj: 1.0
+stunde:
+  N: 1.0
+  gender: f
+sturm:
+  N: 1.0
+  gender: m
+substanz:
+  N: 1.0
+  gender: f
+suche:
+  N: 0.6
+  V: 0.4
+  gender: f
+summe:
+  N: 1.0
+  gender: f
+sumpf:
+  N: 1.0
+  gender: m
+suppe:
+  N: 1.0
+  gender: f
+surfen:
+  N: 0.6
+  V: 0.4
+  gender: n
+symbol:
+  N: 1.0
+  gender: n
+symptome:
+  N: 1.0
+  gender: n
+system:
+  N: 1.0
+  gender: n
+szenario:
+  N: 1.0
+  gender: n
+tabelle:
+  N: 1.0
+  gender: f
+tabu:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+tacker:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+tadel:
+  N: 1.0
+  gender: m
+tafel:
+  N: 1.0
+  gender: f
+tagebuch:
+  N: 1.0
+  gender: n
+takt:
+  N: 1.0
+  gender: m
+talent:
+  N: 1.0
+  gender: n
+talfahrt:
+  N: 1.0
+  gender: f
+tango:
+  N: 1.0
+  gender: m
+tank:
+  N: 1.0
+  gender: m
+tanne:
+  N: 1.0
+  gender: f
+tante:
+  N: 1.0
+  gender: f
+tanz:
+  N: 1.0
+  gender: m
+tapfer:
+  Adj: 1.0
+tapir:
+  N: 1.0
+  gender: m
+tarif:
+  N: 1.0
+  gender: m
+tarnen:
+  N: 1.0
+  gender: n
+tasche:
+  N: 1.0
+  gender: f
+tasse:
+  N: 1.0
+  gender: f
+tastatur:
+  N: 1.0
+  gender: f
+tatort:
+  N: 1.0
+  gender: m
+tatsache:
+  N: 1.0
+  gender: f
+taube:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+tauchen:
+  N: 1.0
+  gender: n
+tausch:
+  N: 0.6
+  V: 0.4
+  gender: m
+taxi:
+  N: 1.0
+  gender: n
+team:
+  N: 1.0
+  gender: n
+technik:
+  N: 1.0
+  gender: f
+teekanne:
+  N: 1.0
+  gender: f
+teer:
+  N: 0.6
+  V: 0.4
+  gender: m
+teesieb:
+  N: 1.0
+  gender: n
+teich:
+  N: 1.0
+  gender: m
+teig:
+  N: 1.0
+  gender: m
+teilen:
+  N: 0.6
+  V: 0.4
+  gender: n
+telefon:
+  N: 1.0
+  gender: n
+teller:
+  N: 1.0
+  gender: m
+tempo:
+  N: 1.0
+  gender: n
+tendenz:
+  N: 1.0
+  gender: f
+tennis:
+  N: 1.0
+  gender: n
+tenor:
+  N: 1.0
+  gender: m
+teppich:
+  N: 1.0
+  gender: m
+termin:
+  N: 1.0
+  gender: m
+terrasse:
+  N: 1.0
+  gender: f
+test:
+  N: 1.0
+  gender: m
+teuer:
+  Adj: 1.0
+text:
+  N: 1.0
+  gender: m
+theater:
+  N: 1.0
+  gender: n
+thema:
+  N: 1.0
+  gender: n
+theorie:
+  N: 1.0
+  gender: f
+therapie:
+  N: 1.0
+  gender: f
+these:
+  N: 1.0
+  gender: f
+tief:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+tier:
+  N: 1.0
+  gender: n
+tiger:
+  N: 1.0
+  gender: m
+tinte:
+  N: 1.0
+  gender: f
+tipp:
+  N: 0.6
+  V: 0.4
+  gender: m
+tisch:
+  N: 1.0
+  gender: m
+titel:
+  N: 1.0
+  gender: m
+tochter:
+  N: 1.0
+  gender: f
+toilette:
+  N: 1.0
+  gender: f
+toleranz:
+  N: 1.0
+  gender: f
+toll:
+  Adj: 1.0
+tomate:
+  N: 1.0
+  gender: f
+tonband:
+  N: 1.0
+  gender: n
+tonne:
+  N: 1.0
+  gender: f
+topf:
+  N: 1.0
+  gender: m
+torbogen:
+  N: 1.0
+  gender: n
+torte:
+  N: 1.0
+  gender: f
+torwart:
+  N: 1.0
+  gender: m
+total:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+tracht:
+  N: 1.0
+  gender: f
+tragen:
+  N: 0.6
+  V: 0.4
+  gender: f
+training:
+  N: 1.0
+  gender: n
+trapez:
+  N: 1.0
+  gender: n
+trasse:
+  N: 1.0
+  gender: f
+traum:
+  N: 1.0
+  gender: m
+treffen:
+  N: 0.6
+  V: 0.4
+  gender: n
+treiben:
+  N: 0.6
+  V: 0.4
+  gender: n
+trennen:
+  N: 1.0
+  gender: n
+treppe:
+  N: 1.0
+  gender: f
+tresor:
+  N: 1.0
+  gender: m
+treten:
+  N: 1.0
+  gender: n
+treu:
+  Adj: 1.0
+triangel:
+  N: 1.0
+  gender: m
+trick:
+  N: 1.0
+  gender: m
+trinken:
+  N: 0.6
+  V: 0.4
+  gender: n
+trocken:
+  N: 1.0
+  gender: n
+trommel:
+  N: 1.0
+  gender: f
+tropfen:
+  N: 1.0
+  gender: m
+trost:
+  N: 1.0
+  gender: m
+trubel:
+  N: 1.0
+  gender: m
+truhe:
+  N: 1.0
+  gender: f
+trumpf:
+  N: 1.0
+  gender: m
+trunk:
+  N: 1.0
+  gender: m
+truthahn:
+  N: 1.0
+  gender: m
+tuch:
+  N: 1.0
+  gender: n
+tukan:
+  N: 1.0
+  gender: m
+tulpe:
+  N: 1.0
+  gender: f
+tunnel:
+  N: 1.0
+  gender: m
+turbine:
+  N: 1.0
+  gender: f
+turm:
+  N: 1.0
+  gender: m
+turnen:
+  N: 0.6
+  V: 0.4
+  gender: n
+tusche:
+  N: 1.0
+  gender: f
+typisch:
+  Adj: 1.0
+ufer:
+  N: 1.0
+  gender: n
+uhrwerk:
+  N: 1.0
+  gender: n
+umbau:
+  N: 1.0
+  gender: m
+umbruch:
+  N: 1.0
+  gender: m
+umfang:
+  N: 1.0
+  gender: m
+umfeld:
+  N: 1.0
+  gender: n
+umfrage:
+  N: 1.0
+  gender: f
+umgang:
+  N: 1.0
+  gender: m
+umgebung:
+  N: 1.0
+  gender: f
+umhang:
+  N: 1.0
+  gender: m
+umkreis:
+  N: 1.0
+  gender: m
+umland:
+  N: 1.0
+  gender: n
+umriss:
+  N: 0.6
+  V: 0.4
+  gender: m
+umsatz:
+  N: 1.0
+  gender: m
+umschlag:
+  N: 1.0
+  gender: m
+umsetzen:
+  N: 1.0
+  gender: n
+umsonst:
+  Adv: 1.0
+umstand:
+  N: 0.6
+  V: 0.4
+  gender: m
+umwelt:
+  N: 1.0
+  gender: f
+umzug:
+  N: 1.0
+  gender: m
+unfall:
+  N: 1.0
+  gender: m
+unikat:
+  N: 1.0
+  gender: n
+unmut:
+  N: 1.0
+  gender: m
+unrat:
+  N: 1.0
+  gender: m
+unrecht:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+unruhe:
+  N: 1.0
+  gender: f
+unschuld:
+  N: 1.0
+  gender: f
+unsinn:
+  N: 1.0
+  gender: m
+unten:
+  N: 1.0
+  gender: n
+unweit:
+  Prep: 1.0
+urkunde:
+  N: 1.0
+  gender: f
+urlaub:
+  N: 1.0
+  gender: m
+ursache:
+  N: 1.0
+  gender: f
+ursprung:
+  N: 1.0
+  gender: m
+urteil:
+  N: 1.0
+  gender: n
+utopie:
+  N: 1.0
+  gender: f
+vage:
+  Adj: 1.0
+vakuum:
+  N: 1.0
+  gender: n
+vanille:
+  N: 1.0
+  gender: f
+variante:
+  N: 1.0
+  gender: f
+vase:
+  N: 1.0
+  gender: f
+vater:
+  N: 1.0
+  gender: m
+ventil:
+  N: 1.0
+  gender: n
+veranda:
+  N: 1.0
+  gender: f
+verband:
+  N: 0.6
+  V: 0.4
+  gender: m
+verdacht:
+  N: 1.0
+  gender: m
+verein:
+  N: 1.0
+  gender: m
+verfall:
+  N: 1.0
+  gender: m
+verkehr:
+  N: 1.0
+  gender: m
+verloren:
+  Adj: 1.0
+vernunft:
+  N: 1.0
+  gender: f
+verrat:
+  N: 1.0
+  gender: m
+verstand:
+  N: 0.6
+  V: 0.4
+  gender: m
+vertrag:
+  N: 1.0
+  gender: m
+verwandt:
+  Adj: 1.0
+verzicht:
+  N: 1.0
+  gender: m
+video:
+  N: 1.0
+  gender: n
+vieh:
+  N: 1.0
+  gender: n
+viel:
+  N: 0.6
+  Adv: 0.4
+  gender: n
+vier:
+  N: 1.0
+  gender: f
+villa:
+  N: 1.0
+  gender: f
+virus:
+  N: 1.0
+  gender: n
+vision:
+  N: 1.0
+  gender: f
+vitamine:
+  N: 1.0
+  gender: n
+vitrine:
+  N: 1.0
+  gender: f
+vogel:
+  N: 1.0
+  gender: m
+voliere:
+  N: 0.6
+  V: 0.4
+  gender: f
+voll:
+  Adj: 1.0
+volumen:
+  N: 1.0
+  gender: n
+vorbild:
+  N: 1.0
+  gender: n
+vorfall:
+  N: 1.0
+  gender: m
+vorgabe:
+  N: 0.6
+  V: 0.4
+  gender: f
+vorhang:
+  N: 1.0
+  gender: m
+vorlage:
+  N: 1.0
+  gender: f
+vorn:
+  Adv: 1.0
+vorort:
+  N: 1.0
+  gender: m
+vorrat:
+  N: 1.0
+  gender: m
+vorsicht:
+  N: 1.0
+  gender: f
+vortrag:
+  N: 1.0
+  gender: m
+vorwurf:
+  N: 1.0
+  gender: m
+votum:
+  N: 1.0
+  gender: n
+vulkan:
+  N: 1.0
+  gender: m
+waage:
+  N: 1.0
+  gender: f
+wachs:
+  N: 0.6
+  V: 0.4
+  gender: n
+wade:
+  N: 1.0
+  gender: f
+waffel:
+  N: 1.0
+  gender: f
+wagen:
+  N: 1.0
+  gender: n
+waggon:
+  N: 1.0
+  gender: m
+wahl:
+  N: 1.0
+  gender: f
+wahrheit:
+  N: 1.0
+  gender: f
+wald:
+  N: 1.0
+  gender: m
+walnuss:
+  N: 1.0
+  gender: f
+walross:
+  N: 1.0
+  gender: n
+walze:
+  N: 0.6
+  V: 0.4
+  gender: f
+wand:
+  N: 1.0
+  gender: f
+wanne:
+  N: 1.0
+  gender: f
+wanze:
+  N: 1.0
+  gender: f
+wappen:
+  N: 1.0
+  gender: n
+ware:
+  N: 1.0
+  gender: f
+warm:
+  Adj: 1.0
+warnung:
+  N: 1.0
+  gender: f
+warten:
+  N: 0.6
+  V: 0.4
+  gender: f
+warze:
+  N: 1.0
+  gender: f
+waschen:
+  N: 0.6
+  V: 0.4
+  gender: n
+wasser:
+  N: 1.0
+  gender: n
+webstuhl:
+  N: 1.0
+  gender: m
+wechsel:
+  N: 1.0
+  gender: m
+wecker:
+  N: 1.0
+  gender: m
+wedel:
+  N: 1.0
+  gender: m
+weggabel:
+  N: 1.0
+  gender: f
+wehren:
+  N: 0.6
+  V: 0.4
+  gender: n
+weich:
+  Adj: 1.0
+weide:
+  N: 0.6
+  V: 0.4
+  gender: f
+wein:
+  N: 1.0
+  gender: m
+weisheit:
+  N: 1.0
+  gender: f
+weit:
+  Adj: 1.0
+weizen:
+  N: 1.0
+  gender: m
+welken:
+  N: 1.0
+  gender: n
+welle:
+  N: 1.0
+  gender: f
+welpe:
+  N: 1.0
+  gender: m
+welt:
+  N: 1.0
+  gender: f
+wende:
+  N: 1.0
+  gender: f
+wenig:
+  Pron: 1.0
+werbung:
+  N: 1.0
+  gender: f
+werfen:
+  N: 1.0
+  gender: n
+werkzeug:
+  N: 1.0
+  gender: n
+wert:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+wesen:
+  N: 1.0
+  gender: n
+wespe:
+  N: 1.0
+  gender: f
+weste:
+  N: 0.6
+  Adj: 0.4
+  gender: f
+wetter:
+  N: 1.0
+  gender: n
+wichtig:
+  Adj: 1.0
+widder:
+  N: 1.0
+  gender: m
+wiegen:
+  N: 0.6
+  V: 0.4
+  gender: f
+wiese:
+  N: 1.0
+  gender: f
+wild:
+  N: 0.6
+  Adj: 0.4
+  gender: n
+wille:
+  N: 1.0
+  gender: m
+wimper:
+  N: 1.0
+  gender: f
+wind:
+  N: 1.0
+  gender: m
+winkel:
+  N: 1.0
+  gender: m
+winter:
+  N: 1.0
+  gender: m
+winzig:
+  Adj: 1.0
+wippe:
+  N: 0.6
+  V: 0.4
+  gender: f
+wirbel:
+  N: 1.0
+  gender: m
+wirkung:
+  N: 1.0
+  gender: f
+wirt:
+  N: 0.6
+  V: 0.4
+  gender: m
+wischen:
+  N: 0.6
+  V: 0.4
+  gender: m
+wisent:
+  N: 0.6
+  Adj: 0.4
+  gender: m
+wissen:
+  N: 0.6
+  V: 0.4
+  gender: n
+witz:
+  N: 1.0
+  gender: m
+woche:
+  N: 1.0
+  gender: f
+wohl:
+  N: 0.6
+  Adv: 0.4
+  gender: n
+wohnen:
+  N: 0.6
+  V: 0.4
+  gender: n
+wolf:
+  N: 1.0
+  gender: m
+wolke:
+  N: 1.0
+  gender: f
+wolle:
+  N: 0.6
+  V: 0.4
+  gender: f
+wort:
+  N: 1.0
+  gender: n
+wunder:
+  N: 1.0
+  gender: n
+wunsch:
+  N: 1.0
+  gender: m
+wurm:
+  N: 1.0
+  gender: m
+wurzel:
+  N: 1.0
+  gender: f
+zacke:
+  N: 0.6
+  V: 0.4
+  gender: f
+zahl:
+  N: 1.0
+  gender: f
+zahm:
+  Adj: 1.0
+zahn:
+  N: 1.0
+  gender: m
+zander:
+  N: 0.6
+  Adv: 0.4
+  gender: m
+zange:
+  N: 1.0
+  gender: f
+zapfen:
+  N: 0.6
+  V: 0.4
+  gender: m
+zart:
+  Adj: 1.0
+zauber:
+  N: 1.0
+  gender: m
+zaun:
+  N: 1.0
+  gender: m
+zebra:
+  N: 1.0
+  gender: n
+zeche:
+  N: 0.6
+  V: 0.4
+  gender: f
+zecke:
+  N: 1.0
+  gender: f
+zehe:
+  N: 1.0
+  gender: f
+zehn:
+  N: 1.0
+  gender: f
+zeichen:
+  N: 1.0
+  gender: n
+zeigen:
+  N: 1.0
+  gender: n
+zeile:
+  N: 1.0
+  gender: f
+zeit:
+  N: 1.0
+  gender: f
+zelle:
+  N: 1.0
+  gender: f
+zelt:
+  N: 1.0
+  gender: n
+zement:
+  N: 1.0
+  gender: m
+zensur:
+  N: 1.0
+  gender: f
+zentrum:
+  N: 1.0
+  gender: n
+zettel:
+  N: 1.0
+  gender: m
+zeug:
+  N: 1.0
+  gender: n
+ziege:
+  N: 1.0
+  gender: f
+ziehen:
+  N: 1.0
+  gender: n
+ziel:
+  N: 1.0
+  gender: n
+ziffer:
+  N: 1.0
+  gender: f
+zimmer:
+  N: 1.0
+  gender: n
+zimt:
+  N: 0.6
+  V: 0.4
+  gender: m
+zins:
+  N: 1.0
+  gender: m
+zipfel:
+  N: 1.0
+  gender: m
+zirkus:
+  N: 1.0
+  gender: m
+zitat:
+  N: 1.0
+  gender: n
+zitrone:
+  N: 1.0
+  gender: f
+zocken:
+  N: 1.0
+  gender: n
+zollfrei:
+  Adj: 1.0
+zone:
+  N: 1.0
+  gender: f
+zorn:
+  N: 1.0
+  gender: m
+zucchini:
+  N: 1.0
+  gender: f
+zucker:
+  N: 1.0
+  gender: m
+zufall:
+  N: 1.0
+  gender: m
+zuflucht:
+  N: 1.0
+  gender: f
+zugang:
+  N: 1.0
+  gender: m
+zugriff:
+  N: 1.0
+  gender: m
+zukunft:
+  N: 1.0
+  gender: f
+zunge:
+  N: 1.0
+  gender: f
+zusatz:
+  N: 1.0
+  gender: m
+zuschlag:
+  N: 1.0
+  gender: m
+zustand:
+  N: 1.0
+  gender: m
+zutat:
+  N: 0.6
+  V: 0.4
+  gender: f
+zwang:
+  N: 0.6
+  V: 0.4
+  gender: m
+zweck:
+  N: 1.0
+  gender: m
+zwei:
+  N: 1.0
+  gender: f
+zwiebel:
+  N: 1.0
+  gender: f
+zwilling:
+  N: 1.0
+  gender: m
+zwingen:
+  N: 0.6
+  V: 0.4
+  gender: f
+zwirn:
+  N: 1.0
+  gender: m
+zyklus:
+  N: 1.0
+  gender: m

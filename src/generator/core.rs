@@ -502,8 +502,13 @@ pub fn fill_slots<R: Rng>(
     payload_only_mode: bool,
     prime_constraint_enabled: bool,
     dot_is_punctuation: bool,
+    agreement: Option<&crate::generator::agreement::Agreement>,
 ) -> Vec<String> {
     let mut out: Vec<String> = Vec::new();
+    // Slot / refinement of each emitted token in `out` (Dot slots that only
+    // append punctuation are not represented). Used by the agreement post-pass.
+    let mut emitted_slots: Vec<Pos> = Vec::new();
+    let mut emitted_refs: Vec<Option<String>> = Vec::new();
     const REPETITION_WINDOW: usize = 3;
     // Track which payload words have been used (by index)
     let mut used_payload_indices: HashSet<usize> = HashSet::new();
@@ -558,6 +563,8 @@ pub fn fill_slots<R: Rng>(
                 payload[idx].word, ref_tag, i
             );
             out.push(payload[idx].word.clone());
+            emitted_slots.push(slot);
+            emitted_refs.push(ref_tag.map(|s| s.to_string()));
             used_payload_indices.insert(idx);
             if forced_placements.is_none() {
                 *payload_i += 1;
@@ -636,33 +643,51 @@ pub fn fill_slots<R: Rng>(
 
             constrained.unwrap_or_else(|| lex.pick_cover_refined(rng, slot, ref_tag, &recent_words))
         } else if slot == Pos::Det && ref_tag == Some("indef") {
-            // Special phonological rule for indefinite article: a/an based on next word
-            let next_word_str: Option<String> = if let Some(forced) = forced_placements {
-                forced
-                    .get(&(i + 1))
-                    .and_then(|&pidx| payload.get(pidx))
-                    .map(|t| t.word.clone())
-            } else if *payload_i < payload.len()
-                && !used_payload_indices.contains(payload_i)
-                && slots.get(i + 1).map_or(false, |&ns| payload_fits(&payload[*payload_i], ns))
-            {
-                Some(payload[*payload_i].word.clone())
+            // Pick the language's indefinite determiner from the cover list.
+            // English's article is "a"/"an", which needs a phonological choice
+            // based on the following word; other languages (e.g. German ein/eine)
+            // carry their own indefinite determiners and must not be overridden.
+            let base = lex.pick_cover_refined(rng, slot, ref_tag, &recent_words);
+            if base == "a" || base == "an" {
+                let next_word_str: Option<String> = if let Some(forced) = forced_placements {
+                    forced
+                        .get(&(i + 1))
+                        .and_then(|&pidx| payload.get(pidx))
+                        .map(|t| t.word.clone())
+                } else if *payload_i < payload.len()
+                    && !used_payload_indices.contains(payload_i)
+                    && slots.get(i + 1).map_or(false, |&ns| payload_fits(&payload[*payload_i], ns))
+                {
+                    Some(payload[*payload_i].word.clone())
+                } else {
+                    // Peek at what cover word would be chosen for next slot
+                    slots.get(i + 1).map(|&ns| lex.pick_cover(rng, ns, &recent_words))
+                };
+                apply_indef_phonology(next_word_str.as_deref())
             } else {
-                // Peek at what cover word would be chosen for next slot
-                slots.get(i + 1).map(|&ns| lex.pick_cover(rng, ns, &recent_words))
-            };
-            apply_indef_phonology(next_word_str.as_deref())
+                base
+            }
         } else {
             // All other POS: use refinement-aware cover word selection
             lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)
         };
 
         out.push(cover_word);
+        emitted_slots.push(slot);
+        emitted_refs.push(ref_tag.map(|s| s.to_string()));
     }
 
     // Advance payload_i past used words
     while *payload_i < payload.len() && used_payload_indices.contains(payload_i) {
         *payload_i += 1;
+    }
+
+    // Language-specific morphological agreement (e.g. German determiner
+    // gender/case agreement + noun capitalization). Rewrites only cover
+    // determiners and noun casing, so payload words and round-tripping are
+    // unaffected.
+    if let Some(ag) = agreement {
+        ag.apply(&emitted_slots, &emitted_refs, &mut out);
     }
 
     out
@@ -833,6 +858,11 @@ pub fn generate_text_with_original_payload<R: Rng>(
         .and_then(|constraints| constraints.prime_ordering.as_ref())
         .map(|c| c.enabled)
         .unwrap_or(false);
+
+    // Optional language-specific agreement post-pass (e.g. German).
+    let agreement = grammar.morphology()
+        .and_then(|m| crate::generator::agreement::for_morphology(m, language));
+    let agreement_ref = agreement.as_ref();
 
     // Load precomputed sequences
     let cache = match SequenceCache::load_with_dialect(mode, language, dialect_str, k_max, verbose) {
@@ -1034,6 +1064,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 payload_only_mode,
                 prime_constraint_enabled,
                 grammar.dot_is_punctuation(),
+                agreement_ref,
             );
 
             // Update current_payload_i to reflect what was actually used
@@ -1113,9 +1144,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 length_mode,
                 prime_constraint_enabled,
                 &cache,
+                agreement_ref,
             );
         }
-        
+
         let mut sentence_count = 0;
         // Dynamic limit: at worst 1 payload word per sentence, plus buffer for rejected sentences
         let max_sentences = payload.len().max(200) + 50;
@@ -1341,6 +1373,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             payload_only_mode,
             prime_constraint_enabled,
             grammar.dot_is_punctuation(),
+            agreement_ref,
         );
 
         // Update payload_i to reflect what was actually used
@@ -1496,6 +1529,7 @@ fn generate_text_merkle_segmented<R: Rng>(
     length_mode: SentenceLengthMode,
     prime_constraint_enabled: bool,
     cache: &SequenceCache,
+    agreement: Option<&crate::generator::agreement::Agreement>,
 ) -> (String, HashSet<String>) {
     use super::utils::normalize_token_for_bip39;
 
@@ -1695,6 +1729,7 @@ fn generate_text_merkle_segmented<R: Rng>(
             false,
             prime_constraint_enabled,
             grammar.dot_is_punctuation(),
+            agreement,
         );
 
         // Update payload_i to reflect what was actually used

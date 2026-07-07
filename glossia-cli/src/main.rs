@@ -2428,6 +2428,7 @@ mod tests {
             false,
             false,
             true,
+            None,
         );
 
         assert_eq!(out[1], "an", "Expected 'an' before forced 'ivory'");
@@ -2449,7 +2450,7 @@ mod tests {
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
         let refs = vec![None; slots.len()];
-        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true);
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true, None);
 
         assert_eq!(out[0], "can");
         assert_eq!(out[1].trim_end_matches('.'), "walk", "Expected bare verb after modal");
@@ -2472,7 +2473,7 @@ mod tests {
         let mut rng = ZeroRng::default();
         let mut payload_i = 0usize;
         let refs = vec![None; slots.len()];
-        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true);
+        let out = fill_slots(&mut rng, &lex, &slots, &refs, &payload, &mut payload_i, &[], None, None, false, false, true, None);
 
         assert_eq!(out[2], "send", "Expected transitive verb before NP object");
     }
@@ -2856,7 +2857,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, Some(&forced), false, false, true,
+            &[], None, Some(&forced), false, false, true, None,
         );
 
         assert_eq!(out[0], "an", "Det[indef] before 'apple' (vowel) should produce 'an'");
@@ -2883,7 +2884,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, Some(&forced), false, false, true,
+            &[], None, Some(&forced), false, false, true, None,
         );
 
         assert_eq!(out[0], "a", "Det[indef] before 'basket' (consonant) should produce 'a'");
@@ -2915,7 +2916,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false, true,
+            &[], None, None, false, false, true, None,
         );
 
         assert!(
@@ -2952,7 +2953,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false, true,
+            &[], None, None, false, false, true, None,
         );
 
         assert_eq!(out[1], "is", "Cop[sg] should produce 'is'");
@@ -2986,7 +2987,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false, true,
+            &[], None, None, false, false, true, None,
         );
 
         assert_eq!(out[1], "are", "Cop[pl] should produce 'are'");
@@ -3010,7 +3011,7 @@ mod tests {
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
-            &[], None, None, false, false, true,
+            &[], None, None, false, false, true, None,
         );
 
         // 4 word tokens + Dot merged into last word
