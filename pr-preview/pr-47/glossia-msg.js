@@ -334,10 +334,13 @@ export async function decodeMessage(artifact, cred) {
 // rendered with its payload words highlighted. The prose→word mapping is
 // deterministic from the wordlist and the public trailer, so no key is needed —
 // only the final AES-GCM step (in decodeMessage) requires the credential.
-// Returns { prose, body, trailer, payloadWords, encrypted }. Never throws.
+// Returns { prose, body, trailer, payloadWords, encrypted, saltHex }. The saltHex
+// is the encryption salt recovered from the public trailer (empty when unencrypted
+// or unreadable) — callers can use it to detect/avoid nonce reuse without the key.
+// Never throws.
 export function skimArtifact(artifact) {
   const text = (artifact || '').trim();
-  if (!text) return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false };
+  if (!text) return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false, saltHex: '' };
 
   // Authenticated form: "<body> — <latin attribution>".
   const di = text.lastIndexOf(EMDASH);
@@ -350,19 +353,20 @@ export function skimArtifact(artifact) {
       const tb = fromHex(tR.decoded_hex || '');
       if (tb.length < AEAD_TRAILER_LEN) throw new Error('bad trailer');
       const ctlen = ((tb[0] << 8) | tb[1]) & AEAD_MAX_CTLEN;
+      const saltHex = toHex(tb.subarray(2, 2 + AEAD_SALT_LEN));
       const lang = msgLangById(detectLang(body));
       const bR = JSON.parse(wasmDecodeRawBaseN(body, lang.language, lang.wordlist, ctlen));
       const words = (bR.payload_words || []).concat(tR.payload_words || []);
-      return { prose: text, body, trailer, payloadWords: words, encrypted: true };
-    } catch { return { prose: text, body, trailer, payloadWords: [], encrypted: true }; }
+      return { prose: text, body, trailer, payloadWords: words, encrypted: true, saltHex };
+    } catch { return { prose: text, body, trailer, payloadWords: [], encrypted: true, saltHex: '' }; }
   }
 
   // Bare, unencrypted prose.
   try {
     const lang = msgLangById(detectLang(text));
     const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, 0));
-    return { prose: text, body: text, trailer: '', payloadWords: r.payload_words || [], encrypted: false };
-  } catch { return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false }; }
+    return { prose: text, body: text, trailer: '', payloadWords: r.payload_words || [], encrypted: false, saltHex: '' };
+  } catch { return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false, saltHex: '' }; }
 }
 
 // Decode the authenticated "<body> — <attribution>" form. GCM verifies the tag,
