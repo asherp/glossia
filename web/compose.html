@@ -148,6 +148,17 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .stepper input[type=number]:focus { outline:none; border-color:var(--accent); }
 .btn.sm.step { padding:8px 0; min-width:34px; text-align:center; }
 
+/* previous posts (board history) */
+.hist-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.hist-status { font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--dim); margin:10px 0 0; }
+.hist-status:empty { margin:0; }
+.hist-item { border:1px solid var(--rule); border-radius:9px; padding:12px 14px; margin-top:12px; }
+.hist-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:baseline; font:400 11px/1.3 'IBM Plex Mono',monospace; color:var(--dim); margin-bottom:6px; }
+.hist-meta .hist-subject { color:var(--accent); }
+.hist-msg { font:400 14px/1.5 'Public Sans',sans-serif; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+.hist-msg.locked { color:var(--dim); font-style:italic; }
+.hist-prose { font:400 12.5px/1.5 'Public Sans',sans-serif; color:var(--dim); margin-top:6px; }
+
 /* settings disclosure */
 .settings { margin-top:22px; border-top:1px solid var(--rule); padding-top:16px; }
 .settings > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); }
@@ -425,6 +436,16 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         </details>
       </div>
 
+      <!-- Previous posts — this board's history, fetched from the relays -->
+      <div class="board" id="c-history-card">
+        <div class="hist-head">
+          <label style="margin:0">Previous posts <span class="muted" id="c-hist-count"></span></label>
+          <button type="button" class="btn sm" id="c-hist-refresh" title="Fetch this board's posts from the relays">↻ Refresh</button>
+        </div>
+        <div class="hist-status" id="c-hist-status">Refresh to load this board’s posts from the relays.</div>
+        <div id="c-hist-list"></div>
+      </div>
+
       <div class="note">
         <strong>How it works.</strong> A bulletin is a stream of posts anyone with the link can read; keep your author link to keep posting.
         <details class="qa">
@@ -512,8 +533,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 </div>
 
 <script type="module">
-import { init, sealMessage, renderArtifact, decodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
-import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
+import { init, sealMessage, renderArtifact, decodeMessage, skimArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, fetchBoard,
          seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
          deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
@@ -1020,9 +1041,51 @@ $('c-publish').addEventListener('click', async () => {
     $('c-status').innerHTML = okN
       ? `<span class="ok">Published to ${okN}/${results.length} relays.</span> Share the read link.`
       : '<span class="err">No relay accepted the event. Try different relays.</span>';
+    if (okN) { sealCache = null; loadHistory(); }   // refresh the board's post history (and start a fresh draft nonce)
   } catch (e) { $('c-err').textContent = e.message || String(e); }
   finally { $('c-publish').disabled = false; }
 });
+
+// ── previous posts: fetch this board's history from the relays ─────────
+// The board's own key decodes its posts, so they show as plaintext; posts under a
+// different key (e.g. an old passphrase) stay locked with their prose. Fetching
+// also seeds the nonce ledger from every published salt, extending the reuse guard
+// to whatever this board has posted — across devices, not just this browser.
+function fmtDate(ts) { try { return new Date(ts * 1000).toLocaleString(); } catch { return ''; } }
+
+async function renderHistItem(ev, cred) {
+  const when = escapeHtml(fmtDate(ev.created_at));
+  const subjTag = (ev.tags || []).find(t => t[0] === 'subject');
+  const subject = subjTag ? escapeHtml(subjTag[1]) : '';
+  const id = escapeHtml(ev.id.slice(0, 8)) + '…';
+  const meta = `<div class="hist-meta"><span>${when}</span>${subject ? `<span class="hist-subject">${subject}</span>` : ''}<span>${id}</span></div>`;
+  let dec = null;
+  try { dec = await decodeMessage(ev.content, cred); } catch { /* not ours / different key */ }
+  if (dec) return `<div class="hist-item">${meta}<div class="hist-msg">${escapeHtml(dec.message)}</div></div>`;
+  const { body } = splitProse(skimArtifact(ev.content).prose);
+  return `<div class="hist-item">${meta}<div class="hist-msg locked">🔒 encrypted with a different key</div><div class="hist-prose">${escapeHtml(body)}</div></div>`;
+}
+
+let histToken = 0;
+async function loadHistory() {
+  const my = ++histToken;
+  const relays = parseRelays($('c-relays').value);
+  if (!relays.length) { $('c-hist-status').textContent = 'Add a wss:// relay to load previous posts.'; return; }
+  $('c-hist-status').textContent = 'Loading previous posts…';
+  let events = [];
+  try { events = await fetchBoard(boardIdentity().npub, relays); }
+  catch { if (my === histToken) $('c-hist-status').textContent = 'Could not reach the relays.'; return; }
+  if (my !== histToken) return;
+  for (const ev of events) { const s = skimArtifact(ev.content).saltHex; if (s) recordSalt(s); }   // seed the nonce ledger
+  $('c-hist-count').textContent = events.length ? `· ${events.length}` : '';
+  if (!events.length) { $('c-hist-status').textContent = 'No posts found on the connected relays yet.'; $('c-hist-list').innerHTML = ''; return; }
+  $('c-hist-status').textContent = '';
+  const cred = contentKey();
+  const rows = await Promise.all(events.map(ev => renderHistItem(ev, cred)));
+  if (my !== histToken) return;
+  $('c-hist-list').innerHTML = rows.join('');
+}
+$('c-hist-refresh').addEventListener('click', loadHistory);
 
 $('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(contentNread()).catch(() => {}));
 $('c-copy-nsec').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nwrite).catch(() => {}));
@@ -1138,6 +1201,7 @@ function restoreBoard(id, readKey = null) {
   $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
   $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
   updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
+  loadHistory();                                // a restored board likely has posts — show them
 }
 
 // keep the share links + address bar in sync when the reading style changes
@@ -1212,6 +1276,7 @@ loadFromHash();
   syncCoverVariantEnabled();         // gray out the cover variant stepper when cover words are off
   writeHash();                      // sync style/prefs (and the write key, if opened from a bookmark) into the URL
   schedulePreview();
+  if (bookmarkArmed) loadHistory();   // opened from a bookmark/author link — this board likely has posts
 })();
 </script>
 </body>
