@@ -129,13 +129,17 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .ok { color:var(--ok); }
 .check { display:flex; align-items:center; gap:9px; font:400 13px/1.4 'Public Sans',sans-serif; color:var(--ink); text-transform:none; letter-spacing:0; margin:22px 0 0; }
 .check input { width:auto; accent-color: var(--accent); }
-.check-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; margin:22px 0 0; }
+.check-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px 28px; margin:22px 0 0; }
 .check-row .check { margin:0; }
 #c-lang { width:auto; max-width:100%; min-width:120px; }
 
-/* compact control rows: cover variant stepper + regenerate payload action */
-.ctl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 0; }
-.ctl .ctl-lab { font:600 10px/1.3 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+/* Cover variant + Payload are the two "regenerate the text" controls, grouped
+   into one bordered card so their labels read as controls (not section headers)
+   and their inputs sit next to the label instead of drifting to the far edge. */
+.ctl-group { margin:18px 0 0; padding:2px 16px; border:1px solid var(--rule); border-radius:9px; background:var(--chip-bg); }
+.ctl { display:flex; align-items:center; gap:16px; margin:0; padding:12px 0; }
+.ctl + .ctl { border-top:1px solid var(--rule); }
+.ctl .ctl-lab { flex:0 0 116px; font:600 10px/1.3 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
 .ctl .ctl-lab[title] { cursor:help; }
 .ctl.off { opacity:.4; }
 .ctl.off .stepper { pointer-events:none; }
@@ -346,9 +350,9 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <label>Encoding language</label>
           <select id="c-lang">
             <option value="english">English</option>
-            <option value="latin">Latin</option>
-            <option value="czech">Czech</option>
-            <option value="german">German</option>
+            <option value="latin">Latina</option>
+            <option value="czech">Čeština</option>
+            <option value="german">Deutsch</option>
           </select>
 
           <div class="check-row">
@@ -356,18 +360,20 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words</label>
           </div>
 
-          <div class="ctl" id="c-cv-row">
-            <span class="ctl-lab" title="Choose a deterministic variation of the cover text. The same number always produces the same wording; the payload words don't change.">Cover variant</span>
-            <span class="stepper">
-              <button type="button" class="btn sm step" id="c-cv-dec" aria-label="Previous cover variant">–</button>
-              <input type="number" id="c-cv" min="0" step="1" value="0" aria-label="Cover variant number">
-              <button type="button" class="btn sm step" id="c-cv-inc" aria-label="Next cover variant">+</button>
-            </span>
-          </div>
+          <div class="ctl-group">
+            <div class="ctl" id="c-cv-row">
+              <span class="ctl-lab" title="Choose a deterministic variation of the cover text. The same number always produces the same wording; the payload words don't change.">Cover variant</span>
+              <span class="stepper">
+                <button type="button" class="btn sm step" id="c-cv-dec" aria-label="Previous cover variant">–</button>
+                <input type="number" id="c-cv" min="0" step="1" value="0" aria-label="Cover variant number">
+                <button type="button" class="btn sm step" id="c-cv-inc" aria-label="Next cover variant">+</button>
+              </span>
+            </div>
 
-          <div class="ctl">
-            <span class="ctl-lab" title="A fresh encryption nonce is used each time, so the payload words change. The cover text stays on the chosen variant.">Payload</span>
-            <button type="button" class="btn sm" id="c-regen" title="A fresh encryption nonce is used each time.">↻ Regenerate</button>
+            <div class="ctl">
+              <span class="ctl-lab" title="A fresh encryption nonce is used each time, so the payload words change. The cover text stays on the chosen variant.">Payload</span>
+              <button type="button" class="btn sm" id="c-regen" title="A fresh encryption nonce is used each time.">↻ Regenerate</button>
+            </div>
           </div>
 
           <label>Subject <span class="muted">(optional, public)</span></label>
