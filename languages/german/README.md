@@ -40,6 +40,18 @@ few adverbs and prepositions. Word order in `payload.yaml` is the canonical dys2
 ordering and is **authoritative** for the codec's payload indices — do not sort
 or reorder it.
 
+Because a payload word can never change form (it carries bits and decode filters
+on the exact wordlist), verbs are tagged into positions where their **citation
+form** is already grammatical rather than being conjugated:
+
+* **infinitives** (`-en`/`-eln`/`-ern`) → nominalized neuter nouns
+  ("das Abwarten"): tagged `N` with `gender: n`
+* **past participles** → predicative adjectives ("Sirup war erhalten"): tagged `Adj`
+* **genuine finite forms** (baut, ankommt) → kept as finite verbs: tagged `V`
+
+POS tags are data only — they steer where a word may appear during generation
+but never affect its codec index, so this retagging is round-trip safe.
+
 To regenerate:
 
 ```sh
@@ -87,6 +99,8 @@ unaffected — decoding lowercases and filters on the payload wordlist.
 
 Attributive adjectives require declension (strong/weak/mixed endings), which
 this pass does not do, so the grammar keeps adjectives in **predicative**
-position ("Der Becher ist gut"), where they are uninflected. Plurals, genitive
-NPs, and verb conjugation for payload verbs are also future work. None of these
-affect round-trip correctness.
+position ("Der Becher ist gut"), where they are uninflected. Payload verbs are
+handled by tagging (nominalized infinitive / predicative participle / finite),
+not by conjugation, so the small set of genuinely finite forms still relies on
+the surrounding structure being verb-second. Plurals and genitive NPs are also
+future work. None of these affect round-trip correctness.

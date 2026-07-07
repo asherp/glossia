@@ -60,31 +60,49 @@ def lookup_gender(word: str, nouns) -> str | None:
     return None
 
 
-def classify(word: str, tagger, nouns) -> dict:
-    """Return a weighted {POS: weight} dict for one payload word."""
+def is_infinitive(word: str) -> bool:
+    """German infinitives end in -en / -eln / -ern (machen, basteln, wandern)."""
+    return word.endswith(("en", "eln", "ern"))
+
+
+def classify(word: str, tagger, nouns):
+    """Return (weighted {POS: weight}, gender_override_or_None) for one word.
+
+    Because a payload word can never change form (it carries bits and decode
+    filters on the exact wordlist), verbs are tagged into positions where their
+    citation form is grammatical, not conjugated:
+
+      * infinitives  -> nominalized neuter nouns ("das Abwarten"): tagged N/n
+      * participles  -> predicative adjectives ("ist erhalten"):    tagged Adj
+      * finite forms -> kept as finite verbs (baut, ankommt):       tagged V
+    """
     _lemma, tag = tagger.analyze(word, taglevel=1)
     m = map_stts(tag)
     is_noun = bool(nouns[word.capitalize()])
 
-    # Garbage tags (FM foreign, XY non-word, PTKVZ particle, CARD, etc.):
-    # trust the noun lexicon first, then fall back to morphology.
-    if m not in ("N", "V", "Adj", "Adv", "Prep", "Conj", "Pron"):
-        if is_noun:
-            return {"N": 1.0}
-        if word.endswith(("en", "eln", "ern", "ieren")):
-            return {"V": 1.0}
-        return {"Adj": 1.0}
-
-    # Clean content tag from HanTa.
-    if m == "N":
-        return {"N": 1.0}
-
-    # HanTa picked a non-noun reading. If the lexicon also knows it as a noun
-    # (kraft/Kraft, laut/Laut, paar/Paar ...), the noun reading dominates in a
-    # word-list context; keep the alternate reading as a secondary sense.
+    # A genuine noun in the lexicon: keep it a noun (its citation form is the
+    # nominative singular, which is grammatical in subject/object position).
     if is_noun:
-        return {"N": 0.6, m: 0.4}
-    return {m: 1.0}
+        if m == "N":
+            return {"N": 1.0}, None
+        # HanTa read it as something else but the lexicon knows it as a noun
+        # (kraft/Kraft, laut/Laut ...): noun reading dominates in a word list.
+        if m in ("V", "Adj", "Adv", "Prep", "Conj", "Pron"):
+            return {"N": 0.6, m: 0.4}, None
+        return {"N": 1.0}, None
+
+    # Not a lexicon noun. Resolve verbs by form so the citation stays grammatical.
+    if tag.startswith("VV(PP)"):
+        return {"Adj": 1.0}, None          # past participle -> predicative
+    if is_infinitive(word):
+        return {"N": 1.0}, "n"             # infinitive -> nominalized (neuter)
+    if m == "V":
+        return {"V": 1.0}, None            # genuine finite form (baut, ankommt)
+    if m in ("Adj", "Adv", "Prep", "Conj", "Pron"):
+        return {m: 1.0}, None
+
+    # Garbage tag (FM/XY), not a noun, not an infinitive: treat as adjective.
+    return {"Adj": 1.0}, None
 
 
 def main() -> None:
@@ -108,19 +126,22 @@ def main() -> None:
         f"# Total words: {len(words)}",
         "",
     ]
+    nominalized = 0
     for w in words:
-        tags = classify(w, tagger, nouns)
+        tags, gender_override = classify(w, tagger, nouns)
         for p in tags:
             dist[p] += 1
         lines.append(f"{w}:")
         for pos, weight in tags.items():
             lines.append(f"  {pos}: {weight}")
-        # Annotate gender for anything the noun lexicon recognizes (the
-        # agreement pass only consults it for words landing in N slots).
-        gender = lookup_gender(w, nouns)
-        if gender:
+        # Gender for the agreement pass: an explicit override (nominalized
+        # infinitives are always neuter), else the noun lexicon's genus.
+        gender = gender_override or lookup_gender(w, nouns)
+        if gender and "N" in tags:
             lines.append(f"  gender: {gender}")
             gender_count += 1
+        if gender_override:
+            nominalized += 1
 
     with open(dst, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
@@ -128,6 +149,7 @@ def main() -> None:
     print(f"wrote {dst}: {len(words)} words")
     print("POS distribution (tag occurrences):", dict(dist))
     print(f"words with gender: {gender_count}")
+    print(f"nominalized infinitives (verb->neuter noun): {nominalized}")
 
 
 if __name__ == "__main__":

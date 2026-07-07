@@ -88,7 +88,8 @@ abteil:
   N: 1.0
   gender: n
 abwarten:
-  V: 1.0
+  N: 1.0
+  gender: n
 abwehr:
   N: 1.0
   gender: f
@@ -126,7 +127,8 @@ agent:
   N: 1.0
   gender: m
 agieren:
-  V: 1.0
+  N: 1.0
+  gender: n
 ahnen:
   N: 0.6
   V: 0.4
@@ -226,7 +228,8 @@ anbau:
   N: 1.0
   gender: m
 anbieten:
-  V: 1.0
+  N: 1.0
+  gender: n
 anblick:
   N: 1.0
   gender: m
@@ -253,7 +256,8 @@ angst:
 anhand:
   Prep: 1.0
 anheben:
-  V: 1.0
+  N: 1.0
+  gender: n
 anhieb:
   N: 1.0
   gender: m
@@ -272,14 +276,17 @@ anlage:
   N: 1.0
   gender: f
 anleiten:
-  V: 1.0
+  N: 1.0
+  gender: n
 anliegen:
   N: 1.0
   gender: n
 anmelden:
-  V: 1.0
+  N: 1.0
+  gender: n
 annehmen:
-  V: 1.0
+  N: 1.0
+  gender: n
 annonce:
   N: 1.0
   gender: f
@@ -287,7 +294,8 @@ anomalie:
   N: 1.0
   gender: f
 anpassen:
-  V: 1.0
+  N: 1.0
+  gender: n
 anregung:
   N: 1.0
   gender: f
@@ -565,7 +573,8 @@ bass:
   N: 1.0
   gender: m
 basteln:
-  V: 1.0
+  N: 1.0
+  gender: n
 batterie:
   N: 1.0
   gender: f
@@ -596,7 +605,8 @@ bauzaun:
   N: 1.0
   gender: m
 beachten:
-  V: 1.0
+  N: 1.0
+  gender: n
 beamte:
   N: 1.0
   gender: m
@@ -622,16 +632,19 @@ bedenken:
   V: 0.4
   gender: n
 bedienen:
-  V: 1.0
+  N: 1.0
+  gender: n
 bedroht:
-  V: 1.0
+  Adj: 1.0
 beenden:
-  V: 1.0
+  N: 1.0
+  gender: n
 beere:
   N: 1.0
   gender: f
 befahren:
-  V: 1.0
+  N: 1.0
+  gender: n
 befehl:
   N: 1.0
   gender: m
@@ -640,25 +653,27 @@ befinden:
   V: 0.4
   gender: n
 befragen:
-  V: 1.0
+  N: 1.0
+  gender: n
 befund:
   N: 1.0
   gender: m
 begabt:
   V: 1.0
 begeben:
-  V: 1.0
+  Adj: 1.0
 beginn:
   N: 1.0
   gender: m
 begonnen:
-  V: 1.0
+  Adj: 1.0
 begriff:
   N: 0.6
   V: 0.4
   gender: m
 behalten:
-  V: 1.0
+  N: 1.0
+  gender: n
 beide:
   Pron: 1.0
 beifall:
@@ -688,13 +703,17 @@ beitrag:
 bekannt:
   Adj: 1.0
 bekennen:
-  V: 1.0
+  N: 1.0
+  gender: n
 beklagen:
-  V: 1.0
+  N: 1.0
+  gender: n
 bekommen:
-  V: 1.0
+  N: 1.0
+  gender: n
 belasten:
-  V: 1.0
+  N: 1.0
+  gender: n
 belegen:
   N: 0.6
   V: 0.4
@@ -702,20 +721,23 @@ belegen:
 beliebt:
   Adj: 1.0
 belohnen:
-  V: 1.0
+  N: 1.0
+  gender: n
 bemerkt:
-  V: 1.0
+  Adj: 1.0
 benannt:
-  V: 1.0
+  Adj: 1.0
 benutzen:
-  V: 1.0
+  N: 1.0
+  gender: n
 benzin:
   N: 1.0
   gender: n
 bequem:
   Adj: 1.0
 beraten:
-  V: 1.0
+  N: 1.0
+  gender: n
 bereich:
   N: 1.0
   gender: m
@@ -738,7 +760,8 @@ besitz:
   N: 1.0
   gender: m
 besorgen:
-  V: 1.0
+  N: 1.0
+  gender: n
 besser:
   Adj: 1.0
 bestand:
@@ -768,16 +791,20 @@ beute:
   V: 0.4
   gender: f
 bewahren:
-  V: 1.0
+  N: 1.0
+  gender: n
 bewegen:
-  V: 1.0
+  N: 1.0
+  gender: n
 bewirken:
-  V: 1.0
+  N: 1.0
+  gender: n
 bewohner:
   N: 1.0
   gender: m
 bezahlen:
-  V: 1.0
+  N: 1.0
+  gender: n
 bezirk:
   N: 1.0
   gender: m
@@ -801,7 +828,8 @@ biest:
   N: 1.0
   gender: n
 bieten:
-  V: 1.0
+  N: 1.0
+  gender: n
 bilanz:
   N: 1.0
   gender: f
@@ -815,7 +843,8 @@ binden:
   V: 0.4
   gender: f
 binnen:
-  Prep: 1.0
+  N: 1.0
+  gender: n
 biologie:
   N: 1.0
   gender: f
@@ -876,7 +905,8 @@ bohne:
   N: 1.0
   gender: f
 bohren:
-  V: 1.0
+  N: 1.0
+  gender: n
 boje:
   N: 1.0
   gender: f
@@ -907,12 +937,13 @@ boxen:
   V: 0.4
   gender: n
 boxring:
-  N: 1.0
+  Adj: 1.0
 boykott:
   N: 1.0
   gender: m
 brachten:
-  V: 1.0
+  N: 1.0
+  gender: n
 brand:
   N: 1.0
   gender: m
@@ -927,7 +958,8 @@ braun:
 brav:
   Adj: 1.0
 brechen:
-  V: 1.0
+  N: 1.0
+  gender: n
 brei:
   N: 1.0
   gender: m
@@ -936,7 +968,8 @@ bremsen:
   V: 0.4
   gender: n
 brennen:
-  V: 1.0
+  N: 1.0
+  gender: n
 brett:
   N: 1.0
   gender: n
@@ -947,7 +980,8 @@ brille:
   N: 1.0
   gender: f
 bringen:
-  V: 1.0
+  N: 1.0
+  gender: n
 brisant:
   Adj: 1.0
 brokkoli:
@@ -1008,9 +1042,10 @@ butter:
   N: 1.0
   gender: f
 campen:
-  V: 1.0
-caravan:
   N: 1.0
+  gender: n
+caravan:
+  Adj: 1.0
 chance:
   N: 1.0
   gender: f
@@ -1027,7 +1062,8 @@ chemie:
   N: 1.0
   gender: f
 chillen:
-  V: 1.0
+  N: 1.0
+  gender: n
 chlor:
   N: 1.0
   gender: n
@@ -1069,7 +1105,8 @@ dampf:
   N: 1.0
   gender: m
 danken:
-  V: 1.0
+  N: 1.0
+  gender: n
 darm:
   N: 1.0
   gender: m
@@ -1106,7 +1143,8 @@ defizit:
   N: 1.0
   gender: n
 dehnen:
-  V: 1.0
+  N: 1.0
+  gender: n
 deich:
   N: 1.0
   gender: m
@@ -1136,7 +1174,8 @@ detektiv:
   N: 1.0
   gender: m
 deuten:
-  V: 1.0
+  N: 1.0
+  gender: n
 devise:
   N: 1.0
   gender: f
@@ -1260,7 +1299,8 @@ drucker:
   N: 1.0
   gender: m
 ducken:
-  V: 1.0
+  N: 1.0
+  gender: n
 duell:
   N: 1.0
   gender: n
@@ -1368,7 +1408,8 @@ einkauf:
   N: 1.0
   gender: m
 einladen:
-  V: 1.0
+  N: 1.0
+  gender: n
 einmal:
   Adv: 1.0
 einnahme:
@@ -1466,14 +1507,15 @@ ente:
   N: 1.0
   gender: f
 entgegen:
-  V: 1.0
+  N: 1.0
+  gender: n
 entlang:
   Prep: 1.0
 entwurf:
   N: 1.0
   gender: m
 entzogen:
-  V: 1.0
+  Adj: 1.0
 epoche:
   N: 1.0
   gender: f
@@ -1481,7 +1523,7 @@ erbe:
   N: 1.0
   gender: n
 erbracht:
-  V: 1.0
+  Adj: 1.0
 erbse:
   N: 1.0
   gender: f
@@ -1501,35 +1543,42 @@ ereignis:
   N: 1.0
   gender: n
 erfassen:
-  V: 1.0
+  N: 1.0
+  gender: n
 erfinden:
-  V: 1.0
+  N: 1.0
+  gender: n
 erfolg:
   N: 1.0
   gender: m
 erfreuen:
-  V: 1.0
+  N: 1.0
+  gender: n
 ergebnis:
   N: 1.0
   gender: n
 erhalten:
-  V: 1.0
+  Adj: 1.0
 erheben:
-  V: 1.0
+  N: 1.0
+  gender: n
 erholung:
   N: 1.0
   gender: f
 erinnern:
-  V: 1.0
+  N: 1.0
+  gender: n
 erkennen:
-  V: 1.0
+  N: 1.0
+  gender: n
 erlauben:
-  V: 1.0
+  N: 1.0
+  gender: n
 erlebnis:
   N: 1.0
   gender: n
 erlitten:
-  V: 1.0
+  Adj: 1.0
 erneut:
   Adj: 1.0
 ernst:
@@ -1540,20 +1589,26 @@ ernte:
   N: 1.0
   gender: f
 erobern:
-  V: 1.0
+  N: 1.0
+  gender: n
 erproben:
-  V: 1.0
+  N: 1.0
+  gender: n
 erregen:
-  V: 1.0
+  N: 1.0
+  gender: n
 ersatz:
   N: 1.0
   gender: m
 ersetzen:
-  V: 1.0
+  N: 1.0
+  gender: n
 ersparen:
-  V: 1.0
+  N: 1.0
+  gender: n
 erteilen:
-  V: 1.0
+  N: 1.0
+  gender: n
 ertrag:
   N: 1.0
   gender: m
@@ -1566,15 +1621,16 @@ erwerben:
   V: 0.4
   gender: m
 erwiesen:
-  V: 1.0
+  Adj: 1.0
 erworben:
-  V: 1.0
+  Adj: 1.0
 erzeugen:
   N: 0.6
   V: 0.4
   gender: n
 erzielen:
-  V: 1.0
+  N: 1.0
+  gender: n
 esel:
   N: 1.0
   gender: m
@@ -1640,7 +1696,8 @@ express:
   N: 1.0
   gender: m
 extern:
-  Adj: 1.0
+  N: 1.0
+  gender: n
 extrem:
   N: 0.6
   Adj: 0.4
@@ -1738,7 +1795,8 @@ feder:
   N: 1.0
   gender: f
 fegen:
-  V: 1.0
+  N: 1.0
+  gender: n
 fehler:
   N: 1.0
   gender: m
@@ -1770,7 +1828,8 @@ fenster:
 ferien:
   N: 1.0
 fern:
-  Adj: 1.0
+  N: 1.0
+  gender: n
 ferse:
   N: 1.0
   gender: f
@@ -1819,7 +1878,8 @@ finale:
   Adj: 0.4
   gender: n
 finden:
-  V: 1.0
+  N: 1.0
+  gender: n
 finger:
   N: 1.0
   gender: m
@@ -1898,7 +1958,8 @@ folie:
   N: 1.0
   gender: f
 fordern:
-  V: 1.0
+  N: 1.0
+  gender: n
 forelle:
   N: 1.0
   gender: f
@@ -2027,14 +2088,15 @@ gazelle:
   N: 1.0
   gender: f
 geben:
-  V: 1.0
+  N: 1.0
+  gender: n
 gebiet:
   N: 1.0
   gender: n
 geboren:
-  V: 1.0
+  Adj: 1.0
 gebracht:
-  V: 1.0
+  Adj: 1.0
 geburt:
   N: 1.0
   gender: f
@@ -2101,11 +2163,12 @@ gelee:
   V: 0.4
   gender: n
 gelten:
-  V: 1.0
+  N: 1.0
+  gender: n
 gelungen:
-  V: 1.0
+  Adj: 1.0
 gemacht:
-  V: 1.0
+  Adj: 1.0
 gemein:
   N: 0.6
   Adj: 0.4
@@ -2132,7 +2195,8 @@ gericht:
   N: 1.0
   gender: n
 gern:
-  Adv: 1.0
+  N: 1.0
+  gender: n
 gerste:
   N: 1.0
   gender: f
@@ -2140,7 +2204,7 @@ geruch:
   N: 1.0
   gender: m
 gesamt:
-  V: 1.0
+  Adj: 1.0
 geschenk:
   N: 1.0
   gender: n
@@ -2159,7 +2223,7 @@ gestalt:
 gesund:
   Adj: 1.0
 getan:
-  V: 1.0
+  Adj: 1.0
 getreide:
   N: 1.0
   gender: n
@@ -2173,7 +2237,7 @@ gewitter:
   N: 1.0
   gender: n
 gewonnen:
-  V: 1.0
+  Adj: 1.0
 giebel:
   N: 1.0
   gender: m
@@ -2454,7 +2518,8 @@ heft:
   N: 1.0
   gender: n
 heilen:
-  V: 1.0
+  N: 1.0
+  gender: n
 heim:
   N: 1.0
   gender: n
@@ -2472,7 +2537,8 @@ held:
   N: 1.0
   gender: m
 helfen:
-  V: 1.0
+  N: 1.0
+  gender: n
 hell:
   Adj: 1.0
 helm:
@@ -2522,7 +2588,8 @@ hinsicht:
   N: 1.0
   gender: f
 hinten:
-  Adv: 1.0
+  N: 1.0
+  gender: n
 hinweis:
   N: 1.0
   gender: m
@@ -2543,11 +2610,13 @@ hoch:
   Adj: 0.4
   gender: n
 hoffen:
-  V: 1.0
+  N: 1.0
+  gender: n
 hohl:
   Adj: 1.0
 holen:
-  V: 1.0
+  N: 1.0
+  gender: n
 holunder:
   N: 1.0
   gender: m
@@ -2637,7 +2706,8 @@ imker:
 immun:
   Adj: 1.0
 impfen:
-  V: 1.0
+  N: 1.0
+  gender: n
 import:
   N: 1.0
   gender: m
@@ -2659,7 +2729,8 @@ inhalt:
   N: 1.0
   gender: m
 innen:
-  Adv: 1.0
+  N: 1.0
+  gender: n
 insasse:
   N: 1.0
   gender: m
@@ -2684,7 +2755,7 @@ irrtum:
   N: 1.0
   gender: m
 isoliert:
-  V: 1.0
+  Adj: 1.0
 jacht:
   N: 1.0
   gender: f
@@ -2695,7 +2766,8 @@ jagd:
   N: 1.0
   gender: f
 jagen:
-  V: 1.0
+  N: 1.0
+  gender: n
 jaguar:
   N: 1.0
   gender: m
@@ -2714,7 +2786,8 @@ jazz:
 jemand:
   Pron: 1.0
 joggen:
-  V: 1.0
+  N: 1.0
+  gender: n
 joghurt:
   N: 1.0
   gender: m
@@ -2862,7 +2935,8 @@ keller:
   N: 1.0
   gender: m
 kennen:
-  V: 1.0
+  N: 1.0
+  gender: n
 keramik:
   N: 1.0
   gender: f
@@ -2951,7 +3025,8 @@ kleid:
   N: 1.0
   gender: n
 klettern:
-  V: 1.0
+  N: 1.0
+  gender: n
 klientel:
   N: 1.0
   gender: f
@@ -3018,7 +3093,8 @@ kollege:
 komisch:
   Adj: 1.0
 kommen:
-  V: 1.0
+  N: 1.0
+  gender: n
 komplett:
   Adj: 1.0
 konflikt:
@@ -3206,7 +3282,8 @@ larve:
   N: 1.0
   gender: f
 lassen:
-  V: 1.0
+  N: 1.0
+  gender: n
 last:
   N: 0.6
   V: 0.4
@@ -3254,7 +3331,8 @@ leer:
   N: 0.6
   Adj: 0.4
 legen:
-  V: 1.0
+  N: 1.0
+  gender: n
 lehm:
   N: 1.0
   gender: m
@@ -3294,7 +3372,8 @@ lemming:
   N: 1.0
   gender: m
 lenken:
-  V: 1.0
+  N: 1.0
+  gender: n
 leopard:
   N: 1.0
   gender: m
@@ -3333,7 +3412,8 @@ lied:
   N: 1.0
   gender: n
 liefern:
-  V: 1.0
+  N: 1.0
+  gender: n
 liegen:
   N: 0.6
   V: 0.4
@@ -3417,7 +3497,8 @@ lyrik:
   N: 1.0
   gender: f
 machen:
-  V: 1.0
+  N: 1.0
+  gender: n
 made:
   N: 1.0
   gender: f
@@ -3435,7 +3516,8 @@ magnet:
   N: 1.0
   gender: m
 mahnen:
-  V: 1.0
+  N: 1.0
+  gender: n
 mais:
   N: 1.0
   gender: m
@@ -3514,7 +3596,7 @@ mehl:
   N: 1.0
   gender: n
 mehrweg:
-  N: 1.0
+  Adj: 1.0
 meinung:
   N: 1.0
   gender: f
@@ -3526,7 +3608,8 @@ melden:
   V: 0.4
   gender: f
 melken:
-  V: 1.0
+  N: 1.0
+  gender: n
 melone:
   N: 1.0
   gender: f
@@ -3737,7 +3820,8 @@ negativ:
   Adj: 0.4
   gender: n
 nehmen:
-  V: 1.0
+  N: 1.0
+  gender: n
 neid:
   N: 1.0
   gender: m
@@ -3748,7 +3832,8 @@ nektar:
   N: 1.0
   gender: m
 nennen:
-  V: 1.0
+  N: 1.0
+  gender: n
 nerven:
   N: 0.6
   V: 0.4
@@ -3829,7 +3914,8 @@ oase:
   N: 1.0
   gender: f
 oben:
-  Adv: 1.0
+  N: 1.0
+  gender: n
 objekt:
   N: 1.0
   gender: n
@@ -3840,7 +3926,8 @@ ofen:
   N: 1.0
   gender: m
 offen:
-  Adj: 1.0
+  N: 1.0
+  gender: n
 ohne:
   Prep: 1.0
 ohren:
@@ -4046,7 +4133,8 @@ pflaume:
   N: 1.0
   gender: f
 pflegen:
-  V: 1.0
+  N: 1.0
+  gender: n
 pflicht:
   N: 1.0
   gender: f
@@ -4162,7 +4250,7 @@ pool:
   N: 1.0
   gender: m
 portrait:
-  N: 1.0
+  Adj: 1.0
 positiv:
   N: 0.6
   Adj: 0.4
@@ -4258,7 +4346,7 @@ putzen:
   V: 0.4
   gender: f
 puzzel:
-  N: 1.0
+  Adj: 1.0
 pyjama:
   N: 1.0
   gender: m
@@ -4394,7 +4482,8 @@ rebell:
   N: 1.0
   gender: m
 rechnen:
-  V: 1.0
+  N: 1.0
+  gender: n
 reden:
   N: 0.6
   V: 0.4
@@ -4525,7 +4614,7 @@ ring:
   N: 1.0
   gender: m
 rinnsaal:
-  N: 1.0
+  Adj: 1.0
 risiko:
   N: 1.0
   gender: n
@@ -4560,7 +4649,7 @@ rohbau:
   N: 1.0
   gender: m
 rohkost:
-  N: 1.0
+  Adj: 1.0
 rohr:
   N: 1.0
   gender: n
@@ -4693,7 +4782,7 @@ sand:
 sanft:
   Adj: 1.0
 saniert:
-  V: 1.0
+  Adj: 1.0
 sardine:
   N: 1.0
   gender: f
@@ -4807,7 +4896,8 @@ sellerie:
   N: 1.0
   gender: m
 selten:
-  Adj: 1.0
+  N: 1.0
+  gender: n
 semester:
   N: 1.0
   gender: n
@@ -4844,7 +4934,8 @@ sessel:
   N: 1.0
   gender: m
 setzen:
-  V: 1.0
+  N: 1.0
+  gender: n
 shop:
   N: 1.0
   gender: m
@@ -4875,7 +4966,8 @@ singen:
   V: 0.4
   gender: n
 sinken:
-  V: 1.0
+  N: 1.0
+  gender: n
 sinn:
   N: 1.0
   gender: m
@@ -4925,7 +5017,8 @@ soja:
 solide:
   Adj: 1.0
 sollen:
-  V: 1.0
+  N: 1.0
+  gender: n
 sommer:
   N: 1.0
   gender: m
@@ -5007,7 +5100,8 @@ sprechen:
   V: 0.4
   gender: n
 springen:
-  V: 1.0
+  N: 1.0
+  gender: n
 sprotte:
   N: 0.6
   Adj: 0.4
@@ -5059,7 +5153,8 @@ steg:
   N: 1.0
   gender: m
 stehen:
-  V: 1.0
+  N: 1.0
+  gender: n
 stein:
   N: 1.0
   gender: m
@@ -5111,7 +5206,8 @@ stolz:
   Adj: 0.4
   gender: m
 stoppen:
-  V: 1.0
+  N: 1.0
+  gender: n
 storch:
   N: 1.0
   gender: m
@@ -5239,7 +5335,8 @@ tarif:
   N: 1.0
   gender: m
 tarnen:
-  V: 1.0
+  N: 1.0
+  gender: n
 tasche:
   N: 1.0
   gender: f
@@ -5260,7 +5357,8 @@ taube:
   Adj: 0.4
   gender: f
 tauchen:
-  V: 1.0
+  N: 1.0
+  gender: n
 tausch:
   N: 0.6
   V: 0.4
@@ -5392,6 +5490,7 @@ topf:
   gender: m
 torbogen:
   N: 1.0
+  gender: n
 torte:
   N: 1.0
   gender: f
@@ -5430,7 +5529,8 @@ treiben:
   V: 0.4
   gender: n
 trennen:
-  V: 1.0
+  N: 1.0
+  gender: n
 treppe:
   N: 1.0
   gender: f
@@ -5438,7 +5538,8 @@ tresor:
   N: 1.0
   gender: m
 treten:
-  V: 1.0
+  N: 1.0
+  gender: n
 treu:
   Adj: 1.0
 triangel:
@@ -5452,7 +5553,8 @@ trinken:
   V: 0.4
   gender: n
 trocken:
-  Adj: 1.0
+  N: 1.0
+  gender: n
 trommel:
   N: 1.0
   gender: f
@@ -5551,7 +5653,8 @@ umschlag:
   N: 1.0
   gender: m
 umsetzen:
-  V: 1.0
+  N: 1.0
+  gender: n
 umsonst:
   Adv: 1.0
 umstand:
@@ -5590,7 +5693,8 @@ unsinn:
   N: 1.0
   gender: m
 unten:
-  Adv: 1.0
+  N: 1.0
+  gender: n
 unweit:
   Prep: 1.0
 urkunde:
@@ -5651,7 +5755,7 @@ verkehr:
   N: 1.0
   gender: m
 verloren:
-  V: 1.0
+  Adj: 1.0
 vernunft:
   N: 1.0
   gender: f
@@ -5666,7 +5770,7 @@ vertrag:
   N: 1.0
   gender: m
 verwandt:
-  V: 1.0
+  Adj: 1.0
 verzicht:
   N: 1.0
   gender: m
@@ -5763,7 +5867,8 @@ waffel:
   N: 1.0
   gender: f
 wagen:
-  V: 1.0
+  N: 1.0
+  gender: n
 waggon:
   N: 1.0
   gender: m
@@ -5857,7 +5962,8 @@ weizen:
   N: 1.0
   gender: m
 welken:
-  V: 1.0
+  N: 1.0
+  gender: n
 welle:
   N: 1.0
   gender: f
@@ -5876,7 +5982,8 @@ werbung:
   N: 1.0
   gender: f
 werfen:
-  V: 1.0
+  N: 1.0
+  gender: n
 werkzeug:
   N: 1.0
   gender: n
@@ -6046,7 +6153,8 @@ zeichen:
   N: 1.0
   gender: n
 zeigen:
-  V: 1.0
+  N: 1.0
+  gender: n
 zeile:
   N: 1.0
   gender: f
@@ -6078,7 +6186,8 @@ ziege:
   N: 1.0
   gender: f
 ziehen:
-  V: 1.0
+  N: 1.0
+  gender: n
 ziel:
   N: 1.0
   gender: n
@@ -6108,7 +6217,8 @@ zitrone:
   N: 1.0
   gender: f
 zocken:
-  V: 1.0
+  N: 1.0
+  gender: n
 zollfrei:
   Adj: 1.0
 zone:
