@@ -128,7 +128,62 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .err { color:var(--error); font:400 12px/1.4 'IBM Plex Mono',monospace; min-height:1.1em; margin-top:8px; }
 .ok { color:var(--ok); }
 .check { display:flex; align-items:center; gap:9px; font:400 13px/1.4 'Public Sans',sans-serif; color:var(--ink); text-transform:none; letter-spacing:0; margin:22px 0 0; }
-.check input { width:auto; }
+.check input { width:auto; accent-color: var(--accent); }
+.check-row { display:flex; flex-wrap:wrap; align-items:center; gap:10px 20px; margin:22px 0 0; }
+.check-row .check { margin:0; }
+#c-lang { width:auto; max-width:100%; min-width:120px; }
+
+/* compact control rows: cover variant stepper + regenerate payload action */
+.ctl { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:14px 0 0; }
+.ctl .ctl-lab { font:600 10px/1.3 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+.ctl .ctl-lab[title] { cursor:help; }
+.ctl.off { opacity:.4; }
+.ctl.off .stepper { pointer-events:none; }
+.stepper { display:flex; align-items:center; gap:6px; }
+.stepper input[type=number] {
+  width:56px; text-align:center; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:7px;
+  color:var(--ink); font:400 13px/1 'IBM Plex Mono',monospace; padding:8px 6px; -moz-appearance:textfield; appearance:textfield;
+}
+.stepper input[type=number]::-webkit-inner-spin-button, .stepper input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+.stepper input[type=number]:focus { outline:none; border-color:var(--accent); }
+.btn.sm.step { padding:8px 0; min-width:34px; text-align:center; }
+
+/* previous posts render like the reader (bulletin.html): themed prose + decoded */
+.hist-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.hist-status { font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--dim); margin:10px 0 0; }
+.hist-status:empty { margin:0; }
+#c-hist-list { margin-top:16px; display:flex; flex-direction:column; gap:26px; }
+#c-hist-list .hist-bull + .hist-bull { border-top:1px solid var(--rule); padding-top:26px; }
+#c-hist-list .b-meta { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline; font:500 10px/1.2 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--meta); margin-bottom:12px; }
+#c-hist-list .b-subject { color:var(--accent); }
+#c-hist-list .b-id { color:var(--meta); text-transform:none; letter-spacing:.02em; }
+#c-hist-list .b-prose { margin:0; color:var(--ink-soft); }
+body[data-style="letterpress"] #c-hist-list .b-prose { font:italic 300 18px/1.7 'Spectral',serif; }
+body[data-style="midnight"]    #c-hist-list .b-prose { font:300 19px/1.65 'Newsreader',serif; }
+body[data-style="terminal"]    #c-hist-list .b-prose { font:400 13px/1.7 'IBM Plex Mono',monospace; }
+#c-hist-list .pw { color:inherit; font:inherit; border-bottom:none; }
+body[data-hl="on"] #c-hist-list .pw { color:var(--ink); }
+body[data-hl="on"][data-style="letterpress"] #c-hist-list .pw { font-weight:600; font-style:normal; }
+body[data-hl="on"][data-style="midnight"]    #c-hist-list .pw { font-weight:500; }
+body[data-hl="on"][data-style="terminal"]    #c-hist-list .pw { font-weight:600; border-bottom:1px dotted #9a937f; }
+#c-hist-list .b-attr { color:var(--dim); }
+body[data-style="letterpress"] #c-hist-list .b-attr { text-align:right; font:italic 400 13px/1.4 'Spectral',serif; margin-top:8px; }
+body[data-style="midnight"]    #c-hist-list .b-attr { text-align:right; font:italic 300 14px/1.4 'Newsreader',serif; margin-top:9px; }
+body[data-style="terminal"]    #c-hist-list .b-attr { font:400 12px/1.4 'IBM Plex Mono',monospace; margin-top:7px; }
+#c-hist-list .b-decoded { margin-top:14px; }
+body[data-style="letterpress"] #c-hist-list .b-decoded,
+body[data-style="midnight"]    #c-hist-list .b-decoded { padding-left:16px; border-left:2px solid var(--accent); }
+body[data-style="terminal"]    #c-hist-list .b-decoded { background:#17161a; padding:12px 14px; }
+#c-hist-list .b-decoded-label { font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin-bottom:7px; }
+body[data-style="terminal"] #c-hist-list .b-decoded-label { color:#7fd6a0; }
+body[data-style="terminal"] #c-hist-list .b-decoded:not(.locked) .b-decoded-label::after { content:' \2713'; }
+#c-hist-list .b-decoded-text { color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+body[data-style="letterpress"] #c-hist-list .b-decoded-text { font:400 15px/1.55 'Spectral',serif; }
+body[data-style="midnight"]    #c-hist-list .b-decoded-text { font:400 16px/1.55 'Newsreader',serif; color:#f4efe4; }
+body[data-style="terminal"]    #c-hist-list .b-decoded-text { font:400 13px/1.6 'IBM Plex Mono',monospace; color:#f0eee8; }
+#c-hist-list .b-decoded.locked { border-left-color:var(--rule); }
+#c-hist-list .b-decoded.locked .b-decoded-label { color:var(--dim); }
+#c-hist-list .b-decoded.locked .b-decoded-text { color:var(--dim); font-style:italic; }
 
 /* settings disclosure */
 .settings { margin-top:22px; border-top:1px solid var(--rule); padding-top:16px; }
@@ -267,14 +322,13 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span> New bulletin</a>
           <div class="board-actions">
             <span class="n" id="c-head-npub">not yet published</span>
-            <button type="button" class="btn sm" id="c-save" title="Show this board's private key as a Glossia seed phrase to save">💾 Save</button>
             <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂 Load</button>
           </div>
         </div>
         <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
 
         <label>Message</label>
-        <textarea id="c-msg" spellcheck="false" placeholder="Your message…">The pen is mightier than the sword.</textarea>
+        <textarea id="c-msg" spellcheck="false" placeholder="Your message…">Free Samourai</textarea>
 
         <!-- on narrow screens the live preview is moved here, directly below the message -->
         <div id="c-preview-slot"></div>
@@ -286,26 +340,39 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           </summary>
 
           <label>Passphrase <span class="muted">(optional)</span></label>
-          <p class="hint" style="margin:0 0 9px">Sets a memorable key. Anyone with the passphrase can read the bulletin.</p>
           <button type="button" class="btn sm" id="c-pass-btn">Set passphrase</button>
           <div class="entropy" id="c-pass-state"></div>
 
-          <label>Prose language</label>
-          <p class="hint" style="margin:0 0 9px">Which language the prose reads in. The data stays the same.</p>
+          <label>Encoding language</label>
           <select id="c-lang">
             <option value="english">English</option>
             <option value="latin">Latin</option>
             <option value="czech">Czech</option>
           </select>
 
-          <label class="check"><input type="checkbox" id="c-cover" checked> Cover words</label>
-          <p class="hint" style="margin:6px 0 0">Wraps the payload in natural prose. Off = just the payload words, much shorter.</p>
+          <div class="check-row">
+            <label class="check"><input type="checkbox" id="c-cover" checked> Cover words</label>
+            <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words</label>
+          </div>
+
+          <div class="ctl" id="c-cv-row">
+            <span class="ctl-lab" title="Choose a deterministic variation of the cover text. The same number always produces the same wording; the payload words don't change.">Cover variant</span>
+            <span class="stepper">
+              <button type="button" class="btn sm step" id="c-cv-dec" aria-label="Previous cover variant">–</button>
+              <input type="number" id="c-cv" min="0" step="1" value="0" aria-label="Cover variant number">
+              <button type="button" class="btn sm step" id="c-cv-inc" aria-label="Next cover variant">+</button>
+            </span>
+          </div>
+
+          <div class="ctl">
+            <span class="ctl-lab" title="A fresh encryption nonce is used each time, so the payload words change. The cover text stays on the chosen variant.">Payload</span>
+            <button type="button" class="btn sm" id="c-regen" title="A fresh encryption nonce is used each time.">↻ Regenerate</button>
+          </div>
 
           <label>Subject <span class="muted">(optional, public)</span></label>
           <input type="text" id="c-subject" placeholder="label" spellcheck="false">
 
           <label>Reading style</label>
-          <p class="hint" style="margin:0 0 9px">Changes how the bulletin looks to readers. The data stays the same.</p>
           <input type="hidden" id="c-style" value="letterpress">
           <div class="tiles" role="group" aria-label="Reading style">
             <button type="button" class="tile" data-set-style="letterpress"><span class="mini letterpress">Aa</span>Letterpress</button>
@@ -313,11 +380,13 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <button type="button" class="tile" data-set-style="terminal"><span class="mini terminal">A&gt;</span>Terminal</button>
           </div>
 
-          <label class="check"><input type="checkbox" id="c-hl"> Highlight payload words</label>
-
           <label>Relays</label>
           <input type="text" id="c-relays" spellcheck="false">
         </details>
+
+        <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
+        <div class="hint" id="c-status" style="margin-top:10px"></div>
+        <div class="err" id="c-err"></div>
       </div>
       </form>
 
@@ -325,8 +394,9 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         <!-- Keep this — for you -->
         <div class="share keep">
           <label>Keep this <span class="muted">· for you</span></label>
-          <p class="hint" style="margin:0 0 12px">
-            <strong>Bookmark this page</strong> — it's the only way back in to post again. Save the seed phrase for a durable backup.
+          <button type="button" class="btn sm" id="c-bookmark" style="margin:0 0 12px">🔖 Bookmark this board</button>
+          <p class="hint hidden" id="c-bookmark-hint" style="margin:0 0 12px">
+            <strong>Board key added to the address bar.</strong> Bookmark this page now (press <kbd>⌘/Ctrl</kbd>+<kbd>D</kbd>) — the bookmark is your only way back in to post again. Save the seed phrase for a durable backup.
           </p>
           <button type="button" class="btn sm" id="c-save-keep">💾 Save bulletin</button>
         </div>
@@ -392,6 +462,16 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         </details>
       </div>
 
+      <!-- Previous posts — this board's history, fetched from the relays -->
+      <div class="board" id="c-history-card">
+        <div class="hist-head">
+          <label style="margin:0">Previous posts <span class="muted" id="c-hist-count"></span></label>
+          <button type="button" class="btn sm" id="c-hist-refresh" title="Fetch this board's posts from the relays">↻ Refresh</button>
+        </div>
+        <div class="hist-status" id="c-hist-status">Refresh to load this board’s posts from the relays.</div>
+        <div id="c-hist-list"></div>
+      </div>
+
       <div class="note">
         <strong>How it works.</strong> A bulletin is a stream of posts anyone with the link can read; keep your author link to keep posting.
         <details class="qa">
@@ -416,12 +496,9 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <div class="pv-attr" id="c-pv-attr"></div>
           <div class="pv-decoded">
             <div class="pv-dec-label">decoded</div>
-            <div class="pv-dec-text" id="c-pv-msg">The pen is mightier than the sword.</div>
+            <div class="pv-dec-text" id="c-pv-msg">Free Samourai</div>
           </div>
         </div>
-        <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
-        <div class="hint" id="c-status" style="margin-top:10px"></div>
-        <div class="err" id="c-err"></div>
       </div>
     </aside>
   </div>
@@ -482,8 +559,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 </div>
 
 <script type="module">
-import { init, encodeMessage, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
-import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent,
+import { init, sealMessage, renderArtifact, decodeMessage, skimArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, fetchBoard,
          seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
          deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
 import { random_words } from './glossia.js';
@@ -608,6 +685,74 @@ $('c-btn-reader').addEventListener('click', () => {
 // composed bulletin's prose folded into the post body. The prose is the public
 // cover text, so it exposes nothing the board doesn't already publish.
 let lastBody = '';   // the current preview's body, set by regenPreview
+
+// Cache the sealed cipher state so toggling cover words (or switching language /
+// style) re-renders the SAME ciphertext instead of re-encrypting. A fresh seal
+// draws a new random salt, which would change every payload word — the demo never
+// re-encodes on a cover toggle, and neither should we. Re-seal only when the
+// message or the credential actually changes (both fold into the cache key); this
+// also keeps publish identical to the preview the author is looking at.
+let sealCache = null;   // { key: string, state }
+function credFingerprint(cred) {
+  if (typeof cred === 'string') return 's:' + cred;
+  if (cred instanceof Uint8Array) return 'k:' + Array.from(cred).map(b => b.toString(16).padStart(2, '0')).join('');
+  return 'none';
+}
+async function sealFor(msg, cred) {
+  const key = credFingerprint(cred) + '\x00' + msg;
+  if (sealCache && sealCache.key === key) return sealCache.state;
+  const state = await sealMessage(msg, cred);
+  sealCache = { key, state };
+  return state;
+}
+
+// Two independent knobs on what words appear (see renderArtifact):
+//  • Cover variant — a deterministic seed for the cover text. Same number → same
+//    wording, and the payload words never change. It's a live, in-session control
+//    (not persisted): every publish draws a fresh nonce, so a nonce×variant pair is
+//    unique per bulletin and pinning the variant could never reproduce an exact
+//    published wording anyway. No effect when cover words are off.
+//  • Payload — the payload words follow the encryption nonce, a cryptographic
+//    requirement rather than a style choice, so it's exposed as an action
+//    ("Regenerate") that draws a fresh nonce, never as an editable value.
+let coverVariant = 0;
+function coverSeed() { return BigInt(Math.max(0, Math.floor(Number(coverVariant) || 0))); }
+
+// ── nonce-reuse guard ──────────────────────────────────────────────────
+// AES-GCM breaks catastrophically if one (key, nonce) ever encrypts two DIFFERENT
+// messages: it leaks the plaintext XOR and the authentication key. Each seal draws
+// a random 6-byte salt and derives the nonce from (key, salt), so a salt collision
+// under a board's key is the hazard. We keep a per-board ledger of salts already
+// used — persisted in localStorage, keyed by the PUBLIC board id — and, before
+// posting, re-seal if the salt was seen, so a board never reuses a nonce even
+// across sessions on this device. Salts are public (they ride in the trailer), so
+// the ledger stores nothing secret. (48-bit salts collide only around ~2^24 posts,
+// so this practically never fires — it's a hard guarantee, and groundwork for
+// payload variants, which would draw many seals per message.)
+function saltHexOf(state) {
+  // trailer = [flag|len : 2 bytes][salt : 6][tag : 12]; salt is hex chars 4..16
+  return (state && state.trailerHex) ? state.trailerHex.slice(4, 16) : '';
+}
+function saltLedgerKey() { return 'glossia:salts:' + boardIdentity().npub; }
+function loadSaltLedger() {
+  try { return new Set(JSON.parse(localStorage.getItem(saltLedgerKey()) || '[]')); }
+  catch { return new Set(); }
+}
+function recordSalt(hex) {
+  if (!hex) return;
+  const s = loadSaltLedger(); s.add(hex);
+  try { localStorage.setItem(saltLedgerKey(), JSON.stringify([...s])); } catch { /* storage blocked/full — ignore */ }
+}
+// A seal whose salt this board hasn't used before, re-drawing on the rare collision.
+async function freshSeal(msg, cred) {
+  const ledger = loadSaltLedger();
+  let state = await sealFor(msg, cred);
+  for (let i = 0; state.encrypted && ledger.has(saltHexOf(state)) && i < 8; i++) {
+    sealCache = null;                 // drop the cached seal so sealFor draws a new salt
+    state = await sealFor(msg, cred);
+  }
+  return state;
+}
 const SHARE_TEXT = 'An encrypted Glossia bulletin — messages published as natural-language prose on nostr.';
 function sharePost() { return lastBody ? lastBody.replace(/\s+/g, ' ').trim() : SHARE_TEXT; }
 function shareTruncate(s, n) { return s.length <= n ? s : s.slice(0, n - 1).replace(/\s+\S*$/, '').trim() + '…'; }
@@ -705,8 +850,10 @@ document.querySelectorAll('[data-set-style]').forEach(b =>
   b.addEventListener('click', () => applyStyle(b.dataset.setStyle)));
 
 // ── live preview: realtime prose + decoded, exactly as a reader sees it ─
+// The decoded panel (c-pv-msg) is NOT an echo of the input — it shows the message
+// recovered by actually decoding the prose we just generated (see regenPreview), a
+// live round-trip that proves the encoding reverses.
 function syncMeta() {
-  $('c-pv-msg').textContent = $('c-msg').value.trim() || 'Your decrypted message appears here.';
   const subj = $('c-subject').value.trim();   // only show the subject when one is set
   $('c-pv-subject').textContent = subj;
   $('c-pv-subject').classList.toggle('hidden', !subj);
@@ -724,17 +871,28 @@ async function regenPreview() {
   syncMeta();
   updateMode();
   const msg = $('c-msg').value;
-  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; lastBody = ''; updateLen(null); return; }
+  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; $('c-pv-msg').textContent = 'Your decrypted message appears here.'; lastBody = ''; updateLen(null); return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
-    const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
+    const state = await freshSeal(msg, cred);                 // seal once (nonce-reuse-guarded); toggles only re-render
     if (my !== pvToken) return;
+    const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked, seed: coverSeed() });
     const { body, attr } = splitProse(enc.prose);
     $('c-pv-prose').innerHTML = renderProse(body, enc.payloadWords);
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
     lastBody = enc.body;
     updateLen(enc.body);
+    // Live round-trip: decode the artifact we just built and show the recovered
+    // message — a real reversal check, not an echo of the input.
+    try {
+      const dec = await decodeMessage(enc.artifact, cred);
+      if (my !== pvToken) return;
+      $('c-pv-msg').textContent = (dec.message === msg) ? dec.message : '⚠ round-trip mismatch: ' + dec.message;
+    } catch (e) {
+      if (my !== pvToken) return;
+      $('c-pv-msg').textContent = '⚠ could not decode — ' + (e.message || e);
+    }
   } catch (e) {
     if (my !== pvToken) return;
     $('c-pv-prose').textContent = 'Could not generate prose — ' + (e.message || e);
@@ -762,7 +920,26 @@ function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPr
 $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', schedulePreview);
-$('c-cover').addEventListener('change', schedulePreview);
+$('c-cover').addEventListener('change', () => { syncCoverVariantEnabled(); schedulePreview(); });
+
+// ── cover variant (deterministic) + payload regenerate (fresh nonce) ──────
+// Cover variant re-renders from the cached seal, so the payload words stay put; it
+// has no effect when cover words are off, so the stepper is disabled then. Regenerate
+// clears the seal cache so the next render draws a fresh nonce → new payload words.
+function syncCoverVariantEnabled() {
+  const on = $('c-cover').checked;
+  $('c-cv-row').classList.toggle('off', !on);
+  ['c-cv', 'c-cv-dec', 'c-cv-inc'].forEach(id => { $(id).disabled = !on; });
+}
+function setCoverVariant(n) {
+  coverVariant = Math.max(0, Math.floor(Number(n) || 0));
+  $('c-cv').value = String(coverVariant);
+  schedulePreview();
+}
+$('c-cv').addEventListener('input', () => setCoverVariant($('c-cv').value));
+$('c-cv-dec').addEventListener('click', () => setCoverVariant(coverVariant - 1));
+$('c-cv-inc').addEventListener('click', () => setCoverVariant(coverVariant + 1));
+$('c-regen').addEventListener('click', () => { sealCache = null; regenPreview(); });
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
@@ -791,7 +968,7 @@ function updatePassButton() {
   $('c-pass-btn').textContent = customActive() ? 'Update passphrase' : 'Set passphrase';
   const st = $('c-pass-state');
   if (!customActive()) {
-    st.textContent = 'Using this board’s key.'; st.classList.remove('strong');
+    st.textContent = ''; st.classList.remove('strong');
   } else if (customKeyPass) {
     const b = estimateBits(customKeyPass);
     st.textContent = `Custom passphrase set${b ? ` · ≈ ${b}-bit` : ''}.`; st.classList.toggle('strong', b >= 80);
@@ -817,7 +994,7 @@ async function commitPass(pass) {
   updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
   $('c-status').textContent = customActive()
     ? 'Passphrase set — readers can decrypt with it or the reader link.'
-    : 'Using this board’s key.';
+    : '';
 }
 $('c-pass-btn').addEventListener('click', openPassModal);
 $('c-pass-close').addEventListener('click', closePassModal);
@@ -862,9 +1039,10 @@ async function buildBulletin() {
   if (!msg.trim()) throw new Error('Write a message first.');
   const identity = boardIdentity();
   const cred = contentKey();   // board key (hash of nwrite) by default; passphrase-derived read key when custom
-  const enc = await encodeMessage(msg, cred, $('c-lang').value, { cover: $('c-cover').checked });
+  const state = await freshSeal(msg, cred);   // reuse the preview's seal (nonce-reuse-guarded) so publish matches it
+  const enc = renderArtifact(state, $('c-lang').value, { cover: $('c-cover').checked, seed: coverSeed() });
   const ev = buildEvent(identity, enc.artifact, { subject: $('c-subject').value.trim() || undefined });
-  return { identity, enc, ev };
+  return { identity, enc, ev, saltHex: saltHexOf(state) };
 }
 
 function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.slice(-6) : (v || ''); }
@@ -872,8 +1050,8 @@ function shortNpub(v) { return v && v.length > 18 ? v.slice(0, 10) + '…' + v.s
 $('c-publish').addEventListener('click', async () => {
   $('c-err').textContent = ''; $('c-status').textContent = '';
   if (!ready) return;
-  let ev;
-  try { ({ ev } = await buildBulletin()); }
+  let ev, saltHex;
+  try { ({ ev, saltHex } = await buildBulletin()); }
   catch (e) { $('c-err').textContent = e.message || String(e); return; }
   const relays = parseRelays($('c-relays').value);
   if (!relays.length) { $('c-err').textContent = 'Add at least one wss:// relay.'; return; }
@@ -882,15 +1060,66 @@ $('c-publish').addEventListener('click', async () => {
   try {
     const results = await publishEvent(ev, relays);
     const okN = results.filter(r => r.ok).length;
+    if (okN) recordSalt(saltHex);   // this salt is now spent for this board — never reuse its nonce
     $('c-relay-results').innerHTML = '<label>Relay results</label>' + results.map(r =>
       `<div class="relay-line ${r.ok ? 'ok' : 'muted'}">${r.ok ? '✓' : '✗'} ${escapeHtml(r.relay)} <span class="muted">${escapeHtml(r.message || '')}</span></div>`
     ).join('');
     $('c-status').innerHTML = okN
       ? `<span class="ok">Published to ${okN}/${results.length} relays.</span> Share the read link.`
       : '<span class="err">No relay accepted the event. Try different relays.</span>';
+    if (okN) { sealCache = null; loadHistory(); }   // refresh the board's post history (and start a fresh draft nonce)
   } catch (e) { $('c-err').textContent = e.message || String(e); }
   finally { $('c-publish').disabled = false; }
 });
+
+// ── previous posts: fetch this board's history from the relays ─────────
+// The board's own key decodes its posts, so they show as plaintext; posts under a
+// different key (e.g. an old passphrase) stay locked with their prose. Fetching
+// also seeds the nonce ledger from every published salt, extending the reuse guard
+// to whatever this board has posted — across devices, not just this browser.
+function fmtDate(ts) { try { return new Date(ts * 1000).toLocaleString(); } catch { return ''; } }
+
+// Render a post the way the reader (bulletin.html) does: meta line, themed prose
+// with payload words highlighted, right-aligned attribution, and a decoded block.
+async function renderHistItem(ev, cred) {
+  const when = escapeHtml(fmtDate(ev.created_at));
+  const subjTag = (ev.tags || []).find(t => t[0] === 'subject');
+  const subject = subjTag ? escapeHtml(subjTag[1]) : '';
+  const id = escapeHtml(ev.id.slice(0, 8)) + '…';
+  const meta = `<div class="b-meta"><span>${when}</span>${subject ? `<span class="b-subject">${subject}</span>` : ''}<span class="b-id">${id}</span></div>`;
+  let dec = null;
+  try { dec = await decodeMessage(ev.content, cred); } catch { /* not ours / different key */ }
+  const skim = skimArtifact(ev.content);
+  const src = dec || skim;                                    // decoded gives payload words too; else skim
+  const { body, attr } = splitProse(src.prose || ev.content);
+  const proseHtml = renderProse(body, (dec ? dec.payloadWords : skim.payloadWords) || []);
+  const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
+  const decoded = dec
+    ? `<div class="b-decoded"><div class="b-decoded-label">decoded</div><div class="b-decoded-text">${escapeHtml(dec.message)}</div></div>`
+    : `<div class="b-decoded locked"><div class="b-decoded-label">locked</div><div class="b-decoded-text">🔒 encrypted with a different key</div></div>`;
+  return `<article class="hist-bull">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}</article>`;
+}
+
+let histToken = 0;
+async function loadHistory() {
+  const my = ++histToken;
+  const relays = parseRelays($('c-relays').value);
+  if (!relays.length) { $('c-hist-status').textContent = 'Add a wss:// relay to load previous posts.'; return; }
+  $('c-hist-status').textContent = 'Loading previous posts…';
+  let events = [];
+  try { events = await fetchBoard(boardIdentity().npub, relays); }
+  catch { if (my === histToken) $('c-hist-status').textContent = 'Could not reach the relays.'; return; }
+  if (my !== histToken) return;
+  for (const ev of events) { const s = skimArtifact(ev.content).saltHex; if (s) recordSalt(s); }   // seed the nonce ledger
+  $('c-hist-count').textContent = events.length ? `· ${events.length}` : '';
+  if (!events.length) { $('c-hist-status').textContent = 'No posts found on the connected relays yet.'; $('c-hist-list').innerHTML = ''; return; }
+  $('c-hist-status').textContent = '';
+  const cred = contentKey();
+  const rows = await Promise.all(events.map(ev => renderHistItem(ev, cred)));
+  if (my !== histToken) return;
+  $('c-hist-list').innerHTML = rows.join('');
+}
+$('c-hist-refresh').addEventListener('click', loadHistory);
 
 $('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(contentNread()).catch(() => {}));
 $('c-copy-nsec').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nwrite).catch(() => {}));
@@ -941,8 +1170,16 @@ function openSaveDialog() {
     : 'The key never leaves your device. The seed phrase carries a checksum, so a mistyped word is caught when you load it back.';
   showModal('save');
 }
-$('c-save').addEventListener('click', openSaveDialog);
 $('c-save-keep').addEventListener('click', openSaveDialog);
+
+// "Bookmark this board" folds the write key into the address bar (see writeHash)
+// and reveals the instruction to bookmark the page — the nwrite is kept out of the
+// URL until the author explicitly opts in.
+$('c-bookmark').addEventListener('click', () => {
+  bookmarkArmed = true;
+  writeHash();
+  $('c-bookmark-hint').classList.remove('hidden');
+});
 $('c-seed-copy').addEventListener('click', () => { if (currentSeed) navigator.clipboard.writeText(currentSeed).catch(() => {}); });
 $('c-seed-download').addEventListener('click', () => {
   if (!currentSeed) return;
@@ -998,19 +1235,29 @@ function restoreBoard(id, readKey = null) {
   $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
   $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
   updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
+  loadHistory();                                // a restored board likely has posts — show them
 }
 
 // keep the share links + address bar in sync when the reading style changes
 $('c-style').addEventListener('change', () => { updateLinks(); writeHash(); });
 
-// ── the address bar IS the board: compose.html#nwrite…&style=… ─────────
-// Writing the board into the hash makes the page bookmarkable — reopening the
-// bookmark restores the same board so you can keep publishing to it. The hash
-// fragment is never sent to the server.
+// ── the address bar as an opt-in board bookmark: compose.html#nwrite…&style=… ─
+// The write key (nwrite) is the board's posting credential, so it is NOT put in
+// the URL by default — that would leave it in history, screenshots, and shared
+// links. "Bookmark this board" arms bookmarkArmed, which folds the nwrite into the
+// hash so the page can be bookmarked and reopened to keep publishing. Boards opened
+// from an existing bookmark stay armed (see loadFromHash) so refresh keeps working.
+// The hash fragment is never sent to the server. Style, reading prefs and the
+// derived read key (never the raw passphrase) always ride along.
+let bookmarkArmed = false;
 function writeHash() {
   const k = customActive() ? contentNread() : '';   // carry the derived read key (nread), never the raw passphrase
-  const hash = '#' + boardIdentity().nwrite + '&style=' + ($('c-style').value || 'letterpress')
-    + (k ? '&key=' + encodeURIComponent(k) : '') + hlParam();
+  const parts = [];
+  if (bookmarkArmed) parts.push(boardIdentity().nwrite);   // the posting key — only after "Bookmark this board"
+  parts.push('style=' + ($('c-style').value || 'letterpress'));
+  if (k) parts.push('key=' + encodeURIComponent(k));
+  if (hlOn()) parts.push('hl=1');
+  const hash = '#' + parts.join('&');
   if (location.hash !== hash) history.replaceState(null, '', hash);
 }
 let hashKey = '';   // a custom passphrase carried in the opened author link, if any
@@ -1023,8 +1270,8 @@ function loadFromHash() {
   const wm = raw.match(/nwrite1[0-9a-z]+/i);
   const nm = raw.match(/nsec1[0-9a-z]+/i);
   try {
-    if (wm) applyLoadedIdentity(identityFromNwrite(wm[0]));
-    else if (nm) applyLoadedIdentity(identityFromNsec(nm[0]));
+    if (wm) { applyLoadedIdentity(identityFromNwrite(wm[0])); bookmarkArmed = true; }
+    else if (nm) { applyLoadedIdentity(identityFromNsec(nm[0])); bookmarkArmed = true; }
   } catch { /* malformed write key — ignore, start a fresh board */ }
   const keyM = raw.match(/(?:^|&)key=([^&]*)/i);
   if (keyM && keyM[1]) { try { hashKey = decodeURIComponent(keyM[1]); } catch { hashKey = keyM[1]; } }
@@ -1060,8 +1307,10 @@ loadFromHash();
   updateMode();
   updateLinks();
   applyStyle($('c-style').value);   // mark the default reading-style tile selected
-  writeHash();                      // pin the board in the address bar so it's bookmarkable
+  syncCoverVariantEnabled();         // gray out the cover variant stepper when cover words are off
+  writeHash();                      // sync style/prefs (and the write key, if opened from a bookmark) into the URL
   schedulePreview();
+  if (bookmarkArmed) loadHistory();   // opened from a bookmark/author link — this board likely has posts
 })();
 </script>
 </body>

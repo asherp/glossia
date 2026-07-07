@@ -177,6 +177,19 @@ export const EMDASH = ' — ';
 
 function capWords(s) { return s.replace(/(^|\s)(\p{L})/gu, (_, sp, c) => sp + c.toUpperCase()); }
 
+// Slim a body's prose down to just its payload words, in order — dropping the
+// cover words. The decoder filters prose against the wordlist, so the result
+// still decodes to the same bytes; payload words are lowercased to their
+// canonical wordlist form. Used for the cover-off view (see renderArtifact).
+function payloadOnlyProse(prose, words) {
+  const set = new Set((words || []).map(w => w.toLowerCase()));
+  return prose.split(/\s+/)
+    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(t => t && set.has(t.toLowerCase()))
+    .map(t => t.toLowerCase())
+    .join(' ');
+}
+
 // ─── public API ───────────────────────────────────────────────────────
 
 // Phase 1 — encrypt (or just pack, with no credential) into an opaque, language-
@@ -216,13 +229,27 @@ export async function sealMessage(message, cred) {
 // still decodes (the decoder filters prose against the wordlist either way), so
 // a bulletin can be slimmed to fit tight length limits. The Latin trailer is
 // already just its payload words, so it is unaffected.
-export function renderArtifact(state, langId = 'english', { cover = true } = {}) {
+//
+// The body is ALWAYS encoded with the full grammar (lang.dialect): the base-n
+// codec is grammar-controlled (payload words differ per dialect, and the decoder
+// always decodes with the "body" grammar), so re-encoding with a bare dialect
+// would change the payload words. Instead, cover-off just drops the cover words
+// from the already-generated prose — the payload words are byte-identical either
+// way (mirrors index.html's cover toggle, which re-renders rather than re-encodes).
+//
+// `seed` (default SEED) picks a deterministic cover variation: the RNG only drives
+// cover-word choice and sentence shape, NOT the payload words (those come from the
+// ciphertext bytes via the grammar codec), so changing it re-wraps the SAME payload
+// in different prose. Same seed + same state always yields identical prose, so a
+// "cover variant" is a stable, reproducible parameter. The trailer stays on the base
+// SEED so the Latin attribution doesn't shift as the body variant changes.
+export function renderArtifact(state, langId = 'english', { cover = true, seed = SEED } = {}) {
   const lang = msgLangById(langId);
-  const bodyDialect = cover ? lang.dialect : '';
-  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, bodyDialect, SEED));
+  const bodySeed = typeof seed === 'bigint' ? seed : BigInt(seed);
+  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed));
   if (bodyR.error) throw new Error(bodyR.error);
-  const body = (bodyR.encoded_text || '').trim();
   const bodyWords = bodyR.payload_words || [];
+  const body = cover ? (bodyR.encoded_text || '').trim() : payloadOnlyProse(bodyR.encoded_text || '', bodyWords);
   if (!state.encrypted) {
     return { artifact: body, prose: body, body, trailer: '', bodyWords, trailerWords: [], payloadWords: bodyWords, langId: lang.id, encrypted: false };
   }
@@ -307,10 +334,13 @@ export async function decodeMessage(artifact, cred) {
 // rendered with its payload words highlighted. The prose→word mapping is
 // deterministic from the wordlist and the public trailer, so no key is needed —
 // only the final AES-GCM step (in decodeMessage) requires the credential.
-// Returns { prose, body, trailer, payloadWords, encrypted }. Never throws.
+// Returns { prose, body, trailer, payloadWords, encrypted, saltHex }. The saltHex
+// is the encryption salt recovered from the public trailer (empty when unencrypted
+// or unreadable) — callers can use it to detect/avoid nonce reuse without the key.
+// Never throws.
 export function skimArtifact(artifact) {
   const text = (artifact || '').trim();
-  if (!text) return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false };
+  if (!text) return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false, saltHex: '' };
 
   // Authenticated form: "<body> — <latin attribution>".
   const di = text.lastIndexOf(EMDASH);
@@ -323,19 +353,20 @@ export function skimArtifact(artifact) {
       const tb = fromHex(tR.decoded_hex || '');
       if (tb.length < AEAD_TRAILER_LEN) throw new Error('bad trailer');
       const ctlen = ((tb[0] << 8) | tb[1]) & AEAD_MAX_CTLEN;
+      const saltHex = toHex(tb.subarray(2, 2 + AEAD_SALT_LEN));
       const lang = msgLangById(detectLang(body));
       const bR = JSON.parse(wasmDecodeRawBaseN(body, lang.language, lang.wordlist, ctlen));
       const words = (bR.payload_words || []).concat(tR.payload_words || []);
-      return { prose: text, body, trailer, payloadWords: words, encrypted: true };
-    } catch { return { prose: text, body, trailer, payloadWords: [], encrypted: true }; }
+      return { prose: text, body, trailer, payloadWords: words, encrypted: true, saltHex };
+    } catch { return { prose: text, body, trailer, payloadWords: [], encrypted: true, saltHex: '' }; }
   }
 
   // Bare, unencrypted prose.
   try {
     const lang = msgLangById(detectLang(text));
     const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, 0));
-    return { prose: text, body: text, trailer: '', payloadWords: r.payload_words || [], encrypted: false };
-  } catch { return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false }; }
+    return { prose: text, body: text, trailer: '', payloadWords: r.payload_words || [], encrypted: false, saltHex: '' };
+  } catch { return { prose: text, body: text, trailer: '', payloadWords: [], encrypted: false, saltHex: '' }; }
 }
 
 // Decode the authenticated "<body> — <attribution>" form. GCM verifies the tag,
