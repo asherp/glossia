@@ -148,16 +148,42 @@ input::placeholder, textarea::placeholder { color:var(--dim); opacity:.7; }
 .stepper input[type=number]:focus { outline:none; border-color:var(--accent); }
 .btn.sm.step { padding:8px 0; min-width:34px; text-align:center; }
 
-/* previous posts (board history) */
+/* previous posts render like the reader (bulletin.html): themed prose + decoded */
 .hist-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .hist-status { font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--dim); margin:10px 0 0; }
 .hist-status:empty { margin:0; }
-.hist-item { border:1px solid var(--rule); border-radius:9px; padding:12px 14px; margin-top:12px; }
-.hist-meta { display:flex; gap:10px; flex-wrap:wrap; align-items:baseline; font:400 11px/1.3 'IBM Plex Mono',monospace; color:var(--dim); margin-bottom:6px; }
-.hist-meta .hist-subject { color:var(--accent); }
-.hist-msg { font:400 14px/1.5 'Public Sans',sans-serif; color:var(--ink); white-space:pre-wrap; word-break:break-word; }
-.hist-msg.locked { color:var(--dim); font-style:italic; }
-.hist-prose { font:400 12.5px/1.5 'Public Sans',sans-serif; color:var(--dim); margin-top:6px; }
+#c-hist-list { margin-top:16px; display:flex; flex-direction:column; gap:26px; }
+#c-hist-list .hist-bull + .hist-bull { border-top:1px solid var(--rule); padding-top:26px; }
+#c-hist-list .b-meta { display:flex; gap:12px; flex-wrap:wrap; align-items:baseline; font:500 10px/1.2 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--meta); margin-bottom:12px; }
+#c-hist-list .b-subject { color:var(--accent); }
+#c-hist-list .b-id { color:var(--meta); text-transform:none; letter-spacing:.02em; }
+#c-hist-list .b-prose { margin:0; color:var(--ink-soft); }
+body[data-style="letterpress"] #c-hist-list .b-prose { font:italic 300 18px/1.7 'Spectral',serif; }
+body[data-style="midnight"]    #c-hist-list .b-prose { font:300 19px/1.65 'Newsreader',serif; }
+body[data-style="terminal"]    #c-hist-list .b-prose { font:400 13px/1.7 'IBM Plex Mono',monospace; }
+#c-hist-list .pw { color:inherit; font:inherit; border-bottom:none; }
+body[data-hl="on"] #c-hist-list .pw { color:var(--ink); }
+body[data-hl="on"][data-style="letterpress"] #c-hist-list .pw { font-weight:600; font-style:normal; }
+body[data-hl="on"][data-style="midnight"]    #c-hist-list .pw { font-weight:500; }
+body[data-hl="on"][data-style="terminal"]    #c-hist-list .pw { font-weight:600; border-bottom:1px dotted #9a937f; }
+#c-hist-list .b-attr { color:var(--dim); }
+body[data-style="letterpress"] #c-hist-list .b-attr { text-align:right; font:italic 400 13px/1.4 'Spectral',serif; margin-top:8px; }
+body[data-style="midnight"]    #c-hist-list .b-attr { text-align:right; font:italic 300 14px/1.4 'Newsreader',serif; margin-top:9px; }
+body[data-style="terminal"]    #c-hist-list .b-attr { font:400 12px/1.4 'IBM Plex Mono',monospace; margin-top:7px; }
+#c-hist-list .b-decoded { margin-top:14px; }
+body[data-style="letterpress"] #c-hist-list .b-decoded,
+body[data-style="midnight"]    #c-hist-list .b-decoded { padding-left:16px; border-left:2px solid var(--accent); }
+body[data-style="terminal"]    #c-hist-list .b-decoded { background:#17161a; padding:12px 14px; }
+#c-hist-list .b-decoded-label { font:600 9px/1 'IBM Plex Mono',monospace; letter-spacing:.2em; text-transform:uppercase; color:var(--accent); margin-bottom:7px; }
+body[data-style="terminal"] #c-hist-list .b-decoded-label { color:#7fd6a0; }
+body[data-style="terminal"] #c-hist-list .b-decoded:not(.locked) .b-decoded-label::after { content:' \2713'; }
+#c-hist-list .b-decoded-text { color:var(--ink); white-space:pre-wrap; word-break:break-word; }
+body[data-style="letterpress"] #c-hist-list .b-decoded-text { font:400 15px/1.55 'Spectral',serif; }
+body[data-style="midnight"]    #c-hist-list .b-decoded-text { font:400 16px/1.55 'Newsreader',serif; color:#f4efe4; }
+body[data-style="terminal"]    #c-hist-list .b-decoded-text { font:400 13px/1.6 'IBM Plex Mono',monospace; color:#f0eee8; }
+#c-hist-list .b-decoded.locked { border-left-color:var(--rule); }
+#c-hist-list .b-decoded.locked .b-decoded-label { color:var(--dim); }
+#c-hist-list .b-decoded.locked .b-decoded-text { color:var(--dim); font-style:italic; }
 
 /* settings disclosure */
 .settings { margin-top:22px; border-top:1px solid var(--rule); padding-top:16px; }
@@ -1053,17 +1079,25 @@ $('c-publish').addEventListener('click', async () => {
 // to whatever this board has posted — across devices, not just this browser.
 function fmtDate(ts) { try { return new Date(ts * 1000).toLocaleString(); } catch { return ''; } }
 
+// Render a post the way the reader (bulletin.html) does: meta line, themed prose
+// with payload words highlighted, right-aligned attribution, and a decoded block.
 async function renderHistItem(ev, cred) {
   const when = escapeHtml(fmtDate(ev.created_at));
   const subjTag = (ev.tags || []).find(t => t[0] === 'subject');
   const subject = subjTag ? escapeHtml(subjTag[1]) : '';
   const id = escapeHtml(ev.id.slice(0, 8)) + '…';
-  const meta = `<div class="hist-meta"><span>${when}</span>${subject ? `<span class="hist-subject">${subject}</span>` : ''}<span>${id}</span></div>`;
+  const meta = `<div class="b-meta"><span>${when}</span>${subject ? `<span class="b-subject">${subject}</span>` : ''}<span class="b-id">${id}</span></div>`;
   let dec = null;
   try { dec = await decodeMessage(ev.content, cred); } catch { /* not ours / different key */ }
-  if (dec) return `<div class="hist-item">${meta}<div class="hist-msg">${escapeHtml(dec.message)}</div></div>`;
-  const { body } = splitProse(skimArtifact(ev.content).prose);
-  return `<div class="hist-item">${meta}<div class="hist-msg locked">🔒 encrypted with a different key</div><div class="hist-prose">${escapeHtml(body)}</div></div>`;
+  const skim = skimArtifact(ev.content);
+  const src = dec || skim;                                    // decoded gives payload words too; else skim
+  const { body, attr } = splitProse(src.prose || ev.content);
+  const proseHtml = renderProse(body, (dec ? dec.payloadWords : skim.payloadWords) || []);
+  const attrHtml = attr ? `<div class="b-attr">— ${escapeHtml(attr)}</div>` : '';
+  const decoded = dec
+    ? `<div class="b-decoded"><div class="b-decoded-label">decoded</div><div class="b-decoded-text">${escapeHtml(dec.message)}</div></div>`
+    : `<div class="b-decoded locked"><div class="b-decoded-label">locked</div><div class="b-decoded-text">🔒 encrypted with a different key</div></div>`;
+  return `<article class="hist-bull">${meta}<p class="b-prose">${proseHtml}</p>${attrHtml}${decoded}</article>`;
 }
 
 let histToken = 0;
