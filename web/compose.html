@@ -593,6 +593,10 @@ const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin' };
     if (val && supported.has(val)) { $('c-lang').value = val; return; }
   }
 })();
+// The neutral fallback for auto-detection: the browser-picked default. When the
+// message stops looking like any specific language, the carrier returns here rather
+// than sticking on whatever was last detected.
+const baseLang = $('c-lang').value;
 
 // A demo message in the spirit of each language; English falls back to the rest.
 const DEFAULT_MSG = { english: 'Free Samourai', german: 'Die Gedanken sind frei', czech: 'Soukromí není zločin.', latin: 'Veritas in numeris' };
@@ -606,38 +610,45 @@ $('c-msg').value = defaultMsgFor($('c-lang').value);   // seed to match the pick
 // author chooses a language by hand we stop (langLocked, set on the c-lang change).
 // It's tuned to the four encoding languages rather than pulling in a general
 // detector (e.g. franc): among just these four a single letter is often decisive
-// (ř/ě/ů and the háček letters are Czech; ä/ö/ü/ß are German), which also beats a
-// trigram model on the short text a bulletin tends to be. Otherwise it counts
-// function words, and returns null — keep the current default — when the signal is
-// too thin to be sure. Overlapping words (e.g. "in") wash out across languages, so
-// only a clear winner switches the selector.
-const DET_WORDS = {
-  german:  ['der','die','das','und','ist','nicht','ein','eine','sind','mit','sich','auf','für','von','den','dem','im','ich','wir','sie','auch','wird','werden','haben','nach','aus','war','oder'],
-  english: ['the','and','is','are','was','of','to','in','that','it','for','with','you','we','they','this','be','have','not','on','at','as','but','or','from','your','all'],
-  latin:   ['et','in','est','non','ad','cum','per','pro','sed','qui','quae','quod','sunt','ut','nec','ex','si','de','ab','hoc','esse','autem','enim','omnia','res','ipse','atque'],
+// (ř/ě/ů and the háček letters are Czech; ä/ö/ü/ß are German). Otherwise it scores
+// substring markers over the space-padded text — whole function words AND affixes
+// (German -ung/-chen/sch-, Latin -orum/-ibus/-que, English -ing/-tion) — which
+// generalizes to far more sentences than a whole-word stopword set and still beats a
+// trigram model on the short text a bulletin tends to be. It returns null when no
+// language wins clearly; callers treat that as "fall back to the base default"
+// (baseLang) rather than keeping a previously detected language, so switching from
+// one language to another never leaves the carrier stuck on the old one.
+const DET_MARKERS = {
+  german:  [[' der ',2],[' die ',2],[' das ',2],[' und ',2],[' ist ',2],[' nicht',2],[' ein ',1],[' eine',2],[' einen',2],[' ich ',2],[' du ',1],[' wir ',2],[' sie ',1],[' mit ',1],[' den ',1],[' dem ',1],[' auf ',1],[' von ',1],[' zu ',1],[' zum ',2],[' zur ',2],[' uns ',2],[' mir ',2],[' mich ',2],[' sich',2],[' sind',2],[' war ',1],[' wird',2],[' nach',1],[' bei ',1],[' aus ',1],[' habe',2],[' keine',2],[' heute',2],[' mein',2],[' kann',1],[' bitte',2],[' guten',2],[' danke',2],[' freund',1],['sch',1],['ung ',2],['chen',2],['keit',2],['lich',2]],
+  english: [[' the ',2],[' and ',2],[' is ',2],[' are ',2],[' was ',2],[' of ',2],[' to ',1],[' in ',1],[' that',2],[' it ',1],[' for ',1],[' with',2],[' you ',2],[' we ',1],[' this',1],[' have',1],[' been',2],[' not ',1],[' from',1],[' your',1],[' will',1],[' at ',1],[' but ',1],[' can ',1],[' me ',1],['ing ',2],['tion',2],['ould',1]],
+  latin:   [[' et ',2],[' est',2],[' non ',1],[' cum ',2],[' qui ',2],[' quae',2],[' quod',2],[' sunt',2],[' per ',1],[' pro ',1],[' sed ',2],[' ad ',1],[' ex ',1],[' ut ',1],[' nec ',2],[' ab ',1],[' hoc ',2],[' nos ',1],['que ',2],['orum',2],['ibus',2],['arum',2],['tur ',1],['us ',1],['um ',1]],
+  czech:   [[' je ',2],[' se ',2],[' na ',1],[' to ',1],[' ne ',1],[' ale ',2],[' jak ',2],[' den ',1],[' jsem',2],[' jsi ',2],[' jsou',2],[' byl',2],[' bych',2],[' nebo',2],[' aby ',2],[' kdyz',2],[' co ',1],[' mate',2],[' dobry',2],[' neni',2],[' pravda',2]],
 };
 function detectInputLang(text) {
-  const t = (text || '').toLowerCase();
-  if (/[řěůčšžňťď]/.test(t)) return 'czech';        // Czech-distinctive letters
-  if (/[äöüß]/.test(t)) return 'german';            // German umlauts / eszett
-  const words = t.split(/[^a-zà-ÿ]+/i).filter(Boolean);
-  if (words.length < 3) return null;                // too little to tell — keep default
-  const set = new Set(words);
+  const raw = (text || '').toLowerCase();
+  if (/[řěůčšžňťď]/.test(raw)) return 'czech';          // háček letters: decisive (only Czech among our four)
+  if (/[äöüß]/.test(raw)) return 'german';              // umlaut / eszett: decisive
+  const t = ' ' + raw.replace(/[^a-z]+/g, ' ').trim() + ' ';   // ascii, space-padded so ' der ' etc. match word-bounded
+  if (t.length < 5) return null;
   let bestLang = null, best = 0, second = 0;
-  for (const [lang, list] of Object.entries(DET_WORDS)) {
-    let n = 0; for (const w of list) if (set.has(w)) n++;
-    if (n > best) { second = best; best = n; bestLang = lang; }
-    else if (n > second) { second = n; }
+  for (const [lang, markers] of Object.entries(DET_MARKERS)) {
+    let s = 0;
+    for (const [frag, w] of markers) { let i = t.indexOf(frag); while (i >= 0) { s += w; i = t.indexOf(frag, i + 1); } }
+    if (s > best) { second = best; best = s; bestLang = lang; }
+    else if (s > second) { second = s; }
   }
-  return (best >= 2 && best > second) ? bestLang : null;   // need a clear, unambiguous winner
+  return (best >= 3 && best >= second + 2) ? bestLang : null;   // a clear, unambiguous winner
 }
-// Follow the detected language until the author overrides it by hand. Set the value
-// directly (no change event) so we neither loop nor clobber their typed message.
+// Follow the message's language until the author overrides it by hand. On a confident
+// detection use it; when nothing wins, fall back to the base default — NOT the last
+// detected language — so retyping in a new language always moves the carrier off the
+// old one. Set the value directly (no change event) so we neither loop nor clobber
+// the typed message.
 let langLocked = false;
 function maybeAutoLang() {
   if (langLocked) return;
-  const det = detectInputLang($('c-msg').value);
-  if (det && det !== $('c-lang').value) $('c-lang').value = det;
+  const target = detectInputLang($('c-msg').value) || baseLang;
+  if (target !== $('c-lang').value) $('c-lang').value = target;
 }
 
 function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x)); }
