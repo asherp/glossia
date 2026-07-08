@@ -197,13 +197,22 @@ function payloadOnlyProse(prose, words) {
 // independent cipher state. Render it into any language with renderArtifact, as
 // often as you like, without re-encrypting. `cred` is a passphrase string or a
 // 32-byte key (Uint8Array); falsy/empty means do not encrypt.
+//
+// `salt` (optional) supplies the 6-byte AEAD salt instead of drawing one at random.
+// The salt seeds both key and nonce, so a caller can make the whole seal
+// reproducible (a "payload variant") by deriving the salt deterministically — as
+// long as it never repeats the salt for two DIFFERENT plaintexts under one key
+// (the AES-GCM nonce-reuse hazard). Omit it (or pass a wrong length) for the
+// default fresh-random salt. Salt is public: it rides in the trailer.
 // Returns { encrypted, ctHex, trailerHex }.
-export async function sealMessage(message, cred) {
+export async function sealMessage(message, cred, salt = null) {
   const { data: reduced, flag } = await maybeReduce(TE.encode(message));
   if (!hasCred(cred)) {
     return { encrypted: false, ctHex: toHex(buildEmbedded(flag, reduced)), trailerHex: null };
   }
-  const salt = crypto.getRandomValues(new Uint8Array(AEAD_SALT_LEN));
+  if (!(salt instanceof Uint8Array && salt.length === AEAD_SALT_LEN)) {
+    salt = crypto.getRandomValues(new Uint8Array(AEAD_SALT_LEN));
+  }
   const { key, nonce } = await deriveKeyNonce(cred, salt);
   const sealed = new Uint8Array(await crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: nonce, tagLength: AEAD_TAG_BITS }, key, reduced));
