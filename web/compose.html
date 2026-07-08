@@ -371,8 +371,12 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             </div>
 
             <div class="ctl">
-              <span class="ctl-lab" title="A fresh encryption nonce is used each time, so the payload words change. The cover text stays on the chosen variant.">Payload</span>
-              <button type="button" class="btn sm" id="c-regen" title="A fresh encryption nonce is used each time.">↻ Regenerate</button>
+              <span class="ctl-lab" title="Step through payload variations. Each number encodes the same message with a different set of payload words; the same number always reproduces the same words. The cover text stays on the chosen variant.">Payload variant</span>
+              <span class="stepper">
+                <button type="button" class="btn sm step" id="c-pl-dec" aria-label="Previous payload variant">–</button>
+                <input type="number" id="c-pl" min="0" step="1" value="0" aria-label="Payload variant number">
+                <button type="button" class="btn sm step" id="c-pl-inc" aria-label="Next payload variant">+</button>
+              </span>
             </div>
           </div>
 
@@ -725,25 +729,52 @@ function credFingerprint(cred) {
   if (cred instanceof Uint8Array) return 'k:' + Array.from(cred).map(b => b.toString(16).padStart(2, '0')).join('');
   return 'none';
 }
+// The seal is a pure function of (cred, payload variant, message): the variant
+// picks the salt (payloadSalt), so it belongs in the cache key alongside the msg.
+function sealKey(cred, msg) {
+  return credFingerprint(cred) + '\x00' + Math.max(0, Math.floor(Number(payloadVariant) || 0)) + '\x00' + msg;
+}
 async function sealFor(msg, cred) {
-  const key = credFingerprint(cred) + '\x00' + msg;
+  const key = sealKey(cred, msg);
   if (sealCache && sealCache.key === key) return sealCache.state;
-  const state = await sealMessage(msg, cred);
+  const state = await sealMessage(msg, cred, await payloadSalt(msg));
   sealCache = { key, state };
   return state;
 }
 
-// Two independent knobs on what words appear (see renderArtifact):
+// Two independent, steppable knobs on what words appear (see renderArtifact):
 //  • Cover variant — a deterministic seed for the cover text. Same number → same
-//    wording, and the payload words never change. It's a live, in-session control
-//    (not persisted): every publish draws a fresh nonce, so a nonce×variant pair is
-//    unique per bulletin and pinning the variant could never reproduce an exact
-//    published wording anyway. No effect when cover words are off.
-//  • Payload — the payload words follow the encryption nonce, a cryptographic
-//    requirement rather than a style choice, so it's exposed as an action
-//    ("Regenerate") that draws a fresh nonce, never as an editable value.
+//    wording, and the payload words never change. No effect when cover words are off.
+//  • Payload variant — a deterministic seed for the encryption salt (see
+//    payloadSalt). Same number → same payload words for this message; stepping it
+//    re-draws the salt (hence the nonce) so the SAME message re-encodes into a
+//    different set of payload words. The cover text stays on the chosen variant.
+// Both are live, in-session controls (not persisted): a published salt is spent
+// (the nonce-reuse guard re-draws on the rare collision), so pinning a variant is a
+// drafting aid, not a way to reproduce an already-published wording.
 let coverVariant = 0;
+let payloadVariant = 0;
 function coverSeed() { return BigInt(Math.max(0, Math.floor(Number(coverVariant) || 0))); }
+
+// The payload variant is a deterministic 6-byte AES-GCM salt, so each number is a
+// reproducible set of payload words for this message — the twin of the cover
+// variant (which only re-wraps the SAME payload). The salt folds in the public
+// board id + the message + the variant, which makes it safe to derive it (rather
+// than draw it at random) without risking AES-GCM's nonce-reuse hazard:
+//   • edit the message and the salt moves, so a fixed variant never encrypts two
+//     DIFFERENT plaintexts under one key with the same nonce;
+//   • two boards posting identical text get different salts (their ids differ), so
+//     a shared salt can't amortize a PBKDF2 attack across boards;
+//   • stepping the variant with the text fixed re-draws the salt → new payload words.
+// The salt is public (it rides in the trailer), so deterministic derivation leaks
+// nothing. The publish-time ledger still guards the one genuine repeat — re-posting
+// an identical message+variant — by falling back to a fresh random salt.
+async function payloadSalt(msg) {
+  const material = new TextEncoder().encode(
+    (boardIdentity().npub || '') + '\x00' + Math.max(0, Math.floor(Number(payloadVariant) || 0)) + '\x00' + msg);
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', material));
+  return digest.subarray(0, 6);   // AEAD salt is 6 bytes (see glossia-msg trailer)
+}
 
 // ── nonce-reuse guard ──────────────────────────────────────────────────
 // AES-GCM breaks catastrophically if one (key, nonce) ever encrypts two DIFFERENT
@@ -770,13 +801,17 @@ function recordSalt(hex) {
   const s = loadSaltLedger(); s.add(hex);
   try { localStorage.setItem(saltLedgerKey(), JSON.stringify([...s])); } catch { /* storage blocked/full — ignore */ }
 }
-// A seal whose salt this board hasn't used before, re-drawing on the rare collision.
+// A seal whose salt this board hasn't used before. The variant's salt is
+// deterministic, so a collision means this board already published this exact
+// message+variant; re-running sealFor would just redraw the same salt, so fall back
+// to fresh RANDOM salts until one is unused — a nonce is never reused for two
+// ciphertexts. The random result is cached so preview and publish stay in step.
 async function freshSeal(msg, cred) {
   const ledger = loadSaltLedger();
   let state = await sealFor(msg, cred);
   for (let i = 0; state.encrypted && ledger.has(saltHexOf(state)) && i < 8; i++) {
-    sealCache = null;                 // drop the cached seal so sealFor draws a new salt
-    state = await sealFor(msg, cred);
+    state = await sealMessage(msg, cred);   // random salt, bypassing the variant
+    sealCache = { key: sealKey(cred, msg), state };
   }
   return state;
 }
@@ -954,10 +989,11 @@ $('c-lang').addEventListener('change', () => {
 });
 $('c-cover').addEventListener('change', () => { syncCoverVariantEnabled(); schedulePreview(); });
 
-// ── cover variant (deterministic) + payload regenerate (fresh nonce) ──────
+// ── cover variant + payload variant (both deterministic steppers) ─────────
 // Cover variant re-renders from the cached seal, so the payload words stay put; it
-// has no effect when cover words are off, so the stepper is disabled then. Regenerate
-// clears the seal cache so the next render draws a fresh nonce → new payload words.
+// has no effect when cover words are off, so the stepper is disabled then. Payload
+// variant changes the salt, so the seal itself differs — its stepper drops the seal
+// cache so the next render re-seals under the new variant → new payload words.
 function syncCoverVariantEnabled() {
   const on = $('c-cover').checked;
   $('c-cv-row').classList.toggle('off', !on);
@@ -971,7 +1007,18 @@ function setCoverVariant(n) {
 $('c-cv').addEventListener('input', () => setCoverVariant($('c-cv').value));
 $('c-cv-dec').addEventListener('click', () => setCoverVariant(coverVariant - 1));
 $('c-cv-inc').addEventListener('click', () => setCoverVariant(coverVariant + 1));
-$('c-regen').addEventListener('click', () => { sealCache = null; regenPreview(); });
+
+// Payload variant: the salt (and thus the payload words) depends on it, so drop the
+// seal cache before re-previewing so the message is re-sealed under the new variant.
+function setPayloadVariant(n) {
+  payloadVariant = Math.max(0, Math.floor(Number(n) || 0));
+  $('c-pl').value = String(payloadVariant);
+  sealCache = null;
+  schedulePreview();
+}
+$('c-pl').addEventListener('input', () => setPayloadVariant($('c-pl').value));
+$('c-pl-dec').addEventListener('click', () => setPayloadVariant(payloadVariant - 1));
+$('c-pl-inc').addEventListener('click', () => setPayloadVariant(payloadVariant + 1));
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
@@ -1099,7 +1146,9 @@ $('c-publish').addEventListener('click', async () => {
     $('c-status').innerHTML = okN
       ? `<span class="ok">Published to ${okN}/${results.length} relays.</span> Share the read link.`
       : '<span class="err">No relay accepted the event. Try different relays.</span>';
-    if (okN) { sealCache = null; loadHistory(); }   // refresh the board's post history (and start a fresh draft nonce)
+    // Advance to the next payload variant so the draft moves off the salt we just
+    // spent — the next preview re-seals cleanly instead of tripping the reuse guard.
+    if (okN) { setPayloadVariant(payloadVariant + 1); loadHistory(); }
   } catch (e) { $('c-err').textContent = e.message || String(e); }
   finally { $('c-publish').disabled = false; }
 });
