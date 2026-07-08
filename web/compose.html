@@ -600,6 +600,46 @@ const defaultMsgFor = (lang) => DEFAULT_MSG[lang] || DEFAULT_MSG.english;
 const isDefaultMsg = (s) => Object.values(DEFAULT_MSG).includes(s.trim());
 $('c-msg').value = defaultMsgFor($('c-lang').value);   // seed to match the picked language
 
+// Detect the language the author is WRITING IN so the carrier prose defaults to it.
+// The message is encrypted and the carrier language is independent of it, so this is
+// a readability nicety, not a requirement — and it only picks the DEFAULT: once the
+// author chooses a language by hand we stop (langLocked, set on the c-lang change).
+// It's tuned to the four encoding languages rather than pulling in a general
+// detector (e.g. franc): among just these four a single letter is often decisive
+// (ř/ě/ů and the háček letters are Czech; ä/ö/ü/ß are German), which also beats a
+// trigram model on the short text a bulletin tends to be. Otherwise it counts
+// function words, and returns null — keep the current default — when the signal is
+// too thin to be sure. Overlapping words (e.g. "in") wash out across languages, so
+// only a clear winner switches the selector.
+const DET_WORDS = {
+  german:  ['der','die','das','und','ist','nicht','ein','eine','sind','mit','sich','auf','für','von','den','dem','im','ich','wir','sie','auch','wird','werden','haben','nach','aus','war','oder'],
+  english: ['the','and','is','are','was','of','to','in','that','it','for','with','you','we','they','this','be','have','not','on','at','as','but','or','from','your','all'],
+  latin:   ['et','in','est','non','ad','cum','per','pro','sed','qui','quae','quod','sunt','ut','nec','ex','si','de','ab','hoc','esse','autem','enim','omnia','res','ipse','atque'],
+};
+function detectInputLang(text) {
+  const t = (text || '').toLowerCase();
+  if (/[řěůčšžňťď]/.test(t)) return 'czech';        // Czech-distinctive letters
+  if (/[äöüß]/.test(t)) return 'german';            // German umlauts / eszett
+  const words = t.split(/[^a-zà-ÿ]+/i).filter(Boolean);
+  if (words.length < 3) return null;                // too little to tell — keep default
+  const set = new Set(words);
+  let bestLang = null, best = 0, second = 0;
+  for (const [lang, list] of Object.entries(DET_WORDS)) {
+    let n = 0; for (const w of list) if (set.has(w)) n++;
+    if (n > best) { second = best; best = n; bestLang = lang; }
+    else if (n > second) { second = n; }
+  }
+  return (best >= 2 && best > second) ? bestLang : null;   // need a clear, unambiguous winner
+}
+// Follow the detected language until the author overrides it by hand. Set the value
+// directly (no change event) so we neither loop nor clobber their typed message.
+let langLocked = false;
+function maybeAutoLang() {
+  if (langLocked) return;
+  const det = detectInputLang($('c-msg').value);
+  if (det && det !== $('c-lang').value) $('c-lang').value = det;
+}
+
 function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x)); }
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function renderProse(prose, words) {
@@ -979,9 +1019,10 @@ function updateLen(body) {
     : `X post ≈ ${post}/${TWEET_MAX} — over${$('c-cover').checked ? '; turn off cover words to slim it' : ''}`;
 }
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPreview, 400); }
-$('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
+$('c-msg').addEventListener('input', () => { syncMeta(); maybeAutoLang(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
 $('c-lang').addEventListener('change', () => {
+  langLocked = true;   // an explicit choice — stop following the message's language
   // Swap in the new language's demo message only if the box is still a default,
   // so a message the user typed is never clobbered.
   if (isDefaultMsg($('c-msg').value)) { $('c-msg').value = defaultMsgFor($('c-lang').value); syncMeta(); }
