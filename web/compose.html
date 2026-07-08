@@ -590,6 +590,12 @@ const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin' };
   }
 })();
 
+// A demo message in the spirit of each language; English falls back to the rest.
+const DEFAULT_MSG = { english: 'Free Samourai', german: 'Die Gedanken sind frei' };
+const defaultMsgFor = (lang) => DEFAULT_MSG[lang] || DEFAULT_MSG.english;
+const isDefaultMsg = (s) => Object.values(DEFAULT_MSG).includes(s.trim());
+$('c-msg').value = defaultMsgFor($('c-lang').value);   // seed to match the picked language
+
 function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x)); }
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function renderProse(prose, words) {
@@ -940,7 +946,12 @@ function updateLen(body) {
 function schedulePreview() { clearTimeout(pvTimer); pvTimer = setTimeout(regenPreview, 400); }
 $('c-msg').addEventListener('input', () => { syncMeta(); schedulePreview(); });
 $('c-subject').addEventListener('input', syncMeta);
-$('c-lang').addEventListener('change', schedulePreview);
+$('c-lang').addEventListener('change', () => {
+  // Swap in the new language's demo message only if the box is still a default,
+  // so a message the user typed is never clobbered.
+  if (isDefaultMsg($('c-msg').value)) { $('c-msg').value = defaultMsgFor($('c-lang').value); syncMeta(); }
+  schedulePreview();
+});
 $('c-cover').addEventListener('change', () => { syncCoverVariantEnabled(); schedulePreview(); });
 
 // ── cover variant (deterministic) + payload regenerate (fresh nonce) ──────
