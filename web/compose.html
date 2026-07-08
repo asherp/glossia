@@ -591,7 +591,7 @@ const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin' };
 })();
 
 // A demo message in the spirit of each language; English falls back to the rest.
-const DEFAULT_MSG = { english: 'Free Samourai', german: 'Die Gedanken sind frei' };
+const DEFAULT_MSG = { english: 'Free Samourai', german: 'Die Gedanken sind frei', czech: 'Soukromí není zločin.' };
 const defaultMsgFor = (lang) => DEFAULT_MSG[lang] || DEFAULT_MSG.english;
 const isDefaultMsg = (s) => Object.values(DEFAULT_MSG).includes(s.trim());
 $('c-msg').value = defaultMsgFor($('c-lang').value);   // seed to match the picked language
