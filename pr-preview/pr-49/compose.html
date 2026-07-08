@@ -576,6 +576,20 @@ const $ = (id) => document.getElementById(id);
 let ready = false;
 
 $('c-relays').value = DEFAULT_RELAYS.join(', ');
+
+// Default the encoding language to the visitor's browser language when we
+// support it, otherwise keep English. Only the initial selection is set — the
+// user can still change it. Keyed by ISO 639-1 subtag → our option value.
+const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin' };
+(function pickBrowserLang() {
+  const supported = new Set([...$('c-lang').options].map(o => o.value));
+  const prefs = navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const tag of prefs) {
+    const val = tag && LANG_BY_BCP47[tag.toLowerCase().split('-')[0]];
+    if (val && supported.has(val)) { $('c-lang').value = val; return; }
+  }
+})();
+
 function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x)); }
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function renderProse(prose, words) {
