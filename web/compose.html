@@ -473,7 +473,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <span class="lab">npub <span class="muted">— the board's public address</span></span>
             <div class="keyval pub" id="c-out-npub"></div>
           </div>
-          <button type="button" class="btn sm" id="c-export" title="Show the board key as a nostr nsec — for identity backup / custody">🔑 Export</button>
+          <button type="button" class="btn sm" id="c-export" title="Show the board key as a nostr nsec — back it up, or message privately from a nostr app">🔑 export nostr key</button>
         </details>
       </div>
 
@@ -579,7 +579,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
     <button type="button" class="modal-x" id="c-export-close" aria-label="Close">&times;</button>
     <h2 class="modal-title">Export the board key</h2>
     <p class="modal-lead">The board key is the <strong>same secret</strong> as a nostr private key — just Glossia-badged.
-      Below it's shown in standard <strong>nsec</strong> form, so you can back up the board's identity or hold it in a nostr client.</p>
+      Below it's shown in standard <strong>nsec</strong> form. Import it into a nostr app to back up the board's identity and
+      <strong>communicate privately from this board</strong> — sending and receiving encrypted direct messages.</p>
     <div class="keyrow">
       <span class="lab" style="color:var(--error)">nsec <span class="muted">— your nostr private key; keep it secret</span></span>
       <div class="keyval sec" id="c-export-nsec"></div>
