@@ -472,6 +472,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <div class="keyrow">
             <span class="lab">npub <span class="muted">— the board's public address</span></span>
             <div class="keyval pub" id="c-out-npub"></div>
+            <button type="button" class="btn sm" id="c-copy-npub" style="margin-top:6px">copy npub</button>
           </div>
           <button type="button" class="btn sm" id="c-export" title="Show the board key as a nostr nsec — back it up, or message privately from a nostr app">🔑 export nostr key</button>
         </details>
@@ -1281,6 +1282,7 @@ $('c-hist-refresh').addEventListener('click', loadHistory);
 
 $('c-copy-nread').addEventListener('click', () => navigator.clipboard.writeText(contentNread()).catch(() => {}));
 $('c-copy-nsec').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nwrite).catch(() => {}));
+$('c-copy-npub').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().npub).catch(() => {}));
 
 // ── save / load a board via its seed-phrase paragraph ─────────────────
 // A board's private key (its signing key / nwrite) is rendered as readable
