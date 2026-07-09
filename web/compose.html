@@ -473,7 +473,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <span class="lab">npub <span class="muted">— the board's public address</span></span>
             <div class="keyval pub" id="c-out-npub"></div>
           </div>
-          <button type="button" class="btn sm" id="c-export" title="Show the board key as a nostr nsec to import into any nostr app">🔑 Export</button>
+          <button type="button" class="btn sm" id="c-export" title="Show the board key as a nostr nsec — for identity backup / custody">🔑 Export</button>
         </details>
       </div>
 
@@ -573,13 +573,13 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
   </div>
 </div>
 
-<!-- Export the board key as a standard nostr nsec, to migrate the board to a nostr app -->
+<!-- Export the board's signing key as a standard nostr nsec (identity backup / custody) -->
 <div class="modal-overlay hidden" id="c-export-modal">
   <div class="modal" role="dialog" aria-modal="true">
     <button type="button" class="modal-x" id="c-export-close" aria-label="Close">&times;</button>
-    <h2 class="modal-title">Export to a nostr app</h2>
+    <h2 class="modal-title">Export the board key</h2>
     <p class="modal-lead">The board key is the <strong>same secret</strong> as a nostr private key — just Glossia-badged.
-      Below it's shown in standard <strong>nsec</strong> form. Import it into any nostr client to post to this board from there.</p>
+      Below it's shown in standard <strong>nsec</strong> form, so you can back up the board's identity or hold it in a nostr client.</p>
     <div class="keyrow">
       <span class="lab" style="color:var(--error)">nsec <span class="muted">— your nostr private key; keep it secret</span></span>
       <div class="keyval sec" id="c-export-nsec"></div>
@@ -587,7 +587,9 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
     <div class="modal-actions">
       <button type="button" class="btn sm" id="c-export-copy">Copy nsec</button>
     </div>
-    <p class="modal-foot muted">Anyone with this nsec can post to and decrypt the board. It never leaves your device.</p>
+    <p class="modal-foot" style="color:var(--error)"><strong>Keep posting through Glossia.</strong> Notes you publish from a standard nostr
+      client are public and unencrypted — they aren't encrypted board updates, and Glossia won't list them as posts.</p>
+    <p class="modal-foot muted">Anyone with this nsec controls the board's identity and can decrypt it. The key never leaves your device.</p>
   </div>
 </div>
 
