@@ -207,7 +207,8 @@ body[data-style="terminal"]    #c-hist-list .b-decoded-text { font:400 13px/1.6 
 .mini.terminal { background:#f0eee8; border:1px solid #17161a; font:600 18px/1 'IBM Plex Mono',monospace; color:#17161a; }
 
 /* shareable link + outputs */
-.linkbox { display:flex; gap:8px; align-items:flex-start; }
+.linkbox { display:flex; flex-direction:column; gap:8px; align-items:stretch; }
+.linkbox-actions { display:flex; gap:8px; }
 .linkbox .u { flex:1; min-width:0; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:8px; padding:12px 13px; font:400 13px/1.5 'IBM Plex Mono',monospace; color:var(--ink-soft); word-break:break-all; }
 .prose { background:var(--input-bg); border:1px dashed var(--input-bd); border-radius:8px; padding:12px 14px; margin:8px 0; font:400 15px/1.7 'Spectral',serif; color:var(--ink); }
 mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bottom:1px solid color-mix(in srgb, var(--accent) 42%, transparent); color:var(--ink); padding:0 1px; border-radius:2px; }
@@ -449,8 +450,10 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <label>Author link <span class="lab warn">· includes the nwrite — full access, keep private</span></label>
           <div class="linkbox private">
             <div class="u" id="c-link-nsec">glossia.io/compose.html#nwrite…</div>
-            <button type="button" class="btn sm" data-copy="nsec">copy</button>
-            <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
+            <div class="linkbox-actions">
+              <button type="button" class="btn sm" data-copy="nsec">copy</button>
+              <a class="btn sm" id="c-open-nsec" href="#" target="_blank" rel="noopener">open ↗</a>
+            </div>
           </div>
 
           <div class="keyrow" id="c-readkey-row">
