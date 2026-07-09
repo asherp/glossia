@@ -473,6 +473,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <span class="lab">npub <span class="muted">— the board's public address</span></span>
             <div class="keyval pub" id="c-out-npub"></div>
           </div>
+          <button type="button" class="btn sm" id="c-export" title="Show the board key as a nostr nsec to import into any nostr app">🔑 Export</button>
         </details>
       </div>
 
@@ -569,6 +570,24 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
       <button type="button" class="btn" id="c-pass-apply">Set passphrase</button>
       <button type="button" class="btn sm" id="c-pass-clear">Use board key</button>
     </div>
+  </div>
+</div>
+
+<!-- Export the board key as a standard nostr nsec, to migrate the board to a nostr app -->
+<div class="modal-overlay hidden" id="c-export-modal">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button type="button" class="modal-x" id="c-export-close" aria-label="Close">&times;</button>
+    <h2 class="modal-title">Export to a nostr app</h2>
+    <p class="modal-lead">The board key is the <strong>same secret</strong> as a nostr private key — just Glossia-badged.
+      Below it's shown in standard <strong>nsec</strong> form. Import it into any nostr client to post to this board from there.</p>
+    <div class="keyrow">
+      <span class="lab" style="color:var(--error)">nsec <span class="muted">— your nostr private key; keep it secret</span></span>
+      <div class="keyval sec" id="c-export-nsec"></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn sm" id="c-export-copy">Copy nsec</button>
+    </div>
+    <p class="modal-foot muted">Anyone with this nsec can post to and decrypt the board. It never leaves your device.</p>
   </div>
 </div>
 
@@ -1276,7 +1295,22 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('c-modal').classList.contains('hidden')) closeModal();
   if (!$('c-pass-modal').classList.contains('hidden')) closePassModal();
+  if (!$('c-export-modal').classList.contains('hidden')) closeExportModal();
 });
+
+// ── export to a nostr app ─────────────────────────────────────────────
+// The board's signing key is byte-identical to a nostr nsec (different bech32
+// HRP only), so it imports into any nostr client. Show the nsec form so the
+// author can migrate the board off Glossia and keep posting from there.
+function closeExportModal() { $('c-export-modal').classList.add('hidden'); }
+$('c-export').addEventListener('click', () => {
+  if (!ready) { $('c-status').textContent = 'Engine still loading — try again in a moment.'; return; }
+  $('c-export-nsec').textContent = boardIdentity().nsec;
+  $('c-export-modal').classList.remove('hidden');
+});
+$('c-export-close').addEventListener('click', closeExportModal);
+$('c-export-modal').addEventListener('click', (e) => { if (e.target === $('c-export-modal')) closeExportModal(); });
+$('c-export-copy').addEventListener('click', () => navigator.clipboard.writeText(boardIdentity().nsec).catch(() => {}));
 
 // "+ New bulletin" resets to a fresh, unsaved board: drop the board from the URL
 // and reload, so init generates a brand-new random signing key. (The href on the
