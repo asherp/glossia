@@ -20,8 +20,15 @@ import { bytesToHex, hexToBytes, utf8ToBytes, concatBytes } from '@noble/hashes/
 
 const TE = new TextEncoder();
 
-// App-specific regular event kind (1000..9999 => relays store every one,
-// append-only, and generic clients ignore it instead of showing it in feeds).
+// Board posts publish as standard kind-1 text notes. A Glossia artifact IS
+// public, readable prose, so it belongs in the open — visible in any nostr
+// client, consistent with "a readable encoding, not steganography". The
+// ["client","glossia"] tag marks them; the encrypted payload rides inside the
+// prose and needs the read key to decode.
+export const BOARD_KIND = 1;
+
+// Legacy: boards used to publish under this app-specific kind (1000..9999), which
+// generic clients hid from feeds. Still read so pre-existing boards keep loading.
 export const GLOSSIA_KIND = 1314;
 
 export const DEFAULT_RELAYS = [
@@ -294,7 +301,7 @@ export function eventId(ev) {
 }
 
 // Build + schnorr-sign a Glossia bulletin event from an identity and content.
-export function buildEvent(identity, content, { created_at, subject, kind = GLOSSIA_KIND } = {}) {
+export function buildEvent(identity, content, { created_at, subject, kind = BOARD_KIND } = {}) {
   const tags = [['client', 'glossia']];
   if (subject) tags.push(['subject', String(subject)]);
   const ev = {
@@ -375,5 +382,6 @@ export function queryEvents(filter, relays = DEFAULT_RELAYS, { timeoutMs = 5000 
 // Convenience: every bulletin for a board, by npub or hex pubkey.
 export function fetchBoard(npubOrHex, relays = DEFAULT_RELAYS, opts = {}) {
   const authors = [npubOrHex.startsWith('npub') ? npubToHex(npubOrHex) : npubOrHex.trim().toLowerCase()];
-  return queryEvents({ authors, kinds: [GLOSSIA_KIND], limit: 200 }, relays, opts);
+  // Read new kind-1 posts and legacy app-kind posts so pre-existing boards still load.
+  return queryEvents({ authors, kinds: [BOARD_KIND, GLOSSIA_KIND], limit: 200 }, relays, opts);
 }
