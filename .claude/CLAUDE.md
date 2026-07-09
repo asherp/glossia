@@ -14,6 +14,15 @@ Glossia is **a readable encoding, not steganography**. The goal is not to hide t
 - **Merkle system** (`src/merkle.rs`): append-only wordlist trees with merkleization for cryptographic proofs
 - **Build system** (`build.rs`): embeds all `languages/` YAML at compile time; debug builds embed English only
 
+## Web app (local preview & testing)
+
+The `web/` directory hosts the browser UIs (`compose.html`, `bulletin.html`) backed by a WASM build of the Rust core.
+
+- `web/glossia.js` and `web/glossia_bg.wasm` are **build artifacts** (gitignored), not committed. Generate them before driving the pages in a browser.
+- Build with `./build_web.sh` (runs `wasm-pack build --target web`). In network-restricted environments the final `wasm-opt` size pass fails on a binaryen download — but `pkg/glossia.js` and `pkg/glossia_bg.wasm` are already emitted before that step, so `cp pkg/glossia.js pkg/glossia_bg.wasm web/` gives a working (unoptimized) copy for testing.
+- Serve over HTTP, not `file://` — ES-module imports are CORS-blocked on `file://` and the page never reaches its `ready` state: `python3 -m http.server -d web 8080`.
+- CI builds the WASM and publishes a per-PR preview via `.github/workflows/pr-preview.yml`.
+
 ## Key types
 
 ```
