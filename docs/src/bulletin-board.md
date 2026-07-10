@@ -102,15 +102,19 @@ trailer at 11 words. That artifact string is the body of a
 [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) event:
 
 ```
-kind:    1314            (an app-specific regular event — relays store every one,
-                          append-only, and generic nostr clients ignore it)
+kind:    1               (a standard text note — the prose is public and readable,
+                          so it shows in any nostr client, like the encoding intends)
 content: "<prose> — <attribution>"  (encrypted)   or   "<prose>"   (signed but unencrypted)
 tags:    [["client","glossia"], ["subject", "..."]]
 sig:     schnorr (BIP-340) signature over the event id, by the publish key
 ```
 
-The event is signed in the browser and pushed to several public relays. Reading
-a board is a relay query for `{ authors: [pubkey], kinds: [1314] }`; each event's
+Publishing as kind 1 (rather than the app-specific kind 1314 boards used
+originally) keeps a board legible in the wider nostr ecosystem: the prose is
+meant to be seen, and only the payload inside it is encrypted. The event is
+signed in the browser and pushed to several public relays. Reading a board is a
+relay query for `{ authors: [pubkey], kinds: [1, 1314] }` (kind 1314 is still
+read so pre-existing boards keep loading); each event's
 signature is verified before its prose is shown, and the message is revealed only
 if you supply a decryption credential (read key / nsec / passphrase) — the GCM tag
 then guarantees it decrypted to exactly what was published.
