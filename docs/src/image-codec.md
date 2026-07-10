@@ -1,6 +1,8 @@
 # Glossia Image Codec
 
-A color-space steganographic codec that encodes arbitrary byte payloads into images. Each visual element (Voronoi cell, pixel, mosaic tile) carries information in its **color**, not its position. The codec operates natively in CIELAB perceptual color space.
+A color-space codec that encodes arbitrary byte payloads into images. Each visual element (Voronoi cell, pixel, mosaic tile) carries information in its **color**, not its position. The codec operates natively in CIELAB perceptual color space.
+
+Like the rest of Glossia, this is a readable encoding, not steganography: the payload is not hidden in the image, it *is* the image's colors. Anyone with the palette can decode it directly.
 
 ## Core idea
 
