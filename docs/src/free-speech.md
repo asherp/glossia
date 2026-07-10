@@ -18,12 +18,17 @@ that trade rarely pays off. Determined bad actors route around interdiction:
 they encrypt, they use code words, they move to another jurisdiction or another
 channel. The catalogue of forbidden strings barely dents the harm it targets.
 
-What the catalogue *does* reliably catch is the legitimate speech adjacent to
-it — the ambiguous, the ironic, the dialectal, the merely unlucky. So the net
-effect runs backwards: censorship does little to prevent bad speech, while
-steadily destroying good speech through over-blocking and the chilling effect of
-being judged. The asymmetry is the whole problem. Whoever holds the pen that
-draws the line holds a power that is cheap to abuse and expensive to contest.
+What the catalogue *does* reliably catch is legitimate speech — and here "good"
+should be read at its widest. It runs from the wholly innocuous (the ambiguous,
+the ironic, the dialectal, the merely unlucky) all the way to the politically
+incorrect, the dissenting, and the subversive. That disfavored end is not an
+unfortunate side effect; it is precisely the speech a free-speech tradition
+exists to protect, and precisely the speech a regulator is most tempted to file
+under "bad." So the net effect runs backwards: censorship does little to prevent
+genuinely harmful speech, while steadily destroying the good — from the everyday
+to the challenging — through over-blocking and the chilling effect of being
+judged. The asymmetry is the whole problem. Whoever holds the pen that draws the
+line holds a power that is cheap to abuse and expensive to contest.
 
 Glossia sharpens this asymmetry to the point of absurdity. It does not argue
 that the line between good and bad speech should move; it makes the line
