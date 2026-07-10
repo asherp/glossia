@@ -1,0 +1,526 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>How It Works - Glossia Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="free-speech.html"><strong aria-hidden="true">1.</strong> Free Speech</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">3.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">4.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">5.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html" class="active"><strong aria-hidden="true">6.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">7.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">8.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">9.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">10.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">11.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">12.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">13.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">14.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">15.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">16.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">17.</strong> Whitepaper</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Glossia Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asherp/glossia" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h1>
+<p>Glossia encodes data by embedding words from a payload wordlist into natural-looking sentences generated by a context-free grammar. The encoding process maps data bits to word indices in the wordlist, which is why wordlists must be append-only.</p>
+<h2 id="encoding-process"><a class="header" href="#encoding-process">Encoding Process</a></h2>
+<ol>
+<li>
+<p><strong>Payload tokens</strong>: BIP39 words (or words from your custom payload wordlist) are tagged with allowed POS categories (Noun, Verb, Adjective, etc.)</p>
+</li>
+<li>
+<p><strong>Grammar expansion</strong>: The CFG generates a stream of POS slots (e.g., <code>Det N V NP Dot</code>)</p>
+</li>
+<li>
+<p><strong>Slot filling</strong>: Payload tokens are embedded when they fit a slot's POS, otherwise cover words are used</p>
+</li>
+<li>
+<p><strong>Decoding</strong>: Extract payload words by filtering the output against the payload wordlist</p>
+</li>
+</ol>
+<h2 id="wordlist-encoding"><a class="header" href="#wordlist-encoding">Wordlist Encoding</a></h2>
+<p>When encoding binary data (like ASCII text or API keys), Glossia uses <strong>bit-packing</strong>:</p>
+<ul>
+<li>Each word in the wordlist represents a unique index (0, 1, 2, ...)</li>
+<li>The number of bits per word is determined by the wordlist size: <code>bits_per_word = log2(word_count)</code></li>
+<li>For example, a 2048-word list uses 11 bits per word</li>
+<li>Data bytes are packed into these bits, with multiple bytes potentially spanning across words</li>
+</ul>
+<p><strong>Frequency ordering for payload wordlists</strong>: When creating custom payload wordlists (not BIP39, which is frozen in alphabetical order), ordering words by frequency (most frequent first) provides encoding efficiency benefits. Common words appear at lower indices and are more likely to be selected during encoding, making the generated text more natural while maintaining the same information density. This is the same principle used for cover wordlists in Merkle mode.</p>
+<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<p>If your wordlist has 2048 words:</p>
+<ul>
+<li>Each word represents 11 bits of data</li>
+<li>The word at index 0 represents bits <code>00000000000</code></li>
+<li>The word at index 2047 represents bits <code>11111111111</code></li>
+<li>When encoding ASCII text, bytes are packed into these 11-bit chunks</li>
+</ul>
+<p><strong>BIP39 seed phrase example:</strong></p>
+<p>A 12-word BIP39 seed phrase contains 11 × 12 = <strong>132 bits</strong> total:</p>
+<ul>
+<li>128 bits of entropy + 4 bits of checksum = 132 bits</li>
+<li>Each of the 12 words encodes 11 bits of information</li>
+<li>This provides 128 bits of cryptographic entropy (sufficient for 128-bit security)</li>
+</ul>
+<h3 id="density-vs-steganography"><a class="header" href="#density-vs-steganography">Density vs. steganography</a></h3>
+<p>This information density is what distinguishes Glossia from steganography, and the distinction is deliberate. A steganographic scheme hides the <em>existence</em> of data, and pays for that concealment by spending almost all of its capacity on cover — typically <strong>well under 1 bit per symbol</strong>. Glossia hides nothing: the payload is meant to be decoded, so every payload word carries its full <code>log2(word_count)</code> bits — <strong>11 for BIP39, up to ~15</strong> for larger lists. The goal is a <em>readable</em> encoding, not a <em>hidden</em> one — making machine data human-friendly without sacrificing too much security.</p>
+<h2 id="encoding-and-decoding-via-wordlist"><a class="header" href="#encoding-and-decoding-via-wordlist">Encoding and Decoding via Wordlist</a></h2>
+<p>When encoding or decoding a payload, Glossia determines the <strong>effective wordlist size</strong> based on the actual words used in that payload.</p>
+<h3 id="effective-wordlist-size"><a class="header" href="#effective-wordlist-size">Effective Wordlist Size</a></h3>
+<p>For a given series of payload words, the effective size of the wordlist is:</p>
+<pre><code>effective_size = max_index + 1
+</code></pre>
+<p>Where <code>max_index</code> is the highest index of any word actually used in the payload.</p>
+<h3 id="why-this-matters"><a class="header" href="#why-this-matters">Why This Matters</a></h3>
+<p>This approach provides two key benefits:</p>
+<ol>
+<li>
+<p><strong>Unambiguous decoding for existing payloads</strong>: When decoding a message, you only need to consider the words that were actually used. The effective wordlist size is determined by the maximum index present, ensuring that decoding is unambiguous even if the wordlist has grown since the message was encoded.</p>
+</li>
+<li>
+<p><strong>Future payloads access more entropy</strong>: As the wordlist grows (via appending new words), future payloads can use a larger vocabulary. This means they can encode more information per word:</p>
+<ul>
+<li>A 1024-word list (10 bits per word) can encode 10 bits per word</li>
+<li>A 2048-word list (11 bits per word) can encode 11 bits per word</li>
+<li>A 4096-word list (12 bits per word) can encode 12 bits per word</li>
+</ul>
+</li>
+</ol>
+<h3 id="entropy-growth-example"><a class="header" href="#entropy-growth-example">Entropy Growth Example</a></h3>
+<p><strong>Example: Expanding the English BIP39 wordlist</strong></p>
+<p>The English BIP39 wordlist has 2048 words, which provides 11 bits of information per word (since 2^11 = 2048).</p>
+<p>If developers decide to <strong>increase</strong> the wordlist by appending 2048 new English lemmas:</p>
+<ul>
+<li>
+<p><strong>Initial wordlist</strong>: 2048 words (11 bits per word)</p>
+<ul>
+<li>Each word encodes 11 bits of information</li>
+<li>Maximum entropy: 11 bits per word</li>
+<li>A 12-word seed phrase contains 11 × 12 = 132 bits</li>
+</ul>
+</li>
+<li>
+<p><strong>After expansion</strong>: 4096 words (12 bits per word)</p>
+<ul>
+<li>Each word now encodes 12 bits of information</li>
+<li>Maximum entropy: 12 bits per word</li>
+<li><strong>Gain</strong>: +1 bit per word for all payloads written after the expansion</li>
+<li>The same 132 bits can now be represented with <strong>11 words</strong> instead of 12 (since 132 ÷ 12 = 11)</li>
+</ul>
+</li>
+</ul>
+<p>This means that as you expand your wordlist by appending new words, you're not just adding vocabulary—you're also increasing the information density of future encodings. Payloads encoded before the expansion continue to decode correctly using the smaller effective size (11 bits), while new payloads can take advantage of the increased entropy (12 bits) and be more compact.</p>
+<p><strong>Example: Glossia's Latin vocabulary</strong></p>
+<p>Glossia's Latin vocabulary has 2^16 = 65,536 words, providing 16 bits of information per word. This means:</p>
+<ul>
+<li>A 12-word BIP39 seed phrase contains 132 bits (11 × 12)</li>
+<li>The same 132 bits can be represented with just <strong>9 Latin Glossia words</strong> (since 132 ÷ 16 = 8.25, requiring 9 words to encode 132 bits)</li>
+<li>This demonstrates how larger wordlists enable more compact encodings of the same information</li>
+</ul>
+<h3 id="practical-example"><a class="header" href="#practical-example">Practical Example</a></h3>
+<p>Consider a wordlist that starts with 1000 words and grows to 2000 words:</p>
+<ul>
+<li>
+<p><strong>Payload A</strong> (encoded when wordlist had 1000 words):</p>
+<ul>
+<li>Uses words with indices 0-999</li>
+<li>Effective size: 1000 words (10 bits per word)</li>
+<li>Decodes correctly even after wordlist grows to 2000 words</li>
+</ul>
+</li>
+<li>
+<p><strong>Payload B</strong> (encoded after wordlist grew to 2000 words):</p>
+<ul>
+<li>Can use words with indices 0-1999</li>
+<li>Effective size: 2000 words (11 bits per word)</li>
+<li>Encodes 1 more bit per word than Payload A</li>
+</ul>
+</li>
+</ul>
+<p>This demonstrates how the append-only constraint enables both backward compatibility and forward compatibility with increased entropy.</p>
+<h2 id="glossia-translation"><a class="header" href="#glossia-translation">Glossia Translation</a></h2>
+<p>This is where Glossia's flexibility really shines: <strong>any Glossia-expressed bit stream can be converted to any other Glossia language</strong> in two simple steps:</p>
+<ol>
+<li><strong>Decode from original language to binary</strong>: Extract payload words from the source text and convert them to their binary representation using the source language's wordlist</li>
+<li><strong>Encode binary to target language</strong>: Convert the binary data to payload words using the target language's wordlist, then embed them in natural-looking sentences using the target language's grammar</li>
+</ol>
+<h3 id="how-it-works-1"><a class="header" href="#how-it-works-1">How It Works</a></h3>
+<p>Since Glossia encodes data by mapping words to their indices in the wordlist, and those indices represent binary data, the translation process is straightforward:</p>
+<pre><code>Source Language Text
+    ↓ (decode)
+Binary Data (bits)
+    ↓ (encode)
+Target Language Text
+</code></pre>
+<p>The binary representation is language-agnostic—it's just bits. As long as both languages have wordlists that can represent the required bit range, translation is lossless and unambiguous.</p>
+<h3 id="bijectivity"><a class="header" href="#bijectivity">Bijectivity</a></h3>
+<p>This translation results in <strong>no information loss</strong>, meaning that for a given bitstream <strong>all Glossia languages are bijective</strong>.</p>
+<p>In mathematical terms, this means there exists a one-to-one correspondence (bijection) between any two Glossia languages for the same bitstream:</p>
+<ul>
+<li>Each unique bitstream maps to exactly one word sequence in each language</li>
+<li>All statements made in a language with the same order-preserving payload words will map back to exactly one bitstream</li>
+<li>Translation between languages preserves this one-to-one mapping</li>
+</ul>
+<p>Furthermore, deterministic grammars ensure that every bitstream will map to one canonical representation for a given language.</p>
+<p>This bijective property ensures that:</p>
+<ul>
+<li><strong>No information is lost</strong> during translation</li>
+<li><strong>No ambiguity</strong> exists—each bitstream has a unique word sequence in each language</li>
+<li><strong>Round-trip translation</strong> (Language A → Language B → Language A) recovers the original exactly</li>
+<li><strong>Commutative translation</strong> (Language A → Language B → Language C) yields the same result as (Language A → Language C)</li>
+</ul>
+<h3 id="benefits"><a class="header" href="#benefits">Benefits</a></h3>
+<ul>
+<li><strong>Language independence</strong>: Encode once, translate to any supported language</li>
+<li><strong>Lossless conversion</strong>: The binary representation preserves all information</li>
+<li><strong>Flexible deployment</strong>: Choose the best language for your use case (compactness, readability, etc.)</li>
+<li><strong>Future-proof</strong>: As new languages are added, existing encodings can be translated to them</li>
+</ul>
+<h3 id="example-use-cases"><a class="header" href="#example-use-cases">Example Use Cases</a></h3>
+<ul>
+<li><strong>Compact encoding</strong>: Translate from English BIP39 (11 bits/word) to Latin Glossia (16 bits/word) for more compact representation</li>
+<li><strong>Readability</strong>: Translate to a language with better grammar or more natural sentence structures</li>
+<li><strong>Localization</strong>: Convert messages to languages appropriate for different regions or contexts</li>
+<li><strong>Migration</strong>: Move existing encodings to newer, larger wordlists as they become available</li>
+</ul>
+<h3 id="the-verb-is-authoritative-encode-vs-transcode"><a class="header" href="#the-verb-is-authoritative-encode-vs-transcode">The verb is authoritative: encode vs. transcode</a></h3>
+<p>The verb you use in a meta instruction decides how the input is interpreted, so
+intent is <strong>declared, not guessed</strong>:</p>
+<ul>
+<li>
+<p><strong><code>encode into &lt;language&gt;</code></strong> — the input is <strong>raw data</strong> to encode. Glossia
+never inspects it for "is this secretly a seed or existing prose?" — that
+guessing is exactly what could silently corrupt ordinary text whose words
+happen to be payload words. So a bare list of payload words (even a full BIP39
+mnemonic) given to <code>encode into …</code> is encoded <strong>as text</strong> and round-trips
+verbatim.</p>
+</li>
+<li>
+<p><strong><code>transcode into &lt;language&gt;</code></strong> (or <code>translate</code>) — the input is an <strong>existing
+Glossia encoding</strong>. Glossia detects its source dialect and re-encodes. This is
+what compacts a seed into a denser language (a 12-word seed → ~9 Latin words).
+If no source encoding is detected, it errors and asks you to name the source
+with <code>from &lt;source&gt;</code> rather than guessing.</p>
+</li>
+</ul>
+<pre><code>echo "&lt;12-word seed&gt;" | glossia --meta "encode into english"      # → encoded as text, round-trips
+echo "&lt;12-word seed&gt;" | glossia --meta "transcode into latin"     # → detected as a seed, compacted to Latin
+glossia --meta "transcode from latin into english"                # explicit source, always works
+</code></pre>
+<p>The same input behaves differently under <code>encode</code> vs. <code>transcode</code>, but each is
+an explicit instruction — there is no content-based heuristic that can misfire.</p>
+<p>Two things bypass the verb, by design:</p>
+<ul>
+<li><strong>Naming the source explicitly</strong> (<code>transcode from &lt;source&gt; into &lt;target&gt;</code>)
+always wins — useful when auto-detection would be ambiguous.</li>
+<li><strong>Structured crypto formats</strong> (a <code>bc1…</code> bech32 address, an <code>npub…</code>, etc.) are
+always recognized so they encode via their native alphabet. That is
+unambiguous format recognition, not seed/prose guessing.</li>
+</ul>
+<p>When the target is a <code>Format</code> (the decode direction, e.g. <code>decode into hex</code>),
+Glossia always detects which language the input prose is in — there, identifying
+the source is the whole job.</p>
+<h2 id="glossia-transmission"><a class="header" href="#glossia-transmission">Glossia Transmission</a></h2>
+<p>While <strong>direct-to-direct transmission is lossless</strong>, noise may be introduced while in-transit. For this reason, Glossia-encoded messages should always utilize checksums, error correction, and any additional information necessary for delivery.</p>
+<h3 id="error-handling-and-payload-integrity"><a class="header" href="#error-handling-and-payload-integrity">Error Handling and Payload Integrity</a></h3>
+<p>However, note that because the decoding process is lossless, <strong>all corrections to the bitstream are included in the payload, not outside it</strong>. In other words:</p>
+<ul>
+<li><strong>Checksums and error correction codes</strong> are encoded as part of the payload bitstream itself</li>
+<li><strong>Delivery metadata</strong> (addresses, routing information, etc.) is also encoded within the payload</li>
+<li>The <strong>language is agnostic</strong> to the information carried—it only presents the data with an aesthetic wrapper that is effectively ignored</li>
+</ul>
+<h3 id="what-this-means"><a class="header" href="#what-this-means">What This Means</a></h3>
+<p>Glossia's role is to encode bits into natural language and decode them back to bits. It doesn't care what those bits represent:</p>
+<ul>
+<li>The bits could be raw data, checksums, error correction codes, or metadata</li>
+<li>All of these are treated equally as part of the payload bitstream</li>
+<li>The language layer is purely an <strong>aesthetic wrapper</strong>—converting bits to readable text and back, effectively ignored during decoding</li>
+</ul>
+<h3 id="practical-implications"><a class="header" href="#practical-implications">Practical Implications</a></h3>
+<ul>
+<li><strong>Design your protocol</strong>: Include checksums, error correction, and metadata as part of the data you encode</li>
+<li><strong>Glossia handles encoding/decoding</strong>: The language layer ensures the bits can be represented as natural text</li>
+<li><strong>Your protocol handles integrity</strong>: Checksums and error correction verify and correct the decoded bits</li>
+<li><strong>Separation of concerns</strong>: Glossia is transport-agnostic; your application layer handles semantics and integrity</li>
+</ul>
+<p>This design ensures that Glossia remains a pure encoding layer—it faithfully represents whatever bits you give it, without making assumptions about what those bits mean or how they should be validated.</p>
+<h2 id="why-wordlists-must-be-append-only"><a class="header" href="#why-wordlists-must-be-append-only">Why Wordlists Must Be Append-Only</a></h2>
+<p><strong>Critical constraint</strong>: Both payload and cover wordlists are <strong>append-only</strong>.</p>
+<h3 id="what-this-means-1"><a class="header" href="#what-this-means-1">What This Means</a></h3>
+<ul>
+<li>✅ <strong>You can add</strong> new words to the end of wordlists</li>
+<li>❌ <strong>You cannot replace</strong> existing words</li>
+<li>❌ <strong>You cannot reorder</strong> words in the wordlist</li>
+</ul>
+<h3 id="why-this-constraint-exists"><a class="header" href="#why-this-constraint-exists">Why This Constraint Exists</a></h3>
+<p>Glossia encodes data by mapping words to their <strong>position (index)</strong> in the wordlist. When you encode a message:</p>
+<ol>
+<li>Data bits are converted to word indices</li>
+<li>Those indices are used to select words from the wordlist</li>
+<li>The selected words are embedded in generated sentences</li>
+</ol>
+<p>When decoding:</p>
+<ol>
+<li>Payload words are extracted from the text</li>
+<li>Each word is looked up in the wordlist to find its index</li>
+<li>Those indices are converted back to data bits</li>
+</ol>
+<p><strong>If you change the wordlist order or replace words:</strong></p>
+<ul>
+<li>Previously encoded messages would decode incorrectly</li>
+<li>The same index would point to a different word</li>
+<li>The decoded data would be corrupted</li>
+</ul>
+<p><strong>By keeping wordlists append-only:</strong></p>
+<ul>
+<li>All existing indices remain valid</li>
+<li>Previously encoded messages can still be decoded correctly</li>
+<li>New words can be added without breaking backward compatibility</li>
+<li>The information contained in bits written before new words were added is preserved</li>
+</ul>
+<h3 id="practical-implications-1"><a class="header" href="#practical-implications-1">Practical Implications</a></h3>
+<ul>
+<li>When creating a wordlist, plan carefully - you can't fix mistakes by reordering</li>
+<li>If you need to add words, append them to the end</li>
+<li>If you need to remove a word, you can mark it as deprecated but shouldn't remove it (or you'll break backward compatibility)</li>
+<li>Wordlist versioning can help track when words were added, but the core list must remain stable</li>
+</ul>
+<h2 id="merkle-mode"><a class="header" href="#merkle-mode">Merkle Mode</a></h2>
+<p>Glossia supports a <strong>Merkle mode</strong> (<code>--merkle</code>) that wraps payload words in a Merkle proof structure. This expands N payload words into 2N-1 total words (N payload words + N-1 Merkle nodes).</p>
+<h3 id="how-merkle-mode-works"><a class="header" href="#how-merkle-mode-works">How Merkle Mode Works</a></h3>
+<ol>
+<li><strong>Tree Construction</strong>: Payload words become leaves of a binary Merkle tree</li>
+<li><strong>Cover Word Assignment</strong>: The first N-1 cover words from the cover wordlist are used as internal nodes (Merkle nodes)</li>
+<li><strong>Pre-order Traversal</strong>: The tree is traversed in pre-order to generate the final sequence</li>
+<li><strong>Root Position</strong>: The most frequent cover word (typically "the") becomes the Merkle root and appears first in the sequence</li>
+</ol>
+<h3 id="why-frequency-ordering-matters"><a class="header" href="#why-frequency-ordering-matters">Why Frequency Ordering Matters</a></h3>
+<p><strong>Critical requirement</strong>: Cover words must be ordered by frequency (most frequent first) in the cover wordlist.</p>
+<p>When Merkle mode is enabled:</p>
+<ul>
+<li>The first N-1 cover words are selected as Merkle tree internal nodes</li>
+<li>These words appear in the generated text as Merkle proof nodes</li>
+<li>The <strong>first cover word</strong> (most frequent) becomes the <strong>Merkle root</strong> and appears at the start of the sequence</li>
+</ul>
+<p>By ordering cover words by frequency:</p>
+<ul>
+<li>Common words like "the", "a", "is" appear as Merkle roots and internal nodes</li>
+<li>This makes the generated text look more natural</li>
+<li>The Merkle proof structure is hidden within common, everyday words</li>
+</ul>
+<p><strong>Example</strong>: If "the" is the first word in your cover wordlist (most frequent), it will appear as the Merkle root when using <code>--merkle</code> mode, making the output look like natural prose starting with "The ..."</p>
+<h3 id="decoding-merkle-mode"><a class="header" href="#decoding-merkle-mode">Decoding Merkle Mode</a></h3>
+<p>To decode a Merkle-encoded message:</p>
+<ol>
+<li>Use <code>--demerkle</code> mode to parse the sequence</li>
+<li>The parser extracts payload words by identifying which words are leaves (payload) vs internal nodes (cover words)</li>
+<li>The original payload sequence is recovered in order</li>
+</ol>
+<p>The Merkle structure provides cryptographic proof that the payload words are authentic and in the correct order, while maintaining the natural appearance of the generated text.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="examples.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="grammar.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="examples.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="grammar.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
