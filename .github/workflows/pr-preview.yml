@@ -58,7 +58,9 @@ jobs:
         if: github.event.action != 'closed'
         uses: peaceiris/actions-mdbook@v2
         with:
-          mdbook-version: latest
+          # Pin the version so CI matches local builds; `latest` drifted to
+          # mdBook 0.5.x, which rejects legacy book.toml fields.
+          mdbook-version: '0.4.40'
 
       # Build the docs book into web/docs/ so it deploys alongside the web app.
       # -d is resolved relative to the book root (docs/), so ../web/docs lands the
