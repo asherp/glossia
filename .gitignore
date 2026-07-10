@@ -59,6 +59,7 @@ ENV/
 
 # mdbook build output
 docs/book/
+web/docs/
 
 # WASM build artifacts
 web/glossia.js

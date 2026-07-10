@@ -54,6 +54,19 @@ jobs:
         if: github.event.action != 'closed'
         run: ./build_web.sh
 
+      - name: Install mdBook
+        if: github.event.action != 'closed'
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: latest
+
+      # Build the docs book into web/docs/ so it deploys alongside the web app.
+      # -d is resolved relative to the book root (docs/), so ../web/docs lands the
+      # rendered site at web/docs/, reachable at .../pr-preview/pr-<N>/docs/.
+      - name: Build docs
+        if: github.event.action != 'closed'
+        run: mdbook build docs -d ../web/docs
+
       # On open/synchronize/reopen: deploy web/ to gh-pages under
       # pr-preview/pr-<N>/ and comment the URL. On close: remove that directory.
       - name: Deploy PR preview
