@@ -177,7 +177,8 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="glossia-image-codec"><a class="header" href="#glossia-image-codec">Glossia Image Codec</a></h1>
-<p>A color-space steganographic codec that encodes arbitrary byte payloads into images. Each visual element (Voronoi cell, pixel, mosaic tile) carries information in its <strong>color</strong>, not its position. The codec operates natively in CIELAB perceptual color space.</p>
+<p>A color-space codec that encodes arbitrary byte payloads into images. Each visual element (Voronoi cell, pixel, mosaic tile) carries information in its <strong>color</strong>, not its position. The codec operates natively in CIELAB perceptual color space.</p>
+<p>Like the rest of Glossia, this is a readable encoding, not steganography: the payload is not hidden in the image, it <em>is</em> the image's colors. Anyone with the palette can decode it directly.</p>
 <h2 id="core-idea"><a class="header" href="#core-idea">Core idea</a></h2>
 <p>A color palette defines a 1D curve $\gamma$ through CIELAB. At each palette point, a 2D constellation grid in the normal plane encodes additional bits. Every pixel color decomposes into:</p>
 <ul>
