@@ -14,7 +14,7 @@ channel to detect; there is only language.
 
 Content moderation and censorship, as usually practiced, assume a clean split:
 
-- **Bad content is identifiable.** CSAM hashes, banned keywords, known
+- **Bad content is identifiable.** Banned keywords, known file hashes,
   signatures, blocklisted URLs. Moderation is the business of matching against
   a catalogue of prohibited *meanings*.
 - **Neutral containers are regulable infrastructure.** Plaintext, hex, Base64,
