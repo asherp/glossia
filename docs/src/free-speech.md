@@ -10,6 +10,26 @@ it makes machine data *human-friendly*. The payload is carried by ordinary,
 grammatically prominent words embedded in genuine prose. There is no covert
 channel to detect; there is only language.
 
+## The asymmetry of censorship
+
+The deeper objection is not about Glossia at all. It is that censorship leaves
+the distinction between good speech and bad in the hands of regulators — and
+that trade rarely pays off. Determined bad actors route around interdiction:
+they encrypt, they use code words, they move to another jurisdiction or another
+channel. The catalogue of forbidden strings barely dents the harm it targets.
+
+What the catalogue *does* reliably catch is the legitimate speech adjacent to
+it — the ambiguous, the ironic, the dialectal, the merely unlucky. So the net
+effect runs backwards: censorship does little to prevent bad speech, while
+steadily destroying good speech through over-blocking and the chilling effect of
+being judged. The asymmetry is the whole problem. Whoever holds the pen that
+draws the line holds a power that is cheap to abuse and expensive to contest.
+
+Glossia sharpens this asymmetry to the point of absurdity. It does not argue
+that the line between good and bad speech should move; it makes the line
+impossible to draw mechanically, because drawing it now requires judging
+ordinary language itself.
+
 ## The traditional framing
 
 Content moderation and censorship, as usually practiced, assume a clean split:
