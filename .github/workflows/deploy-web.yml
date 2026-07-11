@@ -9,6 +9,7 @@ on:
       - 'Cargo.toml'
       - 'build_web.sh'
       - 'languages/**'
+      - 'docs/**'
   workflow_dispatch:
 
 # Pushing the built site to the gh-pages branch requires write access.
@@ -46,6 +47,19 @@ jobs:
       # binary gets picked up instead and can reject modern wasm features.
       - name: Build WASM
         run: ./build_web.sh
+
+      - name: Install mdBook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          # Pin the version so CI matches local builds; `latest` drifted to
+          # mdBook 0.5.x, which rejects legacy book.toml fields.
+          mdbook-version: '0.4.40'
+
+      # Build the docs book into web/docs/ so it deploys alongside the web app.
+      # -d is resolved relative to the book root (docs/), so ../web/docs lands the
+      # rendered site at web/docs/, served in production at glossia.io/docs/.
+      - name: Build docs
+        run: mdbook build docs -d ../web/docs
 
       # Deploy the production site to the root of gh-pages. clean-exclude keeps
       # the pr-preview/ directory (managed by the PR Preview workflow) intact so
