@@ -51,29 +51,34 @@ payloads):
 granularity #classes  density  coherence
 none              1    0.363      0.424     <- today's generator (POS only)
 binary            2    0.330      0.709
+quad              4    0.310      0.918     <- knee: animate/agentive/thing/abstract
 coarse            5    0.307      0.950
 fine             10    0.303      1.000
 
 Marginal gain per step:
   none   -> binary: +28.5 coh pts for  -9.0% density
-  binary -> coarse: +24.1 coh pts for  -7.1% density
+  binary -> quad  : +20.9 coh pts for  -6.2% density
+  quad   -> coarse:  +3.2 coh pts for  -0.9% density   <- place split barely helps
   coarse -> fine  :  +5.0 coh pts for  -1.4% density   <- diminishing returns
 ```
 
-**Coherence saturates at the coarse (5-class) level.** Binary animacy alone
-removes most of the blunders (subject-animacy violations); the coarse split
-(`animate / agentive / thing / place / abstract`) gets you to 95%; the jump to
-10 fine classes buys only 5 more points while still costing density. That is the
-over-constraint effect made concrete: past the knee you keep paying density for
-coherence you already have.
+**Coherence saturates at 4 classes.** Binary animacy alone removes most of the
+blunders (subject-animacy violations); the 4-class split
+(`animate / agentive / thing / abstract`) reaches ~92%. Splitting `place` out of
+`thing` (the 5th class) adds only 3 points, and going to 10 fine classes only 5
+more — both while still costing density. That is the over-constraint effect made
+concrete: past the knee you keep paying density for coherence you already have.
 
 ### Recommendation
 
-**Start at coarse (≈5 classes), soft-scored, payload exempt.** It captures the
-coherence humans actually notice for a bounded density cost, and it's the cheapest
-table for me to author and for you to audit. Reserve fine classes for specific
-verbs whose objects are genuinely narrow (`drink`→substance, `harvest`→plant) if
-you decide those cases are worth it later.
+**Start at 4 classes (`animate / agentive / thing / abstract`), soft-scored,
+payload exempt.** Keeping `animate` and `agentive` distinct is what earns the
+big jump (it's what lets `engine process evidence` stay valid while blocking
+`clock discover mountain`); the remaining physical/abstract split covers the
+rest. It captures the coherence humans actually notice for a bounded density
+cost, and it's the cheapest table to author and audit. Add the `place` split or
+per-verb fine object classes (`drink`→substance, `harvest`→plant) later only if
+specific cases prove worth it.
 
 ### What the surface sentences look like
 

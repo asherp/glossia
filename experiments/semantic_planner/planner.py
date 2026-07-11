@@ -62,8 +62,8 @@ _LEAF_TO_TOP = {
     "place": "place",
     "info": "abstract", "concept": "abstract",
 }
-LEVELS = ["none", "binary", "coarse", "fine"]
-NCLASSES = {"none": 1, "binary": 2, "coarse": 5, "fine": 10}
+LEVELS = ["none", "binary", "quad", "coarse", "fine"]
+NCLASSES = {"none": 1, "binary": 2, "quad": 4, "coarse": 5, "fine": 10}
 
 leaf_of = lambda cls: cls.split("/")[-1]      # "animate/person" -> "person"
 
@@ -76,6 +76,9 @@ def project(leaf, level):
     top = _LEAF_TO_TOP[leaf]
     if level == "binary":
         return "animate" if top == "animate" else "inanimate"
+    if level == "quad":
+        # keep animate & agentive distinct; fold `place` into `thing`
+        return "thing" if top == "place" else top
     if level == "coarse":
         return top
     raise ValueError(level)
