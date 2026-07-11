@@ -1,0 +1,52 @@
+# Verb selectional-restriction frames — the genuinely NEW table (POS has no
+# analog). Each verb declares what semantic class it expects of its subject and
+# (if transitive) its object. In the Rust type system these become refined verb
+# types, e.g. discover : e[animate] -> (e[abstract] -> t).
+#
+# `subj` / `obj` are sets of FINE classes (the ground truth). The planner projects
+# them down to whatever granularity is under test — that projection is the whole
+# point of the over-constraint experiment.
+#
+# Groupings below are just for readability.
+
+verbs:
+  # --- mental / volitional: REQUIRE an animate subject ---
+  #     (this is the "clock discovers mountain" class of blunder)
+  discover:  { subj: [person, animal], obj: [info, concept, place, artifact] }
+  decide:    { subj: [person, animal], obj: [info, concept] }
+  speak:     { subj: [person, animal], obj: [info] }
+  search:    { subj: [person, animal], obj: [place, info, artifact] }
+  remember:  { subj: [person, animal], obj: [info, concept] }
+  accuse:    { subj: [person, animal], obj: [person] }          # narrow object -> fine granularity will bite
+
+  # --- agentive-friendly: accept animate OR machine/creature subjects ---
+  #     (this is where a machine subject must NOT be wrongly blocked)
+  observe:   { subj: [person, animal, machine, creature], obj: [] }   # obj [] = accepts anything
+  process:   { subj: [person, animal, machine, creature], obj: [info, substance] }
+  detect:    { subj: [person, animal, machine, creature], obj: [artifact, info, concept, place] }
+  measure:   { subj: [person, animal, machine, creature], obj: [concept, place, substance] }
+  build:     { subj: [person, animal, machine, creature], obj: [artifact, place] }
+  absorb:    { subj: [person, animal, machine, creature], obj: [substance, info] }
+  run:       { subj: [person, animal, machine, creature], obj: null }  # intransitive
+
+  # --- physical manipulation: agents (animate or machine) ---
+  carry:     { subj: [person, animal, machine], obj: [artifact, substance, plant] }
+  push:      { subj: [person, animal, machine], obj: [artifact, place] }
+  pull:      { subj: [person, animal, machine], obj: [artifact] }
+  destroy:   { subj: [person, animal, machine], obj: [artifact, place] }
+  abandon:   { subj: [person, animal, machine], obj: [place, artifact] }
+  harvest:   { subj: [person, animal], obj: [plant] }            # narrow object
+  drink:     { subj: [person, animal], obj: [substance] }        # narrow object
+  follow:    { subj: [person, animal], obj: [person, animal, place] }
+  climb:     { subj: [person, animal], obj: [place] }
+  jump:      { subj: [person, animal], obj: null }
+
+  # --- unaccusative / stative: accept ANY subject (inanimate fine) ---
+  #     (these must stay permissive so density isn't wasted constraining them)
+  melt:      { subj: any, obj: null }
+  shine:     { subj: any, obj: null }
+  crash:     { subj: any, obj: null }
+  change:    { subj: any, obj: null }
+  appear:    { subj: any, obj: null }
+  exist:     { subj: any, obj: null }
+  remain:    { subj: any, obj: null }

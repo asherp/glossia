@@ -1,0 +1,113 @@
+# Semantic sentence planning — offline prototype
+
+A throwaway measurement rig (Python, not part of the Rust build) that answers
+the question we kept circling: **is it worth teaching Glossia's generator about
+noun/verb semantics, and if so, how many semantic classes?**
+
+It follows the "measure before you build" plan: prove the tradeoff on paper
+before touching the 1852-line Rust generator in `src/generator/`.
+
+## The idea in one paragraph
+
+Today the generator seats payload words into POS slots (noun goes anywhere a
+noun fits), which produces grammatical-but-silly prose like *"clock discovers
+mountain."* Semantic classes let a verb declare what it expects of its arguments
+(`discover` wants an animate subject) so the planner can **reroute** a forced
+payload word into a slot that fits and pick a compatible cover word — without
+ever dropping or reordering payload words, so the decoder is untouched.
+
+The catch: every reroute costs cover words, and cover words lower **density**
+(`payload_count / total_words`), which is Glossia's core metric. More classes =
+finer constraints = more reroutes = lower density. So there's a sweet spot, and
+this rig finds it.
+
+## What's here
+
+| file | what it is |
+|------|------------|
+| `semantics.yaml` | noun → semantic class, for a 70-word slice of real BIP39 nouns. The noun-side feature table; mirrors how POS is already stored, and maps onto the existing `SemanticType::Refined` machinery (`e[animate/person]`). |
+| `verb_frames.yaml` | verb → subject/object selectional restrictions. The genuinely new table (POS has no analog). |
+| `planner.py` | greedy sentence planner + a granularity sweep + a surface renderer. |
+
+Classes use slash notation so a coarse class subsumes its children
+(`animate` ⊇ `animate/person`) — exactly the hierarchical subsumption already
+implemented and tested in `src/semantic_types.rs` (`refinement_subsumes`).
+
+## Run it
+
+```
+python3 planner.py
+```
+
+No dependencies beyond `pyyaml`. It reads real POS data from
+`languages/english/payload_bip39.yaml`.
+
+## The result
+
+Holding the payload fixed and sweeping class granularity (400 random 12-word
+payloads):
+
+```
+granularity #classes  density  coherence
+none              1    0.363      0.424     <- today's generator (POS only)
+binary            2    0.330      0.709
+coarse            5    0.307      0.950
+fine             10    0.303      1.000
+
+Marginal gain per step:
+  none   -> binary: +28.5 coh pts for  -9.0% density
+  binary -> coarse: +24.1 coh pts for  -7.1% density
+  coarse -> fine  :  +5.0 coh pts for  -1.4% density   <- diminishing returns
+```
+
+**Coherence saturates at the coarse (5-class) level.** Binary animacy alone
+removes most of the blunders (subject-animacy violations); the coarse split
+(`animate / agentive / thing / place / abstract`) gets you to 95%; the jump to
+10 fine classes buys only 5 more points while still costing density. That is the
+over-constraint effect made concrete: past the knee you keep paying density for
+coherence you already have.
+
+### Recommendation
+
+**Start at coarse (≈5 classes), soft-scored, payload exempt.** It captures the
+coherence humans actually notice for a bounded density cost, and it's the cheapest
+table for me to author and for you to audit. Reserve fine classes for specific
+verbs whose objects are genuinely narrow (`drink`→substance, `harvest`→plant) if
+you decide those cases are worth it later.
+
+### What the surface sentences look like
+
+```
+clock discover mountain   none : The clock discover the mountain.        (silly)
+                          coarse: The captain discover the mountain, and the clock.
+engine process evidence   coarse: The engine process the evidence.       (machine subj OK — not over-blocked)
+captain decide idea       coarse: The captain decide the idea.           (already fine — untouched)
+```
+
+Note *clock/discover/mountain* all survive in order in the rerouted version — the
+cover word (`captain`) carries no payload, so decoding is unchanged.
+
+## Honest caveats
+
+- **Coherence is scored against the same frames the planner enforces**, so the
+  absolute coherence numbers are somewhat self-referential. The robust signal is
+  the *shape* (saturation at coarse) and the *density cost*, not the exact values.
+- **Vocabulary is the 70-word annotated slice**, so payloads are drawn from it.
+  A real run needs the full noun list annotated (I can do BIP39's ~1580 nouns
+  by hand; the 131k-lemma list needs a WordNet-assisted first pass).
+- **Morphology is out of scope** — the prototype prints bare lemmas
+  ("clock discover"); the real generator already handles agreement/inflection in
+  `src/generator/agreement.rs`.
+- **The repair model (defer to a trailing appositive) is a stand-in.** The real
+  generator would reroute via frame/sentence-boundary search, which should be
+  *cheaper* than a fixed appositive — so the density costs here are an upper bound.
+
+## If we productionize this
+
+1. Add a `class:` field to the English payload wordlist (offline, authored once).
+2. Add a verb-frames table (offline, authored once).
+3. Express both as refined entity types and let the existing `accepts()` /
+   `refinement_subsumes()` in `src/semantic_types.rs` do the compatibility check.
+4. In the generator, gate verb-argument slot filling with a **soft** score
+   (penalty, not veto) so it degrades gracefully to today's output and never
+   fails to place a forced payload word.

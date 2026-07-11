@@ -1,0 +1,108 @@
+# Semantic annotations for a curated slice of BIP39 payload nouns.
+#
+# This is the NOUN-side feature table discussed in the semantic-planning
+# design: it mirrors how POS tags already work (word -> static, offline-computed
+# feature), and rides on the existing `SemanticType::Refined { refinement, base }`
+# machinery in src/semantic_types.rs. A noun tagged `animate/person` becomes the
+# entity type `e[animate/person]`; the slash hierarchy means `e[animate]` already
+# subsumes it via the tested `refinement_subsumes` logic.
+#
+# `class` uses slash notation so a coarse class subsumes its fine children:
+#   animate/person, animate/animal
+#   agentive/machine, agentive/creature   (can act, but not alive)
+#   thing/artifact, thing/substance, thing/plant
+#   place
+#   abstract/info, abstract/concept
+#
+# Every word here is a real BIP39 word (POS comes from payload_bip39.yaml).
+# `note` flags the judgment calls a human should eyeball (the `?` cases from
+# the earlier discussion).
+
+nouns:
+  # --- animate / person ---
+  captain: { class: animate/person }
+  man:     { class: animate/person }
+  doctor:  { class: animate/person }
+  judge:   { class: animate/person }
+  host:    { class: animate/person }
+  guard:   { class: animate/person }
+  clerk:   { class: animate/person }
+  author:  { class: animate/person }
+  artist:  { class: animate/person }
+  genius:  { class: animate/person }
+  chef:    { class: animate/person }
+  nurse:   { class: animate/person }
+  pilot:   { class: animate/person }
+  crowd:   { class: animate/person, note: "collective — animate group, could be its own class" }
+
+  # --- animate / animal ---
+  coyote:  { class: animate/animal }
+  tiger:   { class: animate/animal }
+  dog:     { class: animate/animal }
+  cat:     { class: animate/animal }
+  wolf:    { class: animate/animal }
+  bird:    { class: animate/animal }
+  fish:    { class: animate/animal }
+  snake:   { class: animate/animal }
+  horse:   { class: animate/animal }
+  giraffe: { class: animate/animal }
+  dolphin: { class: animate/animal }
+  turtle:  { class: animate/animal }
+  rabbit:  { class: animate/animal }
+
+  # --- agentive (acts intentionally, but not alive) ---
+  engine:  { class: agentive/machine, note: "the payoff case for a 3-way tag: 'engine processes signal' must stay valid" }
+  machine: { class: agentive/machine }
+  robot:   { class: agentive/machine }
+  monster: { class: agentive/creature, note: "fictional agent — the robot/monster gray zone" }
+
+  # --- thing / artifact ---
+  clock:   { class: thing/artifact }
+  laptop:  { class: thing/artifact }
+  rifle:   { class: thing/artifact }
+  rocket:  { class: thing/artifact }
+  cable:   { class: thing/artifact }
+  basket:  { class: thing/artifact }
+  board:   { class: thing/artifact, note: "polysemous: plank vs. board-of-directors (animate)" }
+  column:  { class: thing/artifact }
+  fence:   { class: thing/artifact }
+
+  # --- thing / substance ---
+  glue:    { class: thing/substance }
+
+  # --- thing / plant (alive but not intentional -> inanimate for verb selection) ---
+  seed:    { class: thing/plant }
+  bean:    { class: thing/plant }
+  blossom: { class: thing/plant }
+
+  # --- place (natural locations + structures you can be in/on) ---
+  mountain: { class: place }
+  river:    { class: place }
+  forest:   { class: place }
+  desert:   { class: place }
+  island:   { class: place }
+  bridge:   { class: place }
+  canal:    { class: place }
+  subway:   { class: place }
+  tower:    { class: place }
+  tunnel:   { class: place }
+  castle:   { class: place }
+
+  # --- abstract / info ---
+  evidence: { class: abstract/info }
+  recipe:   { class: abstract/info }
+  manual:   { class: abstract/info }
+  logic:    { class: abstract/info }
+  theory:   { class: abstract/info }
+  idea:     { class: abstract/info }
+
+  # --- abstract / concept ---
+  horror:  { class: abstract/concept }
+  misery:  { class: abstract/concept }
+  mystery: { class: abstract/concept }
+  miracle: { class: abstract/concept }
+  brand:   { class: abstract/concept }
+  sport:   { class: abstract/concept }
+  series:  { class: abstract/concept }
+  danger:  { class: abstract/concept }
+  excuse:  { class: abstract/concept }
