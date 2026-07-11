@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="free-speech.html"><strong aria-hidden="true">1.</strong> Free Speech</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">2.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">3.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">4.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">5.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">6.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">7.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">8.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">9.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">10.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">11.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">12.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">13.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">14.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">15.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">16.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">17.</strong> Whitepaper</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">6.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">7.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">8.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">9.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">10.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">11.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">12.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">13.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">14.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">15.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">16.</strong> Whitepaper</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -451,93 +451,6 @@ glossia --random 12 --verbose --seed 0
 <li>See the <a href="docs/src/tools.html">Tools documentation</a> for information about utility tools</li>
 <li>Grammar files use Pest parser syntax - see <code>src/grammar_parser.pest</code> for the grammar definition</li>
 </ul>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="free-speech"><a class="header" href="#free-speech">Free Speech</a></h1>
-<p>Glossia reframes the free-speech debate by collapsing two distinctions that
-most censorship regimes rely on: the distinction between <em>content</em> and <em>form</em>,
-and the distinction between <em>data</em> and <em>speech</em>.</p>
-<p>This is a consequence of the design, not an add-on to it. Because Glossia is
-<a href="./how-it-works.html">a readable encoding, not steganography</a>, it hides nothing —
-it makes machine data <em>human-friendly</em>. The payload is carried by ordinary,
-grammatically prominent words embedded in genuine prose. There is no covert
-channel to detect; there is only language.</p>
-<h2 id="the-asymmetry-of-censorship"><a class="header" href="#the-asymmetry-of-censorship">The asymmetry of censorship</a></h2>
-<p>The deeper objection is not about Glossia at all. It is that censorship leaves
-the distinction between good speech and bad in the hands of regulators — and
-that trade rarely pays off. Determined bad actors route around interdiction:
-they encrypt, they use code words, they move to another jurisdiction or another
-channel. The catalogue of forbidden strings barely dents the harm it targets.</p>
-<p>What the catalogue <em>does</em> reliably catch is legitimate speech — and here "good"
-should be read at its widest. It runs from the wholly innocuous (the ambiguous,
-the ironic, the dialectal, the merely unlucky) all the way to the politically
-incorrect, the dissenting, and the subversive. That disfavored end is not an
-unfortunate side effect; it is precisely the speech a free-speech tradition
-exists to protect, and precisely the speech a regulator is most tempted to file
-under "bad." So the net effect runs backwards: censorship does little to prevent
-genuinely harmful speech, while steadily destroying the good — from the everyday
-to the challenging — through over-blocking and the chilling effect of being
-judged. The asymmetry is the whole problem. Whoever holds the pen that draws the
-line holds a power that is cheap to abuse and expensive to contest.</p>
-<p>Glossia sharpens this asymmetry to the point of absurdity. It does not argue
-that the line between good and bad speech should move; it makes the line
-impossible to draw mechanically, because drawing it now requires judging
-ordinary language itself.</p>
-<h2 id="the-traditional-framing"><a class="header" href="#the-traditional-framing">The traditional framing</a></h2>
-<p>Content moderation and censorship, as usually practiced, assume a clean split:</p>
-<ul>
-<li><strong>Bad content is identifiable.</strong> Banned keywords, known file hashes,
-signatures, blocklisted URLs. Moderation is the business of matching against
-a catalogue of prohibited <em>meanings</em>.</li>
-<li><strong>Neutral containers are regulable infrastructure.</strong> Plaintext, hex, Base64,
-and encrypted blobs are treated as transport — pipes that can be inspected,
-throttled, or blocked without implicating anyone's expression.</li>
-<li><strong>Speech protection attaches to the message's meaning.</strong> What is protected is
-<em>what you said</em>; the encoding it traveled in is incidental.</li>
-</ul>
-<p>On this view, an automated system can scan a container, extract the payload,
-match it against a list, and act — all without ever engaging with anything a
-court would recognize as protected expression.</p>
-<h2 id="glossias-reframing"><a class="header" href="#glossias-reframing">Glossia's reframing</a></h2>
-<p>Glossia dissolves the container. The data does not ride <em>inside</em> a neutral wrapper;
-it <em>is</em> the sentence. The carrier and the payload are the same words.</p>
-<ul>
-<li><strong>The carrier becomes protected expression.</strong> A Glossia-encoded key is not a
-blob with prose wrapped around it — it is prose. Precise machine data
-(ciphertext, keys, signatures, hashes, mnemonics) lives inside natural human
-language, and potentially inside other expressive media such as
-<a href="./image-codec.html">images</a> and music. There is no "container" to inspect that
-is separable from the expression itself.</li>
-<li><strong>Moderation must police form, not just payload.</strong> To interdict Glossia,
-a regulator can no longer match against a catalogue of forbidden strings.
-It must judge <strong>language patterns, style, and structure</strong> — turning
-moderation into literary and cultural criticism carried out at scale.</li>
-<li><strong>Scanning risks chilling ordinary expression.</strong> If flagging content means
-labeling some prose (or some melody) as "suspicious" by its shape, the
-false-positive surface is the whole of human creativity: creative, ambiguous,
-ironic, dialectal, or non-native expression is exactly the kind most likely
-to be misread. That chilling effect is the classic free-speech harm.</li>
-<li><strong>Power shifts toward the individual.</strong> A human-legible, portable, verifiable
-encoding resists automated governance without asking anyone to hide. The
-privacy comes from the shared wordlist, not from invisibility — so the
-message can be read, spoken, transcribed, and checked by any person who holds
-the key, while remaining opaque to a scanner that treats it as mere text.</li>
-</ul>
-<h2 id="why-this-matters"><a class="header" href="#why-this-matters">Why this matters</a></h2>
-<p>The point is not concealment. Glossia is deliberately transparent: anyone with
-the payload wordlist can see immediately that a text carries data. What changes
-is <em>where the burden falls</em>. Under the traditional framing, the state inspects a
-container and the citizen's expression is untouched. Under Glossia's framing,
-there is no container to inspect — inspection <em>is</em> an act of reading, judging,
-and second-guessing human language.</p>
-<p>In short, Glossia moves the debate from <strong>"what may we say?"</strong> to
-<strong>"how may we say it?"</strong> — and in doing so it makes censorship more invasive,
-more contestable, and more culturally fraught. It reframes language itself as a
-tool of individual agency rather than a substrate to be made legible for
-control.</p>
-<blockquote>
-<p><strong>Note.</strong> This page is a positioning essay, not legal advice. How any of this
-maps onto a specific jurisdiction's speech doctrine is an open question, and
-deliberately so.</p>
-</blockquote>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation-1"><a class="header" href="#installation-1">Installation</a></h1>
 <h2 id="from-source"><a class="header" href="#from-source">From Source</a></h2>
 <pre><code class="language-bash"># Clone the repository
@@ -882,7 +795,7 @@ Variations:
 <pre><code>effective_size = max_index + 1
 </code></pre>
 <p>Where <code>max_index</code> is the highest index of any word actually used in the payload.</p>
-<h3 id="why-this-matters-1"><a class="header" href="#why-this-matters-1">Why This Matters</a></h3>
+<h3 id="why-this-matters"><a class="header" href="#why-this-matters">Why This Matters</a></h3>
 <p>This approach provides two key benefits:</p>
 <ol>
 <li>
