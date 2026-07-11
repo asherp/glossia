@@ -1,0 +1,498 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Introduction - Glossia Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html" class="active">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">6.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">7.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">8.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">9.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">10.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">11.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">12.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">13.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">14.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">15.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">16.</strong> Whitepaper</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Glossia Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asherp/glossia" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<h1 id="glossia"><a class="header" href="#glossia">Glossia</a></h1>
+<p>A lossless linguistic codec for machine-to-human communication. Glossia generates natural-looking sentences using a context-free grammar (CFG), while embedding BIP39 mnemonic words in-order within the generated text.</p>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>This tool uses a small, controlled grammar to generate sentences that embed BIP39 words in their natural positions based on part-of-speech (POS) tags. The cover lexicon (non-payload words) is carefully constructed to avoid any BIP39 words, making decoding trivial: simply filter out all words that are not in the BIP39 word list.</p>
+<h2 id="a-readable-encoding-not-steganography"><a class="header" href="#a-readable-encoding-not-steganography">A readable encoding, not steganography</a></h2>
+<p>Glossia is <strong>not</strong> a steganographic tool. Its goal is not to hide that data is present, but to make machine data <em>human-friendly</em> — something a person can read, speak, transcribe, and verify. This distinction drives the design:</p>
+<ul>
+<li>Steganography pays for concealment by spending nearly all of its capacity on cover text, typically netting <strong>well under 1 bit per symbol</strong>.</li>
+<li>Glossia hides nothing, so every payload word carries its full information content — <strong>~11 bits</strong> with the 2048-word BIP39 list, up to <strong>~15 bits</strong> with larger wordlists.</li>
+</ul>
+<p>The payload is meant to be <em>seen and decoded</em>. The mission is to make ciphertext and other machine data — keys, signatures, hashes, mnemonics — human-friendly in a way existing formats (hex, Base64, fingerprints, ASCII armor) do not, <strong>without sacrificing too much security</strong>. When iterating on Glossia, optimize for legibility and density, not concealment.</p>
+<h2 id="features"><a class="header" href="#features">Features</a></h2>
+<ul>
+<li><strong>CFG-based sentence generation</strong>: Uses a small context-free grammar to generate grammatically correct sentences</li>
+<li><strong>POS-tagged payload embedding</strong>: Embeds BIP39 words based on their part-of-speech tags</li>
+<li><strong>SFW cover lexicon</strong>: Uses a safe-for-work lexicon that excludes all BIP39 words</li>
+<li><strong>Adaptive sentence length</strong>: Adjusts sentence complexity based on remaining payload tokens</li>
+<li><strong>Word frequency analysis</strong>: Tool to generate word lists from frequency data with POS tags</li>
+</ul>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<h3 id="install-from-source"><a class="header" href="#install-from-source">Install from Source</a></h3>
+<pre><code class="language-bash"># Clone the repository
+git clone https://github.com/asherp/glossia.git
+cd glossia
+
+# Install the binary (the CLI lives in the glossia-cli crate)
+cargo install --path glossia-cli
+</code></pre>
+<p>This will install the <code>glossia</code> binary to <code>~/.cargo/bin/glossia</code> (or <code>$CARGO_HOME/bin/glossia</code> if set). Make sure this directory is in your <code>PATH</code>.</p>
+<p><strong>Note:</strong> The English language files (wordlists and grammars) are embedded in the binary, so no additional files need to be copied. For other languages (French, German), you'll need to provide the language files separately.</p>
+<h3 id="install-from-git"><a class="header" href="#install-from-git">Install from Git</a></h3>
+<pre><code class="language-bash">cargo install --git https://github.com/asherp/glossia.git glossia-cli
+</code></pre>
+<h3 id="verify-installation"><a class="header" href="#verify-installation">Verify Installation</a></h3>
+<pre><code class="language-bash">glossia --help
+</code></pre>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<h3 id="defaults-and-use-cases"><a class="header" href="#defaults-and-use-cases">Defaults and Use Cases</a></h3>
+<p>Glossia defaults to <strong>body grammar with natural length-mode</strong>, which is optimized for email body text and prose. The defaults are designed for different use cases:</p>
+<ul>
+<li>
+<p><strong>Body grammar + natural mode (default)</strong>: Best for email body text and prose. Generates longer, more natural sentences by sampling from the grammar's length distribution. This produces readable text that flows naturally.</p>
+</li>
+<li>
+<p><strong>Subject grammar + compact mode</strong>: Best for email subject lines where brevity is critical. Generates short phrases and may include prefixes (Re:, Fwd:, etc.). Uses compact mode to find the shortest possible sentence that fits the payload.</p>
+</li>
+</ul>
+<p>You can override these defaults using <code>--dialect</code> and <code>--length-mode</code> flags as needed.</p>
+<h3 id="main-program"><a class="header" href="#main-program">Main Program</a></h3>
+<h4 id="basic-usage"><a class="header" href="#basic-usage">Basic Usage</a></h4>
+<p><strong>Default: body grammar + natural length-mode</strong></p>
+<pre><code class="language-bash">$ glossia --random 12 --seed 0
+</code></pre>
+<pre><code>Snake set robot to the mixed ship. Each program is night to each ten shield.
+Bamboo own way to the yellow.
+</code></pre>
+<p>The embedded words are: <code>snake</code>, <code>robot</code>, <code>mixed</code>, <code>ship</code>, <code>program</code>, <code>night</code>, <code>ten</code>, <code>shield</code>, <code>bamboo</code>, <code>own</code>, <code>way</code>, <code>yellow</code>. (Use <code>--highlight bars</code> to show delimiters like <code>|snake|</code>.)</p>
+<p><strong>Subject grammar (shorter sentences with prefixes)</strong></p>
+<pre><code class="language-bash">$ glossia --random 12 --dialect subject --seed 0
+</code></pre>
+<pre><code>A snake is out a robot is mixed the ship is pop the program is night the ten is
+hot a shield is cut a bamboo is own a way is yellow
+</code></pre>
+<p><strong>Compact body grammar</strong></p>
+<pre><code class="language-bash">$ glossia --random 12 --dialect body --length-mode compact --seed 0
+</code></pre>
+<pre><code>Snake see robot. Ban is mixed. Ship program tap. Night is ten.
+Shield get bamboo. Pie own way. Yellow is set.
+</code></pre>
+<p><strong>Provide words directly instead of random selection</strong></p>
+<pre><code class="language-bash">$ glossia abandon ability able about above absent
+</code></pre>
+<pre><code>The abandon may see the ability to each able ears about above. Guy may absent.
+</code></pre>
+<p><strong>Encode an API key or secret</strong></p>
+<pre><code class="language-bash">$ glossia --from-ascii "sk_live_51H3ll0W0r1d" --seed 0
+</code></pre>
+<pre><code>Ban inflict foot to swallow for spray. Green may question. State get cinnamon.
+Cricket see the gloom to army. The rid purpose already board the rid mosquito.
+</code></pre>
+<p>The API key is encoded into natural-looking prose. To decode, extract all BIP39 words from the output and convert them back to ASCII using the wordlist.</p>
+<p><strong>Encode an IP address</strong></p>
+<pre><code class="language-bash">$ glossia --from-ascii "127.0.0.1" --dialect subject --length-mode compact --seed 0
+</code></pre>
+<pre><code>A couple is out a museum is pop each slide is set a gate is ago a toast is bad
+the blade is hot the series is big
+</code></pre>
+<p>IP addresses and other network identifiers can be encoded into prose. Using compact mode with subject grammar produces shorter, more concise output suitable for subject lines or when brevity is important.</p>
+<p><strong>Generate multiple variations and select the most compact</strong></p>
+<pre><code class="language-bash">$ glossia --random 12 --variations 3 --seed 0
+</code></pre>
+<pre><code>Snake set robot to the mixed ship. Each program is night to each ten shield.
+Bamboo own way to the yellow.
+
+
+Snake get robot to a mixed ship to program per the night ten.
+Some shield see bamboo. Die may own way. The yellow might get pay.
+
+
+Snake may see the robot. Each mixed ship program night.
+Ten shield the bad bamboo. Each own way why yellow each cut.
+
+=== Statistics ===
+Input:
+  Total words: 12
+  POS breakdown:
+    Nouns: 10
+    Verbs: 6
+    Adjectives: 5
+    Adverbs: 1
+Output:
+  Total words: 32
+  Payload words: 12 (37.5%)
+  Cover words: 20 (62.5%)
+  Sentences: 1
+  Avg words per sentence: 32.0
+Compactness:
+  Score: 0.580 (58 BIP39 chars / 100 total chars)
+  Efficiency: 58.0% BIP39 characters
+Variations:
+  Tested: 3
+  Min compactness: 0.523
+  Max compactness: 0.580
+  Avg compactness: 0.548
+  Improvement: 5.8% better than average
+</code></pre>
+<h4 id="additional-options"><a class="header" href="#additional-options">Additional Options</a></h4>
+<pre><code class="language-bash"># Use a specific language (default: english)
+glossia --random 12 --language english --seed 0
+
+# Use a seed for reproducible output
+glossia --random 12 --seed 0
+
+# Show grammar rules
+glossia --show-grammar --dialect body
+
+# Verbose output for debugging
+glossia --random 12 --verbose --seed 0
+</code></pre>
+<h4 id="command-line-options"><a class="header" href="#command-line-options">Command-Line Options</a></h4>
+<ul>
+<li><code>--random &lt;N&gt;</code>: Generate sentences from N random BIP39 words</li>
+<li><code>--dialect &lt;dialect&gt;</code>: Dialect to use: <code>body</code> (default) or <code>subject</code>. Can include language: <code>latin-body</code>, <code>english-subject</code>, <code>cs-nip04</code>.
+<ul>
+<li><code>body</code>: Longer sentences, no prefixes. Best for email body text and prose.</li>
+<li><code>subject</code>: Short sentences, may include prefixes (Re:, Fwd:, etc.). Best for email subject lines where brevity is critical.</li>
+</ul>
+</li>
+<li><code>--highlight &lt;mode&gt;</code>: Highlight words: <code>none</code> (default), <code>bars</code> (| |), or color name</li>
+<li><code>--seed &lt;N&gt;</code>: Seed for deterministic random generation</li>
+<li><code>--variations &lt;N&gt;</code>: Generate N variations and select the most compact (default: 1)</li>
+<li><code>--language, -l &lt;lang&gt;</code>: Language for wordlist: <code>english</code> (default, BIP39), <code>french</code> (BIP39), <code>german</code></li>
+<li><code>--k-min &lt;N&gt;</code>: Minimum sentence length in POS slots including Dot (default: 3)</li>
+<li><code>--k-max &lt;N&gt;</code>: Maximum sentence length in POS slots including Dot (default: 20)</li>
+<li><code>--length-mode &lt;mode&gt;</code>: Sentence length selection: <code>compact</code> or <code>natural</code>
+<ul>
+<li>Default: <code>body</code> → <code>natural</code>, <code>subject</code> → <code>compact</code></li>
+<li><code>compact</code>: Try k from k_min to k_max, shortest first. Produces the shortest possible sentences.</li>
+<li><code>natural</code>: Sample k from grammar's length distribution. Produces more natural, varied sentence lengths.</li>
+</ul>
+</li>
+<li><code>--show-grammar</code>: Display the grammar rules (then continue execution)</li>
+<li><code>--verbose, -v</code>: Show detailed debugging information</li>
+<li><code>--help, -h</code>: Show help message</li>
+</ul>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How It Works</a></h2>
+<ol>
+<li><strong>Payload tokens</strong>: BIP39 words are tagged with allowed POS categories (Noun, Verb, Adjective, etc.)</li>
+<li><strong>Grammar expansion</strong>: The CFG generates a stream of POS slots</li>
+<li><strong>Slot filling</strong>: Payload tokens are embedded when they fit a slot's POS, otherwise cover words are used</li>
+<li><strong>Decoding</strong>: Extract BIP39 words by filtering the output against the BIP39 word list</li>
+</ol>
+<p><strong>Important</strong>: Wordlists are <strong>append-only</strong>. You can add new words to wordlists, but you cannot replace or reorder existing words. This preserves backward compatibility with previously encoded messages, since Glossia encodes data by mapping words to their position in the wordlist. See the <a href="docs/src/how-it-works.html">How It Works documentation</a> for details.</p>
+<h2 id="compact-vs-natural-sentence-length-strategy"><a class="header" href="#compact-vs-natural-sentence-length-strategy">Compact vs Natural (sentence length strategy)</a></h2>
+<p>There are (at least) two reasonable ways to drive sentence generation, depending on the UX you want:</p>
+<ul>
+<li>
+<p><strong>Compact mode (minimize length)</strong>:</p>
+<ul>
+<li>Generate the <em>shortest possible</em> sentence that can fit the payload.</li>
+<li>Practical approach: try (k = k_{\min}, k_{\min}+1, \dots) and stop at the first feasible (k).</li>
+<li>Within that fixed (k), pick the highest-probability sequence (tie-break by probability for readability).</li>
+</ul>
+</li>
+<li>
+<p><strong>Natural mode (maximize grammatical “naturalness”)</strong>:</p>
+<ul>
+<li>Prefer sentence lengths and POS sequences that are more probable under the grammar.</li>
+<li>Practical approach: sample (or choose) (k) from the grammar’s length distribution, then sample a POS sequence proportionally to its probability.</li>
+</ul>
+</li>
+</ul>
+<p>If you want a single continuous “compactness ↔ naturalness” knob, a simple scoring function works well:</p>
+<p>[
+\text{score} = \log P(\text{sequence}) - \lambda \cdot \text{length}
+]</p>
+<p>Higher (\lambda) yields shorter, more compact text; lower (\lambda) yields more natural (but sometimes longer) text.</p>
+<p><strong>CLI default behavior:</strong> if you don't pass <code>--length-mode</code>, the program defaults to:</p>
+<ul>
+<li><code>--dialect subject</code> → <code>compact</code></li>
+<li><code>--dialect body</code> → <code>natural</code></li>
+</ul>
+<h2 id="grammar-files"><a class="header" href="#grammar-files">Grammar Files</a></h2>
+<p>Grammars are defined in CFG format files located in <code>languages/{language}/</code> directories:</p>
+<ul>
+<li><code>subject.cfg</code>: Grammar for email subject lines (shorter, may include prefixes)</li>
+<li><code>body.cfg</code>: Grammar for email body text (longer, more natural sentences)</li>
+</ul>
+<p>The grammar parser uses the Pest parser generator to parse these CFG files. Grammar rules support weighted productions for probabilistic selection.</p>
+<h3 id="grammar-note-unbounded-pp-chaining-via-vp"><a class="header" href="#grammar-note-unbounded-pp-chaining-via-vp">Grammar note: unbounded PP chaining via VP</a></h3>
+<p>The English grammar (<code>languages/english/body.cfg</code>) is set up so that <strong>VP can optionally end with one-or-more PPs</strong> (e.g., “… in the house on the hill …"). This removes the previous hard maximum sentence length (formerly capped at 13 POS terminals) while keeping <code>PP</code> itself as a simple unit (<code>Prep NP</code>).</p>
+<h2 id="project-structure"><a class="header" href="#project-structure">Project Structure</a></h2>
+<p>This repository is a Cargo workspace:</p>
+<ul>
+<li><code>glossia</code> (repo root): the library crate (<code>src/lib.rs</code>, grammar, generator, codec, merkle, …), built as <code>cdylib</code> + <code>rlib</code></li>
+<li><code>glossia-cli/</code>: the <code>glossia</code> command-line binary (<code>glossia-cli/src/main.rs</code>)</li>
+<li><code>glossia-tools/</code>: developer tooling binaries (<code>cleanup_weights</code>, <code>tag_words</code>, <code>compare_pos_weights</code>, <code>get_top_words</code>, <code>validate_pos_weights</code>)</li>
+<li><code>glossia-tools/py/</code>: standalone Python helper scripts (Latin wordlist generation, payload dedup, PDF/word extraction). Run from the repo root, e.g. <code>python glossia-tools/py/generate_latin_wordlist.py</code></li>
+</ul>
+<p>Key files:</p>
+<ul>
+<li><code>glossia-cli/src/main.rs</code>: CLI entry point with arg parsing and generation/decoding flow</li>
+<li><code>src/lib.rs</code>: Library root; provides <code>GrammarChecker</code> for nlprule integration and re-exports the public API</li>
+<li><code>src/grammar.rs</code>: Grammar parser and CFG implementation using pest</li>
+<li><code>src/grammar_parser.pest</code>: Pest grammar definition for parsing CFG files</li>
+<li><code>glossia-tools/src/bin/get_top_words.rs</code>: Word frequency analysis tool for generating word lists</li>
+<li><code>glossia-tools/src/bin/tag_words.rs</code>: POS tagging tool using nlprule</li>
+<li><code>languages/english/subject.cfg</code>: CFG grammar definition for subject lines</li>
+<li><code>languages/english/body.cfg</code>: CFG grammar definition for body text</li>
+<li><code>languages/english/cover_POS.txt</code>: Cover lexicon with POS tags (format: <code>word|POS1,POS2</code>)</li>
+<li><code>languages/english/english_bip39_POS.txt</code>: BIP39 word list with POS tags</li>
+<li><code>Cargo.toml</code>: Rust project configuration with dependencies</li>
+</ul>
+<h2 id="dependencies"><a class="header" href="#dependencies">Dependencies</a></h2>
+<ul>
+<li><code>rand = "0.8"</code>: For random selection of cover words and grammar productions</li>
+<li><code>nlprule = "0.6"</code>: For natural language processing and POS tagging</li>
+<li><code>anyhow = "1.0"</code>: For error handling</li>
+<li><code>pest = "2.7"</code>: For parsing CFG grammar files</li>
+<li><code>pest_derive = "2.7"</code>: Derive macro for pest parser</li>
+<li><code>serde = "1.0"</code>: Serialization framework</li>
+<li><code>serde_json = "1.0"</code>: JSON support for serde</li>
+<li><code>reqwest = "0.11"</code>: For downloading word frequency data (get_top_words)</li>
+<li><code>clap = "4.4"</code>: For command-line argument parsing (get_top_words)</li>
+<li><code>regex = "1.10"</code>: For POS tag parsing (get_top_words)</li>
+<li><code>flate2 = "1.0"</code>: For reading gzipped Ngram files (get_top_words)</li>
+<li><code>csv = "1.3"</code>: For parsing CSV frequency files (get_top_words)</li>
+</ul>
+<h2 id="data-sources"><a class="header" href="#data-sources">Data Sources</a></h2>
+<p>For detailed information about the utility tools (word frequency analysis, POS tagging, POS weight generation), see the <a href="docs/src/tools.html">Tools documentation</a>.</p>
+<h2 id="language-support"><a class="header" href="#language-support">Language Support</a></h2>
+<p>The program supports multiple languages via the <code>--language</code> flag. Each language requires:</p>
+<ul>
+<li>A grammar file: <code>languages/{language}/{subject,body}.cfg</code></li>
+<li>A POS-tagged BIP39 wordlist: <code>languages/{language}/{language}_bip39_POS.txt</code></li>
+<li>A cover lexicon: <code>languages/{language}/cover_POS.txt</code></li>
+</ul>
+<p>Currently supported languages:</p>
+<ul>
+<li><code>english</code> (default)</li>
+<li><code>french</code> (requires POS-tagged wordlist)</li>
+<li><code>german</code> (requires POS-tagged wordlist)</li>
+</ul>
+<h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
+<ul>
+<li>The current lexicon is minimal and should be expanded for production use</li>
+<li>The grammar is intentionally simple and can be extended for more variety</li>
+<li>Payload words that don't fit available slots will trigger a warning</li>
+<li>Word frequency data is cached locally to avoid repeated downloads</li>
+<li><strong>Wordlists are append-only</strong>: You can add words but cannot replace or reorder existing ones (see <a href="docs/src/how-it-works.html">How It Works</a> for why)</li>
+<li>See the <a href="docs/src/tools.html">Tools documentation</a> for information about utility tools</li>
+<li>Grammar files use Pest parser syntax - see <code>src/grammar_parser.pest</code> for the grammar definition</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+                            <a rel="next prefetch" href="installation.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+                    <a rel="next prefetch" href="installation.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

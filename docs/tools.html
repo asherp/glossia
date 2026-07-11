@@ -1,0 +1,560 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Tools - Glossia Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">6.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">7.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">8.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html" class="active"><strong aria-hidden="true">9.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">10.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">11.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">12.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">13.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">14.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">15.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">16.</strong> Whitepaper</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Glossia Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asherp/glossia" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="designing-your-own-glossia"><a class="header" href="#designing-your-own-glossia">Designing Your Own Glossia</a></h1>
+<p>To construct a custom language for Glossia, you will need three essential components:</p>
+<ol>
+<li><strong>A payload wordlist</strong> with weighted parts of speech</li>
+<li><strong>A cover wordlist</strong> with weighted parts of speech</li>
+<li><strong>A grammar file</strong> (YAML with CFG productions and Montague types)</li>
+</ol>
+<p>The grammar must take any payload sequence and return a sequence of cover words plus grammar words that <strong>preserves the order of the payload</strong>. This ensures payload words appear in the same order in the generated text as in the input. The grammar is deterministic but may accept additional parameters (such as seeds) to guide output variety.</p>
+<h2 id="important-considerations"><a class="header" href="#important-considerations">Important Considerations</a></h2>
+<ul>
+<li><strong>Decoding requirement</strong>: Others need to decode your messages! They only need the payload wordlist. This is why Glossia includes BIP39 wordlists by default.</li>
+<li><strong>No overlap</strong>: The cover wordlist must <strong>never</strong> contain any words from the payload wordlist. This is enforced at compile time.</li>
+<li><strong>POS weights</strong>: Words can have multiple parts of speech with different probabilities.</li>
+<li><strong>Append-only wordlists</strong>: Both payload and cover wordlists are <strong>append-only</strong>:
+<ul>
+<li>You can <strong>add</strong> new words to the end</li>
+<li>You <strong>cannot</strong> replace or reorder existing words</li>
+<li>Glossia encodes data by mapping words to their index in the wordlist; changing order breaks decoding</li>
+</ul>
+</li>
+</ul>
+<h2 id="1-payload-wordlist"><a class="header" href="#1-payload-wordlist">1. Payload Wordlist</a></h2>
+<p>The payload wordlist is a YAML file mapping words to their POS tag weights:</p>
+<pre><code class="language-yaml">abandon:
+  V: 0.6
+  N: 0.4
+
+ability:
+  N: 1.0
+
+able:
+  Adj: 1.0
+
+about:
+  Prep: 0.6
+  Adv: 0.4
+</code></pre>
+<p><strong>Key points:</strong></p>
+<ul>
+<li>Weights should sum to 1.0 per word (Glossia normalizes if needed)</li>
+<li>Valid POS tags: <code>N</code>, <code>V</code>, <code>Adj</code>, <code>Adv</code>, <code>Prep</code>, <code>Det</code>, <code>Modal</code>, <code>Aux</code>, <code>Cop</code>, <code>To</code>, <code>Conj</code></li>
+<li><strong>Frequency ordering</strong>: Custom payload wordlists should be ordered by frequency (most frequent first). BIP39 is frozen in alphabetical order.</li>
+</ul>
+<h2 id="2-cover-wordlist"><a class="header" href="#2-cover-wordlist">2. Cover Wordlist</a></h2>
+<p>Same YAML format as the payload wordlist, but for words that fill non-payload slots:</p>
+<pre><code class="language-yaml">the:
+  Det: 1.0
+  refinement: def
+
+a:
+  Det: 1.0
+  refinement: indef
+
+is:
+  Cop: 1.0
+
+after:
+  Prep: 0.6
+  Adv: 0.4
+</code></pre>
+<p><strong>Critical requirements:</strong></p>
+<ul>
+<li><strong>Must NOT overlap</strong> with the payload wordlist (compile-time enforced)</li>
+<li>Must include function words (determiners, prepositions, conjunctions, copulas, etc.)</li>
+<li>Optional <code>refinement</code> tags enable grammar-driven morphology (e.g., <code>Det[def]</code> selects "the", <code>Det[indef]</code> selects "a")</li>
+<li><strong>Frequency ordering</strong>: Order by frequency (most frequent first), especially for Merkle mode where the first cover word becomes the Merkle root</li>
+</ul>
+<h2 id="3-grammar-file"><a class="header" href="#3-grammar-file">3. Grammar File</a></h2>
+<p>Grammar files are YAML with Montague Grammar types and CFG productions:</p>
+<pre><code class="language-yaml">grammar:
+  name: "My Language"
+
+  types:
+    - name: "N"
+      lambda_type: "e -&gt; t"
+    - name: "V"
+      lambda_type: "e -&gt; (e -&gt; t)"
+    - name: "Adj"
+      lambda_type: "e -&gt; e"
+    - name: "Det"
+      lambda_type: "(e -&gt; t) -&gt; (e -&gt; t)"
+    - name: "Cop"
+      lambda_type: "(e -&gt; t) -&gt; (e -&gt; t)"
+    - name: "Dot"
+      lambda_type: "t"
+
+  rules:
+    sentence:
+      lambda: "N"
+      cfg_productions:
+        - production: "NP VP Dot"
+          weight: 0.85
+          lambda: "N"
+        - production: "NP V NP Dot"
+          weight: 0.15
+          lambda: "N"
+
+    noun_phrase:
+      lambda: "N"
+      cfg_productions:
+        - production: "N"
+          weight: 0.40
+          lambda: "N"
+        - production: "Det[def] N"
+          weight: 0.35
+          lambda: "Det"
+        - production: "Det[indef] N"
+          weight: 0.25
+          lambda: "Det"
+
+    verb_phrase:
+      lambda: "N"
+      cfg_productions:
+        - production: "V NP"
+          weight: 0.50
+          lambda: "N"
+        - production: "Cop Adj"
+          weight: 0.30
+          lambda: "N"
+        - production: "Modal V NP"
+          weight: 0.20
+          lambda: "N"
+</code></pre>
+<p><strong>Key syntax:</strong></p>
+<ul>
+<li>Terminal symbols are POS tags: <code>Det</code>, <code>Adj</code>, <code>N</code>, <code>V</code>, <code>Modal</code>, <code>Aux</code>, <code>Cop</code>, <code>To</code>, <code>Prep</code>, <code>Adv</code>, <code>Conj</code>, <code>Dot</code>, <code>Prefix</code></li>
+<li>Refinement tags in brackets: <code>Det[def]</code>, <code>Det[indef]</code>, <code>Det[quant]</code></li>
+<li>Weights determine probabilistic selection</li>
+<li>Rule names map to abbreviations: <code>noun_phrase</code> -&gt; <code>NP</code>, <code>verb_phrase</code> -&gt; <code>VP</code>, <code>sentence</code> -&gt; <code>S</code></li>
+</ul>
+<p><strong>Optional dialect overlay</strong> (<code>dialect.yaml</code>):</p>
+<pre><code class="language-yaml">dialects:
+  subject:
+    rules:
+      sentence:
+        cfg_productions:
+          - production: "NP Cop Adj Dot"
+            weight: 1.0
+</code></pre>
+<p>Test your grammar:</p>
+<pre><code class="language-bash">glossia --show-grammar --dialect body
+</code></pre>
+<h2 id="complete-workflow"><a class="header" href="#complete-workflow">Complete Workflow</a></h2>
+<ol>
+<li>
+<p><strong>Create language directory:</strong></p>
+<pre><code class="language-bash">mkdir -p languages/my_language
+</code></pre>
+</li>
+<li>
+<p><strong>Create payload wordlist:</strong></p>
+<ul>
+<li>Start with your word list</li>
+<li>Tag with POS: <code>cargo run --bin tag_words -- -i words.txt -o words_POS.txt</code></li>
+<li>Generate weights: <code>cargo run --bin validate_pos_weights -- --file words.yaml --output payload.yaml</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Create cover wordlist:</strong></p>
+<ul>
+<li>Generate common words: <code>cargo run --bin get_top_words -- -n 1000 --download-coca -o cover_words.txt</code></li>
+<li>Tag with POS: <code>cargo run --bin tag_words -- -i cover_words.txt -o cover_POS.txt</code></li>
+<li>Generate weights: <code>cargo run --bin validate_pos_weights -- --file cover.yaml --output cover.yaml</code></li>
+<li>Overlap is validated automatically at compile time</li>
+</ul>
+</li>
+<li>
+<p><strong>Create grammar file:</strong></p>
+<ul>
+<li>Write <code>grammar.yaml</code> with types and rules</li>
+<li>Optionally add <code>dialect.yaml</code> for subject/body variants</li>
+<li>Test with <code>glossia --show-grammar --dialect body</code></li>
+</ul>
+</li>
+<li>
+<p><strong>Register the language in the meta-grammar:</strong></p>
+<p>The meta-grammar (<code>languages/meta/</code>) is Glossia's dialect calculus layer. It treats language and format names as payload words so that pipeline instructions like <code>"translate from english into my_language"</code> can be parsed. When you add a new language, you must register it in the meta-layer.</p>
+<ul>
+<li>
+<p><strong>Append to <code>languages/meta/payload.yaml</code></strong>: Add your language name with POS weights. Language names typically use <code>N</code> (encoder), <code>Adj</code> (format modifier), and <code>Pron</code> (data reference):</p>
+<pre><code class="language-yaml">my_language:
+  N: 0.5
+  Adj: 0.4
+  Pron: 0.1
+</code></pre>
+<p>The meta payload wordlist must remain a power-of-2 size (it is currently 16 = 2^4). If appending your language would exceed the current power-of-2 boundary, you may need to add additional identifiers to reach the next power of 2, or coordinate with existing entries.</p>
+</li>
+<li>
+<p><strong>Check <code>languages/meta/cover.yaml</code></strong>: If your language introduces new pipeline verbs, prepositions, or other function words that are not already present in the meta cover wordlist, append them there. For example, if your language requires a new encoding verb or a direction preposition not already covered by <code>encode</code>, <code>decode</code>, <code>translate</code>, <code>from</code>, <code>into</code>, etc., add it to the appropriate section of <code>languages/meta/cover.yaml</code>.</p>
+</li>
+<li>
+<p><strong>Update <code>src/pipeline.rs</code></strong>: The pipeline parser has match arms that map meta payload words to concrete language configurations. Add your language to <code>meta_word_to_language()</code>:</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>"my_language" =&gt; Some(("my_language", "body")),
+<span class="boring">}</span></code></pre></pre>
+<p>If your language introduces new dialect modifiers, also update <code>meta_word_to_dialect()</code>.</p>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Test your language:</strong></p>
+<pre><code class="language-bash">glossia --random 12 --language my_language --seed 0
+</code></pre>
+</li>
+<li>
+<p><strong>Test meta-language integration:</strong></p>
+<pre><code class="language-bash">glossia --meta "translate from english into my_language" &lt;&lt;&lt; "abandon ability able"
+</code></pre>
+</li>
+<li>
+<p><strong>Verify decoding:</strong></p>
+<ul>
+<li>Extract all words from output</li>
+<li>Filter to only words in your payload wordlist</li>
+<li>Verify the original payload is preserved in order</li>
+</ul>
+</li>
+</ol>
+<h2 id="file-structure"><a class="header" href="#file-structure">File Structure</a></h2>
+<p>Your language directory should look like:</p>
+<pre><code>languages/my_language/
+├── grammar.yaml          # Grammar rules with Montague types
+├── payload.yaml          # Payload wordlist with POS weights
+├── cover.yaml            # Cover wordlist with POS weights
+└── dialect.yaml          # Optional: dialect overlays (subject/body/poetry)
+</code></pre>
+<p>In addition to the language directory, you must also update these shared files:</p>
+<pre><code>languages/meta/payload.yaml   # Append your language name as a dialect identifier
+languages/meta/cover.yaml     # Append any new pipeline function words (if needed)
+src/pipeline.rs                # Add match arm in meta_word_to_language()
+</code></pre>
+<h1 id="tools"><a class="header" href="#tools">Tools</a></h1>
+<p>Glossia includes several utility tools for creating and validating language files.</p>
+<h2 id="word-frequency-tool"><a class="header" href="#word-frequency-tool">Word Frequency Tool</a></h2>
+<p>Generate word lists from frequency data:</p>
+<pre><code class="language-bash"># Download and use COCA word frequency data (recommended)
+cargo run --bin get_top_words -- -n 1000 --download-coca -o output.txt
+
+# Re-running reuses the cached download (use --force-download to refresh)
+cargo run --bin get_top_words -- -n 1000 --download-coca -o output.txt
+
+# Use a local wordfrequency.info format file
+cargo run --bin get_top_words -- -n 1000 --wordfreq lemmas_60k.txt -o output.txt
+
+# Use a CSV frequency file
+cargo run --bin get_top_words -- -n 1000 --csv word-freq.csv -o output.txt
+</code></pre>
+<p>The <code>get_top_words</code> tool:</p>
+<ul>
+<li>Downloads word frequency data from <a href="https://www.wordfrequency.info/samples.asp">wordfrequency.info</a> (COCA corpus)</li>
+<li>Caches the download locally (reuses for 7 days)</li>
+<li>Filters for words with 6 or fewer characters (no punctuation)</li>
+<li>Extracts POS tags when available</li>
+<li>Sorts by frequency and returns the top N most common words</li>
+</ul>
+<h2 id="pos-tagging-tool"><a class="header" href="#pos-tagging-tool">POS Tagging Tool</a></h2>
+<p>Assign parts of speech to words using nlprule:</p>
+<pre><code class="language-bash"># Tag a word list (one word per line)
+cargo run --bin tag_words -- -i input_words.txt -o output_POS.txt
+
+# Use alternative (faster) tagging method
+cargo run --bin tag_words -- -i input_words.txt -o output_POS.txt --alternative
+</code></pre>
+<h2 id="pos-weight-generation-tool"><a class="header" href="#pos-weight-generation-tool">POS Weight Generation Tool</a></h2>
+<p>Generate POS tag weights from nlprule analysis:</p>
+<pre><code class="language-bash"># Generate weights for cover words
+cargo run --bin validate_pos_weights -- \
+  --file languages/english/cover.yaml \
+  --output cover_nlprule_weights.yaml
+
+# Generate weights for payload words
+cargo run --bin validate_pos_weights -- \
+  --file languages/english/payload.yaml \
+  --output payload_nlprule_weights.yaml
+
+# Test with limited words (for faster testing)
+cargo run --bin validate_pos_weights -- \
+  --file languages/english/cover.yaml \
+  --max-words 10 \
+  --output test_weights.yaml
+
+# Adjust minimum weight threshold and decimal places
+cargo run --bin validate_pos_weights -- \
+  --file languages/english/cover.yaml \
+  --threshold 0.05 \
+  --round 2 \
+  --output cover_weights.yaml
+</code></pre>
+<p>The weight generation tool:</p>
+<ul>
+<li>Tests each word in multiple sentence contexts using nlprule</li>
+<li>Calculates observed POS tag frequencies</li>
+<li>Normalizes weights to sum to 1.0</li>
+<li>Filters out weights below a threshold (default: 0.01)</li>
+<li>Rounds weights to specified decimal places (default: 3)</li>
+</ul>
+<h2 id="weight-cleanup-tool"><a class="header" href="#weight-cleanup-tool">Weight Cleanup Tool</a></h2>
+<p>Remove zero-weighted productions from grammar files:</p>
+<pre><code class="language-bash">cargo run --bin cleanup_weights -- --file grammar.yaml --output grammar_clean.yaml
+</code></pre>
+<h2 id="weight-comparison-tool"><a class="header" href="#weight-comparison-tool">Weight Comparison Tool</a></h2>
+<p>Compare POS weight distributions between two wordlist files:</p>
+<pre><code class="language-bash">cargo run --bin compare_pos_weights -- \
+  --file1 payload_old.yaml \
+  --file2 payload_new.yaml
+</code></pre>
+<h2 id="workflow-generate-short-words-and-tag-them"><a class="header" href="#workflow-generate-short-words-and-tag-them">Workflow: Generate Short Words and Tag Them</a></h2>
+<p>A common workflow for building cover wordlists:</p>
+<pre><code class="language-bash"># Step 1: Generate shortest words (3-4 characters) from frequency data
+cargo run --bin get_top_words -- \
+  -n 500 \
+  --download-coca \
+  --min-length 3 \
+  --max-length 4 \
+  --words-only \
+  -o shortest_words.txt
+
+# Step 2: Tag those words with POS using nlprule
+cargo run --bin tag_words -- \
+  -i shortest_words.txt \
+  -o shortest_words_POS.txt
+</code></pre>
+<h2 id="data-sources"><a class="header" href="#data-sources">Data Sources</a></h2>
+<p>The <code>get_top_words</code> tool uses word frequency data from:</p>
+<ul>
+<li><strong>COCA (Corpus of Contemporary American English)</strong>: Available from <a href="https://www.wordfrequency.info/samples.asp">wordfrequency.info</a></li>
+<li><strong>Google Books Ngram</strong>: Can process downloaded Ngram 1-gram files</li>
+</ul>
+<p>Downloaded data is cached locally as <code>lemmas_60k.txt</code> and reused for 7 days before automatically refreshing.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="language-support.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="image-codec.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="language-support.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="image-codec.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
