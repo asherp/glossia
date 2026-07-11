@@ -2,7 +2,6 @@
 
 [Introduction](./introduction.md)
 
-- [Free Speech](./free-speech.md)
 - [Installation](./installation.md)
 - [Quick Start](./quick-start.md)
 - [Usage](./usage.md)
