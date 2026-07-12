@@ -26,6 +26,7 @@
 
 import init, {
   encode_raw_base_n as wasmEncodeRawBaseN,
+  encode_raw_base_n_best_of as wasmEncodeRawBaseNBestOf,
   decode_raw_base_n as wasmDecodeRawBaseN,
   detect_dialect_from_text as wasmDetectDialect,
 } from './glossia.js';
@@ -253,10 +254,17 @@ export async function sealMessage(message, cred, salt = null) {
 // in different prose. Same seed + same state always yields identical prose, so a
 // "cover variant" is a stable, reproducible parameter. The trailer stays on the base
 // SEED so the Latin attribution doesn't shift as the body variant changes.
-export function renderArtifact(state, langId = 'english', { cover = true, seed = SEED } = {}) {
+// `bestOf` (default 1) samples that many cover realizations of the SAME payload
+// and keeps the densest / most semantically coherent one. It only changes cover
+// words and sentence shape, never the payload, so the artifact still decodes
+// identically. English only; ignored for other languages.
+export function renderArtifact(state, langId = 'english', { cover = true, seed = SEED, bestOf = 1 } = {}) {
   const lang = msgLangById(langId);
   const bodySeed = typeof seed === 'bigint' ? seed : BigInt(seed);
-  const bodyR = JSON.parse(wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed));
+  const bodyR = JSON.parse(
+    bestOf > 1
+      ? wasmEncodeRawBaseNBestOf(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed, bestOf)
+      : wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed));
   if (bodyR.error) throw new Error(bodyR.error);
   const bodyWords = bodyR.payload_words || [];
   const body = cover ? (bodyR.encoded_text || '').trim() : payloadOnlyProse(bodyR.encoded_text || '', bodyWords);

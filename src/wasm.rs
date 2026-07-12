@@ -1306,8 +1306,27 @@ fn encode_random_words_inner(
 /// Returns JSON: `{ "encoded_text": "...", "payload_words": [...], "stats": { ... } }`
 #[wasm_bindgen]
 pub fn encode_raw_base_n(input: &str, language: &str, wordlist: &str, dialect: &str, seed: u64) -> String {
-    let result = encode_raw_base_n_inner(input, language, wordlist, dialect, seed);
+    let result = encode_raw_base_n_inner(input, language, wordlist, dialect, seed, 1);
     match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+/// Like `encode_raw_base_n`, but samples `best_of` candidates and returns the
+/// densest / most semantically coherent one (English only; single encoding
+/// otherwise). Payload words stay in order in every candidate, so decoding is
+/// unaffected. This is the entry the web board uses for reader-facing prose.
+#[wasm_bindgen]
+pub fn encode_raw_base_n_best_of(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> String {
+    match encode_raw_base_n_inner(input, language, wordlist, dialect, seed, best_of) {
         Ok(json) => json,
         Err(e) => serde_json::json!({ "error": e }).to_string(),
     }
@@ -1319,6 +1338,7 @@ fn encode_raw_base_n_inner(
     wordlist: &str,
     dialect: &str,
     seed: u64,
+    best_of: usize,
 ) -> Result<String, String> {
     // 1. Auto-detect hex/base64 and decode to raw bytes
     let (_mode, bytes) = codec::detect_mode(input);
@@ -1391,26 +1411,23 @@ fn encode_raw_base_n_inner(
         (5, 12)
     };
 
-    let mut rng = StdRng::seed_from_u64(seed);
     let mode = if dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
         GenerationMode::Body
     };
-    let (text, used_payload) = generate_text_with_original_payload(
-        &mut rng,
-        &lex,
-        &payload_toks,
-        None,
-        false,
-        mode,
-        language,
-        Some(dialect),
-        k_min,
-        k_max,
-        SentenceLengthMode::Natural,
-        " ",
-    );
+    let (text, used_payload) = if best_of > 1 {
+        generate_text_best_of(
+            seed, best_of, &lex, &payload_toks, None, false, mode, language,
+            Some(dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
+        )
+    } else {
+        let mut rng = StdRng::seed_from_u64(seed);
+        generate_text_with_original_payload(
+            &mut rng, &lex, &payload_toks, None, false, mode, language,
+            Some(dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
+        )
+    };
 
     let payload_count = encoded_words.len();
     let total_words = text.split_whitespace().count();
