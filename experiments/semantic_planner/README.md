@@ -208,9 +208,30 @@ unaffected. Covered by `tests/semantic_planning.rs` (dataset loads; payload
 order preserved) and unit tests in `semantics.rs`. Escape hatch:
 `GLOSSIA_DISABLE_SEMANTICS=1` forces classic POS-only planning.
 
-**Measured on the real generator** (`ab_real_generator.py`, same payloads/seed,
-semantics off vs on): _see script output_ — payload-payload coherence rises with
-no change to which payload words appear.
+**Measured on the real generator** (`ab_real_generator.py`, 40 payloads, same
+seed, semantics off vs on):
+
+```
+outputs changed by semantics: 42%
+  semantics off: coherence 0.441
+  semantics on : coherence 0.445   (+0.4 pts)
+```
+
+The effect is **real but small** — nowhere near the prototype's ~+50 pts — and
+the reason is instructive. `plan_sentence` re-weighting only chooses among
+candidate *skeletons* at a fixed payload count; it cannot reroute a forced
+placement. When the payload order puts a noun immediately before a verb, nearly
+every candidate skeleton maps it to subject position, so re-weighting has little
+to shuffle. And the metric here counts only *payload-payload* verb-argument
+edges — but in real output most argument slots are filled by **cover** nouns,
+which this increment doesn't touch at all.
+
+That points squarely at the high-value next step: **semantic cover-word
+selection** (increment B). Most verb arguments are cover nouns, and those we are
+free to choose — picking an animate cover noun for a payload verb's subject,
+etc. That is where the bulk of the coherence lives, and it needs classes for the
+610 cover words (not yet authored). Skeleton re-weighting, done here, is the
+safe, zero-density-cost, zero-decoding-risk foundation it builds on.
 
 **Not yet wired**: the WASM encode paths build their own `Lexicon` and remain a
 no-op (safe) until `with_semantics` is added there; and cover-*word* selection
