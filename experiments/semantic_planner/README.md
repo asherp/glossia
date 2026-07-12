@@ -217,21 +217,42 @@ outputs changed by semantics: 42%
   semantics on : coherence 0.445   (+0.4 pts)
 ```
 
-The effect is **real but small** — nowhere near the prototype's ~+50 pts — and
-the reason is instructive. `plan_sentence` re-weighting only chooses among
-candidate *skeletons* at a fixed payload count; it cannot reroute a forced
-placement. When the payload order puts a noun immediately before a verb, nearly
-every candidate skeleton maps it to subject position, so re-weighting has little
-to shuffle. And the metric here counts only *payload-payload* verb-argument
-edges — but in real output most argument slots are filled by **cover** nouns,
-which this increment doesn't touch at all.
+Skeleton re-weighting alone (increment A) moved coherence only ~+0.4 pts on a
+payload-only metric — it can't reroute a forced placement, and most argument
+slots are filled by **cover** nouns it doesn't touch. That pointed to increments
+B and C below.
 
-That points squarely at the high-value next step: **semantic cover-word
-selection** (increment B). Most verb arguments are cover nouns, and those we are
-free to choose — picking an animate cover noun for a payload verb's subject,
-etc. That is where the bulk of the coherence lives, and it needs classes for the
-610 cover words (not yet authored). Skeleton re-weighting, done here, is the
-safe, zero-density-cost, zero-decoding-risk foundation it builds on.
+### Increments A + B + C — measured (all verb-argument edges, payload + cover)
+
+With cover-word classes authored, `ab_real_generator.py` measures three
+conditions over random 11-word payloads:
+
+```
+condition     coherence   density
+off               0.401     0.580     semantics disabled (classic generator)
+greedy            0.442     0.581     A + B, single sample
+best_of_n         0.487     0.674     best-of-8, density-primary lexicographic
+```
+
+- **Increment B (semantic cover-word selection)** — picking a class-appropriate
+  cover noun for a verb's subject/object — lifts coherence **+4 pts at unchanged
+  density**. That's 10× increment A, confirming the prediction that cover nouns
+  are where the coherence lives (most verb arguments are cover words we're free
+  to choose).
+- **Increment C (best-of-N joint scorer)** — sample 8 full encodings, select the
+  densest, break ties on coherence — improves **both** objectives at once:
+  coherence **+8.6 pts** *and* density **+16%** (0.58 → 0.67) over baseline.
+  The density gain is the bigger surprise: different seeds make different
+  sentence-boundary/skeleton choices, and selecting the densest realizes the
+  original "search over sentence boundaries to minimize cover words" idea for
+  free. Coherence and density rise together because **candidate selection is
+  decoding-invariant** — every candidate keeps the payload in order, so choosing
+  among them has zero correctness cost.
+
+This validates the Monte-Carlo direction: even N=8 yields large gains, and
+beam/MCTS over boundaries would push further. It also answers "POS-first vs
+coherence-first" — best-of-N is neither: the grammar proposes complete
+candidates, the objective (density then coherence) disposes.
 
 **Not yet wired**: the WASM encode paths build their own `Lexicon` and remain a
 no-op (safe) until `with_semantics` is added there; and cover-*word* selection
