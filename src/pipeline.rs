@@ -1761,6 +1761,71 @@ pub fn encode_into_language(
     Ok((text, payload_set, encoded_words, data_mode))
 }
 
+/// Best-of-N generation: sample `n_candidates` full encodings at consecutive
+/// seeds and return the best under a lexicographic objective — highest payload
+/// density first, and among candidates within `DENSITY_TOL` of that density, the
+/// highest semantic coherence.
+///
+/// This is the "grammar proposes, objective disposes" design: each candidate is
+/// a complete, grammatical, correctly-ordered encoding; we merely select among
+/// them. Because every candidate preserves the payload words in order, selecting
+/// never affects decoding — it only trades cover-word choices. Density is never
+/// sacrificed beyond `DENSITY_TOL`, honoring density-primacy.
+///
+/// Falls back to a single encode when `n_candidates <= 1` or the language has no
+/// semantic model (nothing to rank coherence by).
+#[allow(clippy::too_many_arguments)]
+pub fn encode_into_language_best_of(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    forced_data_mode: Option<DataMode>,
+    base_seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+    n_candidates: usize,
+) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
+    // At most this much payload density (fraction of total words) may be given up
+    // in exchange for higher coherence. Small: density stays primary.
+    const DENSITY_TOL: f64 = 0.02;
+
+    let n = n_candidates.max(1);
+    let model = crate::generator::data::load_semantics(language);
+    if n == 1 || model.is_none() {
+        return encode_into_language(
+            input, language, wordlist, dialect, forced_data_mode, base_seed, verbose,
+            cover_override, length_mode, k_min_override, k_max_override,
+        );
+    }
+    let model = model.unwrap();
+
+    let mut candidates: Vec<(f64, f64, (String, HashSet<String>, Vec<String>, DataMode))> =
+        Vec::with_capacity(n);
+    for k in 0..n {
+        let seed = base_seed.wrapping_add(k as u64);
+        let res = encode_into_language(
+            input, language, wordlist, dialect, forced_data_mode, seed, verbose,
+            cover_override, length_mode, k_min_override, k_max_override,
+        )?;
+        let total = res.0.split_whitespace().count().max(1);
+        let density = res.2.len() as f64 / total as f64;
+        let coherence = model.coherence_score(&res.0);
+        candidates.push((density, coherence, res));
+    }
+
+    let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
+    let best = candidates
+        .into_iter()
+        .filter(|c| c.0 >= max_density - DENSITY_TOL)
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .expect("at least one candidate generated");
+    Ok(best.2)
+}
+
 /// Strip RFC 5322 header label names from text to prevent header/payload collisions.
 ///
 /// When prose-in-email content is decoded, the email header labels (like "Subject:")

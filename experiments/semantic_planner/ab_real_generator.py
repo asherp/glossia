@@ -88,35 +88,55 @@ def encode(words, seed, semantics_on):
     return out.stdout.strip()
 
 
+def score(text, classes, frames, bip):
+    """(coherence, density) for one encoding."""
+    e, b = coherence(text, classes, frames, bip)
+    coh = 1 - b / e if e else 1.0
+    total = max(len(text.split()), 1)
+    dens = 11 / total          # 11 payload words per test payload
+    return coh, dens
+
+
+N_CAND = 8          # best-of-N candidates
+DENSITY_TOL = 0.02  # matches encode_into_language_best_of
+
+
 def main():
     classes, frames, bip = load()
-    # payloads drawn from classified nouns + framed verbs so edges actually form
     nouns = [w for w in classes if w in bip]
     verbs = [w for w in frames if w in bip]
     rng = random.Random(2024)
 
-    tot = {"on": [0, 0], "off": [0, 0]}   # [edges, bad]
-    changed = 0
+    # accumulate (sum_coherence, sum_density) per condition
+    agg = {"off": [0.0, 0.0], "greedy": [0.0, 0.0], "best_of_n": [0.0, 0.0]}
     for _ in range(N):
-        seed = rng.randint(1, 10_000_000)
+        base = rng.randint(1, 10_000_000)
         words = [rng.choice(verbs) if rng.random() < 0.4 else rng.choice(nouns)
                  for _ in range(11)]
-        t_off = encode(words, seed, False)
-        t_on = encode(words, seed, True)
-        if t_off != t_on:
-            changed += 1
-        for label, text in (("off", t_off), ("on", t_on)):
-            e, b = coherence(text, classes, frames, bip)
-            tot[label][0] += e
-            tot[label][1] += b
 
-    print(f"payloads: {N}   outputs changed by semantics: {changed} "
-          f"({100*changed//N}%)")
-    for label in ("off", "on"):
-        e, b = tot[label]
-        coh = 1 - b / e if e else 1.0
-        print(f"  semantics {label:3}: coherence {coh:.3f}  "
-              f"({e - b}/{e} payload-payload edges satisfied)")
+        # semantics OFF (single sample)
+        agg["off"] = [a + b for a, b in zip(agg["off"],
+                      score(encode(words, base, False), classes, frames, bip))]
+
+        # semantics ON candidates (best-of-N); candidate 0 == greedy single sample
+        cands = []
+        for k in range(N_CAND):
+            t = encode(words, base + k, True)
+            cands.append((t, *score(t, classes, frames, bip)))
+        greedy = cands[0]
+        max_d = max(c[2] for c in cands)
+        best = max((c for c in cands if c[2] >= max_d - DENSITY_TOL),
+                   key=lambda c: c[1])   # max coherence within density tolerance
+
+        agg["greedy"] = [agg["greedy"][0] + greedy[1], agg["greedy"][1] + greedy[2]]
+        agg["best_of_n"] = [agg["best_of_n"][0] + best[1], agg["best_of_n"][1] + best[2]]
+
+    print(f"payloads: {N}   best-of-N candidates: {N_CAND}   density tol: {DENSITY_TOL}\n")
+    print(f"{'condition':<12}{'coherence':>11}{'density':>10}")
+    print("-" * 33)
+    for label in ("off", "greedy", "best_of_n"):
+        coh, dens = (x / N for x in agg[label])
+        print(f"{label:<12}{coh:>11.3f}{dens:>10.3f}")
 
 
 if __name__ == "__main__":

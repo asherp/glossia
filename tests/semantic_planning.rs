@@ -4,7 +4,7 @@
 //! feature on never breaks decoding: payload words always survive, in order.
 
 use glossia::generator::data::load_semantics;
-use glossia::pipeline::encode_into_language;
+use glossia::pipeline::{encode_into_language, encode_into_language_best_of};
 
 #[test]
 fn english_semantics_dataset_loads() {
@@ -56,6 +56,41 @@ fn semantic_planning_preserves_payload_order() {
         assert!(
             it.any(|w| *w == target),
             "payload word '{p}' missing or out of order in output:\n{text}"
+        );
+    }
+}
+
+/// Best-of-N selection must preserve the same safety property: whichever
+/// candidate wins, every payload word still appears in order.
+#[test]
+fn best_of_n_preserves_payload_order() {
+    let (text, _set, encoded_words, _mode) = encode_into_language_best_of(
+        "semantic planning selects the most coherent candidate without dropping payload",
+        "english",
+        "default",
+        "body",
+        None,
+        999,
+        false,
+        None,
+        None,
+        None,
+        None,
+        8, // candidates
+    )
+    .expect("best-of-N encode should succeed");
+
+    assert!(!encoded_words.is_empty());
+    let toks: Vec<String> = text
+        .split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+        .collect();
+    let mut it = toks.iter();
+    for p in &encoded_words {
+        let target = p.to_lowercase();
+        assert!(
+            it.any(|w| *w == target),
+            "payload word '{p}' missing or out of order in best-of-N output:\n{text}"
         );
     }
 }

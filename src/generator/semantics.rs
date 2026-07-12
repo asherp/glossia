@@ -168,6 +168,67 @@ impl SemanticModel {
         self.frames.get(&verb.to_lowercase())
     }
 
+    /// Coherence of a finished encoding, scored on the surface text: the fraction
+    /// of verb-argument edges (subject/object, over payload AND cover nouns) that
+    /// satisfy the verb's frame. Roles are inferred from token adjacency within a
+    /// sentence — the nearest classified noun on each side of a verb, bounded by
+    /// other verbs. Returns 1.0 when there are no scorable edges.
+    ///
+    /// This is the candidate-selection objective for best-of-N generation: the
+    /// grammar proposes a full encoding, this scores it. It re-parses text rather
+    /// than touching generator internals, so it works on any output.
+    pub fn coherence_score(&self, text: &str) -> f64 {
+        let mut edges = 0u32;
+        let mut good = 0u32;
+        for sentence in text.split(|c| c == '.' || c == '\n' || c == '!' || c == '?') {
+            let toks: Vec<String> = sentence
+                .split_whitespace()
+                .map(|w| {
+                    w.trim_matches(|c: char| !c.is_alphanumeric())
+                        .to_lowercase()
+                })
+                .filter(|w| !w.is_empty())
+                .collect();
+            for (i, w) in toks.iter().enumerate() {
+                let fr = match self.frame(w) {
+                    Some(f) => f,
+                    None => continue,
+                };
+                // subject: nearest classified noun to the left, stop at a verb
+                for j in (0..i).rev() {
+                    if j != i && self.frame(&toks[j]).is_some() {
+                        break;
+                    }
+                    if let Some(c) = self.class_of(&toks[j]) {
+                        edges += 1;
+                        if fr.subj.accepts(c) {
+                            good += 1;
+                        }
+                        break;
+                    }
+                }
+                // object: nearest classified noun to the right, stop at a verb
+                for tok in toks.iter().skip(i + 1) {
+                    if self.frame(tok).is_some() {
+                        break;
+                    }
+                    if let Some(c) = self.class_of(tok) {
+                        edges += 1;
+                        if fr.obj.accepts(c) {
+                            good += 1;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if edges == 0 {
+            1.0
+        } else {
+            f64::from(good) / f64::from(edges)
+        }
+    }
+
     /// Class of the nearest payload-filled noun slot on one side of `from`,
     /// stopping at clause punctuation or another verb (a clause boundary).
     fn nearest_payload_noun(
@@ -334,6 +395,19 @@ frames:
         let mut p = HashMap::new();
         p.insert(0, 0); // only the noun is a payload word
         assert_eq!(m.placement_score(&slots, &p, &payload), 1.0);
+    }
+
+    #[test]
+    fn coherence_score_surface_text() {
+        let m = model();
+        // coherent: captain (animate) discover (any obj) -> 1.0
+        assert_eq!(m.coherence_score("The captain discover the idea."), 1.0);
+        // incoherent subject: clock (thing) discover (wants animate subj)
+        assert!(m.coherence_score("The clock discover the mountain.") < 1.0);
+        // agentive subject with process is fine
+        assert_eq!(m.coherence_score("The engine process the idea."), 1.0);
+        // no framed verbs -> no edges -> 1.0
+        assert_eq!(m.coherence_score("The clock. The mountain."), 1.0);
     }
 
     #[test]
