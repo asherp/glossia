@@ -13,234 +13,288 @@
 classes: {abandon: abstract, ability: abstract, above: abstract, abstract: abstract, absurd: abstract,
   abuse: abstract, access: thing, accident: abstract, account: abstract, acid: thing, act: abstract, action: abstract,
   actor: animate, actress: animate, addict: animate, address: place, adult: animate, advance: abstract,
-  advice: abstract, affair: abstract, age: abstract, agent: thing, aim: place, air: thing, airport: thing,
-  aisle: thing, alarm: thing, album: thing, alcohol: thing, alert: abstract, alien: animate, alley: thing,
-  alpha: abstract, amateur: animate, amount: thing, analyst: animate, anchor: thing, anger: abstract,
-  angle: abstract, animal: abstract, ankle: thing, answer: abstract, antenna: thing, antique: thing, anxiety: abstract,
-  apology: abstract, apple: thing, april: abstract, arch: thing, arctic: place, area: place, arena: place,
-  arm: thing, armor: thing, army: animate, arrest: abstract, arrow: thing, art: thing, artefact: abstract,
-  artist: animate, artwork: abstract, aspect: abstract, assault: animate, asset: abstract, assist: abstract,
-  asthma: abstract, athlete: animate, atom: thing, attack: abstract, attitude: abstract, auction: abstract,
-  audit: thing, august: abstract, aunt: animate, author: animate, auto: thing, autumn: abstract, average: abstract,
-  avocado: thing, axis: thing, baby: animate, bachelor: animate, bacon: thing, badge: abstract, bag: thing,
-  balance: abstract, balcony: thing, ball: thing, bamboo: thing, banana: thing, banner: thing, bar: thing,
-  bargain: abstract, barrel: thing, base: thing, basket: thing, battle: abstract, beach: thing, bean: thing,
-  beauty: abstract, beef: animate, behind: thing, belt: thing, bench: thing, benefit: thing, best: abstract,
-  beyond: thing, bicycle: thing, bid: abstract, bike: thing, bind: abstract, biology: abstract, bird: animate,
-  birth: abstract, black: abstract, blade: thing, blame: abstract, blanket: thing, blast: abstract, blind: thing,
-  blood: thing, blossom: thing, blouse: thing, blue: thing, blur: abstract, blush: abstract, board: thing,
-  boat: agentive, body: thing, boil: abstract, bomb: thing, bone: thing, bonus: abstract, book: thing,
-  boost: abstract, border: place, boss: animate, bottom: place, bounce: abstract, box: thing, boy: animate,
-  bracket: thing, brain: thing, brand: abstract, brass: thing, bread: thing, breeze: abstract, brick: thing,
-  bridge: thing, brief: abstract, broccoli: thing, bronze: thing, broom: thing, brother: animate, brown: thing,
-  brush: thing, bubble: thing, buddy: animate, budget: thing, buffalo: animate, build: thing, bulb: thing,
-  bulk: abstract, bullet: thing, bundle: thing, bunker: thing, burden: thing, burger: thing, burst: abstract,
-  bus: thing, business: abstract, butter: thing, buyer: animate, buzz: abstract, cabbage: thing, cabin: thing,
-  cable: thing, cactus: thing, cage: thing, cake: thing, call: abstract, calm: abstract, camera: agentive,
-  camp: thing, can: thing, canal: thing, candy: thing, cannon: thing, canoe: thing, canvas: thing, canyon: place,
-  capital: place, captain: animate, car: agentive, carbon: thing, card: thing, cargo: thing, carpet: thing,
-  cart: thing, case: abstract, cash: thing, casino: thing, castle: thing, cat: animate, catalog: abstract,
+  advice: abstract, affair: abstract, affect: abstract, age: abstract, agency: abstract, agenda: abstract,
+  agent: thing, aid: abstract, aide: animate, aim: place, air: thing, airport: thing, aisle: thing, alarm: thing,
+  album: thing, alcohol: thing, alert: abstract, alien: animate, alley: thing, ally: abstract, alpha: abstract,
+  amateur: animate, amount: thing, analyst: animate, anchor: thing, anger: abstract, angle: abstract,
+  animal: abstract, ankle: thing, answer: abstract, antenna: thing, antique: animate, anxiety: abstract,
+  apology: abstract, appeal: abstract, apple: thing, appointment: thing, april: abstract, arch: thing,
+  arctic: place, area: place, arena: place, arm: thing, armor: thing, army: animate, arrest: abstract,
+  arrow: thing, art: thing, artefact: abstract, artist: animate, artwork: abstract, aside: abstract, aspect: abstract,
+  assault: animate, asset: abstract, assist: abstract, asthma: abstract, athlete: animate, atom: thing,
+  attack: abstract, attitude: abstract, auction: abstract, audit: thing, august: abstract, aunt: animate,
+  author: animate, auto: thing, autumn: abstract, average: abstract, avocado: thing, award: abstract,
+  axis: thing, baby: animate, bachelor: animate, back: thing, bacon: thing, badge: abstract, bag: thing,
+  bake: thing, balance: abstract, balcony: thing, ball: thing, bamboo: thing, ban: abstract, banana: thing,
+  band: thing, bank: thing, banner: thing, bar: thing, bargain: abstract, barrel: thing, base: thing,
+  basis: abstract, basket: thing, battle: abstract, beach: thing, bean: thing, bear: animate, beat: place,
+  beauty: abstract, bed: thing, beef: animate, beer: thing, behind: thing, being: abstract, belief: abstract,
+  bell: thing, belt: thing, bench: thing, benefit: thing, best: abstract, bet: thing, beyond: thing, bicycle: thing,
+  bid: abstract, bike: thing, bill: abstract, bind: abstract, biology: abstract, bird: animate, birth: abstract,
+  bit: thing, bite: thing, black: abstract, blade: thing, blame: abstract, blanket: thing, blast: abstract,
+  blind: thing, block: thing, blood: thing, blossom: thing, blouse: thing, blow: abstract, blue: thing,
+  blur: abstract, blush: abstract, board: thing, boat: agentive, body: thing, boil: abstract, bomb: thing,
+  bond: abstract, bone: thing, bonus: abstract, book: thing, boom: thing, boost: abstract, boot: thing,
+  border: place, boss: animate, bottle: thing, bottom: place, bounce: abstract, bowl: thing, box: thing,
+  boy: animate, bracket: thing, brain: thing, branch: thing, brand: abstract, brass: thing, bread: thing,
+  break: thing, breast: thing, breath: thing, breeze: abstract, brick: thing, bridge: thing, brief: abstract,
+  broccoli: thing, bronze: thing, broom: thing, brother: animate, brown: thing, brush: thing, bubble: thing,
+  buck: thing, buddy: animate, budget: thing, buffalo: animate, build: thing, bulb: thing, bulk: abstract,
+  bullet: thing, bunch: abstract, bundle: thing, bunker: thing, burden: thing, burger: animate, burst: abstract,
+  bus: thing, business: abstract, butter: thing, button: thing, buyer: animate, buzz: abstract, cabbage: thing,
+  cabin: thing, cable: thing, cactus: thing, cage: thing, cake: thing, call: abstract, calm: abstract,
+  camera: agentive, camp: thing, campus: place, can: thing, canal: thing, cancer: thing, candy: thing,
+  cannon: thing, canoe: thing, canvas: thing, canyon: place, cap: thing, capital: place, captain: animate,
+  car: agentive, carbon: thing, card: thing, care: abstract, career: abstract, cargo: thing, carpet: thing,
+  cart: thing, case: abstract, cash: thing, casino: thing, cast: thing, castle: thing, cat: animate, catalog: abstract,
   catch: thing, category: abstract, cattle: animate, cause: abstract, caution: abstract, cave: thing,
-  ceiling: thing, celery: thing, cement: thing, census: abstract, century: abstract, cereal: thing, chair: thing,
-  chalk: thing, champion: animate, change: abstract, chaos: abstract, chapter: abstract, charge: abstract,
-  chase: thing, chat: animate, check: thing, cheese: thing, chef: animate, cherry: thing, chest: thing,
-  chicken: thing, chief: animate, child: animate, chimney: thing, choice: abstract, chuckle: abstract,
-  chunk: abstract, churn: thing, cigar: thing, cinnamon: thing, circle: abstract, citizen: animate, city: place,
-  claim: abstract, clap: abstract, claw: animate, clay: thing, clerk: animate, click: thing, client: thing,
-  cliff: thing, climb: thing, clinic: thing, clip: thing, clock: thing, clog: thing, cloth: thing, cloud: thing,
-  clown: animate, club: thing, clump: abstract, cluster: abstract, clutch: abstract, coach: thing, coast: thing,
-  coconut: thing, code: abstract, coffee: thing, coil: thing, coin: thing, color: abstract, column: thing,
-  combine: thing, comfort: abstract, comic: animate, company: abstract, concert: abstract, conduct: abstract,
-  congress: abstract, control: abstract, cook: animate, copper: thing, copy: thing, coral: thing, core: place,
-  corn: thing, cost: thing, cotton: thing, couch: thing, country: place, couple: abstract, course: place,
-  cousin: animate, cover: thing, coyote: animate, crack: thing, cradle: thing, craft: thing, crane: thing,
-  crash: abstract, crater: thing, crawl: abstract, crazy: animate, cream: thing, credit: abstract, creek: thing,
-  crew: abstract, cricket: animate, crime: abstract, crisp: thing, critic: animate, crop: thing, cross: thing,
+  ceiling: thing, celery: thing, cell: thing, cement: thing, census: abstract, center: place, century: abstract,
+  cereal: thing, chain: thing, chair: thing, chalk: thing, champion: animate, chance: abstract, change: abstract,
+  chaos: abstract, chapter: abstract, charge: abstract, chart: thing, chase: thing, chat: animate, check: thing,
+  cheek: thing, cheese: thing, chef: animate, cherry: thing, chest: thing, chicken: thing, chief: animate,
+  child: animate, chimney: thing, chip: thing, choice: abstract, chuckle: abstract, chunk: abstract, church: thing,
+  churn: thing, cigar: thing, cinnamon: thing, circle: abstract, citizen: animate, city: place, claim: abstract,
+  clap: abstract, class: abstract, claw: animate, clay: thing, clerk: animate, click: thing, client: animate,
+  cliff: thing, climb: thing, clinic: thing, clip: thing, clock: thing, clog: thing, closer: animate,
+  cloth: thing, cloud: thing, clown: animate, club: thing, clue: abstract, clump: abstract, cluster: abstract,
+  clutch: abstract, coach: animate, coal: thing, coast: thing, coat: thing, coconut: thing, code: abstract,
+  coffee: thing, coil: thing, coin: thing, color: abstract, column: thing, combine: thing, comedy: abstract,
+  comfort: abstract, comic: animate, company: abstract, concert: abstract, conduct: abstract, congress: abstract,
+  control: abstract, cook: animate, cookie: thing, cop: animate, copper: thing, copy: thing, coral: thing,
+  core: place, corn: thing, corner: place, cost: thing, cotton: thing, couch: thing, count: abstract,
+  country: place, county: place, couple: abstract, course: place, court: thing, cousin: animate, cover: thing,
+  cow: animate, coyote: animate, crack: thing, cradle: thing, craft: thing, crane: animate, crash: abstract,
+  crater: thing, crawl: abstract, crazy: animate, cream: thing, credit: abstract, creek: thing, crew: abstract,
+  cricket: animate, crime: abstract, crisis: abstract, crisp: thing, critic: animate, crop: thing, cross: thing,
   crouch: abstract, crowd: animate, cruise: abstract, crunch: abstract, crush: thing, cry: abstract, crystal: thing,
   cube: thing, culture: abstract, cup: thing, cupboard: thing, current: abstract, curtain: thing, curve: abstract,
-  cushion: thing, custom: abstract, cycle: abstract, dad: animate, damage: abstract, damp: abstract, dance: abstract,
-  danger: place, daring: abstract, dash: abstract, daughter: animate, dawn: abstract, day: abstract, deal: thing,
-  debate: abstract, debris: thing, decade: abstract, december: abstract, decline: thing, decrease: abstract,
-  deer: animate, defense: abstract, degree: abstract, delay: abstract, demand: abstract, demise: abstract,
-  denial: abstract, dentist: animate, deposit: thing, depth: place, deputy: animate, desert: place, design: thing,
-  desk: thing, despair: abstract, detail: abstract, device: agentive, diagram: thing, dial: thing, diamond: thing,
-  diary: thing, dice: thing, diesel: thing, diet: thing, dignity: abstract, dilemma: abstract, dinner: thing,
-  dinosaur: animate, dirt: thing, disease: abstract, dish: thing, disorder: abstract, display: thing,
-  distance: place, divide: place, divorce: abstract, doctor: animate, document: thing, dog: animate, doll: thing,
-  dolphin: animate, domain: place, donkey: animate, donor: animate, door: thing, dose: thing, double: abstract,
-  dove: animate, draft: thing, dragon: thing, drama: abstract, draw: thing, dream: abstract, dress: thing,
-  drift: thing, drill: thing, drink: thing, drip: thing, drive: thing, drop: thing, drum: thing, duck: animate,
-  dune: thing, dust: thing, dutch: animate, duty: abstract, dwarf: animate, dynamic: abstract, eagle: animate,
-  earth: thing, east: place, echo: abstract, ecology: abstract, economy: abstract, edge: place, edit: thing,
-  effort: abstract, egg: animate, eight: thing, elbow: thing, elder: thing, element: thing, elephant: animate,
-  elevator: thing, elite: abstract, embrace: abstract, emotion: abstract, employ: abstract, end: place,
-  enemy: animate, energy: abstract, engine: agentive, entry: abstract, envelope: thing, episode: thing,
-  equal: animate, era: abstract, erosion: abstract, error: abstract, escape: abstract, essay: abstract,
-  essence: thing, estate: thing, ethics: abstract, evidence: abstract, evil: abstract, example: abstract,
-  excess: abstract, exchange: abstract, excuse: abstract, exercise: abstract, exhaust: thing, exhibit: abstract,
-  exile: animate, exit: thing, express: thing, extra: thing, eye: thing, eyebrow: thing, fabric: thing,
-  face: thing, faculty: abstract, fade: abstract, faint: abstract, faith: abstract, fall: thing, fame: abstract,
-  family: animate, fan: thing, fancy: abstract, fantasy: abstract, farm: thing, fashion: thing, fat: thing,
-  father: animate, fatigue: abstract, fault: thing, favorite: abstract, feature: thing, february: abstract,
-  fee: thing, feed: thing, feel: abstract, female: animate, fence: thing, festival: abstract, fever: abstract,
-  fiber: thing, fiction: abstract, field: place, figure: thing, file: thing, film: thing, filter: thing,
-  final: abstract, find: abstract, fine: thing, finger: thing, finish: place, fire: thing, firm: abstract,
-  first: abstract, fish: animate, fit: abstract, fitness: abstract, fix: abstract, flag: thing, flame: abstract,
-  flash: abstract, flat: thing, flavor: abstract, flight: thing, flip: thing, float: thing, flock: abstract,
-  floor: thing, flower: thing, fluid: thing, flush: abstract, fly: animate, foam: thing, focus: abstract,
-  fog: abstract, foil: thing, fold: abstract, food: thing, foot: thing, force: abstract, forest: place,
-  fork: thing, fortune: abstract, forum: thing, forward: animate, fossil: thing, fox: animate, frame: thing,
-  friend: animate, fringe: place, frog: animate, front: place, frost: thing, frown: abstract, fruit: thing,
-  fuel: thing, fun: abstract, furnace: thing, fury: abstract, future: thing, gadget: thing, gain: abstract,
-  galaxy: thing, gallery: thing, game: animate, gap: thing, garage: thing, garbage: thing, garden: thing,
-  garlic: thing, garment: thing, gas: thing, gasp: abstract, gate: thing, gauge: thing, gaze: abstract,
-  general: animate, genius: animate, genre: thing, gesture: abstract, ghost: agentive, giant: animate,
-  gift: thing, giggle: abstract, ginger: thing, giraffe: animate, girl: animate, glance: abstract, glare: abstract,
-  glass: thing, glide: abstract, glimpse: abstract, globe: thing, gloom: abstract, glory: abstract, glove: thing,
-  glow: abstract, glue: thing, goat: animate, goddess: animate, gold: thing, good: thing, goose: animate,
-  gorilla: animate, gospel: abstract, gossip: abstract, gown: thing, grab: thing, grace: abstract, grain: thing,
-  grant: thing, grape: thing, grass: thing, gravity: abstract, great: animate, green: place, grid: thing,
-  grief: abstract, grit: thing, grocery: thing, group: thing, grunt: animate, guard: thing, guess: abstract,
-  guide: animate, guilt: abstract, guitar: thing, gun: thing, gym: thing, habit: thing, hair: thing, half: abstract,
-  hammer: thing, hamster: animate, hand: thing, harbor: place, harvest: thing, hat: thing, hawk: animate,
-  hazard: thing, head: thing, health: abstract, heart: thing, hedgehog: animate, height: abstract, hello: abstract,
-  helmet: thing, help: abstract, hen: animate, hero: animate, high: abstract, hill: thing, hint: abstract,
-  hip: thing, hire: animate, history: abstract, hobby: thing, hockey: abstract, hold: abstract, hole: thing,
-  holiday: abstract, hollow: thing, home: place, honey: thing, hood: thing, hope: abstract, horn: thing,
-  horror: thing, horse: animate, hospital: thing, host: animate, hotel: thing, hour: abstract, hub: thing,
-  human: animate, humor: abstract, hundred: abstract, hunt: animate, hurdle: thing, hurry: abstract, husband: animate,
-  hybrid: animate, ice: thing, icon: thing, idea: abstract, illness: abstract, image: thing, immune: animate,
-  impact: abstract, impulse: abstract, inch: abstract, income: thing, increase: abstract, index: abstract,
-  industry: abstract, infant: animate, initial: abstract, injury: abstract, inmate: animate, input: thing,
-  inquiry: abstract, insect: animate, inside: place, interest: abstract, invite: abstract, iron: thing,
-  island: place, issue: abstract, item: thing, ivory: thing, jacket: thing, jaguar: animate, jar: thing,
-  jazz: abstract, jeans: thing, jelly: thing, jewel: thing, job: thing, joke: abstract, journey: abstract,
+  cushion: thing, custom: abstract, cut: thing, cycle: abstract, dad: animate, damage: abstract, damp: abstract,
+  dance: abstract, danger: place, dare: abstract, daring: abstract, dash: abstract, data: abstract, date: abstract,
+  daughter: animate, dawn: abstract, day: abstract, deal: thing, dealer: animate, death: abstract, debate: abstract,
+  debris: thing, debt: abstract, decade: abstract, december: abstract, deck: thing, decline: thing, decrease: abstract,
+  deer: animate, defeat: abstract, defense: abstract, degree: abstract, delay: abstract, demand: abstract,
+  demise: abstract, denial: abstract, dentist: animate, deposit: thing, depth: place, deputy: animate,
+  desert: place, design: thing, desire: abstract, desk: thing, despair: abstract, detail: abstract, device: agentive,
+  diagram: thing, dial: thing, diamond: thing, diary: thing, dice: thing, die: thing, diesel: animate,
+  diet: thing, dig: place, dignity: abstract, dilemma: abstract, dining: abstract, dinner: thing, dinosaur: animate,
+  dirt: thing, disease: abstract, dish: thing, disorder: abstract, display: thing, distance: place, divide: place,
+  divorce: abstract, doctor: animate, document: thing, dog: animate, doll: thing, dolphin: animate, domain: place,
+  donkey: animate, donor: animate, door: thing, dose: thing, double: abstract, doubt: abstract, dove: animate,
+  down: animate, draft: thing, drag: thing, dragon: animate, drama: abstract, draw: thing, dream: abstract,
+  dress: thing, drift: thing, drill: thing, drink: thing, drip: thing, drive: thing, driver: animate,
+  drop: thing, drug: thing, drum: thing, duck: animate, due: abstract, dune: thing, dust: thing, dutch: animate,
+  duty: abstract, dwarf: animate, dynamic: abstract, eagle: animate, ear: thing, earth: thing, ease: abstract,
+  east: place, echo: abstract, ecology: abstract, economy: abstract, edge: place, edit: thing, editor: animate,
+  effect: abstract, effort: abstract, egg: animate, eight: thing, elbow: thing, elder: animate, element: thing,
+  elephant: animate, elevator: thing, elite: abstract, email: abstract, embrace: abstract, emotion: abstract,
+  employ: abstract, end: place, enemy: animate, energy: abstract, engine: agentive, entry: abstract, envelope: thing,
+  episode: thing, equal: animate, era: abstract, erosion: abstract, error: abstract, escape: abstract,
+  essay: abstract, essence: thing, estate: thing, ethics: abstract, event: abstract, evidence: abstract,
+  evil: abstract, example: abstract, excess: abstract, exchange: abstract, excuse: abstract, exercise: abstract,
+  exhaust: thing, exhibit: abstract, exile: animate, exit: thing, expert: animate, express: thing, extent: abstract,
+  extra: animate, eye: thing, eyebrow: thing, fabric: thing, face: thing, fact: abstract, factor: abstract,
+  faculty: abstract, fade: abstract, fail: thing, faint: abstract, fair: abstract, faith: abstract, fall: thing,
+  fame: abstract, family: animate, fan: thing, fancy: abstract, fantasy: abstract, farm: thing, farmer: animate,
+  fashion: thing, fat: thing, fate: abstract, father: animate, fatigue: abstract, fault: thing, favor: abstract,
+  favorite: abstract, fear: abstract, feature: thing, february: abstract, fee: thing, feed: thing, feel: abstract,
+  fellow: animate, female: animate, fence: thing, festival: abstract, fever: abstract, fiber: thing, fiction: abstract,
+  field: place, fifth: abstract, fifty: abstract, fight: abstract, figure: thing, file: thing, fill: thing,
+  film: thing, filter: thing, final: abstract, find: abstract, fine: thing, finger: thing, finish: place,
+  fire: thing, firm: abstract, first: abstract, fish: animate, fit: abstract, fitness: abstract, five: thing,
+  fix: abstract, flag: thing, flame: abstract, flash: abstract, flat: thing, flavor: abstract, flesh: thing,
+  flight: thing, flip: thing, float: thing, flock: abstract, floor: thing, flow: abstract, flower: thing,
+  fluid: thing, flush: abstract, fly: animate, foam: thing, focus: abstract, fog: abstract, foil: thing,
+  fold: abstract, folk: abstract, food: thing, foot: thing, force: abstract, forest: place, fork: thing,
+  form: abstract, former: abstract, fortune: abstract, forum: thing, forward: animate, fossil: animate,
+  four: thing, fourth: abstract, fox: animate, frame: thing, freeze: abstract, friend: animate, fringe: place,
+  frog: animate, front: place, frost: thing, frown: abstract, fruit: thing, fuel: thing, fun: abstract,
+  fund: thing, furnace: thing, fury: abstract, future: thing, fyi: thing, gadget: thing, gain: abstract,
+  galaxy: thing, gallery: thing, game: animate, gang: thing, gap: thing, garage: thing, garbage: thing,
+  garden: thing, garlic: thing, garment: thing, gas: thing, gasp: abstract, gate: thing, gauge: thing,
+  gaze: abstract, gear: thing, gender: abstract, gene: thing, general: animate, genius: animate, genre: thing,
+  gesture: abstract, ghost: agentive, giant: animate, gift: thing, giggle: abstract, ginger: thing, giraffe: animate,
+  girl: animate, glance: abstract, glare: abstract, glass: thing, glide: abstract, glimpse: abstract,
+  globe: thing, gloom: abstract, glory: abstract, glove: thing, glow: abstract, glue: thing, goal: place,
+  goat: animate, goddess: animate, gold: thing, golf: abstract, good: thing, goose: animate, gorilla: animate,
+  gospel: abstract, gossip: abstract, gown: thing, grab: thing, grace: abstract, grade: abstract, grain: thing,
+  grand: thing, grant: thing, grape: thing, grass: thing, grave: thing, gravity: abstract, gray: thing,
+  great: animate, green: place, grid: thing, grief: abstract, grit: thing, grocery: thing, ground: thing,
+  group: thing, growth: abstract, grunt: animate, guard: animate, guess: abstract, guest: animate, guide: animate,
+  guilt: abstract, guitar: thing, gun: thing, guy: animate, gym: thing, habit: thing, hair: thing, half: abstract,
+  hall: thing, hammer: thing, hamster: animate, hand: thing, handle: thing, hang: abstract, harbor: place,
+  harvest: thing, hat: thing, hawk: animate, hazard: thing, head: thing, health: abstract, heart: thing,
+  heat: abstract, heaven: place, hedgehog: animate, heel: thing, height: abstract, hell: place, hello: abstract,
+  helmet: thing, help: abstract, hen: animate, hero: animate, hide: thing, high: abstract, hill: thing,
+  hint: abstract, hip: thing, hire: animate, history: abstract, hit: abstract, hobby: thing, hockey: abstract,
+  hold: abstract, hole: thing, holiday: abstract, hollow: thing, home: place, honey: thing, honor: abstract,
+  hood: animate, hope: abstract, horn: thing, horror: thing, horse: animate, hospital: thing, host: animate,
+  hotel: thing, hour: abstract, house: thing, hub: thing, human: animate, humor: abstract, hundred: abstract,
+  hunt: animate, hunter: animate, hurdle: thing, hurry: abstract, husband: animate, hybrid: animate, ice: thing,
+  icon: thing, idea: abstract, ideal: abstract, illness: abstract, image: thing, immune: animate, impact: abstract,
+  impulse: abstract, inch: abstract, income: thing, increase: abstract, index: abstract, industry: abstract,
+  infant: animate, initial: abstract, injury: abstract, inmate: animate, input: thing, inquiry: abstract,
+  insect: animate, inside: place, interest: abstract, invite: abstract, iron: thing, island: place, issue: abstract,
+  item: thing, ivory: thing, jacket: thing, jaguar: animate, jail: thing, jar: thing, jazz: abstract,
+  jeans: thing, jelly: thing, jet: thing, jewel: thing, job: thing, joint: thing, joke: abstract, journey: abstract,
   joy: abstract, judge: animate, juice: thing, jump: abstract, jungle: place, junior: animate, junk: thing,
-  kangaroo: animate, ketchup: thing, key: thing, kick: abstract, kid: thing, kidney: thing, kind: abstract,
-  kingdom: place, kiss: thing, kit: thing, kitchen: thing, kite: thing, kitten: animate, kiwi: thing,
-  knee: thing, knife: thing, knock: abstract, lab: thing, label: thing, labor: abstract, ladder: thing,
-  lady: animate, lake: thing, lamp: thing, language: abstract, laptop: agentive, latin: abstract, laugh: abstract,
-  laundry: thing, lava: thing, law: abstract, lawn: place, lawsuit: abstract, layer: thing, leader: thing,
-  leaf: thing, lecture: abstract, left: place, leg: thing, legend: abstract, leisure: abstract, lemon: thing,
+  jury: abstract, kangaroo: animate, ketchup: thing, key: thing, kick: abstract, kid: animate, kidney: thing,
+  kill: abstract, killer: animate, kind: abstract, king: animate, kingdom: place, kiss: thing, kit: thing,
+  kitchen: thing, kite: thing, kitten: animate, kiwi: thing, knee: thing, knife: thing, knock: abstract,
+  lab: thing, label: thing, labor: abstract, lack: abstract, ladder: thing, lady: animate, lake: thing,
+  lamp: thing, land: thing, language: abstract, lap: thing, laptop: agentive, latin: abstract, latter: abstract,
+  laugh: abstract, launch: thing, laundry: thing, lava: thing, law: abstract, lawn: place, lawsuit: abstract,
+  lawyer: animate, layer: thing, lead: thing, leader: animate, leaf: thing, league: abstract, lean: abstract,
+  lecture: abstract, left: place, leg: thing, legacy: thing, legend: abstract, leisure: abstract, lemon: thing,
   length: abstract, lens: thing, leopard: thing, lesson: abstract, letter: abstract, level: abstract,
-  liar: animate, liberty: abstract, library: thing, license: abstract, life: abstract, lift: abstract,
-  light: thing, limb: thing, limit: place, link: thing, lion: animate, liquid: thing, list: abstract,
-  lizard: animate, load: thing, loan: thing, lobster: thing, local: thing, lock: thing, logic: abstract,
-  loop: thing, lottery: abstract, lounge: thing, love: abstract, luggage: thing, lumber: thing, lunch: thing,
-  luxury: abstract, lyrics: abstract, machine: agentive, magic: abstract, magnet: thing, maid: animate,
-  mail: thing, main: thing, major: animate, mammal: animate, man: animate, mandate: place, mango: thing,
-  mansion: place, manual: abstract, maple: thing, marble: thing, march: abstract, margin: abstract, marine: animate,
+  liar: animate, liberty: abstract, library: thing, license: abstract, lie: place, life: abstract, lift: abstract,
+  light: thing, limb: thing, limit: place, line: abstract, link: thing, lion: animate, lip: thing, liquid: thing,
+  list: abstract, living: abstract, lizard: animate, load: thing, loan: thing, lobster: thing, local: thing,
+  lock: thing, logic: abstract, look: abstract, loop: thing, loss: thing, lot: place, lots: place, lottery: abstract,
+  lounge: thing, love: abstract, lover: animate, lower: thing, luck: abstract, luggage: thing, lumber: thing,
+  lunch: thing, lung: thing, luxury: abstract, lyrics: abstract, machine: agentive, magic: abstract, magnet: thing,
+  maid: animate, mail: thing, main: thing, major: animate, maker: animate, makeup: thing, mall: thing,
+  mammal: animate, man: animate, mandate: place, mango: thing, manner: abstract, mansion: place, manual: abstract,
+  map: thing, maple: thing, marble: thing, march: abstract, margin: abstract, marine: animate, mark: abstract,
   market: thing, marriage: abstract, mask: thing, mass: abstract, master: animate, match: thing, material: thing,
-  math: abstract, matrix: thing, matter: abstract, maximum: place, maze: thing, meadow: place, measure: abstract,
-  meat: thing, mechanic: animate, medal: abstract, media: place, melody: abstract, member: thing, memory: thing,
-  mention: abstract, menu: thing, mercy: abstract, merit: abstract, mesh: thing, message: abstract, metal: thing,
-  method: abstract, middle: place, midnight: abstract, milk: thing, million: abstract, mimic: animate,
-  mind: abstract, minimum: place, minor: animate, minute: abstract, miracle: abstract, mirror: thing,
-  misery: abstract, miss: animate, mistake: abstract, mix: thing, mixture: thing, mobile: thing, model: thing,
-  mom: animate, moment: abstract, monitor: thing, monkey: animate, monster: agentive, month: abstract,
-  moon: thing, moral: abstract, morning: abstract, mosquito: animate, mother: thing, motion: abstract,
-  motor: agentive, mountain: place, mouse: animate, move: abstract, movie: abstract, muffin: thing, mule: animate,
-  muscle: thing, museum: thing, mushroom: thing, music: abstract, mystery: abstract, myth: abstract, name: abstract,
-  napkin: thing, narrow: thing, nasty: thing, nation: abstract, nature: thing, neck: thing, need: thing,
-  negative: thing, neglect: abstract, nephew: animate, nerve: thing, nest: thing, net: thing, network: agentive,
-  neutral: animate, news: abstract, next: thing, night: abstract, noble: animate, noise: abstract, nominee: animate,
-  noodle: thing, normal: abstract, north: place, nose: thing, notable: animate, note: abstract, nothing: abstract,
-  notice: abstract, novel: thing, now: abstract, number: abstract, nurse: animate, nut: thing, oak: thing,
-  object: abstract, ocean: place, october: abstract, odor: abstract, offer: abstract, office: thing, oil: thing,
-  old: abstract, olive: thing, one: abstract, onion: thing, opera: thing, opinion: abstract, option: thing,
-  orange: thing, orbit: place, orchard: thing, order: abstract, organ: thing, orient: place, original: thing,
-  orphan: animate, ostrich: animate, output: thing, outside: place, oval: abstract, oven: thing, owner: animate,
-  oxygen: thing, oyster: animate, ozone: thing, pact: abstract, paddle: thing, page: abstract, pair: abstract,
-  palace: thing, palm: thing, panda: animate, panel: thing, panic: abstract, panther: animate, paper: thing,
-  parade: abstract, parent: animate, park: place, parrot: animate, party: abstract, pass: thing, patch: place,
-  path: thing, patient: animate, patrol: abstract, pattern: thing, pause: abstract, payment: thing, peace: abstract,
-  peanut: thing, pear: thing, peasant: animate, pelican: animate, pen: thing, penalty: abstract, pencil: thing,
-  people: abstract, pepper: thing, permit: animate, person: thing, pet: animate, phone: agentive, photo: thing,
-  phrase: abstract, physical: thing, piano: thing, picnic: thing, picture: thing, piece: thing, pig: animate,
-  pigeon: animate, pill: thing, pilot: animate, pink: thing, pioneer: animate, pipe: thing, pistol: thing,
-  pitch: place, pizza: thing, place: place, planet: thing, plastic: thing, plate: thing, play: abstract,
-  pledge: thing, pluck: abstract, plug: thing, plunge: abstract, poem: abstract, poet: animate, point: place,
-  pole: thing, police: abstract, pond: thing, pony: animate, pool: thing, portion: thing, position: place,
-  post: place, potato: thing, pottery: thing, poverty: abstract, powder: thing, power: abstract, practice: abstract,
-  praise: abstract, present: abstract, price: abstract, pride: abstract, primary: animate, print: thing,
-  priority: abstract, prison: thing, private: animate, prize: thing, problem: abstract, process: abstract,
-  produce: thing, profit: thing, program: abstract, project: abstract, proof: abstract, property: place,
+  math: abstract, matrix: thing, matter: abstract, maximum: place, mayor: animate, maze: thing, meadow: place,
+  meal: thing, measure: abstract, meat: thing, mechanic: animate, medal: abstract, media: place, medium: place,
+  meet: abstract, meeting: abstract, melody: abstract, member: animate, memory: thing, mention: abstract,
+  menu: thing, mercy: abstract, merit: abstract, mesh: thing, mess: thing, message: abstract, metal: thing,
+  meter: thing, method: abstract, middle: place, midnight: abstract, milk: thing, million: abstract, mimic: animate,
+  mind: abstract, mine: thing, minimum: place, minor: animate, minute: abstract, miracle: abstract, mirror: thing,
+  misery: abstract, miss: animate, mistake: abstract, mix: thing, mixture: thing, mobile: thing, mode: abstract,
+  model: thing, mom: animate, moment: abstract, money: thing, monitor: animate, monkey: animate, monster: agentive,
+  month: abstract, mood: abstract, moon: thing, moral: abstract, morning: abstract, mosquito: animate,
+  mother: animate, motion: abstract, motor: agentive, mount: animate, mountain: place, mouse: animate,
+  mouth: thing, move: abstract, movie: abstract, muffin: thing, mule: animate, murder: abstract, muscle: thing,
+  museum: thing, mushroom: thing, music: abstract, mystery: abstract, myth: abstract, name: abstract,
+  napkin: thing, narrow: thing, nasty: thing, nation: abstract, native: animate, nature: thing, neck: thing,
+  need: thing, negative: thing, neglect: abstract, nephew: animate, nerve: thing, nest: thing, net: thing,
+  network: agentive, neutral: animate, news: abstract, next: thing, night: abstract, nine: thing, noble: animate,
+  nod: abstract, noise: abstract, nominee: animate, noodle: thing, normal: abstract, north: place, nose: thing,
+  notable: animate, note: abstract, nothing: abstract, notice: abstract, notion: abstract, novel: thing,
+  now: abstract, number: abstract, nurse: animate, nut: thing, oak: thing, object: abstract, ocean: place,
+  october: abstract, odds: abstract, odor: abstract, offer: abstract, office: thing, oil: thing, old: abstract,
+  olive: thing, one: abstract, onion: thing, opera: thing, opinion: abstract, option: thing, orange: thing,
+  orbit: place, orchard: thing, order: abstract, organ: thing, orient: place, origin: place, original: thing,
+  orphan: animate, ostrich: animate, others: thing, out: abstract, output: thing, outside: place, oval: abstract,
+  oven: thing, owner: animate, oxygen: thing, oyster: animate, ozone: thing, pace: abstract, pack: thing,
+  pact: abstract, paddle: thing, page: abstract, pain: abstract, paint: thing, pair: abstract, palace: thing,
+  palm: thing, pan: thing, panda: animate, panel: thing, panic: abstract, pant: thing, panther: animate,
+  paper: thing, parade: abstract, parent: animate, park: place, parrot: animate, part: thing, party: abstract,
+  pass: thing, past: abstract, patch: place, path: thing, patient: animate, patrol: abstract, pattern: thing,
+  pause: abstract, pay: thing, payment: thing, peace: abstract, peak: place, peanut: thing, pear: thing,
+  peasant: animate, peer: animate, pelican: animate, pen: thing, penalty: abstract, pencil: thing, people: abstract,
+  pepper: thing, period: abstract, permit: animate, person: thing, pet: animate, phase: abstract, phone: agentive,
+  photo: thing, phrase: abstract, physical: thing, piano: thing, pick: thing, picnic: thing, picture: thing,
+  pie: thing, piece: thing, pig: animate, pigeon: animate, pile: thing, pill: thing, pilot: animate, pine: thing,
+  pink: thing, pioneer: animate, pipe: thing, pistol: thing, pitch: place, pizza: thing, place: place,
+  plan: thing, plane: thing, planet: thing, plant: thing, plastic: thing, plate: thing, play: abstract,
+  player: animate, pledge: thing, plenty: abstract, plot: place, pluck: abstract, plug: thing, plunge: abstract,
+  plus: abstract, pocket: thing, poem: abstract, poet: animate, poetry: abstract, point: place, pole: thing,
+  police: abstract, policy: abstract, poll: thing, pond: thing, pony: animate, pool: thing, poor: abstract,
+  pop: animate, porch: thing, port: place, portion: thing, pose: abstract, position: place, post: place,
+  pot: thing, potato: thing, pottery: thing, pound: abstract, pour: thing, poverty: abstract, powder: thing,
+  power: abstract, practice: abstract, praise: abstract, prayer: abstract, present: abstract, press: thing,
+  price: abstract, pride: abstract, priest: animate, primary: animate, print: thing, prior: animate, priority: abstract,
+  prison: thing, private: animate, prize: thing, problem: abstract, process: abstract, produce: thing,
+  profit: thing, program: abstract, project: abstract, prompt: abstract, proof: abstract, property: place,
   public: abstract, pudding: thing, pull: thing, pulp: thing, pulse: thing, pumpkin: thing, punch: thing,
-  pupil: thing, puppy: animate, purchase: abstract, purity: abstract, purpose: abstract, purse: thing,
+  pupil: animate, puppy: animate, purchase: abstract, purity: abstract, purpose: abstract, purse: thing,
   push: thing, puzzle: thing, pyramid: thing, quality: abstract, quantum: abstract, quarter: place, question: abstract,
   quiz: abstract, quote: abstract, rabbit: animate, raccoon: thing, race: abstract, rack: thing, radar: agentive,
   radio: thing, rail: thing, rain: thing, raise: thing, rally: abstract, ramp: thing, ranch: thing, range: place,
-  rate: abstract, raven: animate, razor: thing, reason: abstract, rebel: animate, recall: abstract, recipe: abstract,
-  record: thing, reform: abstract, refuse: thing, region: place, regret: abstract, regular: animate, reject: abstract,
-  release: thing, relief: abstract, rent: thing, repair: place, repeat: abstract, report: abstract, rescue: abstract,
-  resource: thing, response: abstract, result: abstract, retreat: place, return: abstract, reunion: abstract,
-  reveal: thing, review: abstract, reward: abstract, rhythm: abstract, rib: thing, ribbon: thing, rice: thing,
-  rich: abstract, ride: thing, ridge: thing, rifle: thing, right: place, ring: thing, riot: abstract,
-  ripple: abstract, risk: abstract, ritual: abstract, rival: animate, river: thing, road: thing, roast: thing,
-  robot: agentive, rocket: agentive, romance: abstract, roof: thing, rookie: animate, room: thing, rose: thing,
-  rough: place, round: thing, route: place, royal: thing, rubber: thing, rug: thing, rule: abstract, run: abstract,
-  runway: thing, saddle: thing, sadness: abstract, safe: thing, sail: thing, salad: thing, salmon: animate,
-  salon: thing, salt: thing, salute: abstract, same: animate, sample: thing, sand: thing, satoshi: thing,
-  sauce: thing, sausage: thing, save: abstract, scale: thing, scan: thing, scare: abstract, scene: place,
-  scheme: abstract, school: thing, science: abstract, scissors: thing, scorpion: place, scout: animate,
-  scrap: thing, screen: thing, script: abstract, scrub: abstract, sea: thing, search: abstract, season: abstract,
-  seat: place, second: abstract, secret: abstract, section: thing, security: abstract, seed: thing, segment: thing,
-  seminar: abstract, senior: animate, sense: abstract, sentence: abstract, series: abstract, service: abstract,
-  session: abstract, setup: thing, seven: thing, shadow: place, shaft: thing, shallow: thing, share: thing,
-  shed: thing, shell: thing, sheriff: animate, shield: thing, shift: abstract, shine: abstract, ship: agentive,
-  shiver: abstract, shock: abstract, shoe: thing, shoot: thing, shop: thing, short: thing, shoulder: thing,
-  shove: abstract, shrimp: thing, shrug: abstract, shuffle: abstract, sibling: animate, side: place, siege: abstract,
-  sight: abstract, sign: thing, silk: thing, silver: thing, siren: thing, sister: animate, six: thing,
-  size: thing, skate: thing, sketch: thing, ski: thing, skill: abstract, skin: thing, skirt: thing, skull: thing,
-  slab: thing, slam: abstract, sleep: abstract, slice: thing, slide: thing, slight: abstract, slogan: abstract,
-  slot: thing, slush: thing, smile: abstract, smoke: abstract, snack: thing, snake: animate, snap: thing,
-  sniff: abstract, snow: thing, soap: thing, soccer: abstract, social: abstract, sock: thing, soda: thing,
-  soldier: animate, solid: thing, solution: thing, song: abstract, sort: abstract, soul: animate, sound: abstract,
-  soup: thing, source: place, south: place, space: place, spare: thing, spawn: animate, special: thing,
-  speed: abstract, spell: abstract, sphere: thing, spice: thing, spider: animate, spike: thing, spin: abstract,
-  spirit: animate, split: thing, spoil: thing, sponsor: animate, spoon: thing, sport: abstract, spot: place,
-  spray: thing, spread: thing, spring: thing, spy: animate, square: place, squeeze: abstract, squirrel: animate,
-  stable: thing, stadium: thing, staff: thing, stage: thing, stairs: thing, stamp: abstract, stand: thing,
-  start: abstract, state: place, stay: thing, steak: thing, steel: thing, stem: thing, step: thing, stereo: thing,
-  stick: thing, still: thing, sting: abstract, stock: thing, stomach: thing, stone: thing, stool: thing,
-  story: thing, stove: thing, strategy: abstract, street: thing, strike: abstract, struggle: abstract,
-  student: animate, stuff: thing, stumble: abstract, style: abstract, subject: thing, subway: thing, success: abstract,
-  sugar: thing, suit: thing, summer: abstract, sun: thing, sunset: abstract, super: animate, supply: abstract,
-  supreme: thing, surface: thing, surge: abstract, surprise: abstract, survey: abstract, suspect: animate,
-  swallow: thing, swamp: thing, swap: abstract, swarm: abstract, sweet: thing, swift: animate, swim: abstract,
-  swing: thing, switch: thing, sword: thing, symbol: abstract, symptom: abstract, syrup: thing, system: agentive,
-  table: thing, tackle: thing, tag: thing, tail: animate, talent: abstract, talk: abstract, tank: thing,
-  tape: thing, target: place, task: abstract, taste: abstract, tattoo: thing, taxi: thing, team: animate,
-  ten: thing, tenant: animate, tennis: abstract, tent: thing, term: abstract, test: abstract, text: abstract,
-  thank: thing, theme: abstract, theory: abstract, thing: thing, thought: abstract, three: thing, throw: thing,
-  thumb: thing, thunder: thing, ticket: abstract, tide: abstract, tiger: animate, tilt: abstract, timber: thing,
-  time: abstract, tip: place, tissue: thing, title: abstract, toast: thing, tobacco: thing, today: abstract,
-  toddler: animate, toe: thing, toilet: thing, token: thing, tomato: thing, tomorrow: abstract, tone: abstract,
-  tongue: thing, tonight: abstract, tool: thing, tooth: thing, top: place, topic: abstract, torch: thing,
-  tornado: thing, tortoise: animate, toss: abstract, total: thing, tourist: animate, tower: thing, town: place,
-  toy: thing, track: thing, trade: abstract, traffic: abstract, train: agentive, transfer: abstract, trap: thing,
-  trash: thing, travel: abstract, tray: thing, treat: thing, tree: thing, trend: place, trial: abstract,
-  tribe: abstract, trick: abstract, trigger: thing, trim: thing, trip: abstract, trophy: thing, trouble: abstract,
+  rank: abstract, rate: abstract, rating: abstract, ratio: abstract, raven: animate, razor: thing, reach: place,
+  read: abstract, reader: animate, reason: abstract, rebel: animate, recall: abstract, recipe: abstract,
+  record: thing, red: thing, reform: abstract, refuse: thing, regard: abstract, regime: abstract, region: place,
+  regret: abstract, regular: animate, reject: abstract, release: thing, relief: abstract, reminder: abstract,
+  rent: thing, repair: place, repeat: abstract, reply: abstract, report: abstract, request: abstract,
+  rescue: abstract, resort: place, resource: thing, response: abstract, rest: abstract, result: abstract,
+  retreat: place, return: abstract, reunion: abstract, reveal: thing, review: abstract, reward: abstract,
+  rhythm: abstract, rib: thing, ribbon: thing, rice: thing, rich: abstract, ride: thing, ridge: thing,
+  rifle: thing, right: place, ring: thing, riot: abstract, ripple: abstract, rise: thing, risk: abstract,
+  ritual: abstract, rival: animate, river: thing, road: thing, roast: thing, robot: agentive, rock: thing,
+  rocket: agentive, role: abstract, roll: thing, romance: abstract, roof: thing, rookie: animate, room: thing,
+  root: thing, rope: thing, rose: thing, rough: place, round: thing, route: place, row: thing, royal: thing,
+  rub: abstract, rubber: thing, rug: thing, rule: abstract, run: abstract, runway: thing, rush: thing,
+  saddle: thing, sadness: abstract, safe: thing, safety: place, sail: thing, sake: thing, salad: thing,
+  salary: thing, sale: abstract, sales: thing, salmon: animate, salon: thing, salt: thing, salute: abstract,
+  same: animate, sample: thing, sand: thing, satoshi: thing, sauce: thing, sausage: thing, save: abstract,
+  saving: abstract, scale: thing, scan: thing, scare: abstract, scene: place, schedule: abstract, scheme: abstract,
+  school: thing, science: abstract, scissors: thing, scope: thing, score: abstract, scorpion: animate,
+  scout: animate, scrap: thing, scream: abstract, screen: thing, script: abstract, scrub: abstract, sea: thing,
+  search: abstract, season: abstract, seat: place, second: abstract, secret: abstract, section: thing,
+  sector: abstract, security: abstract, seed: thing, segment: thing, self: abstract, seminar: abstract,
+  send: thing, senior: animate, sense: abstract, sentence: abstract, series: abstract, serve: abstract,
+  service: abstract, session: abstract, set: thing, setup: thing, seven: thing, shade: thing, shadow: place,
+  shaft: thing, shake: thing, shallow: thing, shape: thing, share: thing, shed: thing, sheet: thing, shelf: thing,
+  shell: thing, sheriff: animate, shield: thing, shift: abstract, shine: abstract, ship: agentive, shirt: thing,
+  shiver: abstract, shock: abstract, shoe: thing, shoot: thing, shop: thing, shore: thing, short: thing,
+  shot: thing, shoulder: thing, shout: abstract, shove: abstract, show: abstract, shower: thing, shrimp: animate,
+  shrug: abstract, shuffle: abstract, sibling: animate, side: place, siege: abstract, sigh: abstract,
+  sight: abstract, sign: thing, signal: abstract, silk: thing, silver: thing, sin: abstract, singer: animate,
+  sink: thing, sir: animate, siren: animate, sister: animate, site: place, six: thing, size: thing, skate: thing,
+  sketch: thing, ski: thing, skill: abstract, skin: thing, skirt: thing, skull: thing, sky: thing, slab: thing,
+  slam: abstract, slave: animate, sleep: abstract, slice: thing, slide: thing, slight: abstract, slip: thing,
+  slogan: abstract, slot: thing, slush: thing, smell: abstract, smile: abstract, smoke: abstract, snack: thing,
+  snake: animate, snap: thing, sniff: abstract, snow: thing, soap: thing, soccer: abstract, social: abstract,
+  sock: thing, soda: thing, soil: thing, soldier: animate, solid: thing, solution: thing, son: animate,
+  song: abstract, sort: abstract, soul: animate, sound: abstract, soup: thing, source: place, south: place,
+  space: place, spare: thing, spawn: animate, special: thing, speech: abstract, speed: abstract, spell: abstract,
+  sphere: thing, spice: thing, spider: animate, spike: thing, spin: abstract, spirit: animate, split: thing,
+  spoil: thing, sponsor: animate, spoon: thing, sport: abstract, spot: place, spray: thing, spread: thing,
+  spring: thing, spy: animate, square: place, squeeze: abstract, squirrel: animate, stable: thing, stadium: thing,
+  staff: thing, stage: thing, stair: thing, stairs: thing, stake: thing, stamp: abstract, stand: thing,
+  star: thing, stare: abstract, start: abstract, state: place, status: abstract, stay: thing, steak: thing,
+  steal: thing, steel: thing, stem: thing, step: thing, stereo: thing, stick: thing, still: thing, sting: abstract,
+  stir: abstract, stock: thing, stomach: thing, stone: thing, stool: thing, stop: abstract, store: thing,
+  storm: abstract, story: thing, stove: thing, strategy: abstract, stream: thing, street: thing, stress: abstract,
+  strike: abstract, string: thing, strip: thing, stroke: abstract, struggle: abstract, student: animate,
+  studio: thing, study: abstract, stuff: thing, stumble: abstract, style: abstract, subject: thing, subway: thing,
+  success: abstract, sugar: thing, suit: thing, summer: abstract, summit: place, sun: thing, sunset: abstract,
+  super: animate, supply: abstract, supreme: thing, surface: thing, surge: abstract, surprise: abstract,
+  survey: abstract, suspect: animate, swallow: thing, swamp: thing, swap: abstract, swarm: abstract, sweep: thing,
+  sweet: animate, swift: animate, swim: abstract, swing: thing, switch: thing, sword: thing, symbol: abstract,
+  symptom: abstract, syrup: thing, system: agentive, table: thing, tackle: animate, tactic: abstract,
+  tag: thing, tail: animate, take: thing, tale: abstract, talent: abstract, talk: abstract, tank: thing,
+  tap: thing, tape: thing, target: place, task: abstract, taste: abstract, tattoo: thing, tax: thing,
+  taxi: thing, tea: thing, team: animate, tear: thing, teen: animate, ten: thing, tenant: animate, tennis: abstract,
+  tent: thing, term: abstract, terms: abstract, terror: abstract, test: abstract, text: abstract, thank: thing,
+  thanks: abstract, theme: abstract, theory: abstract, thing: thing, think: abstract, third: abstract,
+  thirty: abstract, thought: abstract, threat: abstract, three: thing, throat: thing, throw: thing, thumb: thing,
+  thunder: thing, ticket: abstract, tide: abstract, tie: thing, tiger: animate, tilt: abstract, timber: thing,
+  time: abstract, tip: place, tire: thing, tissue: thing, title: abstract, toast: thing, tobacco: thing,
+  today: abstract, toddler: animate, toe: thing, toilet: thing, token: thing, tomato: thing, tomorrow: abstract,
+  tone: abstract, tongue: thing, tonight: abstract, tool: thing, tooth: thing, top: place, topic: abstract,
+  torch: thing, tornado: thing, tortoise: animate, toss: abstract, total: thing, touch: abstract, tour: abstract,
+  tourist: animate, tower: thing, town: place, toy: thing, trace: thing, track: thing, trade: abstract,
+  traffic: abstract, trail: thing, train: agentive, transfer: abstract, trap: thing, trash: thing, travel: abstract,
+  tray: thing, treat: thing, treaty: abstract, tree: thing, trend: place, trial: abstract, tribe: abstract,
+  trick: abstract, trigger: thing, trim: thing, trip: abstract, troop: abstract, trophy: thing, trouble: abstract,
   truck: agentive, trumpet: thing, trust: thing, truth: abstract, try: abstract, tube: thing, tuition: thing,
   tumble: abstract, tuna: thing, tunnel: thing, turkey: animate, turn: abstract, turtle: thing, twelve: abstract,
-  twenty: abstract, twin: thing, twist: abstract, two: thing, type: abstract, umbrella: thing, uncle: animate,
-  uniform: thing, unit: abstract, universe: thing, unknown: place, update: abstract, upgrade: thing, upper: thing,
-  upset: thing, urge: abstract, usage: abstract, use: abstract, utility: abstract, vacuum: place, valley: place,
-  valve: thing, van: thing, vapor: thing, vault: thing, vehicle: agentive, velvet: thing, vendor: animate,
-  venture: abstract, venue: place, verb: abstract, version: abstract, vessel: thing, veteran: animate,
-  victory: abstract, video: thing, view: place, village: place, vintage: thing, violin: thing, virus: animate,
-  visa: abstract, visit: abstract, visual: thing, vocal: abstract, voice: abstract, void: abstract, volcano: thing,
-  volume: thing, vote: abstract, voyage: abstract, wage: thing, wagon: thing, wait: abstract, walk: abstract,
-  wall: thing, walnut: thing, want: thing, warfare: abstract, warrior: animate, wash: thing, wasp: animate,
-  waste: thing, water: thing, wave: abstract, way: place, wealth: abstract, weapon: thing, wear: thing,
-  weasel: animate, weather: abstract, web: thing, wedding: abstract, weekend: abstract, weird: animate,
-  welcome: abstract, west: place, wet: abstract, whale: animate, wheat: thing, wheel: thing, whip: thing,
-  whisper: abstract, width: abstract, wife: animate, wild: place, will: abstract, win: abstract, window: thing,
-  wine: thing, wing: animate, wink: abstract, winner: animate, winter: abstract, wire: thing, wisdom: abstract,
-  wise: abstract, wish: abstract, witness: animate, wolf: animate, woman: animate, wonder: abstract, wood: thing,
-  wool: thing, word: abstract, work: thing, world: thing, worry: abstract, worth: abstract, wrap: thing,
-  wreck: thing, wrist: thing, wrong: abstract, yard: thing, year: abstract, yellow: abstract, young: animate,
-  youth: animate, zebra: animate, zero: thing, zone: place, zoo: thing}
+  twenty: abstract, twin: animate, twist: abstract, two: thing, type: abstract, umbrella: thing, uncle: animate,
+  uniform: thing, union: place, unit: abstract, universe: thing, unknown: place, update: abstract, upgrade: thing,
+  upper: thing, upset: thing, urge: abstract, usage: abstract, use: abstract, user: animate, utility: abstract,
+  vacuum: place, valley: place, value: abstract, valve: thing, van: thing, vapor: thing, vault: thing,
+  vehicle: agentive, velvet: thing, vendor: animate, venture: abstract, venue: place, verb: abstract,
+  version: abstract, vessel: thing, veteran: animate, victim: animate, victory: abstract, video: thing,
+  view: place, viewer: animate, village: place, vintage: thing, violin: thing, virtue: abstract, virus: animate,
+  visa: abstract, vision: abstract, visit: abstract, visual: thing, vocal: abstract, voice: abstract,
+  void: abstract, volcano: thing, volume: thing, vote: abstract, voter: animate, voyage: abstract, wage: thing,
+  wagon: thing, wait: abstract, wake: place, walk: abstract, wall: thing, walnut: thing, want: thing,
+  war: abstract, warfare: abstract, warrior: animate, wash: thing, wasp: animate, waste: thing, watch: thing,
+  water: thing, wave: abstract, way: place, wealth: abstract, weapon: thing, wear: thing, weasel: animate,
+  weather: abstract, web: thing, wedding: abstract, week: abstract, weekend: abstract, weight: thing,
+  weird: animate, welcome: abstract, well: thing, west: place, wet: abstract, whale: animate, wheat: thing,
+  wheel: thing, while: abstract, whip: thing, whisper: abstract, width: abstract, wife: animate, wild: place,
+  will: abstract, win: abstract, wind: abstract, window: thing, wine: thing, wing: animate, wink: abstract,
+  winner: animate, winter: abstract, wire: thing, wisdom: abstract, wise: abstract, wish: abstract, witness: animate,
+  wolf: animate, woman: animate, wonder: abstract, wood: thing, wool: thing, word: abstract, work: thing,
+  worker: animate, works: thing, world: thing, worry: abstract, worth: abstract, wound: abstract, wrap: thing,
+  wreck: thing, wrist: thing, writer: animate, wrong: abstract, yard: thing, year: abstract, yell: abstract,
+  yellow: abstract, yesterday: abstract, yield: thing, young: animate, youth: animate, zebra: animate,
+  zero: thing, zone: place, zoo: thing}
 frames:
   abandon:
     obj: [thing]
@@ -254,6 +308,9 @@ frames:
     subj: [animate]
   abuse:
     obj: [animate, abstract]
+    subj: [animate]
+  accept:
+    obj: [abstract]
     subj: [animate]
   access:
     obj: [thing]
@@ -280,18 +337,31 @@ frames:
     obj: [abstract, animate]
     subj: [animate]
   adjust: {obj: any, subj: any}
+  admire:
+    obj: any
+    subj: [animate]
   admit:
     obj: [abstract, animate]
     subj: [animate]
+  adopt:
+    obj: [thing]
+    subj: [animate, agentive]
   advance:
     obj: [place]
     subj: [animate, agentive]
+  advise:
+    obj: [abstract, animate]
+    subj: [animate]
+  affect: {obj: any, subj: any}
   afford:
     obj: [thing]
     subj: [animate]
   age: {obj: any, subj: any}
   agree:
     obj: [abstract, animate]
+    subj: [animate]
+  aid:
+    obj: [animate, abstract]
     subj: [animate]
   aim:
     obj: [animate, abstract]
@@ -306,6 +376,9 @@ frames:
     obj: [abstract, animate]
     subj: [animate]
   allow:
+    obj: [animate, abstract]
+    subj: [animate]
+  ally:
     obj: [animate, abstract]
     subj: [animate]
   alter: {obj: any, subj: any}
@@ -325,9 +398,15 @@ frames:
   answer:
     obj: [abstract, animate]
     subj: [animate]
+  appeal:
+    obj: [animate, abstract]
+    subj: [animate]
   appear:
     obj: any
     subj: [animate, agentive]
+  apply:
+    obj: [thing]
+    subj: [animate]
   approve:
     obj: [abstract, animate]
     subj: [animate]
@@ -337,6 +416,7 @@ frames:
   argue:
     obj: [abstract, animate]
     subj: [animate]
+  arise: {obj: any, subj: any}
   arm:
     obj: [animate, abstract]
     subj: [animate]
@@ -358,12 +438,27 @@ frames:
   assault:
     obj: [animate, abstract]
     subj: [animate]
+  assert:
+    obj: [abstract, animate]
+    subj: [animate]
+  assess:
+    obj: [abstract]
+    subj: [animate]
+  assign:
+    obj: [animate, abstract]
+    subj: [animate]
   assist:
     obj: [animate, abstract]
     subj: [animate]
   assume:
     obj: [abstract]
     subj: [animate]
+  assure:
+    obj: [abstract, animate]
+    subj: [animate]
+  attach:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   attack:
     obj: [animate, abstract]
     subj: [animate]
@@ -387,7 +482,13 @@ frames:
   awake:
     obj: [thing]
     subj: [animate]
+  award:
+    obj: [thing]
+    subj: [animate, agentive]
   baby:
+    obj: [animate, abstract]
+    subj: [animate]
+  back:
     obj: [animate, abstract]
     subj: [animate]
   badge:
@@ -396,9 +497,16 @@ frames:
   bag:
     obj: [thing, animate]
     subj: [animate, agentive]
+  bake: {obj: any, subj: any}
   balance: {obj: any, subj: any}
   ball:
     obj: [thing, animate]
+    subj: [animate, agentive]
+  ban:
+    obj: [animate, abstract]
+    subj: [animate]
+  bank:
+    obj: [place]
     subj: [animate, agentive]
   bar:
     obj: [abstract, animate]
@@ -418,7 +526,14 @@ frames:
   beach:
     obj: [place]
     subj: [animate, agentive]
+  bear: {obj: any, subj: any}
+  beat:
+    obj: [animate, abstract]
+    subj: [animate]
   become: {obj: any, subj: any}
+  bed:
+    obj: [thing]
+    subj: [animate, agentive]
   beef:
     obj: [abstract, animate]
     subj: [animate]
@@ -426,20 +541,30 @@ frames:
   behave:
     obj: [thing]
     subj: [animate]
+  being: {obj: any, subj: any}
   believe:
     obj: [abstract]
     subj: [animate]
+  belong:
+    obj: [thing]
+    subj: [animate, agentive]
   belt:
     obj: [thing]
     subj: [animate, agentive]
   bench:
     obj: [animate, abstract]
     subj: [animate]
+  bend:
+    obj: [place]
+    subj: [animate, agentive]
   benefit:
     obj: [thing]
     subj: [animate, agentive]
   best:
     obj: [animate, abstract]
+    subj: [animate]
+  bet:
+    obj: [abstract, animate]
     subj: [animate]
   betray:
     obj: [abstract, animate]
@@ -462,6 +587,9 @@ frames:
   birth:
     obj: [thing]
     subj: [animate]
+  bite:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   blame:
     obj: [abstract, animate]
     subj: [animate]
@@ -477,7 +605,13 @@ frames:
   blind:
     obj: any
     subj: [animate, agentive]
+  block:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   blossom: {obj: any, subj: any}
+  blow:
+    obj: [thing]
+    subj: [animate]
   blur:
     obj: any
     subj: [animate, agentive]
@@ -494,24 +628,37 @@ frames:
   bomb:
     obj: [animate, abstract]
     subj: [animate]
+  bond:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   bone:
     obj: [abstract]
     subj: [animate]
   book:
     obj: [abstract]
     subj: [animate]
+  boom:
+    obj: any
+    subj: [animate, agentive]
   boost:
     obj: [place]
+    subj: [animate, agentive]
+  boot:
+    obj: [thing, animate]
     subj: [animate, agentive]
   border:
     obj: [thing, animate]
     subj: [animate, agentive]
+  born: {obj: any, subj: any}
   borrow:
     obj: [thing]
     subj: [animate, agentive]
   boss:
     obj: [thing, animate]
     subj: [animate, agentive]
+  bother:
+    obj: [animate, abstract]
+    subj: [animate]
   bottom:
     obj: [thing]
     subj: [animate, agentive]
@@ -524,10 +671,12 @@ frames:
   bracket:
     obj: [thing, animate]
     subj: [animate, agentive]
+  branch: {obj: any, subj: any}
   brand:
     obj: [animate, abstract]
     subj: [animate]
   brave: {obj: any, subj: any}
+  break: {obj: any, subj: any}
   breeze: {obj: any, subj: any}
   brick: {obj: any, subj: any}
   bridge: {obj: any, subj: any}
@@ -559,7 +708,11 @@ frames:
   burden:
     obj: [thing, animate]
     subj: [animate, agentive]
+  burn: {obj: any, subj: any}
   burst: {obj: any, subj: any}
+  bury:
+    obj: any
+    subj: [animate, agentive]
   bus:
     obj: [place]
     subj: [animate, agentive]
@@ -568,6 +721,9 @@ frames:
     subj: [animate]
   butter:
     obj: [thing, animate]
+    subj: [animate, agentive]
+  buy:
+    obj: [thing]
     subj: [animate, agentive]
   buzz:
     obj: any
@@ -591,12 +747,16 @@ frames:
   canoe:
     obj: [place]
     subj: [animate, agentive]
+  cap: {obj: any, subj: any}
   captain:
     obj: [animate, abstract]
     subj: [animate]
   card:
     obj: [thing, animate]
     subj: [animate, agentive]
+  care:
+    obj: any
+    subj: [animate]
   carpet: {obj: any, subj: any}
   carry:
     obj: [thing, animate]
@@ -608,6 +768,9 @@ frames:
     obj: any
     subj: [animate, agentive]
   cash:
+    obj: [thing]
+    subj: [animate, agentive]
+  cast:
     obj: [thing]
     subj: [animate, agentive]
   catalog:
@@ -631,6 +794,9 @@ frames:
   cement:
     obj: [thing, animate]
     subj: [animate, agentive]
+  chain:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   chair:
     obj: [animate, abstract]
     subj: [animate]
@@ -644,6 +810,9 @@ frames:
   charge:
     obj: [animate, abstract]
     subj: [animate]
+  chart:
+    obj: [abstract]
+    subj: [animate]
   chase:
     obj: [place]
     subj: [animate, agentive]
@@ -653,6 +822,9 @@ frames:
   check:
     obj: [abstract]
     subj: [animate]
+  chip:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   choose:
     obj: [abstract]
     subj: [animate]
@@ -668,6 +840,9 @@ frames:
   circle:
     obj: [place]
     subj: [animate, agentive]
+  cite:
+    obj: [abstract, animate]
+    subj: [animate]
   claim:
     obj: [abstract, animate]
     subj: [animate]
@@ -721,6 +896,9 @@ frames:
   coast:
     obj: [place]
     subj: [animate, agentive]
+  coat:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   code:
     obj: [thing, animate]
     subj: [animate, agentive]
@@ -740,6 +918,9 @@ frames:
     subj: [animate, agentive]
   comfort:
     obj: any
+    subj: [animate]
+  commit:
+    obj: [animate, abstract]
     subj: [animate]
   conduct:
     obj: [animate, abstract]
@@ -763,6 +944,9 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   cool: {obj: any, subj: any}
+  cope:
+    obj: [animate, abstract]
+    subj: [animate]
   copy:
     obj: [thing]
     subj: [animate, agentive]
@@ -772,6 +956,9 @@ frames:
   correct: {obj: any, subj: any}
   cost: {obj: any, subj: any}
   couch:
+    obj: [abstract, animate]
+    subj: [animate]
+  count:
     obj: [abstract, animate]
     subj: [animate]
   couple:
@@ -801,6 +988,9 @@ frames:
     subj: [animate, agentive]
   cream:
     obj: [thing, animate]
+    subj: [animate, agentive]
+  create:
+    obj: [thing]
     subj: [animate, agentive]
   credit:
     obj: [abstract]
@@ -849,6 +1039,9 @@ frames:
   cushion:
     obj: [thing, animate]
     subj: [animate, agentive]
+  cut:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   cycle:
     obj: [place]
     subj: [animate, agentive]
@@ -859,9 +1052,15 @@ frames:
   dance:
     obj: [place]
     subj: [animate, agentive]
+  dare:
+    obj: [animate, abstract]
+    subj: [animate]
   dash:
     obj: [place]
     subj: [animate, agentive]
+  date:
+    obj: [animate, abstract]
+    subj: [animate]
   dawn:
     obj: [abstract]
     subj: [animate]
@@ -879,6 +1078,12 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   decrease: {obj: any, subj: any}
+  defeat:
+    obj: [animate, abstract]
+    subj: [animate]
+  defend:
+    obj: [abstract, animate]
+    subj: [animate]
   define: {obj: any, subj: any}
   defy: {obj: any, subj: any}
   delay: {obj: any, subj: any}
@@ -895,6 +1100,9 @@ frames:
     obj: [place]
     subj: [animate, agentive]
   depend: {obj: any, subj: any}
+  depict:
+    obj: [thing]
+    subj: [animate, agentive]
   deposit:
     obj: [thing, animate]
     subj: [animate, agentive]
@@ -910,6 +1118,9 @@ frames:
   design:
     obj: [thing]
     subj: [animate, agentive]
+  desire:
+    obj: any
+    subj: [animate]
   despair:
     obj: any
     subj: [animate]
@@ -937,13 +1148,23 @@ frames:
   dice:
     obj: [thing, animate]
     subj: [animate, agentive]
+  die: {obj: any, subj: any}
   diet:
     obj: [thing]
     subj: [animate]
   differ: {obj: any, subj: any}
+  dig:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  dining:
+    obj: [thing]
+    subj: [animate]
   direct:
     obj: [abstract, animate]
     subj: [animate]
+  dirty:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   disagree:
     obj: [abstract, animate]
     subj: [animate]
@@ -981,8 +1202,17 @@ frames:
     subj: [animate, agentive]
   dose: {obj: any, subj: any}
   double: {obj: any, subj: any}
+  doubt:
+    obj: [abstract]
+    subj: [animate]
+  down:
+    obj: [thing]
+    subj: [animate]
   draft:
     obj: [thing]
+    subj: [animate, agentive]
+  drag:
+    obj: [thing, animate]
     subj: [animate, agentive]
   draw:
     obj: [thing, animate]
@@ -1025,6 +1255,12 @@ frames:
   earn:
     obj: [thing]
     subj: [animate, agentive]
+  ease:
+    obj: [place]
+    subj: [animate, agentive]
+  eat:
+    obj: [thing]
+    subj: [animate]
   echo:
     obj: [abstract, animate]
     subj: [animate]
@@ -1035,12 +1271,21 @@ frames:
   educate:
     obj: [animate, abstract]
     subj: [animate]
+  effect:
+    obj: [thing]
+    subj: [animate, agentive]
   egg:
     obj: [thing, animate]
     subj: [animate, agentive]
   elbow:
     obj: [place]
     subj: [animate, agentive]
+  elect:
+    obj: [animate, abstract]
+    subj: [animate]
+  email:
+    obj: [abstract, animate]
+    subj: [animate]
   embark:
     obj: [place]
     subj: [animate, agentive]
@@ -1107,6 +1352,7 @@ frames:
   exact:
     obj: [abstract, animate]
     subj: [animate]
+  exceed: {obj: any, subj: any}
   exchange:
     obj: [thing]
     subj: [animate, agentive]
@@ -1160,6 +1406,9 @@ frames:
     obj: [abstract, animate]
     subj: [animate]
   fade: {obj: any, subj: any}
+  fail:
+    obj: [animate, abstract]
+    subj: [animate]
   faint:
     obj: [thing]
     subj: [animate]
@@ -1187,6 +1436,12 @@ frames:
   fault:
     obj: [abstract, animate]
     subj: [animate]
+  favor:
+    obj: [animate, abstract]
+    subj: [animate]
+  fear:
+    obj: any
+    subj: [animate]
   feature: {obj: any, subj: any}
   feed:
     obj: [thing]
@@ -1203,12 +1458,16 @@ frames:
   field:
     obj: [animate, abstract]
     subj: [animate]
+  fight:
+    obj: [animate, abstract]
+    subj: [animate]
   figure:
     obj: [abstract]
     subj: [animate]
   file:
     obj: [abstract, animate]
     subj: [animate]
+  fill: {obj: any, subj: any}
   film:
     obj: [abstract, animate]
     subj: [animate]
@@ -1259,6 +1518,9 @@ frames:
   floor:
     obj: any
     subj: [animate]
+  flow:
+    obj: [place]
+    subj: [animate, agentive]
   flower: {obj: any, subj: any}
   flush:
     obj: [thing]
@@ -1292,6 +1554,9 @@ frames:
   fork:
     obj: [thing, animate]
     subj: [animate, agentive]
+  form:
+    obj: [animate, abstract]
+    subj: [animate]
   forward:
     obj: [place]
     subj: [animate, agentive]
@@ -1303,6 +1568,12 @@ frames:
     subj: [animate]
   frame:
     obj: [thing, animate]
+    subj: [animate, agentive]
+  free:
+    obj: [animate, abstract]
+    subj: [animate]
+  freeze:
+    obj: [place]
     subj: [animate, agentive]
   frequent:
     obj: [animate, abstract]
@@ -1322,6 +1593,9 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   fuel:
+    obj: [thing]
+    subj: [animate, agentive]
+  fund:
     obj: [thing]
     subj: [animate, agentive]
   gain:
@@ -1360,6 +1634,9 @@ frames:
   gesture:
     obj: [abstract, animate]
     subj: [animate]
+  get:
+    obj: [thing]
+    subj: [animate, agentive]
   ghost:
     obj: [place]
     subj: [animate, agentive]
@@ -1408,11 +1685,17 @@ frames:
   grace:
     obj: [thing]
     subj: [animate, agentive]
+  grade:
+    obj: [abstract]
+    subj: [animate]
   grant:
     obj: [thing]
     subj: [animate, agentive]
   grid: {obj: any, subj: any}
   grit:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  ground:
     obj: [thing, animate]
     subj: [animate, agentive]
   group:
@@ -1440,12 +1723,22 @@ frames:
   hand:
     obj: [thing]
     subj: [animate, agentive]
+  handle:
+    obj: [animate, abstract]
+    subj: [animate]
+  hang:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  happen: {obj: any, subj: any}
   harbor:
     obj: any
     subj: [animate]
   harvest:
     obj: [thing, animate]
     subj: [animate, agentive]
+  hate:
+    obj: any
+    subj: [animate]
   have:
     obj: [thing]
     subj: [animate, agentive]
@@ -1458,15 +1751,25 @@ frames:
   head:
     obj: [place]
     subj: [animate, agentive]
+  hear:
+    obj: any
+    subj: [animate, agentive]
+  heat: {obj: any, subj: any}
   help:
     obj: [animate, abstract]
     subj: [animate]
+  hide:
+    obj: any
+    subj: [animate, agentive]
   hint:
     obj: [abstract, animate]
     subj: [animate]
   hire:
     obj: [animate, abstract]
     subj: [animate]
+  hit:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   hold: {obj: any, subj: any}
   hole:
     obj: [thing, animate]
@@ -1475,6 +1778,9 @@ frames:
   hollow:
     obj: [thing, animate]
     subj: [animate, agentive]
+  honor:
+    obj: [animate, abstract]
+    subj: [animate]
   hope:
     obj: any
     subj: [animate]
@@ -1484,6 +1790,7 @@ frames:
   host:
     obj: [thing]
     subj: [animate]
+  house: {obj: any, subj: any}
   hover: {obj: any, subj: any}
   humble:
     obj: any
@@ -1527,6 +1834,9 @@ frames:
   impact:
     obj: [thing, animate]
     subj: [animate, agentive]
+  imply:
+    obj: [abstract, animate]
+    subj: [animate]
   impose:
     obj: [animate, abstract]
     subj: [animate]
@@ -1560,12 +1870,18 @@ frames:
   input:
     obj: [thing, animate]
     subj: [animate, agentive]
+  insist:
+    obj: [abstract, animate]
+    subj: [animate]
   inspire:
     obj: any
     subj: [animate]
   install:
     obj: [thing, animate]
     subj: [animate, agentive]
+  intend:
+    obj: [abstract]
+    subj: [animate]
   interest:
     obj: any
     subj: [animate]
@@ -1629,6 +1945,9 @@ frames:
   kid:
     obj: [abstract, animate]
     subj: [animate]
+  kill:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   kiss:
     obj: [thing, animate]
     subj: [animate, agentive]
@@ -1654,14 +1973,32 @@ frames:
   labor:
     obj: [animate, abstract]
     subj: [animate]
+  lack: {obj: any, subj: any}
+  land:
+    obj: [place]
+    subj: [animate, agentive]
+  lap: {obj: any, subj: any}
+  last: {obj: any, subj: any}
   laugh:
     obj: [thing]
     subj: [animate]
+  launch:
+    obj: [animate, abstract]
+    subj: [animate]
+  lay:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   layer:
     obj: [thing, animate]
     subj: [animate, agentive]
+  lead:
+    obj: [place]
+    subj: [animate, agentive]
   leaf:
     obj: any
+    subj: [animate, agentive]
+  lean:
+    obj: [place]
     subj: [animate, agentive]
   learn:
     obj: [abstract]
@@ -1677,6 +2014,9 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   lesson: {obj: any, subj: any}
+  let:
+    obj: [animate, abstract]
+    subj: [animate]
   letter:
     obj: [thing]
     subj: [animate, agentive]
@@ -1686,6 +2026,7 @@ frames:
   license:
     obj: [animate, abstract]
     subj: [animate]
+  lie: {obj: any, subj: any}
   lift:
     obj: [place]
     subj: [animate, agentive]
@@ -1695,17 +2036,25 @@ frames:
     subj: [animate]
   limb: {obj: any, subj: any}
   limit: {obj: any, subj: any}
+  line: {obj: any, subj: any}
   link:
     obj: [abstract]
     subj: [animate]
   list:
     obj: [abstract, animate]
     subj: [animate]
+  listen:
+    obj: any
+    subj: [animate, agentive]
   live: {obj: any, subj: any}
+  living: {obj: any, subj: any}
   load:
     obj: [thing, animate]
     subj: [animate, agentive]
   loan:
+    obj: [thing]
+    subj: [animate, agentive]
+  locate:
     obj: [thing]
     subj: [animate, agentive]
   lock:
@@ -1714,8 +2063,14 @@ frames:
   long:
     obj: any
     subj: [animate]
+  look:
+    obj: any
+    subj: [animate, agentive]
   loop:
     obj: [place]
+    subj: [animate, agentive]
+  lose:
+    obj: [thing]
     subj: [animate, agentive]
   lounge:
     obj: [thing, animate]
@@ -1723,6 +2078,9 @@ frames:
   love:
     obj: any
     subj: [animate]
+  lower:
+    obj: [place]
+    subj: [animate, agentive]
   lumber:
     obj: [place]
     subj: [animate, agentive]
@@ -1750,6 +2108,9 @@ frames:
   mandate:
     obj: [animate, abstract]
     subj: [animate]
+  map:
+    obj: [thing]
+    subj: [animate, agentive]
   marble:
     obj: [thing]
     subj: [animate, agentive]
@@ -1757,9 +2118,15 @@ frames:
     obj: [place]
     subj: [animate, agentive]
   margin: {obj: any, subj: any}
+  mark:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   market:
     obj: [thing]
     subj: [animate, agentive]
+  marry:
+    obj: [animate, abstract]
+    subj: [animate]
   mask:
     obj: any
     subj: [animate, agentive]
@@ -1779,6 +2146,9 @@ frames:
     obj: any
     subj: [animate, agentive]
   medal: {obj: any, subj: any}
+  meet:
+    obj: [place]
+    subj: [animate, agentive]
   melt: {obj: any, subj: any}
   mention:
     obj: [abstract, animate]
@@ -1832,6 +2202,9 @@ frames:
   motor:
     obj: [place]
     subj: [animate, agentive]
+  mount:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   mouse:
     obj: [place]
     subj: [animate, agentive]
@@ -1840,6 +2213,9 @@ frames:
     subj: [animate, agentive]
   multiply:
     obj: [abstract]
+    subj: [animate]
+  murder:
+    obj: [animate, abstract]
     subj: [animate]
   muscle:
     obj: [place]
@@ -1866,6 +2242,9 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   network:
+    obj: [abstract, animate]
+    subj: [animate]
+  nod:
     obj: [abstract, animate]
     subj: [animate]
   noise:
@@ -1906,6 +2285,9 @@ frames:
   obtain:
     obj: [thing]
     subj: [animate, agentive]
+  occupy:
+    obj: [animate, abstract]
+    subj: [animate]
   occur: {obj: any, subj: any}
   offer:
     obj: [thing]
@@ -1933,11 +2315,23 @@ frames:
   orphan:
     obj: [thing]
     subj: [animate, agentive]
+  out:
+    obj: [abstract, animate]
+    subj: [animate]
   output:
+    obj: [thing]
+    subj: [animate, agentive]
+  owe:
     obj: [thing]
     subj: [animate, agentive]
   own:
     obj: [thing]
+    subj: [animate, agentive]
+  pace:
+    obj: [place]
+    subj: [animate, agentive]
+  pack:
+    obj: [thing, animate]
     subj: [animate, agentive]
   paddle:
     obj: [place]
@@ -1945,6 +2339,9 @@ frames:
   page:
     obj: [abstract, animate]
     subj: [animate]
+  paint:
+    obj: [thing]
+    subj: [animate, agentive]
   pair:
     obj: [animate, abstract]
     subj: [animate]
@@ -1991,6 +2388,15 @@ frames:
   pave:
     obj: [thing, animate]
     subj: [animate, agentive]
+  pay:
+    obj: [thing]
+    subj: [animate, agentive]
+  peak:
+    obj: [place]
+    subj: [animate, agentive]
+  peer:
+    obj: any
+    subj: [animate, agentive]
   pen:
     obj: [thing]
     subj: [animate, agentive]
@@ -2008,12 +2414,18 @@ frames:
   pet:
     obj: [thing, animate]
     subj: [animate, agentive]
+  phase:
+    obj: [thing]
+    subj: [animate, agentive]
   phone:
     obj: [abstract, animate]
     subj: [animate]
   photo: {obj: any, subj: any}
   phrase:
     obj: [abstract, animate]
+    subj: [animate]
+  pick:
+    obj: [abstract]
     subj: [animate]
   picnic:
     obj: [thing]
@@ -2026,6 +2438,9 @@ frames:
     subj: [animate, agentive]
   pig: {obj: any, subj: any}
   pigeon: {obj: any, subj: any}
+  pile:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   pill: {obj: any, subj: any}
   pilot:
     obj: [place]
@@ -2046,6 +2461,12 @@ frames:
   place:
     obj: [thing, animate]
     subj: [animate, agentive]
+  plan:
+    obj: [abstract]
+    subj: [animate]
+  plant:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   plate:
     obj: [thing, animate]
     subj: [animate, agentive]
@@ -2057,6 +2478,9 @@ frames:
     subj: [animate]
   pledge:
     obj: [abstract, animate]
+    subj: [animate]
+  plot:
+    obj: [abstract]
     subj: [animate]
   pluck:
     obj: [thing, animate]
@@ -2076,19 +2500,32 @@ frames:
   police:
     obj: [animate, abstract]
     subj: [animate]
+  poll:
+    obj: [animate, abstract]
+    subj: [animate]
   pond: {obj: any, subj: any}
   pony: {obj: any, subj: any}
   pool:
     obj: [thing]
     subj: [animate, agentive]
+  pop:
+    obj: [place]
+    subj: [animate, agentive]
   portion:
     obj: [thing]
     subj: [animate, agentive]
+  pose: {obj: any, subj: any}
   position:
     obj: [place]
     subj: [animate, agentive]
   post:
     obj: [thing, animate]
+    subj: [animate, agentive]
+  pound:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  pour:
+    obj: [place]
     subj: [animate, agentive]
   powder: {obj: any, subj: any}
   power:
@@ -2100,6 +2537,9 @@ frames:
   praise:
     obj: [abstract, animate]
     subj: [animate]
+  pray:
+    obj: [abstract, animate]
+    subj: [animate]
   predict:
     obj: [abstract, animate]
     subj: [animate]
@@ -2109,6 +2549,9 @@ frames:
   prepare: {obj: any, subj: any}
   present:
     obj: any
+    subj: [animate, agentive]
+  press:
+    obj: [thing, animate]
     subj: [animate, agentive]
   prevent:
     obj: [animate, abstract]
@@ -2144,6 +2587,9 @@ frames:
   promote:
     obj: [animate, abstract]
     subj: [animate]
+  prompt:
+    obj: [thing]
+    subj: [animate, agentive]
   proof:
     obj: [thing]
     subj: [animate, agentive]
@@ -2153,6 +2599,7 @@ frames:
   protect:
     obj: [animate, abstract]
     subj: [animate]
+  prove: {obj: any, subj: any}
   provide:
     obj: [thing]
     subj: [animate, agentive]
@@ -2175,6 +2622,9 @@ frames:
     obj: [abstract]
     subj: [animate]
   purse: {obj: any, subj: any}
+  pursue:
+    obj: [animate, abstract]
+    subj: [animate]
   push:
     obj: [place]
     subj: [animate, agentive]
@@ -2220,12 +2670,27 @@ frames:
     obj: [animate, abstract]
     subj: [animate]
   range: {obj: any, subj: any}
+  rank:
+    obj: [abstract]
+    subj: [animate]
   rate:
+    obj: [abstract]
+    subj: [animate]
+  rating:
     obj: [abstract]
     subj: [animate]
   raven:
     obj: [thing, animate]
     subj: [animate, agentive]
+  reach:
+    obj: [place]
+    subj: [animate, agentive]
+  react:
+    obj: [abstract]
+    subj: [animate]
+  read:
+    obj: [abstract]
+    subj: [animate]
   ready:
     obj: [thing]
     subj: [animate, agentive]
@@ -2251,6 +2716,9 @@ frames:
     obj: [place]
     subj: [animate, agentive]
   reduce: {obj: any, subj: any}
+  refer:
+    obj: [abstract, animate]
+    subj: [animate]
   reflect:
     obj: any
     subj: [animate, agentive]
@@ -2258,10 +2726,16 @@ frames:
   refuse:
     obj: [abstract, animate]
     subj: [animate]
+  regard:
+    obj: [abstract]
+    subj: [animate]
   regret:
     obj: any
     subj: [animate]
   reject:
+    obj: [abstract]
+    subj: [animate]
+  relate:
     obj: [abstract]
     subj: [animate]
   relax:
@@ -2296,7 +2770,13 @@ frames:
     obj: [abstract, animate]
     subj: [animate]
   replace: {obj: any, subj: any}
+  reply:
+    obj: [abstract, animate]
+    subj: [animate]
   report:
+    obj: [abstract, animate]
+    subj: [animate]
+  request:
     obj: [abstract, animate]
     subj: [animate]
   require: {obj: any, subj: any}
@@ -2306,7 +2786,11 @@ frames:
   resemble: {obj: any, subj: any}
   resist: {obj: any, subj: any}
   resource: {obj: any, subj: any}
+  rest:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   result: {obj: any, subj: any}
+  retain: {obj: any, subj: any}
   retire:
     obj: [animate, abstract]
     subj: [animate]
@@ -2329,6 +2813,9 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   ribbon: {obj: any, subj: any}
+  rid:
+    obj: [thing]
+    subj: [animate, agentive]
   ride:
     obj: [place]
     subj: [animate, agentive]
@@ -2348,12 +2835,21 @@ frames:
   ripple:
     obj: [place]
     subj: [animate, agentive]
+  rise:
+    obj: [place]
+    subj: [animate, agentive]
   risk:
     obj: [animate, abstract]
     subj: [animate]
   rival: {obj: any, subj: any}
   roast: {obj: any, subj: any}
+  rock:
+    obj: [place]
+    subj: [animate, agentive]
   rocket:
+    obj: [place]
+    subj: [animate, agentive]
+  roll:
     obj: [place]
     subj: [animate, agentive]
   romance:
@@ -2363,6 +2859,7 @@ frames:
     obj: [thing, animate]
     subj: [animate, agentive]
   room: {obj: any, subj: any}
+  root: {obj: any, subj: any}
   rose:
     obj: [place]
     subj: [animate, agentive]
@@ -2378,11 +2875,20 @@ frames:
   route:
     obj: [place]
     subj: [animate, agentive]
+  row:
+    obj: [place]
+    subj: [animate, agentive]
+  rub:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   rubber: {obj: any, subj: any}
   rule:
     obj: [animate, abstract]
     subj: [animate]
   run:
+    obj: [place]
+    subj: [animate, agentive]
+  rush:
     obj: [place]
     subj: [animate, agentive]
   saddle:
@@ -2407,6 +2913,9 @@ frames:
   save:
     obj: [animate, abstract]
     subj: [animate]
+  saving:
+    obj: [animate, abstract]
+    subj: [animate]
   say:
     obj: [abstract, animate]
     subj: [animate]
@@ -2417,13 +2926,22 @@ frames:
   scare:
     obj: any
     subj: [animate]
+  scared:
+    obj: any
+    subj: [animate]
   scatter:
     obj: [place]
     subj: [animate, agentive]
+  schedule:
+    obj: [abstract]
+    subj: [animate]
   scheme:
     obj: [abstract]
     subj: [animate]
   school:
+    obj: [animate, abstract]
+    subj: [animate]
+  score:
     obj: [animate, abstract]
     subj: [animate]
   scout:
@@ -2432,6 +2950,9 @@ frames:
   scrap:
     obj: [thing]
     subj: [animate, agentive]
+  scream:
+    obj: [abstract, animate]
+    subj: [animate]
   screen:
     obj: [animate, abstract]
     subj: [animate]
@@ -2453,13 +2974,25 @@ frames:
   section:
     obj: [thing, animate]
     subj: [animate, agentive]
+  secure:
+    obj: [thing]
+    subj: [animate, agentive]
+  see:
+    obj: any
+    subj: [animate, agentive]
   seed:
     obj: [thing, animate]
     subj: [animate, agentive]
   seek:
     obj: [thing]
     subj: [animate, agentive]
+  seem:
+    obj: any
+    subj: [animate, agentive]
   segment:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  seize:
     obj: [thing, animate]
     subj: [animate, agentive]
   select:
@@ -2468,22 +3001,36 @@ frames:
   sell:
     obj: [thing]
     subj: [animate, agentive]
+  send:
+    obj: [place]
+    subj: [animate, agentive]
   sense:
     obj: any
     subj: [animate, agentive]
   sentence:
     obj: [abstract, animate]
     subj: [animate]
+  serve: {obj: any, subj: any}
   service:
     obj: [animate, abstract]
     subj: [animate]
+  set:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   settle:
     obj: [place]
     subj: [animate, agentive]
+  shade: {obj: any, subj: any}
   shadow:
     obj: [place]
     subj: [animate, agentive]
+  shake:
+    obj: [place]
+    subj: [animate, agentive]
   shallow: {obj: any, subj: any}
+  shape:
+    obj: [abstract]
+    subj: [animate]
   share: {obj: any, subj: any}
   shed:
     obj: [thing, animate]
@@ -2511,17 +3058,29 @@ frames:
   shop:
     obj: [thing]
     subj: [animate, agentive]
+  shot:
+    obj: [animate, abstract]
+    subj: [animate]
   shoulder:
     obj: [thing, animate]
     subj: [animate, agentive]
+  shout:
+    obj: [abstract, animate]
+    subj: [animate]
   shove:
     obj: [place]
+    subj: [animate, agentive]
+  show:
+    obj: any
     subj: [animate, agentive]
   shrug:
     obj: [thing]
     subj: [animate]
   shuffle:
     obj: [place]
+    subj: [animate, agentive]
+  shut:
+    obj: [thing, animate]
     subj: [animate, agentive]
   side:
     obj: [animate, abstract]
@@ -2533,8 +3092,14 @@ frames:
   sign:
     obj: [abstract, animate]
     subj: [animate]
+  signal:
+    obj: [abstract, animate]
+    subj: [animate]
   sing:
     obj: [thing]
+    subj: [animate, agentive]
+  sit:
+    obj: [thing, animate]
     subj: [animate, agentive]
   situate: {obj: any, subj: any}
   size:
@@ -2571,11 +3136,17 @@ frames:
   slim:
     obj: [thing]
     subj: [animate]
+  slip:
+    obj: [place]
+    subj: [animate, agentive]
   slot:
     obj: [abstract]
     subj: [animate]
   slow: {obj: any, subj: any}
   slush:
+    obj: any
+    subj: [animate, agentive]
+  smell:
     obj: any
     subj: [animate, agentive]
   smile:
@@ -2685,17 +3256,28 @@ frames:
   stage:
     obj: [thing]
     subj: [animate, agentive]
+  stake:
+    obj: [animate, abstract]
+    subj: [animate]
   stamp:
     obj: [place]
     subj: [animate, agentive]
   stand:
     obj: [thing, animate]
     subj: [animate, agentive]
+  star: {obj: any, subj: any}
+  stare:
+    obj: any
+    subj: [animate, agentive]
   start: {obj: any, subj: any}
   state:
     obj: [abstract, animate]
     subj: [animate]
   stay: {obj: any, subj: any}
+  steady: {obj: any, subj: any}
+  steal:
+    obj: [thing]
+    subj: [animate, agentive]
   stem: {obj: any, subj: any}
   step:
     obj: [place]
@@ -2706,6 +3288,9 @@ frames:
   sting:
     obj: any
     subj: [animate, agentive]
+  stir:
+    obj: [place]
+    subj: [animate, agentive]
   stock:
     obj: [thing]
     subj: [animate, agentive]
@@ -2715,11 +3300,36 @@ frames:
   stone:
     obj: [thing, animate]
     subj: [animate, agentive]
+  stop:
+    obj: [place]
+    subj: [animate, agentive]
+  store:
+    obj: [thing]
+    subj: [animate, agentive]
+  storm: {obj: any, subj: any}
+  stream:
+    obj: [place]
+    subj: [animate, agentive]
+  stress:
+    obj: [abstract, animate]
+    subj: [animate]
   strike:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  string:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  strip:
+    obj: [thing]
+    subj: [animate, agentive]
+  stroke:
     obj: [thing, animate]
     subj: [animate, agentive]
   struggle:
     obj: [animate, abstract]
+    subj: [animate]
+  study:
+    obj: [abstract]
     subj: [animate]
   stuff:
     obj: [thing, animate]
@@ -2735,6 +3345,9 @@ frames:
     subj: [animate, agentive]
   submit:
     obj: [abstract, animate]
+    subj: [animate]
+  sue:
+    obj: [animate, abstract]
     subj: [animate]
   suffer:
     obj: any
@@ -2779,6 +3392,9 @@ frames:
   swear:
     obj: [abstract, animate]
     subj: [animate]
+  sweep:
+    obj: [place]
+    subj: [animate, agentive]
   swim:
     obj: [place]
     subj: [animate, agentive]
@@ -2796,11 +3412,17 @@ frames:
   tail:
     obj: [place]
     subj: [animate, agentive]
+  take:
+    obj: [animate, abstract]
+    subj: [animate]
   talk:
     obj: [abstract, animate]
     subj: [animate]
   tank:
     obj: [thing]
+    subj: [animate, agentive]
+  tap:
+    obj: [thing, animate]
     subj: [animate, agentive]
   tape:
     obj: [thing, animate]
@@ -2817,6 +3439,9 @@ frames:
   tattoo:
     obj: [thing]
     subj: [animate, agentive]
+  tax:
+    obj: [thing]
+    subj: [animate, agentive]
   taxi:
     obj: [place]
     subj: [animate, agentive]
@@ -2826,12 +3451,16 @@ frames:
   team:
     obj: [animate, abstract]
     subj: [animate]
+  tear:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   tell:
     obj: [abstract, animate]
     subj: [animate]
   tenant:
     obj: [animate, abstract]
     subj: [animate]
+  tend: {obj: any, subj: any}
   tent: {obj: any, subj: any}
   term:
     obj: [abstract, animate]
@@ -2846,6 +3475,9 @@ frames:
   theme:
     obj: [thing]
     subj: [animate, agentive]
+  think:
+    obj: [abstract]
+    subj: [animate]
   thrive: {obj: any, subj: any}
   throw:
     obj: [thing, animate]
@@ -2861,6 +3493,9 @@ frames:
     subj: [animate]
   tide:
     obj: [place]
+    subj: [animate, agentive]
+  tie:
+    obj: [thing, animate]
     subj: [animate, agentive]
   tilt:
     obj: [place]
@@ -2894,9 +3529,18 @@ frames:
     obj: [thing, animate]
     subj: [animate, agentive]
   total: {obj: any, subj: any}
+  touch:
+    obj: [thing, animate]
+    subj: [animate, agentive]
+  tour:
+    obj: [place]
+    subj: [animate, agentive]
   tower: {obj: any, subj: any}
   toy:
     obj: [animate, abstract]
+    subj: [animate]
+  trace:
+    obj: [abstract]
     subj: [animate]
   track:
     obj: [place]
@@ -2906,6 +3550,9 @@ frames:
     subj: [animate, agentive]
   traffic:
     obj: [thing]
+    subj: [animate, agentive]
+  trail:
+    obj: [place]
     subj: [animate, agentive]
   train:
     obj: [abstract]
@@ -3008,9 +3655,13 @@ frames:
   vacuum:
     obj: [thing, animate]
     subj: [animate, agentive]
+  value:
+    obj: [abstract]
+    subj: [animate]
   valve: {obj: any, subj: any}
   vanish: {obj: any, subj: any}
   vapor: {obj: any, subj: any}
+  vary: {obj: any, subj: any}
   vault:
     obj: [place]
     subj: [animate, agentive]
@@ -3042,21 +3693,33 @@ frames:
     obj: [animate, abstract]
     subj: [animate]
   wait: {obj: any, subj: any}
+  wake:
+    obj: [thing]
+    subj: [animate]
   walk:
     obj: [place]
     subj: [animate, agentive]
   wall:
     obj: [animate, abstract]
     subj: [animate]
+  wander:
+    obj: [place]
+    subj: [animate, agentive]
   want:
     obj: any
     subj: [animate]
   warm: {obj: any, subj: any}
+  warn:
+    obj: [abstract, animate]
+    subj: [animate]
   wash:
     obj: [thing, animate]
     subj: [animate, agentive]
   waste:
     obj: [thing]
+    subj: [animate, agentive]
+  watch:
+    obj: any
     subj: [animate, agentive]
   water: {obj: any, subj: any}
   wave:
@@ -3071,6 +3734,7 @@ frames:
     obj: [thing]
     subj: [animate, agentive]
   weekend: {obj: any, subj: any}
+  weigh: {obj: any, subj: any}
   welcome:
     obj: [thing]
     subj: [animate, agentive]
@@ -3078,6 +3742,7 @@ frames:
   wheel:
     obj: [place]
     subj: [animate, agentive]
+  while: {obj: any, subj: any}
   whip:
     obj: [thing, animate]
     subj: [animate, agentive]
@@ -3090,6 +3755,9 @@ frames:
   win:
     obj: [animate, abstract]
     subj: [animate]
+  wind:
+    obj: [place]
+    subj: [animate, agentive]
   window: {obj: any, subj: any}
   wine:
     obj: [thing]
@@ -3101,6 +3769,9 @@ frames:
     obj: [thing]
     subj: [animate]
   winter: {obj: any, subj: any}
+  wipe:
+    obj: [thing, animate]
+    subj: [animate, agentive]
   wire:
     obj: [thing]
     subj: [animate, agentive]
@@ -3122,8 +3793,14 @@ frames:
   work:
     obj: [animate, abstract]
     subj: [animate]
+  works:
+    obj: [animate, abstract]
+    subj: [animate]
   worry:
     obj: any
+    subj: [animate]
+  wound:
+    obj: [thing]
     subj: [animate]
   wrap:
     obj: [thing, animate]
@@ -3140,7 +3817,13 @@ frames:
   wrong:
     obj: [animate, abstract]
     subj: [animate]
+  yell:
+    obj: [abstract, animate]
+    subj: [animate]
   yellow: {obj: any, subj: any}
+  yield:
+    obj: [thing]
+    subj: [animate, agentive]
   zone:
     obj: [animate, abstract]
     subj: [animate]
