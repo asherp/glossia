@@ -10,7 +10,7 @@ use crate::generator::data::{
     detect_dialect,
 };
 use crate::generator::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
-use crate::generator::core::generate_text_with_original_payload;
+use crate::generator::core::{generate_text_with_original_payload, generate_text_best_of};
 use crate::merkle::WordlistTree;
 use crate::codec;
 
@@ -42,8 +42,27 @@ pub fn get_default_wordlist(language: &str) -> String {
 /// Returns JSON: `{ "encoded_text": "...", "payload_words": [...], "stats": { ... } }`
 #[wasm_bindgen]
 pub fn encode(input: &str, language: &str, wordlist: &str, grammar_dialect: &str, seed: u64) -> String {
-    let result = encode_inner(input, language, wordlist, grammar_dialect, seed);
+    let result = encode_inner(input, language, wordlist, grammar_dialect, seed, 1);
     match result {
+        Ok(json) => json,
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+/// Like `encode`, but samples `best_of` candidate encodings and returns the
+/// densest / most semantically coherent one (English only; falls back to a single
+/// encoding for other languages or `best_of <= 1`). Payload words are preserved
+/// in order in every candidate, so decoding is unaffected.
+#[wasm_bindgen]
+pub fn encode_best_of(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    grammar_dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> String {
+    match encode_inner(input, language, wordlist, grammar_dialect, seed, best_of) {
         Ok(json) => json,
         Err(e) => serde_json::json!({ "error": e }).to_string(),
     }
@@ -55,6 +74,7 @@ fn encode_inner(
     wordlist: &str,
     grammar_dialect: &str,
     seed: u64,
+    best_of: usize,
 ) -> Result<String, String> {
     // Auto-detect subject prefix from input (Re: / Fwd:).
     // When dialect is "subject", check if input starts with a known prefix,
@@ -109,6 +129,12 @@ fn encode_inner(
         lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     lex = lex.with_refined_cover(refined_cover);
+    // Attach the semantic model so planning (and best-of-N) can bias toward
+    // coherent verb-argument pairings. Absent for non-English; never affects
+    // decoding.
+    if let Some(model) = crate::generator::data::load_semantics(language) {
+        lex = lex.with_semantics(std::sync::Arc::new(model));
+    }
 
     // Derive k_min/k_max from the grammar's structure and payload size.
     // Concatenated-payload grammars (payload_separator="") encode all payload
@@ -125,26 +151,25 @@ fn encode_inner(
     };
 
     // 7. Generate text with seeded RNG
-    let mut rng = StdRng::seed_from_u64(seed);
     let mode = if grammar_dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
         GenerationMode::Body
     };
-    let (text, used_payload) = generate_text_with_original_payload(
-        &mut rng,
-        &lex,
-        &payload_toks,
-        None,
-        false, // verbose
-        mode,
-        language,
-        Some(grammar_dialect),
-        k_min,
-        k_max,
-        SentenceLengthMode::Natural,
-        " ", // delimiter
-    );
+    // With best_of > 1, sample candidates and keep the densest / most coherent;
+    // otherwise a single seeded generation.
+    let (text, used_payload) = if best_of > 1 {
+        generate_text_best_of(
+            seed, best_of, &lex, &payload_toks, None, false, mode, language,
+            Some(grammar_dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
+        )
+    } else {
+        let mut rng = StdRng::seed_from_u64(seed);
+        generate_text_with_original_payload(
+            &mut rng, &lex, &payload_toks, None, false, mode, language,
+            Some(grammar_dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
+        )
+    };
 
     // 8. Build response JSON
     let payload_count = encoded_words.len();
@@ -1206,6 +1231,12 @@ fn encode_random_words_inner(
         lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     lex = lex.with_refined_cover(refined_cover);
+    // Attach the semantic model so planning (and best-of-N) can bias toward
+    // coherent verb-argument pairings. Absent for non-English; never affects
+    // decoding.
+    if let Some(model) = crate::generator::data::load_semantics(language) {
+        lex = lex.with_semantics(std::sync::Arc::new(model));
+    }
 
     // 6. Load grammar and compute dynamic k_min/k_max
     let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
@@ -1341,6 +1372,12 @@ fn encode_raw_base_n_inner(
         lex = lex.with_words(pos, &words.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     }
     lex = lex.with_refined_cover(refined_cover);
+    // Attach the semantic model so planning (and best-of-N) can bias toward
+    // coherent verb-argument pairings. Absent for non-English; never affects
+    // decoding.
+    if let Some(model) = crate::generator::data::load_semantics(language) {
+        lex = lex.with_semantics(std::sync::Arc::new(model));
+    }
 
     let grammar = crate::grammar::Grammar::from_language_dialect(language, dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;

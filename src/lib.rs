@@ -21,7 +21,7 @@ pub use grammar::{Grammar, SequenceWithProbability, DialectConfig};
 // Re-export generator types and functions
 pub use generator::{
     GenerationMode, SentenceLengthMode, PayloadTok, Lexicon,
-    generate_text, generate_text_with_original_payload,
+    generate_text, generate_text_with_original_payload, generate_text_best_of,
     max_subsequence_embedding, plan_sentence, fill_slots,
     SequenceCache, print_sentence_kinds_once,
     normalize_token_for_bip39, wrap_payload_with_bars, wrap_payload_with_color,

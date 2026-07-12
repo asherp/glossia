@@ -1,4 +1,5 @@
-use rand::{seq::SliceRandom, Rng};
+use rand::{seq::SliceRandom, Rng, SeedableRng};
+use rand::rngs::StdRng;
 use std::collections::{HashMap, HashSet};
 use crate::types::Pos;
 use crate::grammar::{Grammar, SequenceWithProbability};
@@ -864,6 +865,66 @@ pub(crate) fn compute_k_candidates<R: Rng>(
             candidates
         }
     }
+}
+
+/// Best-of-N generation over `generate_text_with_original_payload`: generate
+/// `n_candidates` full encodings from consecutive seeds and return the best under
+/// a lexicographic objective — highest payload density first, then highest
+/// semantic coherence among candidates within `DENSITY_TOL` of that density.
+///
+/// Every candidate preserves the payload words in order, so selecting among them
+/// never affects decoding; it only trades cover-word / sentence-boundary choices.
+/// Density is therefore never sacrificed beyond `DENSITY_TOL`. Falls back to a
+/// single generation when `n_candidates <= 1` or the lexicon has no semantic
+/// model (nothing to rank coherence by).
+#[allow(clippy::too_many_arguments)]
+pub fn generate_text_best_of(
+    base_seed: u64,
+    n_candidates: usize,
+    lex: &Lexicon,
+    payload: &[PayloadTok],
+    original_payload_set: Option<&HashSet<String>>,
+    verbose: bool,
+    mode: GenerationMode,
+    language: &str,
+    grammar_dialect: Option<&str>,
+    k_min: usize,
+    k_max: usize,
+    length_mode: SentenceLengthMode,
+    delimiter: &str,
+) -> (String, HashSet<String>) {
+    const DENSITY_TOL: f64 = 0.02;
+
+    let gen_one = |seed: u64| {
+        let mut rng = StdRng::seed_from_u64(seed);
+        generate_text_with_original_payload(
+            &mut rng, lex, payload, original_payload_set, verbose, mode, language,
+            grammar_dialect, k_min, k_max, length_mode, delimiter,
+        )
+    };
+
+    let n = n_candidates.max(1);
+    let model = lex.semantics();
+    if n == 1 || model.is_none() {
+        return gen_one(base_seed);
+    }
+    let model = model.unwrap();
+
+    let mut candidates: Vec<(f64, f64, (String, HashSet<String>))> = Vec::with_capacity(n);
+    for k in 0..n {
+        let out = gen_one(base_seed.wrapping_add(k as u64));
+        let total = out.0.split_whitespace().count().max(1);
+        let density = payload.len() as f64 / total as f64;
+        let coherence = model.coherence_score(&out.0);
+        candidates.push((density, coherence, out));
+    }
+    let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
+    let best = candidates
+        .into_iter()
+        .filter(|c| c.0 >= max_density - DENSITY_TOL)
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .expect("at least one candidate generated");
+    best.2
 }
 
 /// Generate sentences until all payload tokens are embedded.

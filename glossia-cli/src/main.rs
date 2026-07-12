@@ -13,7 +13,7 @@ use glossia::types::Pos;
 use glossia::grammar::Grammar;
 use glossia::generator::{
     PayloadTok, Lexicon, GenerationMode, SentenceLengthMode,
-    generate_text_with_original_payload,
+    generate_text_with_original_payload, generate_text_best_of,
 };
 use glossia::generator::utils::{
     normalize_token_for_bip39, wrap_payload_with_bars, wrap_payload_with_color, word_wrap,
@@ -400,6 +400,8 @@ fn print_usage(program_name: &str) {
     eprintln!("  --madlib                Replace payload words with [POS] placeholders");
     eprintln!("  --seed <N>              Seed for deterministic random generation");
     eprintln!("  --variations <N>         Generate N variations and select the most compact (default: 1)");
+    eprintln!("  --best-of <N>            Sample N candidates per output and keep the densest / most");
+    eprintln!("                           semantically coherent one (default: 1). English only.");
     eprintln!("  --language, -l <lang>    Language for wordlist: 'english' (default), 'french', 'german', 'meta', etc.");
     eprintln!("  --k-min <N>              Minimum sentence length in POS slots including Dot (default: 3)");
     eprintln!("  --k-max <N>              Maximum sentence length in POS slots including Dot (default: 20)");
@@ -439,7 +441,7 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} -l image --random 20 | {} --render-image - -o out.svg", program_name, program_name);
 }
 
-fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>), String> {
+fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>), String> {
     let args: Vec<String> = env::args().collect();
     let program_name = args[0].clone();
 
@@ -453,6 +455,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut verbose = false;
     let mut seed: Option<u64> = None;
     let mut variations = 1;
+    let mut best_of: usize = 1;
     let mut highlight_mode = HighlightMode::None;
     let mut generation_mode = GenerationMode::Body;
     let mut dialect_name = "body".to_string();
@@ -578,6 +581,14 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 }
                 seed = Some(args[i + 1].parse()
                     .map_err(|_| format!("Invalid number for --seed: {}", args[i + 1]))?);
+                i += 2;
+            }
+            "--best-of" => {
+                if i + 1 >= args.len() {
+                    return Err("--best-of requires a value".to_string());
+                }
+                best_of = args[i + 1].parse()
+                    .map_err(|_| format!("Invalid number for --best-of: {}", args[i + 1]))?;
                 i += 2;
             }
             "--variations" => {
@@ -809,7 +820,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         };
     }
     
-    Ok((words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output))
+    Ok((words, random_count, ascii_input, verbose, seed, variations, best_of, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output))
 }
 
 /// Get the wordlist file path for a given language.
@@ -1205,7 +1216,7 @@ fn main() {
         return;
     }
 
-    let (mut words, random_count, ascii_input, verbose, seed, variations, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output) = match parse_args() {
+    let (mut words, random_count, ascii_input, verbose, seed, variations, best_of, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output) = match parse_args() {
         Ok(args) => args,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -1900,26 +1911,47 @@ fn main() {
     }
 
     for variation in 0..variations {
-        // Use different seeds for each variation (increment base seed)
-        let variation_seed = seed_value.wrapping_add(variation as u64);
-        let mut variation_rng = StdRng::seed_from_u64(variation_seed);
-        
-        // Call library's generate_text (without highlighting)
+        // Space each variation's seed range by best_of so best-of-N candidate
+        // seeds don't overlap between variations.
+        let variation_seed = seed_value.wrapping_add((variation as u64).wrapping_mul(best_of.max(1) as u64));
+
+        // Call library's generate_text (without highlighting). With --best-of N,
+        // sample N candidates and keep the densest / most coherent (see
+        // generate_text_best_of); otherwise a single generation.
         // Pass original_payload_set so it can validate sentences contain actual payload words
-        let (text_unhighlighted, _payload_set_from_gen) = generate_text_with_original_payload(
-            &mut variation_rng,
-            &lex,
-            &expanded_payload,
-            Some(&original_payload_set),
-            variations == 1 && verbose,
-            generation_mode,
-            &language,
-            Some(&dialect_name),
-            k_min,
-            k_max,
-            length_mode,
-            &delimiter,
-        );
+        let (text_unhighlighted, _payload_set_from_gen) = if best_of > 1 {
+            generate_text_best_of(
+                variation_seed,
+                best_of,
+                &lex,
+                &expanded_payload,
+                Some(&original_payload_set),
+                variations == 1 && verbose,
+                generation_mode,
+                &language,
+                Some(&dialect_name),
+                k_min,
+                k_max,
+                length_mode,
+                &delimiter,
+            )
+        } else {
+            let mut variation_rng = StdRng::seed_from_u64(variation_seed);
+            generate_text_with_original_payload(
+                &mut variation_rng,
+                &lex,
+                &expanded_payload,
+                Some(&original_payload_set),
+                variations == 1 && verbose,
+                generation_mode,
+                &language,
+                Some(&dialect_name),
+                k_min,
+                k_max,
+                length_mode,
+                &delimiter,
+            )
+        };
         
         // Apply highlighting based on highlight_mode
         // Use payload_set (original payload words only, not Merkle words) for highlighting
