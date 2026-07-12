@@ -910,28 +910,17 @@ pub fn generate_text_best_of(
     }
     let model = model.unwrap();
 
-    // Score one candidate: (density, coherence, output). Payload count is fixed,
-    // so density = payload_len / total_words.
-    let score_one = |k: usize| {
+    // Generate and score each candidate sequentially. (Candidates are
+    // independent and could be parallelized, but the sequence-cache memo makes
+    // candidates after the first cheap, so this stays simple for now.)
+    let mut candidates: Vec<(f64, f64, (String, HashSet<String>))> = Vec::with_capacity(n);
+    for k in 0..n {
         let out = gen_one(base_seed.wrapping_add(k as u64));
         let total = out.0.split_whitespace().count().max(1);
         let density = payload.len() as f64 / total as f64;
         let coherence = model.coherence_score(&out.0);
-        (density, coherence, out)
-    };
-
-    // Candidates are independent, so generate them in parallel on native targets
-    // (generation is read-only over lex/cache/model with a per-candidate RNG; the
-    // sequence-cache memo is Mutex-guarded). Wall-clock for best-of-N thus
-    // approaches a single generation on a multicore machine. WASM is
-    // single-threaded, so it runs them sequentially.
-    #[cfg(not(target_arch = "wasm32"))]
-    let candidates: Vec<(f64, f64, (String, HashSet<String>))> = std::thread::scope(|s| {
-        let handles: Vec<_> = (0..n).map(|k| s.spawn(move || score_one(k))).collect();
-        handles.into_iter().map(|h| h.join().expect("candidate thread panicked")).collect()
-    });
-    #[cfg(target_arch = "wasm32")]
-    let candidates: Vec<(f64, f64, (String, HashSet<String>))> = (0..n).map(score_one).collect();
+        candidates.push((density, coherence, out));
+    }
 
     let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
     let best = candidates
