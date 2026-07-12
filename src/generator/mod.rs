@@ -4,6 +4,7 @@ pub mod data;
 pub mod cache;
 pub mod utils;
 pub mod agreement;
+pub mod semantics;
 
 // Re-export public API items
 pub use types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
@@ -12,4 +13,5 @@ pub use data::{load_payload_words, load_payload_words_for_wordlist, load_cover_w
 #[cfg(not(target_arch = "wasm32"))]
 pub use data::get_wordlist_path;
 pub use cache::{SequenceCache, print_sentence_kinds_once};
+pub use semantics::SemanticModel;
 pub use utils::{normalize_token_for_bip39, wrap_payload_with_bars, wrap_payload_with_color, word_wrap, capitalize, payload_fits, get_grammar, get_dialect_config, mode_to_dialect, starts_with_vowel_sound};

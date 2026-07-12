@@ -4,6 +4,7 @@ use crate::types::Pos;
 use crate::grammar::{Grammar, SequenceWithProbability};
 use super::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
 use super::cache::SequenceCache;
+use super::semantics::SemanticModel;
 use super::utils::{
     payload_fits, get_grammar, start_nonterminal_for_pos, capitalize,
     normalize_token_for_bip39, starts_with_vowel_sound, is_bare_verb_form,
@@ -233,6 +234,7 @@ pub fn plan_sentence<R: Rng>(
     payload: &[PayloadTok],
     payload_start: usize,
     require_prefix: bool,
+    semantics: Option<&SemanticModel>,
 ) -> Option<(Vec<Pos>, Vec<Option<String>>, HashMap<usize, usize>, usize)> {
     let sequences = cache.get(start_symbol, k)?;
 
@@ -290,7 +292,13 @@ pub fn plan_sentence<R: Rng>(
     for j in (1..=max_j).rev() {
         // Collect all sequences that can embed j payload words.
         // Then choose among them probabilistically by grammar probability.
-        let mut candidates: Vec<(usize, HashMap<usize, usize>)> = Vec::new();
+        // Each candidate carries its selection weight: grammar probability times
+        // an optional semantic coherence score. The score is 1.0 when no semantic
+        // model is present, so weights (and the RNG draw) are byte-for-byte
+        // identical to the pre-semantics behavior in that case. Semantics only
+        // re-weights among candidates at this fixed j, so it never reduces the
+        // number of payload words embedded (density is unaffected).
+        let mut candidates: Vec<(usize, HashMap<usize, usize>, f64)> = Vec::new();
         let mut total_prob: f64 = 0.0;
 
         for (original_idx, seq_prob) in filtered_with_indices.iter() {
@@ -300,8 +308,12 @@ pub fn plan_sentence<R: Rng>(
                 payload_start,
                 j,
             ) {
-                total_prob += seq_prob.probability;
-                candidates.push((*original_idx, placement));
+                let score = semantics
+                    .map(|m| m.placement_score(&seq_prob.sequence, &placement, payload))
+                    .unwrap_or(1.0);
+                let w = seq_prob.probability * score;
+                total_prob += w;
+                candidates.push((*original_idx, placement, w));
             }
         }
 
@@ -309,26 +321,25 @@ pub fn plan_sentence<R: Rng>(
             continue;
         }
 
-        // Weighted random selection by probability.
-        // (If probabilities are all zeros, fall back to uniform.)
+        // Weighted random selection by (probability * semantic score).
+        // (If all weights are zero, fall back to uniform.)
         if total_prob > 0.0 {
             let mut r = rng.gen::<f64>() * total_prob;
             let mut last: Option<(usize, HashMap<usize, usize>)> = None;
 
-            for (idx, placement) in candidates.iter() {
+            for (idx, placement, w) in candidates.iter() {
                 last = Some((*idx, placement.clone()));
-                let w = sequences[*idx].probability;
-                if r <= w {
+                if r <= *w {
                     return Some((sequences[*idx].sequence.clone(), sequences[*idx].refinements.clone(), placement.clone(), j));
                 }
-                r -= w;
+                r -= *w;
             }
 
             // Numerical edge-case: fall back to last feasible candidate.
             let (idx, placement) = last.expect("candidates non-empty");
             return Some((sequences[idx].sequence.clone(), sequences[idx].refinements.clone(), placement, j));
         } else {
-            let (idx, placement) = candidates
+            let (idx, placement, _w) = candidates
                 .choose(rng)
                 .expect("candidates non-empty")
                 .clone();
@@ -983,6 +994,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     payload,
                     current_payload_i,
                     want_prefix,
+                    lex.semantics(),
                 ) {
                     planned = Some((slots, refinements, forced_placements, j));
                     break; // Found a plan, use it
@@ -1009,6 +1021,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                         payload,
                         current_payload_i,
                         false,  // Don't require prefix in fallback
+                        lex.semantics(),
                     ) {
                         planned = Some((slots, refinements, forced_placements, j));
                         break;
@@ -1247,6 +1260,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 payload,
                 payload_i,
                 false,  // Body mode never requires prefix
+                lex.semantics(),
             ) {
                 planned = Some((slots, refinements, forced_placements, j));
                 break; // Found a plan, use it
@@ -1273,6 +1287,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     payload,
                     payload_i,
                     false,  // Body mode never requires prefix
+                    lex.semantics(),
                 ) {
                     planned = Some((slots, refinements, forced_placements, j));
                     break;
@@ -1310,6 +1325,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                             payload,
                             payload_i,
                             false,  // Body mode never requires prefix
+                            lex.semantics(),
                         ) {
                             if verbose {
                                 let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
@@ -1639,6 +1655,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                 payload,
                 payload_i,
                 false, // Body mode never requires prefix
+                lex.semantics(),
             ) {
                 // Check if forced placements include our payload words
                 let places_our_payload = forced_placements.values().any(|&idx| {
@@ -1672,6 +1689,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                     payload,
                     payload_i,
                     false,
+                    lex.semantics(),
                 ) {
                     let places_our_payload = forced_placements.values().any(|&idx| {
                         payload_indices_in_segment.contains(&idx)

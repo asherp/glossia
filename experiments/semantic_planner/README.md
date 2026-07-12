@@ -172,6 +172,51 @@ frame/boundary search rather than the prototype's fixed-cost appositive.
 - BIP39 tags many nouns weakly as verbs (`husband`, `soap`, `medal`), so some
   generated clauses use odd denominal verbs — a wordlist-POS issue, not semantics.
 
+## Wired into the Rust generator
+
+The design below is now implemented. The soft-scoring approach ("prefer coherent
+skeletons, never block a payload word") is live on the native/CLI encode path.
+
+**Data** — `emit_rust_data.py` converts the experiment dataset into the file the
+generator loads:
+```
+python3 emit_rust_data.py    # -> languages/english/semantics.yaml
+```
+`semantics.yaml` holds top-level classes per payload word and per-verb
+subject/object frames. It's embedded at compile time (via `build.rs`, as an
+`other` language file) and loaded by `src/generator/data.rs::load_semantics`.
+
+**Module** — `src/generator/semantics.rs` (`SemanticModel`):
+- parses `semantics.yaml`;
+- `placement_score(slots, placement, payload) -> f64` returns a coherence
+  multiplier in (0,1]. Roles are inferred from the flat POS sequence (nearest
+  payload noun left of a verb = subject, right = object), exactly like this
+  prototype. Each violated verb-argument edge multiplies the score by 0.15,
+  floored so it's never zero.
+
+**Integration point** — `src/generator/core.rs::plan_sentence`. When choosing
+among candidate POS skeletons at a fixed payload count `j`, each candidate's
+grammar probability is multiplied by its semantic score before the weighted
+draw. Because scoring happens *within* a fixed `j`, it never reduces how many
+payload words are embedded — **density is untouched, coherence is a tiebreaker**.
+The model is carried on the `Lexicon` (`with_semantics`); when absent (every
+language without a `semantics.yaml`) the score is 1.0 and behavior — including
+the RNG draw — is byte-for-byte identical to before.
+
+**Safety** — payload words are never dropped or reordered, so decoding is
+unaffected. Covered by `tests/semantic_planning.rs` (dataset loads; payload
+order preserved) and unit tests in `semantics.rs`. Escape hatch:
+`GLOSSIA_DISABLE_SEMANTICS=1` forces classic POS-only planning.
+
+**Measured on the real generator** (`ab_real_generator.py`, same payloads/seed,
+semantics off vs on): _see script output_ — payload-payload coherence rises with
+no change to which payload words appear.
+
+**Not yet wired**: the WASM encode paths build their own `Lexicon` and remain a
+no-op (safe) until `with_semantics` is added there; and cover-*word* selection
+(picking a class-appropriate cover noun next to a payload verb) needs classes
+for the 610 cover words, which aren't authored yet.
+
 ## If we productionize this
 
 1. Add a `class:` field to the English payload wordlist (offline, authored once).

@@ -1832,6 +1832,13 @@ fn main() {
             .with_refined_payload(refined_payload)
     };
 
+    // Attach the optional semantic model (softly biases sentence planning toward
+    // coherent verb-argument pairings; absent for languages without semantics.yaml).
+    let lex = match glossia::generator::data::load_semantics(&language) {
+        Some(model) => lex.with_semantics(std::sync::Arc::new(model)),
+        None => lex,
+    };
+
     let input_word_count = if merkle_mode {
         words.len()  // Original payload word count
     } else {
@@ -2316,7 +2323,7 @@ mod tests {
         ];
         
         // Plan for k=5 (should fit at least 2 words, maybe 3)
-        let result = plan_sentence(&mut rng, &cache, "S", 5, &payload, 0, false);
+        let result = plan_sentence(&mut rng, &cache, "S", 5, &payload, 0, false, None);
         assert!(result.is_some());
         let (slots, _refs, forced_placements, j) = result.unwrap();
         assert!(j >= 1, "Should embed at least 1 word");

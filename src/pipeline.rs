@@ -1481,6 +1481,13 @@ fn generate_prose_for_zone(
     }
     lex = lex.with_refined_cover(refined_cover);
 
+    // Optional semantic model: softly biases sentence planning toward coherent
+    // verb-argument pairings. Absent for languages without a semantics.yaml, in
+    // which case planning is unchanged. Never affects payload order or decoding.
+    if let Some(model) = crate::generator::data::load_semantics(language) {
+        lex = lex.with_semantics(std::sync::Arc::new(model));
+    }
+
     // 3. Grammar-derived sentence parameters.
 
     let zone_toks = &payload_toks[word_range];
