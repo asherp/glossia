@@ -4,7 +4,7 @@ use crate::types::Pos;
 use crate::grammar::{Grammar, SequenceWithProbability};
 use super::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
 use super::cache::SequenceCache;
-use super::semantics::SemanticModel;
+use super::semantics::{SemanticModel, Sel};
 use super::utils::{
     payload_fits, get_grammar, start_nonterminal_for_pos, capitalize,
     normalize_token_for_bip39, starts_with_vowel_sound, is_bare_verb_form,
@@ -494,6 +494,48 @@ fn apply_indef_phonology(next_word: Option<&str>) -> String {
     }
 }
 
+/// Track the verb that can govern an upcoming object noun, as slots are emitted.
+/// A verb sets it; a noun clears it (the object is consumed / a new NP begins).
+/// Determiners, adjectives, prepositions leave it intact so "V Det Adj N" still
+/// links the verb to its object noun. Clause boundaries clear it (handled inline).
+fn update_gov_verb(gov: &mut Option<String>, slot: Pos, word: &str) {
+    match slot {
+        Pos::V => *gov = Some(word.to_lowercase()),
+        Pos::N => *gov = None,
+        _ => {}
+    }
+}
+
+/// Selectional restriction that applies to a cover noun about to fill slot `i`:
+///   - subject: the noun sits immediately before a *forced* (payload) verb;
+///   - object:  a governing verb (payload or cover) precedes it in the clause.
+/// Returns the relevant frame's `subj`/`obj` `Sel`, or `None` when no framed verb
+/// governs this noun. Subject takes precedence when both could apply.
+fn semantic_cover_noun_sel<'a>(
+    model: &'a SemanticModel,
+    slots: &[Pos],
+    i: usize,
+    gov_verb: Option<&str>,
+    payload: &[PayloadTok],
+    forced_placements: Option<&HashMap<usize, usize>>,
+) -> Option<&'a Sel> {
+    // subject of an adjacent forced payload verb
+    if slots.get(i + 1) == Some(&Pos::V) {
+        if let Some(&pidx) = forced_placements.and_then(|fp| fp.get(&(i + 1))) {
+            if let Some(fr) = model.frame(&payload[pidx].word) {
+                return Some(&fr.subj);
+            }
+        }
+    }
+    // object of the governing verb in this clause
+    if let Some(v) = gov_verb {
+        if let Some(fr) = model.frame(v) {
+            return Some(&fr.obj);
+        }
+    }
+    None
+}
+
 /// Fill a slot stream with cover words + payload words (in-order).
 /// Returns words vector.
 /// `prev_words` are the last few words from the previous sentence (if any), to prevent repetition across sentences.
@@ -523,6 +565,10 @@ pub fn fill_slots<R: Rng>(
     const REPETITION_WINDOW: usize = 3;
     // Track which payload words have been used (by index)
     let mut used_payload_indices: HashSet<usize> = HashSet::new();
+    // Semantic cover-noun selection: the most recent verb in the current clause
+    // that can govern an upcoming object noun (set on a V, cleared at a noun or
+    // clause boundary). Only meaningful when a semantic model is attached.
+    let mut gov_verb: Option<String> = None;
 
     for (i, &slot) in slots.iter().enumerate() {
         if slot == Pos::Dot && dot_is_punctuation {
@@ -531,6 +577,7 @@ pub fn fill_slots<R: Rng>(
             } else {
                 out.push(".".to_string());
             }
+            gov_verb = None; // clause boundary
             continue;
         }
 
@@ -577,6 +624,7 @@ pub fn fill_slots<R: Rng>(
             emitted_slots.push(slot);
             emitted_refs.push(ref_tag.map(|s| s.to_string()));
             used_payload_indices.insert(idx);
+            update_gov_verb(&mut gov_verb, slot, &payload[idx].word);
             if forced_placements.is_none() {
                 *payload_i += 1;
             }
@@ -678,11 +726,28 @@ pub fn fill_slots<R: Rng>(
             } else {
                 base
             }
+        } else if slot == Pos::N && lex.semantics().is_some() {
+            // Semantic cover-noun selection: when this noun slot is the subject or
+            // object of a verb with a known frame, prefer a cover noun whose class
+            // satisfies the frame. Falls back to ordinary selection when nothing
+            // fits, so a slot is never left unfilled. Only cover words are chosen
+            // here, so payload placement and decoding are unaffected.
+            let model = lex.semantics().unwrap();
+            let sel = semantic_cover_noun_sel(
+                model, slots, i, gov_verb.as_deref(), payload, forced_placements,
+            );
+            let picked = sel.and_then(|s| {
+                lex.pick_cover_filtered(rng, slot, &recent_words, |w| {
+                    model.class_of(w).map_or(true, |c| s.accepts(c))
+                })
+            });
+            picked.unwrap_or_else(|| lex.pick_cover_refined(rng, slot, ref_tag, &recent_words))
         } else {
             // All other POS: use refinement-aware cover word selection
             lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)
         };
 
+        update_gov_verb(&mut gov_verb, slot, &cover_word);
         out.push(cover_word);
         emitted_slots.push(slot);
         emitted_refs.push(ref_tag.map(|s| s.to_string()));

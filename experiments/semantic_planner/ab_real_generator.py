@@ -43,25 +43,35 @@ def accepts(allowed, cls):
 
 
 def coherence(text, classes, frames, bip):
-    """Payload-payload verb-argument coherence of one encoding."""
+    """All verb-argument coherence of one encoding, over BOTH payload and cover
+    nouns (classes now includes cover words). For each verb token, the nearest
+    classified noun to its left is the subject and to its right the object,
+    bounded by the sentence and other verbs."""
     edges = bad = 0
     for sentence in text.replace("\n", " ").split("."):
         toks = [t.strip(",;:!?()[]\"'").lower() for t in sentence.split()]
-        payload = [t for t in toks if t in bip]   # cover words are disjoint from bip39
-        for i, w in enumerate(payload):
+        for i, w in enumerate(toks):
             if w not in frames:
                 continue
             fr = frames[w]
-            # subject = previous payload word if it's a classified noun
-            if i > 0 and payload[i - 1] in classes:
-                edges += 1
-                if not accepts(fr["subj"], classes[payload[i - 1]]):
-                    bad += 1
-            # object = next payload word if it's a classified noun
-            if i + 1 < len(payload) and payload[i + 1] in classes:
-                edges += 1
-                if not accepts(fr["obj"], classes[payload[i + 1]]):
-                    bad += 1
+            # subject: nearest classified noun to the left, stop at another verb
+            for j in range(i - 1, -1, -1):
+                if toks[j] in frames and toks[j] != w:
+                    break
+                if toks[j] in classes:
+                    edges += 1
+                    if not accepts(fr["subj"], classes[toks[j]]):
+                        bad += 1
+                    break
+            # object: nearest classified noun to the right, stop at another verb
+            for j in range(i + 1, len(toks)):
+                if toks[j] in frames and toks[j] != w:
+                    break
+                if toks[j] in classes:
+                    edges += 1
+                    if not accepts(fr["obj"], classes[toks[j]]):
+                        bad += 1
+                    break
     return edges, bad
 
 

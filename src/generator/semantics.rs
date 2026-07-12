@@ -50,7 +50,7 @@ pub enum Sel {
 }
 
 impl Sel {
-    fn accepts(&self, c: SemClass) -> bool {
+    pub fn accepts(&self, c: SemClass) -> bool {
         match self {
             Sel::Any => true,
             Sel::Classes(v) => v.contains(&c),
@@ -159,8 +159,13 @@ impl SemanticModel {
         (self.classes.len(), self.frames.len())
     }
 
-    fn class_of(&self, word: &str) -> Option<SemClass> {
+    pub fn class_of(&self, word: &str) -> Option<SemClass> {
         self.classes.get(&word.to_lowercase()).copied()
+    }
+
+    /// The selectional frame for a verb (payload or cover), if known.
+    pub fn frame(&self, verb: &str) -> Option<&Frame> {
+        self.frames.get(&verb.to_lowercase())
     }
 
     /// Class of the nearest payload-filled noun slot on one side of `from`,
