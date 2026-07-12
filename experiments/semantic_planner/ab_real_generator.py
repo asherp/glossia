@@ -21,7 +21,9 @@ import yaml
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.join(HERE, "..", "..")
-CLI = os.path.join(ROOT, "target", "debug", "glossia")
+CLI = os.path.join(ROOT, "target", "release", "glossia")
+if not os.path.exists(CLI):
+    CLI = os.path.join(ROOT, "target", "debug", "glossia")
 SEM = os.path.join(ROOT, "languages", "english", "semantics.yaml")
 BIP39 = os.path.join(ROOT, "languages", "english", "payload_bip39.yaml")
 
