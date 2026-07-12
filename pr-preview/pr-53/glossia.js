@@ -396,6 +396,44 @@ export function encode_raw_base_n(input, language, wordlist, dialect, seed) {
 }
 
 /**
+ * Like `encode_raw_base_n`, but samples `best_of` candidates and returns the
+ * densest / most semantically coherent one (English only; single encoding
+ * otherwise). Payload words stay in order in every candidate, so decoding is
+ * unaffected. This is the entry the web board uses for reader-facing prose.
+ * @param {string} input
+ * @param {string} language
+ * @param {string} wordlist
+ * @param {string} dialect
+ * @param {bigint} seed
+ * @param {number} best_of
+ * @returns {string}
+ */
+export function encode_raw_base_n_best_of(input, language, wordlist, dialect, seed, best_of) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(input, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(dialect, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len3 = WASM_VECTOR_LEN;
+        wasm.encode_raw_base_n_best_of(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3, seed, best_of);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred5_0 = r0;
+        deferred5_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
  * Get all available dialects across all languages with full metadata.
  *
  * Returns a hierarchical structure for building a dialect selector UI.
