@@ -1002,7 +1002,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
     let agreement_ref = agreement.as_ref();
 
     // Load precomputed sequences
-    let cache = match SequenceCache::load_with_dialect(mode, language, dialect_str, k_max, verbose) {
+    // Memoized: the first generation for this (mode, language, dialect, k_max)
+    // builds the sequence cache; later ones (best-of-N, variations, repeated
+    // encodes) reuse it instead of rebuilding — the dominant cost of generation.
+    let cache = match SequenceCache::load_with_dialect_cached(mode, language, dialect_str, k_max, verbose) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Error loading sequence cache: {}", e);
