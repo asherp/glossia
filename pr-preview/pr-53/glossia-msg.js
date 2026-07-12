@@ -258,12 +258,18 @@ export async function sealMessage(message, cred, salt = null) {
 // and keeps the densest / most semantically coherent one. It only changes cover
 // words and sentence shape, never the payload, so the artifact still decodes
 // identically. English only; ignored for other languages.
+//
+// Cover variant and bestOf compose as *disjoint* seed batches: best-of-N samples
+// seeds [seed*N .. seed*N + N-1], so each cover variant is its own block of N
+// seeds. Stepping the cover variant always lands in a fresh block (no overlap),
+// and at bestOf=1 the base reduces to `seed` — identical to the single-encode path.
 export function renderArtifact(state, langId = 'english', { cover = true, seed = SEED, bestOf = 1 } = {}) {
   const lang = msgLangById(langId);
   const bodySeed = typeof seed === 'bigint' ? seed : BigInt(seed);
+  const n = Math.max(1, Math.floor(bestOf));
   const bodyR = JSON.parse(
-    bestOf > 1
-      ? wasmEncodeRawBaseNBestOf(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed, bestOf)
+    n > 1
+      ? wasmEncodeRawBaseNBestOf(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed * BigInt(n), n)
       : wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed));
   if (bodyR.error) throw new Error(bodyR.error);
   const bodyWords = bodyR.payload_words || [];
