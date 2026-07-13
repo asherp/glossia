@@ -238,7 +238,7 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 .board-actions .btn.sm { padding:7px 11px; }
 
 /* modal: save / load a board via its seed-phrase paragraph */
-.modal-overlay { position:fixed; inset:0; z-index:50; display:flex; align-items:flex-start; justify-content:center; padding:6vh 18px 40px; background:rgba(20,18,14,.55); backdrop-filter:blur(3px); overflow-y:auto; }
+.modal-overlay { position:fixed; inset:0; z-index:70; display:flex; align-items:flex-start; justify-content:center; padding:6vh 18px 40px; background:rgba(20,18,14,.55); backdrop-filter:blur(3px); overflow-y:auto; }
 body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .modal { position:relative; width:100%; max-width:560px; background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:14px; box-shadow:0 40px 90px -40px rgba(20,18,14,.7); padding:30px 32px 28px; }
 .modal-x { position:absolute; top:14px; right:16px; background:none; border:none; color:var(--dim); font-size:24px; line-height:1; cursor:pointer; padding:2px 6px; }
@@ -251,6 +251,29 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .modal-actions .muted { margin-left:auto; font:400 12px/1.3 'IBM Plex Mono',monospace; }
 .modal-foot { margin:16px 0 0; font:400 12px/1.55 'Public Sans',sans-serif; }
 #c-seed-input { width:100%; min-height:120px; }
+
+/* settings drawer — slides in from the right over a dimming backdrop */
+.gear-btn { display:inline-flex; align-items:center; gap:6px; }
+.gear-btn svg { width:14px; height:14px; }
+.drawer-backdrop { position:fixed; inset:0; z-index:55; background:rgba(20,18,14,.5); backdrop-filter:blur(2px); opacity:0; transition:opacity .28s ease; }
+.drawer-backdrop.is-open { opacity:1; }
+body[data-style="midnight"] .drawer-backdrop { background:rgba(0,0,0,.62); }
+.drawer {
+  position:fixed; top:0; right:0; z-index:56; height:100%; width:min(430px, 92vw);
+  background:var(--card); border-left:1px solid var(--card-bd);
+  box-shadow:-24px 0 60px -30px rgba(20,18,14,.55);
+  display:flex; flex-direction:column;
+  transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto;
+}
+.drawer.is-open { transform:translateX(0); }
+body[data-style="midnight"] .drawer { box-shadow:-24px 0 60px -28px rgba(0,0,0,.75); }
+.drawer-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--rule); padding:22px 26px 16px; position:sticky; top:0; background:var(--card); z-index:1; }
+.drawer-title { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--ink); }
+.drawer-x { background:none; border:none; color:var(--dim); font-size:26px; line-height:1; cursor:pointer; padding:0 4px; }
+.drawer-x:hover { color:var(--accent); }
+.drawer-body { padding:8px 26px 32px; }
+.drawer-body label:first-of-type { margin-top:8px; }
 
 /* live preview */
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
@@ -327,6 +350,10 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
           <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span> New bulletin</a>
           <div class="board-actions">
             <span class="n" id="c-head-npub">not yet published</span>
+            <button type="button" class="btn sm gear-btn" id="c-settings-btn" title="Settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="c-drawer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Settings
+            </button>
             <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂 Load</button>
           </div>
         </div>
@@ -338,11 +365,13 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         <!-- on narrow screens the live preview is moved here, directly below the message -->
         <div id="c-preview-slot"></div>
 
-        <details class="settings" id="c-settings">
-          <summary>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-            <span>Settings</span>
-          </summary>
+        <div class="drawer-backdrop hidden" id="c-drawer-backdrop"></div>
+        <aside class="drawer hidden" id="c-drawer" role="dialog" aria-modal="true" aria-label="Settings">
+          <div class="drawer-head">
+            <span class="drawer-title">Settings</span>
+            <button type="button" class="drawer-x" id="c-drawer-close" aria-label="Close settings">&times;</button>
+          </div>
+          <div class="drawer-body">
 
           <label>Passphrase <span class="muted">(optional)</span></label>
           <button type="button" class="btn sm" id="c-pass-btn">Set passphrase</button>
@@ -403,7 +432,8 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 
           <label>Relays</label>
           <input type="text" id="c-relays" spellcheck="false">
-        </details>
+          </div>
+        </aside>
 
         <button type="button" class="btn block" id="c-publish" disabled>Publish</button>
         <div class="hint" id="c-status" style="margin-top:10px"></div>
@@ -962,6 +992,36 @@ cShareMenu.addEventListener('click', async (e) => {
     target = 'https://' + instance + '/share?text=' + enc(shareTruncate(post, 450) + '\n\n' + url);
   }
   if (target) window.open(target, '_blank', 'noopener,noreferrer');
+});
+
+// ── settings drawer ───────────────────────────────────────────────────
+const cDrawer = $('c-drawer');
+const cDrawerBackdrop = $('c-drawer-backdrop');
+const cDrawerBtn = $('c-settings-btn');
+function openCDrawer() {
+  cDrawer.classList.remove('hidden');
+  cDrawerBackdrop.classList.remove('hidden');
+  // next frame so the transition runs from the off-screen/transparent state
+  requestAnimationFrame(() => { cDrawer.classList.add('is-open'); cDrawerBackdrop.classList.add('is-open'); });
+  cDrawerBtn.setAttribute('aria-expanded', 'true');
+  $('c-drawer-close').focus();
+}
+function closeCDrawer() {
+  if (cDrawer.classList.contains('hidden')) return;
+  cDrawer.classList.remove('is-open');
+  cDrawerBackdrop.classList.remove('is-open');
+  cDrawerBtn.setAttribute('aria-expanded', 'false');
+  const done = () => { cDrawer.classList.add('hidden'); cDrawerBackdrop.classList.add('hidden'); cDrawer.removeEventListener('transitionend', done); };
+  cDrawer.addEventListener('transitionend', done);
+  cDrawerBtn.focus();
+}
+cDrawerBtn.addEventListener('click', () => cDrawer.classList.contains('is-open') ? closeCDrawer() : openCDrawer());
+$('c-drawer-close').addEventListener('click', closeCDrawer);
+cDrawerBackdrop.addEventListener('click', closeCDrawer);
+// Escape closes the drawer — but only when no modal (e.g. the passphrase dialog
+// opened from inside it) is on top, so Escape dismisses the modal's layer first.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && cDrawer.classList.contains('is-open') && !document.querySelector('.modal-overlay:not(.hidden)')) closeCDrawer();
 });
 
 const ENGINE_BTNS = ['c-publish', 'c-id-gen'];
