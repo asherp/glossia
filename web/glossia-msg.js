@@ -254,23 +254,36 @@ export async function sealMessage(message, cred, salt = null) {
 // in different prose. Same seed + same state always yields identical prose, so a
 // "cover variant" is a stable, reproducible parameter. The trailer stays on the base
 // SEED so the Latin attribution doesn't shift as the body variant changes.
+// splitmix64 finalizer: spread a small counter across the whole u64 range so
+// consecutive cover-variant numbers map to bases that are far apart.
+const U64 = (1n << 64n) - 1n;
+function mix64(x) {
+  let z = (BigInt(x) + 0x9E3779B97F4A7C15n) & U64;
+  z = ((z ^ (z >> 30n)) * 0xBF58476D1CE4E5B9n) & U64;
+  z = ((z ^ (z >> 27n)) * 0x94D049BB133111EBn) & U64;
+  return (z ^ (z >> 31n)) & U64;
+}
+
 // `bestOf` (default 1) samples that many cover realizations of the SAME payload
 // and keeps the densest / most semantically coherent one. It only changes cover
 // words and sentence shape, never the payload, so the artifact still decodes
 // identically. English only; ignored for other languages.
 //
-// Cover variant and bestOf compose as *disjoint* seed batches: best-of-N samples
-// seeds [seed*N .. seed*N + N-1], so each cover variant is its own block of N
-// seeds. Stepping the cover variant always lands in a fresh block (no overlap),
-// and at bestOf=1 the base reduces to `seed` — identical to the single-encode path.
+// Each cover variant is anchored to a hashed base `mix64(seed)`, and best-of-N
+// samples the contiguous block [base .. base + N-1]. Because the hash scatters
+// consecutive variants across u64, different variants don't overlap at any N,
+// and for a fixed variant growing N just extends its own block from the same
+// base (the smaller set nests in the larger) — so varying sample size never
+// jumps to unrelated prose. bestOf=1 uses the same hashed base (candidate 0).
 export function renderArtifact(state, langId = 'english', { cover = true, seed = SEED, bestOf = 1 } = {}) {
   const lang = msgLangById(langId);
   const bodySeed = typeof seed === 'bigint' ? seed : BigInt(seed);
+  const base = mix64(bodySeed);
   const n = Math.max(1, Math.floor(bestOf));
   const bodyR = JSON.parse(
     n > 1
-      ? wasmEncodeRawBaseNBestOf(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed * BigInt(n), n)
-      : wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, bodySeed));
+      ? wasmEncodeRawBaseNBestOf(state.ctHex, lang.language, lang.wordlist, lang.dialect, base, n)
+      : wasmEncodeRawBaseN(state.ctHex, lang.language, lang.wordlist, lang.dialect, base));
   if (bodyR.error) throw new Error(bodyR.error);
   const bodyWords = bodyR.payload_words || [];
   const body = cover ? (bodyR.encoded_text || '').trim() : payloadOnlyProse(bodyR.encoded_text || '', bodyWords);
