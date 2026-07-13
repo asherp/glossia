@@ -136,16 +136,36 @@ body[data-style="letterpress"] .keybar input:focus { border-bottom-color:var(--a
 .board-id input:focus { outline:none; border-color:var(--accent); }
 .board-id input::placeholder { color:var(--dim); opacity:.7; }
 
-/* settings disclosure */
-.settings { margin-top:16px; border-top:1px solid var(--rule); padding-top:14px; }
-.settings > summary { list-style:none; cursor:pointer; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); display:flex; align-items:center; gap:7px; }
-.settings > summary::-webkit-details-marker { display:none; }
-.settings > summary:hover { color:var(--accent); }
-.settings label { display:block; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:16px 0 7px; }
-.settings input { width:100%; background:var(--input-bg); color:var(--ink); border:1px solid var(--input-bd); border-radius:var(--radius); font:400 13px/1.5 'IBM Plex Mono',monospace; padding:9px 11px; }
-.settings input:focus { outline:none; border-color:var(--accent); }
-.settings .hl-check { display:flex; align-items:center; gap:9px; text-transform:none; letter-spacing:0; color:var(--ink); font:400 13px/1.4 'Public Sans',sans-serif; cursor:pointer; }
-.settings .hl-check input { width:auto; margin:0; }
+/* settings gear button (opens the drawer) */
+.gear-btn { display:inline-flex; align-items:center; justify-content:center; background:transparent; border:1.5px solid var(--rule); border-radius:calc(var(--radius) + 3px); color:var(--dim); padding:7px; cursor:pointer; transition:border-color .2s, color .2s; }
+.gear-btn svg { width:15px; height:15px; display:block; }
+.gear-btn:hover { color:var(--ink); border-color:var(--accent); }
+.gear-btn[aria-expanded="true"] { color:var(--ink); border-color:var(--accent); }
+
+/* settings drawer — slides in from the right over a dimming backdrop */
+.drawer-backdrop { position:fixed; inset:0; z-index:60; background:rgba(20,18,14,.5); backdrop-filter:blur(2px); opacity:0; transition:opacity .28s ease; }
+.drawer-backdrop.is-open { opacity:1; }
+body[data-style="midnight"] .drawer-backdrop { background:rgba(0,0,0,.62); }
+.drawer {
+  position:fixed; top:0; right:0; z-index:61; height:100%; width:min(360px, 88vw);
+  background:var(--card); border-left:1px solid var(--card-bd);
+  box-shadow:-24px 0 60px -30px rgba(20,18,14,.55);
+  display:flex; flex-direction:column;
+  transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1);
+  overflow-y:auto;
+}
+.drawer.is-open { transform:translateX(0); }
+body[data-style="midnight"] .drawer { box-shadow:-24px 0 60px -28px rgba(0,0,0,.75); }
+.drawer-head { display:flex; align-items:center; justify-content:space-between; border-bottom:var(--masthead-rule); padding:22px 24px 14px; }
+.drawer-title { font:600 12.5px/1 var(--brand-font); letter-spacing:var(--brand-ls); text-transform:uppercase; color:var(--ink); }
+.drawer-x { background:none; border:none; color:var(--dim); font-size:26px; line-height:1; cursor:pointer; padding:0 4px; }
+.drawer-x:hover { color:var(--accent); }
+.drawer-body { padding:8px 24px 28px; }
+.drawer label { display:block; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:20px 0 7px; }
+.drawer input[type="text"] { width:100%; background:var(--input-bg); color:var(--ink); border:1px solid var(--input-bd); border-radius:var(--radius); font:400 13px/1.5 'IBM Plex Mono',monospace; padding:9px 11px; }
+.drawer input[type="text"]:focus { outline:none; border-color:var(--accent); }
+.drawer .hl-check { display:flex; align-items:center; gap:9px; text-transform:none; letter-spacing:0; color:var(--ink); font:400 13px/1.4 'Public Sans',sans-serif; cursor:pointer; }
+.drawer .hl-check input { width:auto; margin:0; }
 .mini-btn { flex:0 0 auto; background:var(--accent); color:#faf8f3; border:none; border-radius:var(--radius); padding:10px 16px; font:600 12px/1 'Public Sans',sans-serif; letter-spacing:.02em; cursor:pointer; }
 .mini-btn:hover { filter:brightness(.92); }
 .mini-btn:disabled { opacity:.5; cursor:not-allowed; }
@@ -229,6 +249,9 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
     <div class="masthead">
       <span class="brand">Glossia Bulletin</span>
       <div class="masthead-actions">
+        <button type="button" class="gear-btn" id="r-settings-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="r-drawer" title="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
         <div class="share-wrap">
           <button type="button" class="share-btn" id="r-share" aria-haspopup="menu" aria-expanded="false" disabled>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
@@ -265,27 +288,6 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
       <div class="keyhint hidden" id="r-keyhint">A decryption key is required to unlock these bulletins.</div>
     </div>
 
-    <!-- board / relay settings -->
-    <details class="settings" id="r-settings">
-      <summary>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span>Settings</span>
-      </summary>
-
-      <label>Reading style</label>
-      <div class="style-switch" role="group" aria-label="Reading style">
-        <button type="button" class="style-tile" data-set-style="letterpress"><span class="swatch letterpress"></span>Letterpress</button>
-        <button type="button" class="style-tile" data-set-style="midnight"><span class="swatch midnight"></span>Midnight</button>
-        <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
-      </div>
-
-      <label class="hl-check"><input type="checkbox" id="r-cover" checked> Show cover words</label>
-      <label class="hl-check"><input type="checkbox" id="r-hl"> Highlight payload words</label>
-
-      <label for="r-relays">Relays</label>
-      <input type="text" id="r-relays" autocomplete="off" spellcheck="false">
-    </details>
-
     <!-- bulletins -->
     <div class="bulletins" id="r-results"></div>
   </div>
@@ -296,6 +298,29 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
     Your reading style is saved in the link's <b>#</b> — no app, no account.
   </div>
 </div>
+
+<!-- settings drawer -->
+<div class="drawer-backdrop hidden" id="r-drawer-backdrop"></div>
+<aside class="drawer hidden" id="r-drawer" role="dialog" aria-modal="true" aria-label="Board settings">
+  <div class="drawer-head">
+    <span class="drawer-title">Settings</span>
+    <button type="button" class="drawer-x" id="r-drawer-close" aria-label="Close settings">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <label>Reading style</label>
+    <div class="style-switch" role="group" aria-label="Reading style">
+      <button type="button" class="style-tile" data-set-style="letterpress"><span class="swatch letterpress"></span>Letterpress</button>
+      <button type="button" class="style-tile" data-set-style="midnight"><span class="swatch midnight"></span>Midnight</button>
+      <button type="button" class="style-tile" data-set-style="terminal"><span class="swatch terminal"></span>Terminal</button>
+    </div>
+
+    <label class="hl-check"><input type="checkbox" id="r-cover" checked> Show cover words</label>
+    <label class="hl-check"><input type="checkbox" id="r-hl"> Highlight payload words</label>
+
+    <label for="r-relays">Relays</label>
+    <input type="text" id="r-relays" autocomplete="off" spellcheck="false">
+  </div>
+</aside>
 
 <script type="module">
 import { init, decodeMessage, skimArtifact } from './glossia-msg.js';
@@ -338,6 +363,32 @@ function applyCover(on, { persist = true } = {}) {
   if (persist) writeHash();
 }
 $('r-cover').addEventListener('change', () => applyCover($('r-cover').checked));
+
+// ── settings drawer ───────────────────────────────────────────────────
+const drawer = $('r-drawer');
+const drawerBackdrop = $('r-drawer-backdrop');
+const drawerBtn = $('r-settings-btn');
+function openDrawer() {
+  drawer.classList.remove('hidden');
+  drawerBackdrop.classList.remove('hidden');
+  // next frame so the transition runs from the off-screen/transparent state
+  requestAnimationFrame(() => { drawer.classList.add('is-open'); drawerBackdrop.classList.add('is-open'); });
+  drawerBtn.setAttribute('aria-expanded', 'true');
+  $('r-drawer-close').focus();
+}
+function closeDrawer() {
+  if (drawer.classList.contains('hidden')) return;
+  drawer.classList.remove('is-open');
+  drawerBackdrop.classList.remove('is-open');
+  drawerBtn.setAttribute('aria-expanded', 'false');
+  const done = () => { drawer.classList.add('hidden'); drawerBackdrop.classList.add('hidden'); drawer.removeEventListener('transitionend', done); };
+  drawer.addEventListener('transitionend', done);
+  drawerBtn.focus();
+}
+drawerBtn.addEventListener('click', () => drawer.classList.contains('is-open') ? closeDrawer() : openDrawer());
+$('r-drawer-close').addEventListener('click', closeDrawer);
+drawerBackdrop.addEventListener('click', closeDrawer);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
 
 // ── engine load state ─────────────────────────────────────────────────
 function setEngine(state, msg) {
