@@ -4,7 +4,7 @@
 //! feature on never breaks decoding: payload words always survive, in order.
 
 use glossia::generator::data::load_semantics;
-use glossia::pipeline::{encode_into_language, encode_into_language_best_of};
+use glossia::pipeline::{decode_from_language, encode_into_language, encode_into_language_best_of};
 
 #[test]
 fn english_semantics_dataset_loads() {
@@ -93,4 +93,45 @@ fn best_of_n_preserves_payload_order() {
             "payload word '{p}' missing or out of order in best-of-N output:\n{text}"
         );
     }
+}
+
+/// The normative safety property: selecting among best-of-N candidates must not
+/// change what the text decodes to. decode(encode_best_of(x)) == x, and it
+/// matches the plain single-encode decode. With semantics attached by default for
+/// English, this also proves coherence biasing never corrupts the payload.
+#[test]
+fn best_of_n_decode_round_trips() {
+    let input = "meet me at the old pier at noon";
+
+    for n in [1usize, 8, 16] {
+        let (text, _set, _words, _mode) = encode_into_language_best_of(
+            input, "english", "default", "body", None, 4242, false, None, None, None, None, n,
+        )
+        .unwrap_or_else(|e| panic!("best-of-{n} encode failed: {e:?}"));
+
+        let decoded = decode_from_language(&text, "english", "default", false)
+            .unwrap_or_else(|e| panic!("best-of-{n} decode failed: {e:?}"));
+
+        assert_eq!(
+            decoded.trim(),
+            input,
+            "best-of-{n}: decode(encode(x)) != x\n  text: {text}"
+        );
+    }
+}
+
+/// Sanity that semantics is on by default for English (the merge decision) and
+/// still round-trips through the ordinary single-encode path.
+#[test]
+fn default_english_encode_has_semantics_and_round_trips() {
+    assert!(
+        load_semantics("english").is_some(),
+        "English should have semantics attached by default"
+    );
+    let input = "the quiet harbor at dawn";
+    let (text, _set, _words, _mode) =
+        encode_into_language(input, "english", "default", "body", None, 77, false, None, None, None, None)
+            .expect("encode");
+    let decoded = decode_from_language(&text, "english", "default", false).expect("decode");
+    assert_eq!(decoded.trim(), input, "default English: decode(encode(x)) != x\n  text: {text}");
 }
