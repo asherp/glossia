@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use rand::{seq::SliceRandom, Rng};
 use crate::types::Pos;
+use crate::generator::semantics::SemanticModel;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GenerationMode {
@@ -63,6 +65,11 @@ pub struct Lexicon {
     /// during payload placement: even if the wordlist was pre-filtered correctly,
     /// the refinement tag serves as runtime validation.
     pub(crate) refined_payload: HashMap<String, HashSet<String>>,
+    /// Optional semantic model used to softly bias sentence planning toward
+    /// coherent verb-argument pairings. `None` (the default, and the case for
+    /// every language without a `semantics.yaml`) makes planning behave exactly
+    /// as before. Never affects which payload words are placed or their order.
+    semantics: Option<Arc<SemanticModel>>,
 }
 
 impl Lexicon {
@@ -73,7 +80,19 @@ impl Lexicon {
             wordlist_set,
             refined_cover: HashMap::new(),
             refined_payload: HashMap::new(),
+            semantics: None,
         }
+    }
+
+    /// Attach a semantic model for coherence-biased sentence planning.
+    pub fn with_semantics(mut self, model: Arc<SemanticModel>) -> Self {
+        self.semantics = Some(model);
+        self
+    }
+
+    /// The attached semantic model, if any.
+    pub fn semantics(&self) -> Option<&SemanticModel> {
+        self.semantics.as_deref()
     }
 
     pub fn with_words(mut self, pos: Pos, words: &[&str]) -> Self {

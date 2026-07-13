@@ -1,9 +1,11 @@
-use rand::{seq::SliceRandom, Rng};
+use rand::{seq::SliceRandom, Rng, SeedableRng};
+use rand::rngs::StdRng;
 use std::collections::{HashMap, HashSet};
 use crate::types::Pos;
 use crate::grammar::{Grammar, SequenceWithProbability};
 use super::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
 use super::cache::SequenceCache;
+use super::semantics::{SemanticModel, Sel};
 use super::utils::{
     payload_fits, get_grammar, start_nonterminal_for_pos, capitalize,
     normalize_token_for_bip39, starts_with_vowel_sound, is_bare_verb_form,
@@ -233,6 +235,7 @@ pub fn plan_sentence<R: Rng>(
     payload: &[PayloadTok],
     payload_start: usize,
     require_prefix: bool,
+    semantics: Option<&SemanticModel>,
 ) -> Option<(Vec<Pos>, Vec<Option<String>>, HashMap<usize, usize>, usize)> {
     let sequences = cache.get(start_symbol, k)?;
 
@@ -290,7 +293,13 @@ pub fn plan_sentence<R: Rng>(
     for j in (1..=max_j).rev() {
         // Collect all sequences that can embed j payload words.
         // Then choose among them probabilistically by grammar probability.
-        let mut candidates: Vec<(usize, HashMap<usize, usize>)> = Vec::new();
+        // Each candidate carries its selection weight: grammar probability times
+        // an optional semantic coherence score. The score is 1.0 when no semantic
+        // model is present, so weights (and the RNG draw) are byte-for-byte
+        // identical to the pre-semantics behavior in that case. Semantics only
+        // re-weights among candidates at this fixed j, so it never reduces the
+        // number of payload words embedded (density is unaffected).
+        let mut candidates: Vec<(usize, HashMap<usize, usize>, f64)> = Vec::new();
         let mut total_prob: f64 = 0.0;
 
         for (original_idx, seq_prob) in filtered_with_indices.iter() {
@@ -300,8 +309,12 @@ pub fn plan_sentence<R: Rng>(
                 payload_start,
                 j,
             ) {
-                total_prob += seq_prob.probability;
-                candidates.push((*original_idx, placement));
+                let score = semantics
+                    .map(|m| m.placement_score(&seq_prob.sequence, &placement, payload))
+                    .unwrap_or(1.0);
+                let w = seq_prob.probability * score;
+                total_prob += w;
+                candidates.push((*original_idx, placement, w));
             }
         }
 
@@ -309,26 +322,25 @@ pub fn plan_sentence<R: Rng>(
             continue;
         }
 
-        // Weighted random selection by probability.
-        // (If probabilities are all zeros, fall back to uniform.)
+        // Weighted random selection by (probability * semantic score).
+        // (If all weights are zero, fall back to uniform.)
         if total_prob > 0.0 {
             let mut r = rng.gen::<f64>() * total_prob;
             let mut last: Option<(usize, HashMap<usize, usize>)> = None;
 
-            for (idx, placement) in candidates.iter() {
+            for (idx, placement, w) in candidates.iter() {
                 last = Some((*idx, placement.clone()));
-                let w = sequences[*idx].probability;
-                if r <= w {
+                if r <= *w {
                     return Some((sequences[*idx].sequence.clone(), sequences[*idx].refinements.clone(), placement.clone(), j));
                 }
-                r -= w;
+                r -= *w;
             }
 
             // Numerical edge-case: fall back to last feasible candidate.
             let (idx, placement) = last.expect("candidates non-empty");
             return Some((sequences[idx].sequence.clone(), sequences[idx].refinements.clone(), placement, j));
         } else {
-            let (idx, placement) = candidates
+            let (idx, placement, _w) = candidates
                 .choose(rng)
                 .expect("candidates non-empty")
                 .clone();
@@ -483,6 +495,48 @@ fn apply_indef_phonology(next_word: Option<&str>) -> String {
     }
 }
 
+/// Track the verb that can govern an upcoming object noun, as slots are emitted.
+/// A verb sets it; a noun clears it (the object is consumed / a new NP begins).
+/// Determiners, adjectives, prepositions leave it intact so "V Det Adj N" still
+/// links the verb to its object noun. Clause boundaries clear it (handled inline).
+fn update_gov_verb(gov: &mut Option<String>, slot: Pos, word: &str) {
+    match slot {
+        Pos::V => *gov = Some(word.to_lowercase()),
+        Pos::N => *gov = None,
+        _ => {}
+    }
+}
+
+/// Selectional restriction that applies to a cover noun about to fill slot `i`:
+///   - subject: the noun sits immediately before a *forced* (payload) verb;
+///   - object:  a governing verb (payload or cover) precedes it in the clause.
+/// Returns the relevant frame's `subj`/`obj` `Sel`, or `None` when no framed verb
+/// governs this noun. Subject takes precedence when both could apply.
+fn semantic_cover_noun_sel<'a>(
+    model: &'a SemanticModel,
+    slots: &[Pos],
+    i: usize,
+    gov_verb: Option<&str>,
+    payload: &[PayloadTok],
+    forced_placements: Option<&HashMap<usize, usize>>,
+) -> Option<&'a Sel> {
+    // subject of an adjacent forced payload verb
+    if slots.get(i + 1) == Some(&Pos::V) {
+        if let Some(&pidx) = forced_placements.and_then(|fp| fp.get(&(i + 1))) {
+            if let Some(fr) = model.frame(&payload[pidx].word) {
+                return Some(&fr.subj);
+            }
+        }
+    }
+    // object of the governing verb in this clause
+    if let Some(v) = gov_verb {
+        if let Some(fr) = model.frame(v) {
+            return Some(&fr.obj);
+        }
+    }
+    None
+}
+
 /// Fill a slot stream with cover words + payload words (in-order).
 /// Returns words vector.
 /// `prev_words` are the last few words from the previous sentence (if any), to prevent repetition across sentences.
@@ -512,6 +566,10 @@ pub fn fill_slots<R: Rng>(
     const REPETITION_WINDOW: usize = 3;
     // Track which payload words have been used (by index)
     let mut used_payload_indices: HashSet<usize> = HashSet::new();
+    // Semantic cover-noun selection: the most recent verb in the current clause
+    // that can govern an upcoming object noun (set on a V, cleared at a noun or
+    // clause boundary). Only meaningful when a semantic model is attached.
+    let mut gov_verb: Option<String> = None;
 
     for (i, &slot) in slots.iter().enumerate() {
         if slot == Pos::Dot && dot_is_punctuation {
@@ -520,6 +578,7 @@ pub fn fill_slots<R: Rng>(
             } else {
                 out.push(".".to_string());
             }
+            gov_verb = None; // clause boundary
             continue;
         }
 
@@ -566,6 +625,7 @@ pub fn fill_slots<R: Rng>(
             emitted_slots.push(slot);
             emitted_refs.push(ref_tag.map(|s| s.to_string()));
             used_payload_indices.insert(idx);
+            update_gov_verb(&mut gov_verb, slot, &payload[idx].word);
             if forced_placements.is_none() {
                 *payload_i += 1;
             }
@@ -667,11 +727,28 @@ pub fn fill_slots<R: Rng>(
             } else {
                 base
             }
+        } else if slot == Pos::N && lex.semantics().is_some() {
+            // Semantic cover-noun selection: when this noun slot is the subject or
+            // object of a verb with a known frame, prefer a cover noun whose class
+            // satisfies the frame. Falls back to ordinary selection when nothing
+            // fits, so a slot is never left unfilled. Only cover words are chosen
+            // here, so payload placement and decoding are unaffected.
+            let model = lex.semantics().unwrap();
+            let sel = semantic_cover_noun_sel(
+                model, slots, i, gov_verb.as_deref(), payload, forced_placements,
+            );
+            let picked = sel.and_then(|s| {
+                lex.pick_cover_filtered(rng, slot, &recent_words, |w| {
+                    model.class_of(w).map_or(true, |c| s.accepts(c))
+                })
+            });
+            picked.unwrap_or_else(|| lex.pick_cover_refined(rng, slot, ref_tag, &recent_words))
         } else {
             // All other POS: use refinement-aware cover word selection
             lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)
         };
 
+        update_gov_verb(&mut gov_verb, slot, &cover_word);
         out.push(cover_word);
         emitted_slots.push(slot);
         emitted_refs.push(ref_tag.map(|s| s.to_string()));
@@ -790,6 +867,70 @@ pub(crate) fn compute_k_candidates<R: Rng>(
     }
 }
 
+/// Best-of-N generation over `generate_text_with_original_payload`: generate
+/// `n_candidates` full encodings from consecutive seeds and return the best under
+/// a lexicographic objective — highest payload density first, then highest
+/// semantic coherence among candidates within `DENSITY_TOL` of that density.
+///
+/// Every candidate preserves the payload words in order, so selecting among them
+/// never affects decoding; it only trades cover-word / sentence-boundary choices.
+/// Density is therefore never sacrificed beyond `DENSITY_TOL`. Falls back to a
+/// single generation when `n_candidates <= 1` or the lexicon has no semantic
+/// model (nothing to rank coherence by).
+#[allow(clippy::too_many_arguments)]
+pub fn generate_text_best_of(
+    base_seed: u64,
+    n_candidates: usize,
+    lex: &Lexicon,
+    payload: &[PayloadTok],
+    original_payload_set: Option<&HashSet<String>>,
+    verbose: bool,
+    mode: GenerationMode,
+    language: &str,
+    grammar_dialect: Option<&str>,
+    k_min: usize,
+    k_max: usize,
+    length_mode: SentenceLengthMode,
+    delimiter: &str,
+) -> (String, HashSet<String>) {
+    const DENSITY_TOL: f64 = 0.02;
+
+    let gen_one = |seed: u64| {
+        let mut rng = StdRng::seed_from_u64(seed);
+        generate_text_with_original_payload(
+            &mut rng, lex, payload, original_payload_set, verbose, mode, language,
+            grammar_dialect, k_min, k_max, length_mode, delimiter,
+        )
+    };
+
+    let n = n_candidates.max(1);
+    let model = lex.semantics();
+    if n == 1 || model.is_none() {
+        return gen_one(base_seed);
+    }
+    let model = model.unwrap();
+
+    // Generate and score each candidate sequentially. (Candidates are
+    // independent and could be parallelized, but the sequence-cache memo makes
+    // candidates after the first cheap, so this stays simple for now.)
+    let mut candidates: Vec<(f64, f64, (String, HashSet<String>))> = Vec::with_capacity(n);
+    for k in 0..n {
+        let out = gen_one(base_seed.wrapping_add(k as u64));
+        let total = out.0.split_whitespace().count().max(1);
+        let density = payload.len() as f64 / total as f64;
+        let coherence = model.coherence_score(&out.0);
+        candidates.push((density, coherence, out));
+    }
+
+    let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
+    let best = candidates
+        .into_iter()
+        .filter(|c| c.0 >= max_density - DENSITY_TOL)
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .expect("at least one candidate generated");
+    best.2
+}
+
 /// Generate sentences until all payload tokens are embedded.
 /// Returns (text, payload_set) where text is the generated text (without highlighting).
 /// The payload_set can be used by the caller to apply highlighting if needed.
@@ -865,7 +1006,10 @@ pub fn generate_text_with_original_payload<R: Rng>(
     let agreement_ref = agreement.as_ref();
 
     // Load precomputed sequences
-    let cache = match SequenceCache::load_with_dialect(mode, language, dialect_str, k_max, verbose) {
+    // Memoized: the first generation for this (mode, language, dialect, k_max)
+    // builds the sequence cache; later ones (best-of-N, variations, repeated
+    // encodes) reuse it instead of rebuilding — the dominant cost of generation.
+    let cache = match SequenceCache::load_with_dialect_cached(mode, language, dialect_str, k_max, verbose) {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Error loading sequence cache: {}", e);
@@ -983,6 +1127,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     payload,
                     current_payload_i,
                     want_prefix,
+                    lex.semantics(),
                 ) {
                     planned = Some((slots, refinements, forced_placements, j));
                     break; // Found a plan, use it
@@ -1009,6 +1154,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                         payload,
                         current_payload_i,
                         false,  // Don't require prefix in fallback
+                        lex.semantics(),
                     ) {
                         planned = Some((slots, refinements, forced_placements, j));
                         break;
@@ -1247,6 +1393,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 payload,
                 payload_i,
                 false,  // Body mode never requires prefix
+                lex.semantics(),
             ) {
                 planned = Some((slots, refinements, forced_placements, j));
                 break; // Found a plan, use it
@@ -1273,6 +1420,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                     payload,
                     payload_i,
                     false,  // Body mode never requires prefix
+                    lex.semantics(),
                 ) {
                     planned = Some((slots, refinements, forced_placements, j));
                     break;
@@ -1310,6 +1458,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                             payload,
                             payload_i,
                             false,  // Body mode never requires prefix
+                            lex.semantics(),
                         ) {
                             if verbose {
                                 let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
@@ -1639,6 +1788,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                 payload,
                 payload_i,
                 false, // Body mode never requires prefix
+                lex.semantics(),
             ) {
                 // Check if forced placements include our payload words
                 let places_our_payload = forced_placements.values().any(|&idx| {
@@ -1672,6 +1822,7 @@ fn generate_text_merkle_segmented<R: Rng>(
                     payload,
                     payload_i,
                     false,
+                    lex.semantics(),
                 ) {
                     let places_our_payload = forced_placements.values().any(|&idx| {
                         payload_indices_in_segment.contains(&idx)

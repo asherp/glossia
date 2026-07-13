@@ -34,7 +34,7 @@ use crate::generator::data::{
     default_wordlist,
 };
 use crate::generator::types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};
-use crate::generator::core::generate_text_with_original_payload;
+use crate::generator::core::{generate_text_with_original_payload, generate_text_best_of};
 use crate::grammar::{Grammar, DialectConfig};
 use crate::merkle::WordlistTree;
 use crate::types::Pos;
@@ -1426,24 +1426,37 @@ fn prepare_payload(
     Ok((payload_toks, encoded_words, data_mode, wordlist_set))
 }
 
-/// Per-zone second stage: embed a slice of payload tokens into grammatical prose.
+/// Everything needed to run the core generator over a payload zone: the cover
+/// [`Lexicon`] (with any semantic model attached), the generation mode, the
+/// resolved sentence-length bounds, and the delimiter.
 ///
-/// Loads the dialect config, cover words, builds a Lexicon, determines sentence
-/// parameters from the grammar, and generates text for the given token range.
-fn generate_prose_for_zone(
-    payload_toks: &[PayloadTok],
-    word_range: std::ops::Range<usize>,
+/// Building this is the expensive part of a zone encode (loading the grammar,
+/// dialect config, and cover wordlist, then constructing the Lexicon), so it is
+/// factored out of [`generate_prose_for_zone`] and reused across best-of-N
+/// candidates rather than rebuilt per sample.
+struct ZoneGenerator {
+    lex: Lexicon,
+    mode: GenerationMode,
+    k_min: usize,
+    k_max: usize,
+    length_mode: SentenceLengthMode,
+}
+
+/// Shared first phase of zone generation: load the grammar/dialect config, build
+/// the cover Lexicon (attaching a semantic model when the language ships one), and
+/// derive the sentence-length parameters. Deterministic — it does not touch the
+/// RNG — so single-shot and best-of-N generation share identical setup.
+fn build_zone_generator(
+    zone_len: usize,
     language: &str,
-    _wordlist: &str,
     dialect: &str,
     payload_word_set: &HashSet<String>,
-    seed: u64,
     verbose: bool,
     cover_override: Option<&str>,
     length_mode: Option<SentenceLengthMode>,
     k_min_override: Option<usize>,
     k_max_override: Option<usize>,
-) -> Result<(String, HashSet<String>), PipelineError> {
+) -> Result<ZoneGenerator, PipelineError> {
     // 1. Load grammar and dialect config.
     let dialect_config = crate::grammar::DialectConfig::from_language_dialect(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Dialect config error: {}", e)))?;
@@ -1481,16 +1494,21 @@ fn generate_prose_for_zone(
     }
     lex = lex.with_refined_cover(refined_cover);
 
-    // 3. Grammar-derived sentence parameters.
+    // Optional semantic model: softly biases sentence planning toward coherent
+    // verb-argument pairings. Absent for languages without a semantics.yaml, in
+    // which case planning is unchanged. Never affects payload order or decoding.
+    if let Some(model) = crate::generator::data::load_semantics(language) {
+        lex = lex.with_semantics(std::sync::Arc::new(model));
+    }
 
-    let zone_toks = &payload_toks[word_range];
+    // 3. Grammar-derived sentence parameters.
     let min_k = grammar.min_sentence_length().unwrap_or(5);
     // CS-style grammars (dot_is_punctuation=false) need exact k sizing because the
     // sentence structure is deterministic (HEADER BODY FOOTER with fixed cover slots).
     // Human-language grammars (dot_is_punctuation=true) use a configurable range.
     let is_cs_grammar = !grammar.dot_is_punctuation();
     let (k_min, k_max) = if is_cs_grammar {
-        let k = min_k + zone_toks.len().saturating_sub(1);
+        let k = min_k + zone_len.saturating_sub(1);
         (k, k)
     } else {
         let default_k_min = 5;
@@ -1498,8 +1516,6 @@ fn generate_prose_for_zone(
         (k_min_override.unwrap_or(default_k_min), k_max_override.unwrap_or(default_k_max))
     };
 
-    // 3. Generate text.
-    let mut rng = StdRng::seed_from_u64(seed);
     let mode = if dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
@@ -1510,18 +1526,94 @@ fn generate_prose_for_zone(
         GenerationMode::Body => SentenceLengthMode::Natural,
         GenerationMode::PayloadOnly => SentenceLengthMode::Compact,
     });
+
+    Ok(ZoneGenerator { lex, mode, k_min, k_max, length_mode })
+}
+
+/// Per-zone second stage: embed a slice of payload tokens into grammatical prose.
+///
+/// Loads the dialect config, cover words, builds a Lexicon, determines sentence
+/// parameters from the grammar, and generates text for the given token range.
+fn generate_prose_for_zone(
+    payload_toks: &[PayloadTok],
+    word_range: std::ops::Range<usize>,
+    language: &str,
+    _wordlist: &str,
+    dialect: &str,
+    payload_word_set: &HashSet<String>,
+    seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+) -> Result<(String, HashSet<String>), PipelineError> {
+    let zone_toks = &payload_toks[word_range];
+    let gen = build_zone_generator(
+        zone_toks.len(), language, dialect, payload_word_set, verbose,
+        cover_override, length_mode, k_min_override, k_max_override,
+    )?;
+
+    let mut rng = StdRng::seed_from_u64(seed);
     let (text, payload_set) = generate_text_with_original_payload(
         &mut rng,
-        &lex,
+        &gen.lex,
         zone_toks,
         None,
         verbose,
-        mode,
+        gen.mode,
         language,
         Some(dialect),
-        k_min,
-        k_max,
-        length_mode,
+        gen.k_min,
+        gen.k_max,
+        gen.length_mode,
+        " ",
+    );
+
+    Ok((text, payload_set))
+}
+
+/// Best-of-N variant of [`generate_prose_for_zone`]: build the zone generator
+/// once, then sample `n_candidates` realizations of the *same* payload from
+/// consecutive seeds and keep the densest / most coherent (see
+/// [`generate_text_best_of`]). The expensive grammar/cover/semantics setup is paid
+/// once; each extra candidate is just another core generation over the shared
+/// Lexicon. Selecting among candidates never changes payload words or their order.
+#[allow(clippy::too_many_arguments)]
+fn generate_prose_for_zone_best_of(
+    payload_toks: &[PayloadTok],
+    word_range: std::ops::Range<usize>,
+    language: &str,
+    _wordlist: &str,
+    dialect: &str,
+    payload_word_set: &HashSet<String>,
+    base_seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+    n_candidates: usize,
+) -> Result<(String, HashSet<String>), PipelineError> {
+    let zone_toks = &payload_toks[word_range];
+    let gen = build_zone_generator(
+        zone_toks.len(), language, dialect, payload_word_set, verbose,
+        cover_override, length_mode, k_min_override, k_max_override,
+    )?;
+
+    let (text, payload_set) = generate_text_best_of(
+        base_seed,
+        n_candidates,
+        &gen.lex,
+        zone_toks,
+        None,
+        verbose,
+        gen.mode,
+        language,
+        Some(dialect),
+        gen.k_min,
+        gen.k_max,
+        gen.length_mode,
         " ",
     );
 
@@ -1752,6 +1844,150 @@ pub fn encode_into_language(
     )?;
 
     Ok((text, payload_set, encoded_words, data_mode))
+}
+
+/// Best-of-N generation: sample `n_candidates` full encodings at consecutive
+/// seeds and return the best under a lexicographic objective — highest payload
+/// density first, and among candidates within `DENSITY_TOL` of that density, the
+/// highest semantic coherence.
+///
+/// This is the "grammar proposes, objective disposes" design: each candidate is
+/// a complete, grammatical, correctly-ordered encoding; we merely select among
+/// them. Because every candidate preserves the payload words in order, selecting
+/// never affects decoding — it only trades cover-word choices. Density is never
+/// sacrificed beyond `DENSITY_TOL`, honoring density-primacy.
+///
+/// Falls back to a single encode when `n_candidates <= 1` or the language has no
+/// semantic model (nothing to rank coherence by).
+#[allow(clippy::too_many_arguments)]
+pub fn encode_into_language_best_of(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    forced_data_mode: Option<DataMode>,
+    base_seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+    n_candidates: usize,
+) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
+    let n = n_candidates.max(1);
+
+    // Best-of ranks candidates by semantic coherence, so with no model (or a
+    // single candidate) there is nothing to select over — this is exactly a plain
+    // single encode.
+    if n == 1 || crate::generator::data::load_semantics(language).is_none() {
+        return encode_into_language(
+            input, language, wordlist, dialect, forced_data_mode, base_seed, verbose,
+            cover_override, length_mode, k_min_override, k_max_override,
+        );
+    }
+
+    // Resolve "default" wordlist to actual name (e.g., "bip39" for English).
+    let wordlist = resolve_wordlist_name(language, wordlist);
+
+    // Prose-in-email composition splits the payload across two zones (subject +
+    // body); it is comparatively rare, so keep the straightforward per-candidate
+    // selection for it rather than threading best-of through both zones.
+    if is_prose_email_dialect(dialect) && language != "cs" {
+        return encode_into_language_best_of_via_pipeline(
+            input, language, wordlist, dialect, forced_data_mode, base_seed, verbose,
+            cover_override, length_mode, k_min_override, k_max_override, n,
+        );
+    }
+
+    // Auto-detect subject prefix (Re: / Fwd:), mirroring encode_into_language so
+    // the two entry points route identically.
+    let (input, dialect) = if dialect == "subject" {
+        let trimmed = input.trim_start();
+        if trimmed.to_lowercase().starts_with("re:") {
+            (&trimmed[3..].trim_start() as &str, "subject_re")
+        } else if trimmed.to_lowercase().starts_with("fwd:") {
+            (&trimmed[4..].trim_start() as &str, "subject_fwd")
+        } else {
+            (input, dialect)
+        }
+    } else {
+        (input, dialect)
+    };
+
+    // Build the payload once, then loop the *core* generator over the shared
+    // Lexicon. Previously every candidate re-ran the whole pipeline (reloading the
+    // grammar, cover words, and semantic model each time); now that setup is paid
+    // once and each extra candidate is just another generation over the same lexicon.
+    let (payload_toks, encoded_words, data_mode, wordlist_set) =
+        prepare_payload(input, language, wordlist, dialect, forced_data_mode)?;
+
+    let (text, payload_set) = generate_prose_for_zone_best_of(
+        &payload_toks,
+        0..payload_toks.len(),
+        language,
+        wordlist,
+        dialect,
+        &wordlist_set,
+        base_seed,
+        verbose,
+        cover_override,
+        length_mode,
+        k_min_override,
+        k_max_override,
+        n,
+    )?;
+
+    Ok((text, payload_set, encoded_words, data_mode))
+}
+
+/// Full-pipeline best-of fallback for dialects whose encode does not reduce to a
+/// single prose zone (currently the two-zone prose-email dialects): run the whole
+/// pipeline per candidate and select with the same density-primary,
+/// coherence-tiebreak objective as [`generate_text_best_of`]. Correct, but does
+/// not get the build-once speedup of the single-zone path.
+#[allow(clippy::too_many_arguments)]
+fn encode_into_language_best_of_via_pipeline(
+    input: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    forced_data_mode: Option<DataMode>,
+    base_seed: u64,
+    verbose: bool,
+    cover_override: Option<&str>,
+    length_mode: Option<SentenceLengthMode>,
+    k_min_override: Option<usize>,
+    k_max_override: Option<usize>,
+    n: usize,
+) -> Result<(String, HashSet<String>, Vec<String>, DataMode), PipelineError> {
+    // At most this much payload density (fraction of total words) may be given up
+    // in exchange for higher coherence. Small: density stays primary.
+    const DENSITY_TOL: f64 = 0.02;
+
+    let model = crate::generator::data::load_semantics(language)
+        .expect("caller ensures a semantic model exists for best-of selection");
+
+    let mut candidates: Vec<(f64, f64, (String, HashSet<String>, Vec<String>, DataMode))> =
+        Vec::with_capacity(n);
+    for k in 0..n {
+        let seed = base_seed.wrapping_add(k as u64);
+        let res = encode_into_language(
+            input, language, wordlist, dialect, forced_data_mode, seed, verbose,
+            cover_override, length_mode, k_min_override, k_max_override,
+        )?;
+        let total = res.0.split_whitespace().count().max(1);
+        let density = res.2.len() as f64 / total as f64;
+        let coherence = model.coherence_score(&res.0);
+        candidates.push((density, coherence, res));
+    }
+
+    let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
+    let best = candidates
+        .into_iter()
+        .filter(|c| c.0 >= max_density - DENSITY_TOL)
+        .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+        .expect("at least one candidate generated");
+    Ok(best.2)
 }
 
 /// Strip RFC 5322 header label names from text to prevent header/payload collisions.
