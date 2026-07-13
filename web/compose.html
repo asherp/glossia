@@ -240,7 +240,6 @@ mark { background:color-mix(in srgb, var(--accent) 16%, transparent); border-bot
 
 /* save / load board actions (in the board-head) */
 .board-actions { display:flex; gap:8px; align-items:center; }
-.board-actions .n { margin-right:4px; }
 .board-actions .btn.sm { padding:7px 11px; }
 
 /* modal: save / load a board via its seed-phrase paragraph */
@@ -355,7 +354,6 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
         <div class="board-head">
           <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span><span class="btn-label">New bulletin</span></a>
           <div class="board-actions">
-            <span class="n" id="c-head-npub">not yet published</span>
             <button type="button" class="btn sm gear-btn" id="c-settings-btn" title="Settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="c-drawer">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               <span class="btn-label">Settings</span>
@@ -1499,7 +1497,6 @@ function restoreBoard(id, readKey = null) {
   if (readKey && readKey.length === 32) { customKey = { readKey, nread: nreadFromKey(readKey) }; customKeyPass = null; }
   else { customKey = null; customKeyPass = null; }
   $('c-relay-results').innerHTML = '';          // old board's publish results no longer apply
-  $('c-head-npub').textContent = shortNpub(boardIdentity().npub);
   updatePassButton(); updateMode(); updateLinks(); writeHash(); schedulePreview();
   loadHistory();                                // a restored board likely has posts — show them
 }
@@ -1567,7 +1564,6 @@ loadFromHash();
   } else if (hashKey) {
     await applyPassphrase(hashKey);   // legacy: a raw passphrase author link
   }
-  $('c-head-npub').textContent = shortNpub(boardIdentity().npub);   // show the board id up front
   syncMeta();
   updatePassButton();
   updateMode();
