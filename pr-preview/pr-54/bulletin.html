@@ -240,6 +240,13 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
 .foot { margin-top:20px; font:400 12px/1.6 'Public Sans',sans-serif; color:var(--dim); text-align:center; padding:0 8px; }
 .foot b { color:var(--accent); font-weight:600; }
 .hidden { display:none !important; }
+
+/* portrait: collapse the masthead's Share button to icon-only (the gear is
+   already icon-only) so the header stays compact on narrow screens */
+@media (orientation: portrait) {
+  .btn-label { display:none; }
+  .share-btn { padding:7px 8px; }
+}
 </style>
 </head>
 <body data-style="letterpress" data-hl="off" data-cover="on">
@@ -255,7 +262,7 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
         <div class="share-wrap">
           <button type="button" class="share-btn" id="r-share" aria-haspopup="menu" aria-expanded="false" disabled>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.5" x2="15.4" y2="6.5"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/></svg>
-            Share
+            <span class="btn-label">Share</span>
           </button>
           <div class="share-menu hidden" id="r-share-menu" role="menu" aria-label="Share this board">
             <button type="button" role="menuitem" data-share="native" class="hidden">Share…</button>

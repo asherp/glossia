@@ -90,6 +90,12 @@ a:hover { text-decoration: underline; }
   #c-preview-slot { margin-top:18px; }
 }
 
+/* portrait: collapse the board-head actions to icon-only to save width */
+@media (orientation: portrait) {
+  .btn-label { display:none; }
+  .board-actions .btn.sm { padding:7px 9px; }
+}
+
 /* card */
 .board { background:var(--card); color:var(--ink); border:1px solid var(--card-bd); border-radius:12px; box-shadow:0 24px 60px -32px rgba(20,18,14,.4); padding:32px 36px 36px; margin-bottom:20px; transition:background .35s ease, border-color .35s ease; }
 .board-head { display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--rule); padding-bottom:14px; margin-bottom:20px; }
@@ -347,14 +353,14 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
       <form id="c-form" autocomplete="on" onsubmit="return false;">
       <div class="board">
         <div class="board-head">
-          <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span> New bulletin</a>
+          <a class="k board-new" id="c-new" href="./compose.html" title="Start a fresh bulletin — a brand-new board"><span class="plus">+</span><span class="btn-label">New bulletin</span></a>
           <div class="board-actions">
             <span class="n" id="c-head-npub">not yet published</span>
             <button type="button" class="btn sm gear-btn" id="c-settings-btn" title="Settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="c-drawer">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-              Settings
+              <span class="btn-label">Settings</span>
             </button>
-            <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂 Load</button>
+            <button type="button" class="btn sm" id="c-load" title="Restore a board from a saved Glossia seed phrase">📂<span class="btn-label"> Load</span></button>
           </div>
         </div>
         <input type="text" id="c-username" autocomplete="username" value="glossia bulletin" class="hidden" tabindex="-1" aria-hidden="true">
