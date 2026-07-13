@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">6.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">7.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">8.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">9.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">10.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">11.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">12.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">13.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">14.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">15.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">16.</strong> Whitepaper</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">6.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">7.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">8.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">9.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">10.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">11.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">12.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">13.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">14.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">15.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">16.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">17.</strong> Whitepaper</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -1041,6 +1041,77 @@ the source is the whole job.</p>
 <li>The original payload sequence is recovered in order</li>
 </ol>
 <p>The Merkle structure provides cryptographic proof that the payload words are authentic and in the correct order, while maintaining the natural appearance of the generated text.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="prose-quality-semantic-planning"><a class="header" href="#prose-quality-semantic-planning">Prose Quality (Semantic Planning)</a></h1>
+<p>By default, Glossia embeds payload words into any grammatically valid slot. That
+is always correct, but it can read oddly — <em>"the clock discovers the mountain"</em> is
+grammatical yet nonsensical. <strong>Semantic planning</strong> biases word choice toward
+<em>coherent</em> pairings (an animate subject for a thinking verb, a place for a motion
+verb, and so on), so English output reads more naturally.</p>
+<h2 id="the-guarantee-it-never-changes-what-you-decode"><a class="header" href="#the-guarantee-it-never-changes-what-you-decode">The guarantee: it never changes what you decode</a></h2>
+<p>Semantic planning only affects <strong>which cover words appear and how sentences are
+shaped</strong>. It never changes which payload words are emitted or their order. So an
+encoding decodes to exactly the same data whether or not this layer is active —
+decoding is just filtering the text against the payload wordlist, and the payload
+is untouched. You can always recover your data.</p>
+<p>It's on by default for English. Languages without a semantic dataset are
+unaffected and behave exactly as before.</p>
+<h2 id="prose-quality-best-of-n"><a class="header" href="#prose-quality-best-of-n">Prose quality (best-of-N)</a></h2>
+<p>The strongest quality lever is <strong>best-of-N</strong>: Glossia generates several
+realizations of the <em>same</em> payload and keeps the best-reading one. Selection is
+<strong>density-first</strong> — it never sacrifices how compactly your data is packed — and
+breaks ties on coherence. Because every candidate encodes the identical payload
+in order, choosing among them is free: the result always decodes the same.</p>
+<h3 id="in-the-web-composer"><a class="header" href="#in-the-web-composer">In the web composer</a></h3>
+<p>The compose page has a <strong>Prose quality</strong> stepper (under the advanced options,
+next to the variant controls). Higher = more candidates sampled = better-reading
+prose, for the same message. <code>1</code> is the fastest (a single realization).</p>
+<p>It composes with the <strong>Cover variant</strong> stepper cleanly:</p>
+<ul>
+<li><strong>Cover variant</strong> picks <em>which</em> family of wordings you're looking at.</li>
+<li><strong>Prose quality</strong> decides <em>how hard</em> to search that family for the best one.</li>
+</ul>
+<p>Each cover variant is anchored to its own well-separated block of candidate
+seeds, so stepping the variant always gives a genuinely different wording, and
+changing the quality never makes the variant jump somewhere unrelated — at any
+sample size.</p>
+<h3 id="on-the-command-line"><a class="header" href="#on-the-command-line">On the command line</a></h3>
+<pre><code># Sample 8 candidates, keep the densest / most coherent
+glossia --dialect english-body --best-of 8  &lt;your words...&gt;
+</code></pre>
+<p><code>--best-of 1</code> (the default) is the classic single-pass behavior.</p>
+<h3 id="from-the-library--wasm"><a class="header" href="#from-the-library--wasm">From the library / WASM</a></h3>
+<ul>
+<li>Rust: <code>encode_into_language_best_of(...)</code>, or <code>generate_text_best_of(...)</code>.</li>
+<li>WASM: <code>encode_best_of(...)</code> and <code>encode_raw_base_n_best_of(...)</code>.</li>
+</ul>
+<p>All take an <code>N</code> (candidate count); <code>N = 1</code> falls back to a single encoding.</p>
+<h2 id="what-coherent-means-here"><a class="header" href="#what-coherent-means-here">What "coherent" means here</a></h2>
+<p>Each noun in the wordlist carries a coarse class — <code>animate</code> (people, animals),
+<code>agentive</code> (machines that can act, like an engine or sensor), <code>thing</code>, <code>place</code>,
+or <code>abstract</code>. Each verb declares what it expects of its subject and object. When
+Glossia fills a slot next to a payload verb, it prefers a cover word whose class
+fits — so you get <em>"the author discovers the theory"</em> rather than <em>"the clock
+discovers the mountain."</em></p>
+<p>This is a <strong>soft</strong> preference, never a hard rule: a forced payload word is always
+placed, even if no perfectly coherent frame exists. Coherence improves the
+prose; it never blocks your data.</p>
+<h2 id="turning-it-off"><a class="header" href="#turning-it-off">Turning it off</a></h2>
+<p>Set the environment variable <code>GLOSSIA_DISABLE_SEMANTICS=1</code> to force the classic
+part-of-speech-only planning (no semantic biasing, no coherence scoring). Useful
+for reproducing pre-semantic output or benchmarking.</p>
+<h2 id="performance"><a class="header" href="#performance">Performance</a></h2>
+<p>Best-of-N is cheap. Generating a sentence is fast once Glossia has built its
+grammar tables — and that build happens <strong>once</strong> per process and is reused, so
+extra candidates cost only a fraction of a second each. In the web app the tables
+are built once when the page loads, so stepping the Prose quality control stays
+responsive.</p>
+<h2 id="scope-and-accuracy"><a class="header" href="#scope-and-accuracy">Scope and accuracy</a></h2>
+<p>Semantic planning currently ships for <strong>English</strong> only. The word classifications
+are generated with WordNet assistance and hand-tuned overrides; they're good but
+not perfect, and because the layer is soft, an occasional mis-classification only
+slightly nudges word choice — it never affects correctness or decoding. See
+<code>experiments/semantic_planner/</code> in the repository for the dataset and the tools
+that regenerate it.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="grammar"><a class="header" href="#grammar">Grammar</a></h1>
 <p>Glossia uses a two-layer grammar system: a <strong>context-free grammar (CFG)</strong> layer that generates POS tag sequences, and a <strong>type-driven layer</strong> based on Montague Grammar that constrains POS slots via lambda calculus.</p>
 <h2 id="grammar-files-1"><a class="header" href="#grammar-files-1">Grammar Files</a></h2>
