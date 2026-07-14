@@ -282,6 +282,30 @@ body[data-style="midnight"] .drawer { box-shadow:-24px 0 60px -28px rgba(0,0,0,.
 
 /* live preview */
 .pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
+
+/* tap zones on the preview — the body paragraph and the trailer each become a
+   left/right pair of click targets that step a deterministic variant (cover
+   wording on the paragraph, payload nonce on the trailer). Purely a shortcut for
+   the steppers in Settings; text selection still works (a click inside an active
+   selection is ignored — see wireTapZone). The chevrons stay tucked in the card's
+   padding gutter — never past the border. */
+.pv-tap { position:relative; }
+.pv-tap.is-tappable { cursor:pointer; }
+.pv-tap .tz {
+  position:absolute; top:0; bottom:0; width:12px; display:flex; align-items:center;
+  pointer-events:none; opacity:0; color:currentColor;
+  font:400 16px/1 'IBM Plex Mono',monospace; user-select:none;
+  transition:opacity .18s ease;
+}
+.pv-tap .tz.l { left:-15px; justify-content:flex-start; }
+.pv-tap .tz.r { right:-15px; justify-content:flex-end; }
+/* the right chevron (step forward) sits faded whenever a zone is live; the left
+   chevron (step back) appears only once the variant is past 0 — i.e. there's a
+   lower variant to return to. The side under the pointer brightens to full. */
+.pv-tap.is-tappable .tz.r { opacity:.24; }
+.pv-tap.is-tappable.has-prev .tz.l { opacity:.24; }
+.pv-tap.is-tappable[data-side="r"] .tz.r { opacity:.9; }
+.pv-tap.is-tappable.has-prev[data-side="l"] .tz.l { opacity:.9; }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
 .share-btn { margin-top:2px; padding:10px 16px; font-size:12.5px; display:inline-flex; align-items:center; gap:8px; }
@@ -551,8 +575,19 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
       <div id="c-live-preview">
         <div class="preview" id="c-preview-card" data-style="letterpress">
           <div class="pv-subject hidden" id="c-pv-subject"></div>
-          <p class="pv-prose" id="c-pv-prose">Your prose will appear here as you type…</p>
-          <div class="pv-attr" id="c-pv-attr"></div>
+          <!-- tap zones: left/right halves of the paragraph step the cover variant
+               (wording only); the trailer's halves step the payload variant, which
+               redraws the salt → nonce. Both are shortcuts for the Settings steppers. -->
+          <div class="pv-tap" id="c-tap-prose">
+            <p class="pv-prose" id="c-pv-prose">Your prose will appear here as you type…</p>
+            <span class="tz l" aria-hidden="true">‹</span>
+            <span class="tz r" aria-hidden="true">›</span>
+          </div>
+          <div class="pv-tap" id="c-tap-attr">
+            <div class="pv-attr" id="c-pv-attr"></div>
+            <span class="tz l" aria-hidden="true">‹</span>
+            <span class="tz r" aria-hidden="true">›</span>
+          </div>
           <div class="pv-decoded">
             <div class="pv-dec-label">decoded</div>
             <div class="pv-dec-text" id="c-pv-msg">Free Samourai</div>
@@ -1088,7 +1123,7 @@ async function regenPreview() {
   syncMeta();
   updateMode();
   const msg = $('c-msg').value;
-  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; $('c-pv-msg').textContent = 'Your decrypted message appears here.'; lastBody = ''; updateLen(null); return; }
+  if (!msg.trim()) { $('c-pv-prose').textContent = 'Your prose will appear here as you type…'; $('c-pv-attr').textContent = ''; $('c-pv-msg').textContent = 'Your decrypted message appears here.'; lastBody = ''; updateLen(null); syncTapZones(); return; }
   if (!ready) { $('c-pv-prose').textContent = 'Loading the Glossia engine…'; return; }
   try {
     const cred = contentKey();                                // board key by default; custom read key when set
@@ -1100,6 +1135,7 @@ async function regenPreview() {
     $('c-pv-attr').textContent = attr ? '— ' + attr : '';
     lastBody = enc.body;
     updateLen(enc.body);
+    syncTapZones();
     // Live round-trip: decode the artifact we just built and show the recovered
     // message — a real reversal check, not an echo of the input.
     try {
@@ -1116,6 +1152,7 @@ async function regenPreview() {
     $('c-pv-attr').textContent = '';
     lastBody = '';
     updateLen(null);
+    syncTapZones();
   }
 }
 // A shared post carries the bulletin's body and adds the board link; X counts a
@@ -1186,6 +1223,45 @@ function setBestOf(n) {
 $('c-best').addEventListener('input', () => setBestOf($('c-best').value));
 $('c-best-dec').addEventListener('click', () => setBestOf(bestOf - 1));
 $('c-best-inc').addEventListener('click', () => setBestOf(bestOf + 1));
+
+// ── tap zones on the preview ──────────────────────────────────────────
+// The rendered artifact is "<body> — <trailer>". Tapping the left/right half of
+// the body paragraph steps the COVER variant (re-wraps the same payload words in
+// different cover text); tapping the trailer steps the PAYLOAD variant, which
+// redraws the salt → the nonce, so the payload words (and the Latin trailer that
+// carries the salt) change. Both just call the same setters the Settings steppers
+// use, so decoding is unaffected and preview/publish stay in step. The forward (›)
+// chevron sits faded on every live zone; the back (‹) one only shows once its
+// variant is past 0 (see syncTapZones).
+function tapSide(el, e) {
+  const r = el.getBoundingClientRect();
+  return (e.clientX - r.left) < r.width / 2 ? 'l' : 'r';
+}
+function wireTapZone(el, step) {
+  el.addEventListener('mousemove', (e) => { if (el.classList.contains('is-tappable')) el.dataset.side = tapSide(el, e); });
+  el.addEventListener('mouseleave', () => { delete el.dataset.side; });
+  el.addEventListener('click', (e) => {
+    if (!el.classList.contains('is-tappable')) return;
+    // a click that finishes a text selection inside the zone shouldn't also step
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.anchorNode && el.contains(sel.anchorNode)) return;
+    step(tapSide(el, e) === 'l' ? -1 : 1);
+  });
+}
+wireTapZone($('c-tap-prose'), (d) => setCoverVariant(coverVariant + d));
+wireTapZone($('c-tap-attr'),  (d) => setPayloadVariant(payloadVariant + d));
+// Enable a zone only when it can actually do something: the paragraph needs cover
+// words on (its variant is a no-op otherwise, mirroring the disabled stepper); the
+// trailer needs an encrypted artifact (so a Latin trailer is present to redraw).
+// has-prev gates the back chevron — shown only when the variant can step down.
+function syncTapZones() {
+  const hasBody = !!(lastBody && lastBody.trim());
+  const hasTrailer = !!$('c-pv-attr').textContent.trim();
+  $('c-tap-prose').classList.toggle('is-tappable', hasBody && $('c-cover').checked);
+  $('c-tap-attr').classList.toggle('is-tappable', hasBody && hasTrailer);
+  $('c-tap-prose').classList.toggle('has-prev', coverVariant > 0);
+  $('c-tap-attr').classList.toggle('has-prev', payloadVariant > 0);
+}
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
