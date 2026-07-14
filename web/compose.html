@@ -281,30 +281,31 @@ body[data-style="midnight"] .drawer { box-shadow:-24px 0 60px -28px rgba(0,0,0,.
 .drawer-body label:first-of-type { margin-top:8px; }
 
 /* live preview */
-.pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); min-height:1.55em; transition:color .18s ease; }
+.pv-caption { margin-top:14px; font:400 12px/1.55 'Public Sans',sans-serif; color:var(--dim); }
 
 /* tap zones on the preview — the body paragraph and the trailer each become a
    left/right pair of click targets that step a deterministic variant (cover
-   wording on the paragraph, payload nonce on the trailer). Purely a discoverable
-   shortcut for the steppers in Settings; the chevrons sit in the card's padding
-   gutter so they never overlap the prose, and text selection still works (a click
-   that lands inside an active selection is ignored — see wireTapZone). */
+   wording on the paragraph, payload nonce on the trailer). Purely a shortcut for
+   the steppers in Settings; text selection still works (a click inside an active
+   selection is ignored — see wireTapZone). The chevrons stay tucked in the card's
+   padding gutter — never past the border — and are hidden until the first tap
+   (tz-on), then mark each live region as steppable. */
 .pv-tap { position:relative; }
 .pv-tap.is-tappable { cursor:pointer; }
 .pv-tap .tz {
-  position:absolute; top:0; bottom:0; width:1.4em; display:flex; align-items:center;
+  position:absolute; top:0; bottom:0; width:12px; display:flex; align-items:center;
   pointer-events:none; opacity:0; color:currentColor;
-  font:400 22px/1 'IBM Plex Mono',monospace; user-select:none;
+  font:400 16px/1 'IBM Plex Mono',monospace; user-select:none;
   transition:opacity .18s ease;
 }
-.pv-tap .tz.l { left:-1.55em; justify-content:flex-start; }
-.pv-tap .tz.r { right:-1.55em; justify-content:flex-end; }
-/* a faint always-on hint that the region is tappable (visible on touch too),
-   brighter on hover, and brightest on the side the pointer is over */
-.pv-tap.is-tappable .tz { opacity:.14; }
-.pv-tap.is-tappable:hover .tz { opacity:.3; }
-.pv-tap.is-tappable[data-side="l"] .tz.l,
-.pv-tap.is-tappable[data-side="r"] .tz.r { opacity:.85; }
+.pv-tap .tz.l { left:-15px; justify-content:flex-start; }
+.pv-tap .tz.r { right:-15px; justify-content:flex-end; }
+/* revealed only after the first tap (tz-on), and only where the zone is live;
+   brighter on hover, brightest on the side the pointer is over */
+.pv-tap.is-tappable.tz-on .tz { opacity:.24; }
+.pv-tap.is-tappable.tz-on:hover .tz { opacity:.42; }
+.pv-tap.is-tappable.tz-on[data-side="l"] .tz.l,
+.pv-tap.is-tappable.tz-on[data-side="r"] .tz.r { opacity:.9; }
 .share { margin-bottom:8px; }
 .share label:first-of-type { margin-top:0; }
 .share-btn { margin-top:2px; padding:10px 16px; font-size:12.5px; display:inline-flex; align-items:center; gap:8px; }
@@ -592,7 +593,6 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <div class="pv-dec-text" id="c-pv-msg">Free Samourai</div>
           </div>
         </div>
-        <div class="pv-caption" id="c-pv-caption">Tap the paragraph ‹ › to reshuffle the wording · tap the trailer for a fresh nonce.</div>
       </div>
     </aside>
   </div>
@@ -1230,53 +1230,36 @@ $('c-best-inc').addEventListener('click', () => setBestOf(bestOf + 1));
 // different cover text); tapping the trailer steps the PAYLOAD variant, which
 // redraws the salt → the nonce, so the payload words (and the Latin trailer that
 // carries the salt) change. Both just call the same setters the Settings steppers
-// use, so decoding is unaffected and preview/publish stay in step.
-function setCaption(txt) { $('c-pv-caption').textContent = txt; }
-// The resting caption describes whichever zones are live right now (the paragraph
-// drops out when cover words are off; both drop out before any prose exists).
-function capDefault() {
-  const p = $('c-tap-prose').classList.contains('is-tappable');
-  const t = $('c-tap-attr').classList.contains('is-tappable');
-  if (p && t) return 'Tap the paragraph ‹ › to reshuffle the wording · tap the trailer for a fresh nonce.';
-  if (t) return 'Tap the trailer ‹ › for a fresh nonce — new payload words.';
-  if (p) return 'Tap the paragraph ‹ › to reshuffle the cover wording.';
-  return '';
-}
+// use, so decoding is unaffected and preview/publish stay in step. The chevrons
+// stay hidden until the first tap, then mark the live regions as steppable.
 function tapSide(el, e) {
   const r = el.getBoundingClientRect();
   return (e.clientX - r.left) < r.width / 2 ? 'l' : 'r';
 }
-function wireTapZone(el, { label, get, step }) {
-  el.addEventListener('mousemove', (e) => {
-    if (!el.classList.contains('is-tappable')) return;
-    el.dataset.side = tapSide(el, e);
-    setCaption(`${label} — variant ${get()} · tap ‹ back  ·  forward ›`);
-  });
-  el.addEventListener('mouseleave', () => { delete el.dataset.side; setCaption(capDefault()); });
+function revealTapZones() { $('c-tap-prose').classList.add('tz-on'); $('c-tap-attr').classList.add('tz-on'); }
+function wireTapZone(el, step) {
+  el.addEventListener('mousemove', (e) => { if (el.classList.contains('is-tappable')) el.dataset.side = tapSide(el, e); });
+  el.addEventListener('mouseleave', () => { delete el.dataset.side; });
   el.addEventListener('click', (e) => {
     if (!el.classList.contains('is-tappable')) return;
     // a click that finishes a text selection inside the zone shouldn't also step
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed && sel.anchorNode && el.contains(sel.anchorNode)) return;
+    revealTapZones();                                  // first tap unveils the chevrons
     step(tapSide(el, e) === 'l' ? -1 : 1);
   });
 }
-wireTapZone($('c-tap-prose'), { label: 'Cover wording', get: () => coverVariant, step: (d) => setCoverVariant(coverVariant + d) });
-wireTapZone($('c-tap-attr'),  { label: 'Nonce (trailer)', get: () => payloadVariant, step: (d) => setPayloadVariant(payloadVariant + d) });
+wireTapZone($('c-tap-prose'), (d) => setCoverVariant(coverVariant + d));
+wireTapZone($('c-tap-attr'),  (d) => setPayloadVariant(payloadVariant + d));
 // Enable a zone only when it can actually do something: the paragraph needs cover
 // words on (its variant is a no-op otherwise, mirroring the disabled stepper); the
 // trailer needs an encrypted artifact (so a Latin trailer is present to redraw).
 function syncTapZones() {
   const hasBody = !!(lastBody && lastBody.trim());
-  const coverOn = $('c-cover').checked;
   const hasTrailer = !!$('c-pv-attr').textContent.trim();
-  $('c-tap-prose').classList.toggle('is-tappable', hasBody && coverOn);
+  $('c-tap-prose').classList.toggle('is-tappable', hasBody && $('c-cover').checked);
   $('c-tap-attr').classList.toggle('is-tappable', hasBody && hasTrailer);
-  if (!el0Hovered()) setCaption(capDefault());   // refresh the resting hint (unless mid-hover)
 }
-// true while the pointer is resting on a zone (a side is latched), so a re-render
-// doesn't stomp the live hover caption
-function el0Hovered() { return $('c-tap-prose').dataset.side || $('c-tap-attr').dataset.side; }
 
 // ── board passphrase (set / update via a dialog) ──────────────────────
 // The passphrase field lives in a dialog opened by the "Set / Update passphrase"
