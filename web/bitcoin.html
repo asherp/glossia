@@ -172,11 +172,29 @@ h2 { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-trans
         <button type="button" class="copy-btn" id="tx-copy">Copy prose</button>
       </div>
     </div>
+
+    <div class="card">
+      <h2>Decoded independently from the prose</h2>
+      <p class="muted" style="margin:0 0 4px; font-size:13px;">The prose above, filtered back to bytes and parsed as a raw transaction — no explorer API involved below this line. Input amounts and fee are absent on purpose: a transaction only references its inputs by <span class="mono">txid:vout</span>, not their value, so recovering those still requires chain context.</p>
+      <dl class="rows" id="tx-decoded-summary"></dl>
+      <div class="io-cols" style="margin-top:18px;">
+        <div>
+          <div class="muted" style="font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;">In (prevout refs)</div>
+          <ul class="io-list" id="tx-decoded-vin"></ul>
+        </div>
+        <div>
+          <div class="muted" style="font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;">Out</div>
+          <ul class="io-list" id="tx-decoded-vout"></ul>
+        </div>
+      </div>
+      <div id="tx-decoded-error" class="status-line err hidden" style="margin-top:14px;"></div>
+    </div>
   </div>
 </div>
 
 <script type="module">
-import { init, encodeSeedPhrase } from './glossia-msg.js';
+import { init, encodeSeedPhrase, decodeSeedPhrase } from './glossia-msg.js';
+import { parseTransaction, withAddresses } from './btc-tx.js';
 
 const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
@@ -238,6 +256,49 @@ function renderProse(hex) {
   $('tx-prose').textContent = prose;
   const bytes = hex.length / 2;
   $('tx-prose-stats').textContent = `${bytes.toLocaleString()} bytes → ${payloadWords.length.toLocaleString()} payload words`;
+  return prose;
+}
+
+async function renderDecoded(prose, expectedHex, esploraTx) {
+  const errEl = $('tx-decoded-error');
+  errEl.classList.add('hidden');
+  try {
+    const { hex: recoveredHex } = decodeSeedPhrase(prose, expectedHex.length / 2, 'english');
+    if (recoveredHex !== expectedHex) throw new Error('decoded bytes did not match the original transaction — round-trip mismatch.');
+
+    const parsed = await withAddresses(parseTransaction(recoveredHex));
+    const sizeMatch = parsed.size === esploraTx.size && parsed.vsize === esploraTx.vsize && parsed.weight === esploraTx.weight;
+
+    const dl = $('tx-decoded-summary');
+    dl.innerHTML = '';
+    const pairs = [
+      ['Version', String(parsed.version)],
+      ['Locktime', String(parsed.locktime)],
+      ['Segwit', parsed.segwit ? 'yes' : 'no'],
+      ['Size / vsize / weight', `${parsed.size} B / ${parsed.vsize} vB / ${parsed.weight} WU ` +
+        (sizeMatch ? '<span class="pill confirmed">matches explorer</span>' : '<span class="pill pending">mismatch</span>')],
+    ];
+    for (const [dt, dd] of pairs) dl.append(...row(dt, dd));
+
+    const vinEl = $('tx-decoded-vin'), voutEl = $('tx-decoded-vout');
+    vinEl.innerHTML = ''; voutEl.innerHTML = '';
+    for (const vin of parsed.vin) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="io-addr">${vin.txid}:${vin.vout}</span><span class="io-val">${vin.witness.length ? 'witness' : 'legacy'}</span>`;
+      vinEl.append(li);
+    }
+    for (const vout of parsed.vout) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="io-addr">${vout.address || vout.type}</span><span class="io-val">${sats(vout.value)}</span>`;
+      voutEl.append(li);
+    }
+  } catch (e) {
+    $('tx-decoded-summary').innerHTML = '';
+    $('tx-decoded-vin').innerHTML = '';
+    $('tx-decoded-vout').innerHTML = '';
+    errEl.textContent = e.message || 'Decode failed.';
+    errEl.classList.remove('hidden');
+  }
 }
 
 async function lookup(txid) {
@@ -262,7 +323,8 @@ async function lookup(txid) {
     renderSummary(tx);
     renderIO(tx);
     if (!ready) await init().catch(() => {});
-    renderProse(hex);
+    const prose = renderProse(hex);
+    await renderDecoded(prose, hex, tx);
 
     $('tx-result').classList.remove('hidden');
     setStatus('');
