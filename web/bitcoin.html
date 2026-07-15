@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossia Bitcoin — a block explorer in prose</title>
+<meta name="description" content="Look up a Bitcoin transaction and encode its data into grammatically correct Glossia prose — readable, speakable, transcribable.">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+<!-- PWA: installable, offline-capable app shell -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#08080a">
+<link rel="apple-touch-icon" href="./icons/glossia-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glossia">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
+    });
+  }
+</script>
+
+<!-- Social / rich unfurl -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Glossia">
+<meta property="og:title" content="Glossia Bitcoin — a block explorer in prose">
+<meta property="og:description" content="Look up a Bitcoin transaction and encode its data into grammatically correct Glossia prose.">
+<meta property="og:url" content="https://glossia.io/bitcoin.html">
+<meta property="og:image" content="https://glossia.io/og-glossia.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Glossia — machine data, made human. A lossless linguistic codec.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glossia Bitcoin — a block explorer in prose">
+<meta name="twitter:description" content="Look up a Bitcoin transaction and encode its data into grammatically correct Glossia prose.">
+<meta name="twitter:image" content="https://glossia.io/og-glossia.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page:#08080a; --card:#0d0d10; --card-bd:#232228; --ink:#e8e4da; --ink-soft:#cfcabf;
+  --accent:#c9a25f; --accent-2:#dcb877; --btn-ink:#17140c;
+  --dim:#8a8794; --meta:#5c5a63; --rule:#1c1b21; --hair:#2a2930;
+  --input-bg:#151519; --input-bd:#2a2930; --error:#e07b6a; --ok:#7fb98a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh; background: var(--page); color: var(--ink);
+  font-family: 'Public Sans', system-ui, sans-serif; line-height: 1.55;
+}
+.wrap { max-width: 760px; margin: 0 auto; padding: 48px 22px 80px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.muted { color: var(--dim); }
+.hidden { display: none !important; }
+
+/* masthead */
+.masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+.masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
+.masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+
+.card {
+  background: var(--card); border: 1px solid var(--card-bd); border-radius: 6px;
+  padding: 28px 28px 30px; box-shadow: 0 24px 60px -30px rgba(0,0,0,.7);
+}
+.card + .card { margin-top: 20px; }
+
+label { display:block; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); margin-bottom:8px; }
+.lookup-row { display:flex; gap:10px; }
+#tx-input {
+  flex: 1; background: var(--input-bg); border: 1px solid var(--input-bd); border-radius: 4px;
+  color: var(--ink); font: 400 14px/1.4 'IBM Plex Mono',monospace; padding: 11px 12px;
+}
+#tx-input:focus { outline: none; border-color: var(--accent); }
+button {
+  background: var(--accent); color: var(--btn-ink); border: none; border-radius: 4px;
+  font: 600 12.5px/1 'IBM Plex Mono',monospace; letter-spacing: .04em; text-transform: uppercase;
+  padding: 0 20px; cursor: pointer; transition: background .15s ease;
+}
+button:hover:not(:disabled) { background: var(--accent-2); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.hint { margin-top: 10px; font-size: 12.5px; color: var(--meta); }
+.hint a { color: var(--meta); text-decoration: underline; }
+
+.status-line { margin-top: 16px; font: 500 13px/1.4 'IBM Plex Mono',monospace; }
+.status-line.err { color: var(--error); }
+.status-line.ok { color: var(--ok); }
+
+/* result table */
+.rows { display: grid; grid-template-columns: max-content 1fr; gap: 8px 18px; margin-top: 4px; }
+.rows dt { font: 500 11px/1.5 'IBM Plex Mono',monospace; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+.rows dd { margin: 0; font: 400 13.5px/1.5 'IBM Plex Mono',monospace; color: var(--ink-soft); word-break: break-all; }
+.pill { display:inline-block; font:600 10.5px/1 'IBM Plex Mono',monospace; letter-spacing:.05em; text-transform:uppercase; padding:4px 8px; border-radius:3px; }
+.pill.confirmed { background: rgba(127,185,138,.15); color: var(--ok); }
+.pill.pending { background: rgba(224,123,106,.15); color: var(--error); }
+
+h2 { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color: var(--dim); margin: 0 0 14px; }
+.io-list { list-style: none; margin: 0; padding: 0; }
+.io-list li { display:flex; justify-content:space-between; gap:12px; padding: 7px 0; border-bottom: 1px solid var(--hair); font: 400 13px/1.4 'IBM Plex Mono',monospace; }
+.io-list li:last-child { border-bottom: none; }
+.io-addr { color: var(--ink-soft); word-break: break-all; }
+.io-val { color: var(--dim); white-space: nowrap; margin-left: 12px; }
+.io-cols { display:flex; gap:24px; flex-wrap:wrap; margin-top: 4px; }
+.io-cols > div { flex: 1 1 280px; min-width: 240px; }
+
+.prose-box {
+  font-family: 'Newsreader', serif; font-size: 18px; line-height: 1.65; color: var(--ink-soft);
+  background: var(--input-bg); border: 1px solid var(--input-bd); border-radius: 4px;
+  padding: 20px 22px; margin-top: 6px; white-space: pre-wrap;
+}
+.prose-meta { display:flex; justify-content:space-between; align-items:center; margin-top: 12px; gap: 12px; flex-wrap: wrap; }
+.copy-btn { background: transparent; border: 1.5px solid var(--rule); color: var(--dim); padding: 7px 12px; }
+.copy-btn:hover:not(:disabled) { color: var(--ink); border-color: var(--accent); }
+
+.spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--rule); border-top-color: var(--accent); border-radius:50%; animation: spin .7s linear infinite; vertical-align: -1px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="title">Glossia · Bitcoin</span>
+    <span class="sub">look up a transaction, encode it into prose</span>
+    <span class="home"><a href="./index.html">demo</a></span>
+  </div>
+
+  <div class="card">
+    <label for="tx-input">Transaction ID</label>
+    <div class="lookup-row">
+      <input type="text" id="tx-input" class="mono" placeholder="e.g. 4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33" autocomplete="off" spellcheck="false">
+      <button type="button" id="tx-btn">Look up</button>
+    </div>
+    <p class="hint">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet). Nothing is sent anywhere else — the lookup and encoding both happen in your browser.</p>
+    <div id="tx-status" class="status-line hidden"></div>
+  </div>
+
+  <div id="tx-result" class="hidden">
+    <div class="card">
+      <h2>Transaction</h2>
+      <dl class="rows" id="tx-summary"></dl>
+    </div>
+
+    <div class="card">
+      <h2>Inputs &amp; outputs</h2>
+      <div class="io-cols">
+        <div>
+          <div class="muted" style="font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;">In</div>
+          <ul class="io-list" id="tx-vin"></ul>
+        </div>
+        <div>
+          <div class="muted" style="font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;">Out</div>
+          <ul class="io-list" id="tx-vout"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Encoded as Glossia prose</h2>
+      <p class="muted" style="margin:0 0 4px; font-size:13px;">The raw signed transaction — every byte, verbatim — rendered as natural-language English. Filtering this prose against the wordlist recovers the exact hex.</p>
+      <div class="prose-box" id="tx-prose"></div>
+      <div class="prose-meta">
+        <span class="muted mono" id="tx-prose-stats" style="font-size:12px;"></span>
+        <button type="button" class="copy-btn" id="tx-copy">Copy prose</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { init, encodeSeedPhrase } from './glossia-msg.js';
+
+const $ = (id) => document.getElementById(id);
+const ESPLORA = 'https://blockstream.info/api';
+
+let ready = false;
+init().then(() => { ready = true; }).catch((e) => console.error('WASM init failed:', e));
+
+function setStatus(msg, kind) {
+  const el = $('tx-status');
+  el.className = 'status-line' + (kind ? ' ' + kind : '');
+  el.innerHTML = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+function sats(n) { return (n / 1e8).toFixed(8).replace(/0+$/, '').replace(/\.$/, '.0') + ' BTC'; }
+
+function row(dt, dd) {
+  const dtEl = document.createElement('dt'); dtEl.textContent = dt;
+  const ddEl = document.createElement('dd'); ddEl.innerHTML = dd;
+  return [dtEl, ddEl];
+}
+
+function renderSummary(tx) {
+  const dl = $('tx-summary');
+  dl.innerHTML = '';
+  const totalOut = tx.vout.reduce((s, o) => s + o.value, 0);
+  const pairs = [
+    ['TXID', `<span class="mono">${tx.txid}</span>`],
+    ['Status', tx.status.confirmed
+      ? `<span class="pill confirmed">confirmed</span> block ${tx.status.block_height} · ${new Date(tx.status.block_time * 1000).toISOString().replace('T', ' ').slice(0, 19)} UTC`
+      : `<span class="pill pending">unconfirmed</span>`],
+    ['Size / vsize / weight', `${tx.size} B / ${tx.vsize} vB / ${tx.weight} WU`],
+    ['Fee', `${tx.fee.toLocaleString()} sat (${sats(tx.fee)})`],
+    ['Inputs / outputs', `${tx.vin.length} / ${tx.vout.length}`],
+    ['Total output value', `${totalOut.toLocaleString()} sat (${sats(totalOut)})`],
+  ];
+  for (const [dt, dd] of pairs) dl.append(...row(dt, dd));
+}
+
+function renderIO(tx) {
+  const vinEl = $('tx-vin'), voutEl = $('tx-vout');
+  vinEl.innerHTML = ''; voutEl.innerHTML = '';
+  for (const vin of tx.vin) {
+    const li = document.createElement('li');
+    const addr = vin.is_coinbase ? '(coinbase)' : (vin.prevout?.scriptpubkey_address || vin.prevout?.scriptpubkey_type || 'unknown');
+    li.innerHTML = `<span class="io-addr">${addr}</span><span class="io-val">${vin.prevout ? sats(vin.prevout.value) : ''}</span>`;
+    vinEl.append(li);
+  }
+  for (const vout of tx.vout) {
+    const li = document.createElement('li');
+    const addr = vout.scriptpubkey_address || vout.scriptpubkey_type || 'unknown';
+    li.innerHTML = `<span class="io-addr">${addr}</span><span class="io-val">${sats(vout.value)}</span>`;
+    voutEl.append(li);
+  }
+}
+
+function renderProse(hex) {
+  const { prose, payloadWords } = encodeSeedPhrase(hex, 'english');
+  $('tx-prose').textContent = prose;
+  const bytes = hex.length / 2;
+  $('tx-prose-stats').textContent = `${bytes.toLocaleString()} bytes → ${payloadWords.length.toLocaleString()} payload words`;
+}
+
+async function lookup(txid) {
+  txid = txid.trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(txid)) {
+    setStatus('Enter a valid 64-character hex transaction ID.', 'err');
+    return;
+  }
+  $('tx-result').classList.add('hidden');
+  setStatus('<span class="spinner"></span>fetching transaction…');
+  $('tx-btn').disabled = true;
+  try {
+    const [txRes, hexRes] = await Promise.all([
+      fetch(`${ESPLORA}/tx/${txid}`),
+      fetch(`${ESPLORA}/tx/${txid}/hex`),
+    ]);
+    if (!txRes.ok) throw new Error(txRes.status === 404 ? 'Transaction not found.' : `Esplora returned ${txRes.status}.`);
+    if (!hexRes.ok) throw new Error(`Esplora returned ${hexRes.status} fetching raw hex.`);
+    const tx = await txRes.json();
+    const hex = (await hexRes.text()).trim();
+
+    renderSummary(tx);
+    renderIO(tx);
+    if (!ready) await init().catch(() => {});
+    renderProse(hex);
+
+    $('tx-result').classList.remove('hidden');
+    setStatus('');
+  } catch (e) {
+    setStatus(e.message || 'Lookup failed.', 'err');
+  } finally {
+    $('tx-btn').disabled = false;
+  }
+}
+
+$('tx-btn').addEventListener('click', () => lookup($('tx-input').value));
+$('tx-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') lookup($('tx-input').value); });
+$('tx-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('tx-prose').textContent);
+    const btn = $('tx-copy'); const old = btn.textContent;
+    btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = old; }, 1400);
+  } catch (e) { /* clipboard unavailable */ }
+});
+
+// Prefill from ?txid= for shareable links.
+const params = new URLSearchParams(location.search);
+const prefill = params.get('txid');
+if (prefill) { $('tx-input').value = prefill; lookup(prefill); }
+</script>
+</body>
+</html>
