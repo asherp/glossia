@@ -262,7 +262,10 @@ async function readChapter(input, page) {
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
   $('ch-height').textContent = block.height.toLocaleString();
-  $('ch-hash-short').textContent = hash.slice(0, 12) + '…';
+  // Every real block hash starts with a long run of zeros (that's what proof-of-work
+  // requires), so a leading-substring truncation shows nothing but zeros. Show both
+  // ends instead -- the tail is where a block hash's actual entropy lives.
+  $('ch-hash-short').textContent = hash.slice(0, 8) + '…' + hash.slice(-8);
   $('ch-hash-short').title = hash;
   const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
   $('ch-meta').innerHTML = `<span>${when}</span><span>${totalTx.toLocaleString()} transaction${totalTx === 1 ? '' : 's'}</span><span>${block.size.toLocaleString()} B</span><span>weight ${block.weight.toLocaleString()} WU</span>`;
