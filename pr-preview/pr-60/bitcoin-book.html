@@ -96,7 +96,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 #chapter { margin-top: 48px; }
 .chapter-head { text-align: center; padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--rule); }
 .chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
-.chapter-hash { font-size: 13px; color: var(--meta); margin-bottom: 14px; }
+.chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
 .chapter-meta { font: 400 12.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-meta span + span::before { content: ' · '; color: var(--rule); }
 
@@ -152,7 +152,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <article id="chapter" class="hidden">
     <header class="chapter-head">
       <h1 class="chapter-title">Chapter <span id="ch-height"></span></h1>
-      <div class="chapter-hash mono" id="ch-hash-short"></div>
+      <div class="chapter-hash" id="ch-hash-short"></div>
       <div class="chapter-meta" id="ch-meta"></div>
     </header>
 
@@ -262,10 +262,8 @@ async function readChapter(input, page) {
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
   $('ch-height').textContent = block.height.toLocaleString();
-  // Every real block hash starts with a long run of zeros (that's what proof-of-work
-  // requires), so a leading-substring truncation shows nothing but zeros. Show both
-  // ends instead -- the tail is where a block hash's actual entropy lives.
-  $('ch-hash-short').textContent = hash.slice(0, 8) + '…' + hash.slice(-8);
+  const { prose: hashProse } = encodeSeedPhrase(hash, 'english');
+  $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
   const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
   $('ch-meta').innerHTML = `<span>${when}</span><span>${totalTx.toLocaleString()} transaction${totalTx === 1 ? '' : 's'}</span><span>${block.size.toLocaleString()} B</span><span>weight ${block.weight.toLocaleString()} WU</span>`;
