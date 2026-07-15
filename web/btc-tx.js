@@ -56,7 +56,10 @@ export function parseTransaction(hex) {
   const version = r.u32le();
 
   let segwit = false;
-  if (bytes[r.pos] === 0x00 && bytes[r.pos + 1] === 0x01) { segwit = true; r.pos += 2; }
+  const markerEnd = (() => {
+    if (bytes[r.pos] === 0x00 && bytes[r.pos + 1] === 0x01) { segwit = true; r.pos += 2; }
+    return r.pos;
+  })();
 
   const vinCount = r.varint();
   const vin = [];
@@ -75,10 +78,11 @@ export function parseTransaction(hex) {
     const scriptPubKey = bytesToHex(r.bytesN(r.varint()));
     vout.push({ value, scriptPubKey });
   }
+  const voutEnd = r.pos;
 
   let witnessBytes = 0;
+  const witStart = voutEnd;
   if (segwit) {
-    const witStart = r.pos;
     for (let i = 0; i < vinCount; i++) {
       const itemCount = r.varint();
       const items = [];
@@ -88,6 +92,7 @@ export function parseTransaction(hex) {
     witnessBytes = r.pos - witStart;
   }
 
+  const locktimeStart = r.pos;
   const locktime = r.u32le();
   if (r.pos !== bytes.length) throw new Error(`trailing bytes after transaction (${bytes.length - r.pos} unparsed)`);
 
@@ -97,7 +102,23 @@ export function parseTransaction(hex) {
   const weight = baseSize * 3 + size;
   const vsize = Math.ceil(weight / 4);
 
-  return { version, locktime, segwit, size, vsize, weight, vin, vout };
+  // The legacy (pre-segwit) serialization — version + vin/vout + locktime, with
+  // the marker/flag and witness stripped out. This is exactly what BIP141 hashes
+  // (double-SHA256, byte-reversed) to produce the txid, so it's also what
+  // computeTxid expects. witnessHex is the raw witness section verbatim, or
+  // empty when the transaction carries no witness data.
+  const baseHex = bytesToHex(bytes.subarray(0, 4)) + bytesToHex(bytes.subarray(markerEnd, voutEnd)) + bytesToHex(bytes.subarray(locktimeStart, locktimeStart + 4));
+  const witnessHex = segwit ? bytesToHex(bytes.subarray(witStart, witStart + witnessBytes)) : '';
+
+  return { version, locktime, segwit, size, vsize, weight, vin, vout, baseHex, witnessHex };
+}
+
+// The legacy-serialization bytes (parseTransaction's baseHex) hashed with
+// double-SHA256 and byte-reversed, per BIP141 — the transaction's txid,
+// computed with no explorer API involved. A mismatch against a claimed txid
+// means the bytes don't actually belong to that transaction.
+export async function computeTxid(baseHex) {
+  return bytesToHex(reverseBytes(await hash256(hexToBytes(baseHex))));
 }
 
 // ─── address derivation from scriptPubKey (no external library) ──────────

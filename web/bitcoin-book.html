@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossia Bitcoin Book — a block, read as a chapter</title>
+<meta name="description" content="A Bitcoin block rendered as a chapter: each transaction a paragraph, its witness data an appendix, in grammatically correct Glossia prose.">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+<!-- PWA: installable, offline-capable app shell -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#08080a">
+<link rel="apple-touch-icon" href="./icons/glossia-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glossia">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
+    });
+  }
+</script>
+
+<!-- Social / rich unfurl -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Glossia">
+<meta property="og:title" content="Glossia Bitcoin Book — a block, read as a chapter">
+<meta property="og:description" content="Each transaction in a Bitcoin block, rendered as a paragraph of grammatically correct prose — witness data collected as an appendix.">
+<meta property="og:url" content="https://glossia.io/bitcoin-book.html">
+<meta property="og:image" content="https://glossia.io/og-glossia.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Glossia — machine data, made human. A lossless linguistic codec.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glossia Bitcoin Book — a block, read as a chapter">
+<meta name="twitter:description" content="Each transaction in a Bitcoin block, rendered as a paragraph of grammatically correct prose.">
+<meta name="twitter:image" content="https://glossia.io/og-glossia.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page:#08080a; --card:#0d0d10; --card-bd:#232228; --ink:#e8e4da; --ink-soft:#cfcabf;
+  --accent:#c9a25f; --accent-2:#dcb877; --btn-ink:#17140c;
+  --dim:#8a8794; --meta:#5c5a63; --rule:#1c1b21; --hair:#2a2930;
+  --input-bg:#151519; --input-bd:#2a2930; --error:#e07b6a; --ok:#7fb98a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh; background: var(--page); color: var(--ink);
+  font-family: 'Public Sans', system-ui, sans-serif; line-height: 1.55;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 48px 22px 100px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.muted { color: var(--dim); }
+.hidden { display: none !important; }
+
+.masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+.masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
+.masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+
+.card {
+  background: var(--card); border: 1px solid var(--card-bd); border-radius: 6px;
+  padding: 24px 26px 26px; box-shadow: 0 24px 60px -32px rgba(0,0,0,.7);
+}
+label { display:block; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); margin-bottom:8px; }
+.lookup-row { display:flex; gap:10px; }
+#block-input {
+  flex: 1; background: var(--input-bg); border: 1px solid var(--input-bd); border-radius: 4px;
+  color: var(--ink); font: 400 14px/1.4 'IBM Plex Mono',monospace; padding: 11px 12px;
+}
+#block-input:focus { outline: none; border-color: var(--accent); }
+button {
+  background: var(--accent); color: var(--btn-ink); border: none; border-radius: 4px;
+  font: 600 12.5px/1 'IBM Plex Mono',monospace; letter-spacing: .04em; text-transform: uppercase;
+  padding: 0 20px; cursor: pointer; transition: background .15s ease;
+}
+button:hover:not(:disabled) { background: var(--accent-2); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+.hint { margin-top: 10px; font-size: 12.5px; color: var(--meta); }
+
+.status-line { margin-top: 16px; font: 500 13px/1.4 'IBM Plex Mono',monospace; }
+.status-line.err { color: var(--error); }
+.spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--rule); border-top-color: var(--accent); border-radius:50%; animation: spin .7s linear infinite; vertical-align: -1px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── the chapter itself: a manuscript page, not a utility card ── */
+#chapter { margin-top: 48px; }
+.chapter-head { text-align: center; padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--rule); }
+.chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
+.chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 14px; letter-spacing: -.01em; }
+.chapter-meta { font: 400 12.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
+.chapter-meta span + span::before { content: ' · '; color: var(--rule); }
+
+.chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); }
+.para { margin: 0 0 1.6em; text-indent: 1.6em; position: relative; }
+.para:first-of-type { text-indent: 0; }
+.para:first-of-type::first-letter {
+  font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
+  font-weight: 500; color: var(--accent);
+}
+.para-mark {
+  position: absolute; left: -2.4em; top: .15em; font: italic 400 13px/1 'Newsreader',serif;
+  color: var(--meta); text-indent: 0; width: 2em; text-align: right;
+}
+.para-mark a { color: var(--meta); text-decoration: none; }
+.para-mark a:hover { color: var(--accent); text-decoration: underline; }
+.para.coinbase::after {
+  content: 'coinbase'; margin-left: .6em; font: italic 400 13px/1 'Newsreader',serif; color: var(--meta);
+}
+.para-txid { display:none; }   /* carries the txid for JS reference; hidden from the reading view */
+
+.chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
+.chapter-appendix h2 {
+  font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.24em; text-transform:uppercase;
+  color: var(--dim); margin: 0 0 22px; text-align: center;
+}
+.appendix-entry { margin: 0 0 1.5em; font: italic 400 15.5px/1.65 'Newsreader',serif; color: var(--meta); }
+.appendix-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
+.appendix-empty { text-align: center; font: italic 400 14px/1.6 'Newsreader',serif; color: var(--meta); }
+
+.chapter-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top: 54px; padding-top: 24px; border-top: 1px solid var(--rule); }
+.chapter-nav .page-status { font: 400 12.5px/1 'IBM Plex Mono',monospace; color: var(--meta); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="title">Glossia · Bitcoin Book</span>
+    <span class="sub">a block, read as a chapter</span>
+    <span class="home"><a href="./bitcoin.html">transaction lookup</a> &nbsp;·&nbsp; <a href="./index.html">demo</a></span>
+  </div>
+
+  <div class="card">
+    <label for="block-input">Block height or hash</label>
+    <div class="lookup-row">
+      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, or a 64-character block hash" autocomplete="off" spellcheck="false">
+      <button type="button" id="block-btn">Read chapter</button>
+    </div>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph; its witness stack, if any, becomes an appendix entry. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+    <div id="block-status" class="status-line hidden"></div>
+  </div>
+
+  <article id="chapter" class="hidden">
+    <header class="chapter-head">
+      <div class="chapter-num">Chapter <span id="ch-height"></span></div>
+      <h1 class="chapter-title">Block <span id="ch-hash-short" class="mono"></span></h1>
+      <div class="chapter-meta" id="ch-meta"></div>
+    </header>
+
+    <div class="chapter-body" id="ch-paragraphs"></div>
+
+    <div class="chapter-appendix">
+      <h2>Appendix — Witness Data</h2>
+      <div id="ch-appendix"></div>
+    </div>
+
+    <nav class="chapter-nav">
+      <button type="button" id="page-prev">← Previous</button>
+      <span class="page-status" id="page-status"></span>
+      <button type="button" id="page-next">Next →</button>
+    </nav>
+  </article>
+</div>
+
+<script type="module">
+import { init, encodeSeedPhrase } from './glossia-msg.js';
+import { parseTransaction, computeTxid } from './btc-tx.js';
+
+const $ = (id) => document.getElementById(id);
+const ESPLORA = 'https://blockstream.info/api';
+const PAGE_SIZE = 25;   // matches Esplora's own /block/:hash/txs/:start_index granularity
+
+let ready = false;
+init().then(() => { ready = true; }).catch((e) => console.error('WASM init failed:', e));
+
+function setStatus(msg, kind) {
+  const el = $('block-status');
+  el.className = 'status-line' + (kind ? ' ' + kind : '');
+  el.innerHTML = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+async function resolveBlockHash(input) {
+  input = input.trim();
+  if (/^[0-9a-f]{64}$/i.test(input)) return input.toLowerCase();
+  if (/^\d+$/.test(input)) {
+    const res = await fetch(`${ESPLORA}/block-height/${input}`);
+    if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${input}.` : `Esplora returned ${res.status}.`);
+    return (await res.text()).trim();
+  }
+  throw new Error('Enter a block height (e.g. 0) or a 64-character block hash.');
+}
+
+async function readChapter(input, page) {
+  $('chapter').classList.add('hidden');
+  setStatus('<span class="spinner"></span>fetching block…');
+  $('block-btn').disabled = true;
+  try {
+    const hash = await resolveBlockHash(input);
+
+    const [blockRes, txidsRes] = await Promise.all([
+      fetch(`${ESPLORA}/block/${hash}`),
+      fetch(`${ESPLORA}/block/${hash}/txids`),
+    ]);
+    if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
+    if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
+    const block = await blockRes.json();
+    const txids = await txidsRes.json();
+
+    const maxPage = Math.max(0, Math.ceil(txids.length / PAGE_SIZE) - 1);
+    page = Math.min(Math.max(0, page), maxPage);
+    const start = page * PAGE_SIZE;
+    const pageTxids = txids.slice(start, start + PAGE_SIZE);
+
+    setStatus(`<span class="spinner"></span>fetching ${pageTxids.length} transaction${pageTxids.length === 1 ? '' : 's'}…`);
+    const hexes = await Promise.all(pageTxids.map(async (txid) => {
+      const r = await fetch(`${ESPLORA}/tx/${txid}/hex`);
+      if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
+      return (await r.text()).trim();
+    }));
+
+    if (!ready) await init().catch(() => {});
+    setStatus('<span class="spinner"></span>encoding as prose…');
+
+    const paragraphs = [];
+    const appendix = [];
+    for (let i = 0; i < hexes.length; i++) {
+      const parsed = parseTransaction(hexes[i]);
+      const txid = pageTxids[i];
+      const verifiedTxid = await computeTxid(parsed.baseHex);
+      const { prose: bodyProse } = encodeSeedPhrase(parsed.baseHex, 'english');
+      const num = start + i + 1;
+      const isCoinbase = parsed.vin.length === 1 && parsed.vin[0].txid === '00'.repeat(32);
+      let appendixIndex = null;
+      if (parsed.witnessHex) {
+        const { prose: witProse } = encodeSeedPhrase(parsed.witnessHex, 'english');
+        appendixIndex = appendix.length + 1;
+        appendix.push({ num, txid, prose: witProse });
+      }
+      paragraphs.push({ num, txid, prose: bodyProse, isCoinbase, appendixIndex, verified: verifiedTxid === txid });
+    }
+
+    renderChapter(block, hash, page, maxPage, txids.length, paragraphs, appendix);
+    updateUrl(input, page);
+    $('chapter').classList.remove('hidden');
+    setStatus('');
+  } catch (e) {
+    setStatus(e.message || 'Failed to load chapter.', 'err');
+  } finally {
+    $('block-btn').disabled = false;
+  }
+}
+
+function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
+  $('ch-height').textContent = block.height.toLocaleString();
+  $('ch-hash-short').textContent = hash.slice(0, 12) + '…';
+  $('ch-hash-short').title = hash;
+  const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
+  $('ch-meta').innerHTML = `<span>${when}</span><span>${totalTx.toLocaleString()} transaction${totalTx === 1 ? '' : 's'}</span><span>${block.size.toLocaleString()} B</span><span>weight ${block.weight.toLocaleString()} WU</span>`;
+
+  const body = $('ch-paragraphs');
+  body.innerHTML = '';
+  for (const p of paragraphs) {
+    const el = document.createElement('p');
+    el.className = 'para' + (p.isCoinbase ? ' coinbase' : '') + (p.verified ? '' : ' unverified');
+    const markInner = p.appendixIndex
+      ? `<a href="#appendix-${p.appendixIndex}" title="txid ${p.txid}${p.verified ? '' : ' — could not be independently verified'}">${p.num}</a>`
+      : `<span title="txid ${p.txid}${p.verified ? '' : ' — could not be independently verified'}">${p.num}</span>`;
+    el.innerHTML = `<span class="para-mark">${markInner}</span>${p.prose}`;
+    body.append(el);
+  }
+
+  const appendixEl = $('ch-appendix');
+  appendixEl.innerHTML = '';
+  if (!appendix.length) {
+    appendixEl.innerHTML = '<p class="appendix-empty">No witness data on this page — every transaction here predates or opts out of segwit.</p>';
+  } else {
+    for (const [i, a] of appendix.entries()) {
+      const el = document.createElement('p');
+      el.className = 'appendix-entry';
+      el.id = `appendix-${i + 1}`;
+      el.innerHTML = `<span class="appendix-mark">¶${a.num}</span>${a.prose}`;
+      appendixEl.append(el);
+    }
+  }
+
+  const start = page * PAGE_SIZE + 1;
+  const end = Math.min((page + 1) * PAGE_SIZE, totalTx);
+  $('page-status').textContent = `paragraphs ${start.toLocaleString()}–${end.toLocaleString()} of ${totalTx.toLocaleString()}`;
+  $('page-prev').disabled = page <= 0;
+  $('page-next').disabled = page >= maxPage;
+  $('page-prev').onclick = () => readChapter($('block-input').value, page - 1);
+  $('page-next').onclick = () => readChapter($('block-input').value, page + 1);
+}
+
+function updateUrl(input, page) {
+  const params = new URLSearchParams();
+  params.set('block', input.trim());
+  if (page) params.set('page', String(page));
+  history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+}
+
+$('block-btn').addEventListener('click', () => readChapter($('block-input').value, 0));
+$('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') readChapter($('block-input').value, 0); });
+
+const params = new URLSearchParams(location.search);
+const blockParam = params.get('block');
+const pageParam = parseInt(params.get('page'), 10) || 0;
+if (blockParam) $('block-input').value = blockParam;
+readChapter($('block-input').value, pageParam);
+</script>
+</body>
+</html>
