@@ -136,7 +136,7 @@ h2 { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-trans
   <div class="card">
     <label for="tx-input">Transaction ID</label>
     <div class="lookup-row">
-      <input type="text" id="tx-input" class="mono" placeholder="e.g. 4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33" autocomplete="off" spellcheck="false">
+      <input type="text" id="tx-input" class="mono" value="4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b" placeholder="e.g. 4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b" autocomplete="off" spellcheck="false">
       <button type="button" id="tx-btn">Look up</button>
     </div>
     <p class="hint">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet). Nothing is sent anywhere else — the lookup and encoding both happen in your browser.</p>
@@ -283,10 +283,12 @@ $('tx-copy').addEventListener('click', async () => {
   } catch (e) { /* clipboard unavailable */ }
 });
 
-// Prefill from ?txid= for shareable links.
+// ?txid= overrides the default (input's value attribute) for shareable links;
+// either way, look up whatever ends up in the field on load.
 const params = new URLSearchParams(location.search);
 const prefill = params.get('txid');
-if (prefill) { $('tx-input').value = prefill; lookup(prefill); }
+if (prefill) $('tx-input').value = prefill;
+lookup($('tx-input').value);
 </script>
 </body>
 </html>
