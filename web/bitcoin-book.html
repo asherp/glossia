@@ -179,6 +179,11 @@ const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
 const PAGE_SIZE = 25;   // matches Esplora's own /block/:hash/txs/:start_index granularity
 
+// Esplora's block hash, like a txid, is displayed byte-reversed relative to its
+// internal (wire/hashing) byte order -- see btc-tx.js's txid handling. Reverse
+// it back before encoding so the prose carries the hash's actual bytes.
+function reverseHex(hex) { return (hex.match(/../g) || []).reverse().join(''); }
+
 let ready = false;
 init().then(() => { ready = true; }).catch((e) => console.error('WASM init failed:', e));
 
@@ -262,7 +267,7 @@ async function readChapter(input, page) {
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
   $('ch-height').textContent = block.height.toLocaleString();
-  const { prose: hashProse } = encodeSeedPhrase(hash, 'english');
+  const { prose: hashProse } = encodeSeedPhrase(reverseHex(hash), 'english');
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
   const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
