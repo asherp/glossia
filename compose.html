@@ -257,23 +257,24 @@ body[data-style="midnight"] .modal-overlay { background:rgba(0,0,0,.66); }
 .modal-foot { margin:16px 0 0; font:400 12px/1.55 'Public Sans',sans-serif; }
 #c-seed-input { width:100%; min-height:120px; }
 
-/* settings drawer — slides in from the right over a dimming backdrop */
+/* settings drawer — rises up from the bottom over a dimming backdrop */
 .gear-btn { display:inline-flex; align-items:center; gap:6px; }
 .gear-btn svg { width:14px; height:14px; }
 .drawer-backdrop { position:fixed; inset:0; z-index:55; background:rgba(20,18,14,.5); backdrop-filter:blur(2px); opacity:0; transition:opacity .28s ease; }
 .drawer-backdrop.is-open { opacity:1; }
 body[data-style="midnight"] .drawer-backdrop { background:rgba(0,0,0,.62); }
 .drawer {
-  position:fixed; top:0; right:0; z-index:56; height:100%; width:min(430px, 92vw);
-  background:var(--card); border-left:1px solid var(--card-bd);
-  box-shadow:-24px 0 60px -30px rgba(20,18,14,.55);
+  position:fixed; left:50%; bottom:0; z-index:56; width:min(560px, 100vw); max-height:88vh;
+  background:var(--card); border-top:1px solid var(--card-bd);
+  border-top-left-radius:14px; border-top-right-radius:14px;
+  box-shadow:0 -24px 60px -30px rgba(20,18,14,.55);
   display:flex; flex-direction:column;
-  transform:translateX(100%); transition:transform .3s cubic-bezier(.4,0,.2,1);
+  transform:translate(-50%, 100%); transition:transform .3s cubic-bezier(.4,0,.2,1);
   overflow-y:auto;
 }
-.drawer.is-open { transform:translateX(0); }
-body[data-style="midnight"] .drawer { box-shadow:-24px 0 60px -28px rgba(0,0,0,.75); }
-.drawer-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--rule); padding:22px 26px 16px; position:sticky; top:0; background:var(--card); z-index:1; }
+.drawer.is-open { transform:translate(-50%, 0); }
+body[data-style="midnight"] .drawer { box-shadow:0 -24px 60px -28px rgba(0,0,0,.75); }
+.drawer-head { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--rule); padding:22px 26px 16px; position:sticky; top:0; background:var(--card); z-index:1; border-top-left-radius:14px; border-top-right-radius:14px; }
 .drawer-title { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--ink); }
 .drawer-x { background:none; border:none; color:var(--dim); font-size:26px; line-height:1; cursor:pointer; padding:0 4px; }
 .drawer-x:hover { color:var(--accent); }
