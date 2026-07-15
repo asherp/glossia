@@ -95,8 +95,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* ── the chapter itself: a manuscript page, not a utility card ── */
 #chapter { margin-top: 48px; }
 .chapter-head { text-align: center; padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--rule); }
-.chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
-.chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 14px; letter-spacing: -.01em; }
+.chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
+.chapter-hash { font-size: 13px; color: var(--meta); margin-bottom: 14px; }
 .chapter-meta { font: 400 12.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-meta span + span::before { content: ' · '; color: var(--rule); }
 
@@ -151,8 +151,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
   <article id="chapter" class="hidden">
     <header class="chapter-head">
-      <div class="chapter-num">Chapter <span id="ch-height"></span></div>
-      <h1 class="chapter-title">Block <span id="ch-hash-short" class="mono"></span></h1>
+      <h1 class="chapter-title">Chapter <span id="ch-height"></span></h1>
+      <div class="chapter-hash mono" id="ch-hash-short"></div>
       <div class="chapter-meta" id="ch-meta"></div>
     </header>
 
