@@ -5,7 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Glossia - A Lossless Linguistic Codec</title>
 <meta name="description" content="Glossia transforms machine data — cryptographic keys, signatures, hashes, encrypted messages — into structured language and other human-friendly forms, with perfect round-trip fidelity. Human interfaces for machine data.">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+<!-- PWA: installable, offline-capable app shell -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#14121f">
+<link rel="apple-touch-icon" href="./icons/glossia-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glossia">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
+    });
+  }
+</script>
 
 <!-- Social / rich unfurl -->
 <meta property="og:type" content="website">
