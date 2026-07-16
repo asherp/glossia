@@ -109,19 +109,18 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
 
+/* Per-verse navigation: Previous / Next flanking the verse title -- the
+   transaction's position within its block, rendered as "Verse N". */
+.verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 0 0 30px; }
+.verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
+.verse-witness { font-size:.8em; vertical-align:super; letter-spacing:0; }
+
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 
-/* Each transaction is a three-column manuscript layout: a left margin for
-   provenance (what this text refers back to), a body for the canonical
-   prose, a right margin for consequences (what this text produces / how it
-   ends). The verse number sits further left still, outside the grid. */
+/* Each transaction is a manuscript page: a left margin for provenance (what
+   this text refers back to), a body for the canonical prose, and a right
+   margin for consequences (what this text produces / how it ends). */
 .tx-wrap { position: relative; margin: 0 0 2em; }
-.para-mark {
-  position: absolute; left: -2.4em; top: .15em; font: italic 400 13px/1 'Newsreader',serif;
-  color: var(--meta); width: 2em; text-align: right;
-}
-.para-mark a { color: var(--meta); text-decoration: none; }
-.para-mark a:hover { color: var(--accent); text-decoration: underline; }
 
 /* The layout is a grid of two cells: a main column (canonical prose plus its
    left margin) and a reserved right column for consequences. Only the RIGHT
@@ -174,8 +173,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .appendix-entry { margin: 0 0 1.5em; font: italic 400 15.5px/1.65 'Newsreader',serif; color: var(--meta); }
 .appendix-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
-
-.chapter-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top: 54px; padding-top: 24px; border-top: 1px solid var(--rule); }
 </style>
 </head>
 <body>
@@ -194,11 +191,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <div id="block-status" class="status-line hidden"></div>
   </div>
 
-  <details class="about">
-    <summary>About</summary>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
-  </details>
-
   <article id="chapter" class="hidden">
     <header class="chapter-head">
       <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
@@ -206,18 +198,24 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="chapter-hash" id="ch-hash-short"></div>
     </header>
 
+    <nav class="verse-nav">
+      <button type="button" id="page-prev">← Previous</button>
+      <h2 class="verse-title" id="verse-title"></h2>
+      <button type="button" id="page-next">Next →</button>
+    </nav>
+
     <div class="chapter-body" id="ch-paragraphs"></div>
 
     <div class="chapter-appendix hidden" id="ch-appendix-section">
       <h2>Appendix</h2>
       <div id="ch-appendix"></div>
     </div>
-
-    <nav class="chapter-nav">
-      <button type="button" id="page-prev">← Previous</button>
-      <button type="button" id="page-next">Next →</button>
-    </nav>
   </article>
+
+  <details class="about">
+    <summary>About</summary>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+  </details>
 </div>
 
 <script type="module">
@@ -334,7 +332,9 @@ function renderChapter(para) {
   // big title and the inline running-head form unconditionally (not just
   // whichever is visible) so neither goes stale while hidden.
   $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
-  $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · Chapter ${chapter.toLocaleString()}`;
+  // Running-head chapter number (every verse past the first): a bare numeral,
+  // no thousands comma -- it reads as a locator, not a quantity.
+  $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · Chapter ${chapter}`;
   $('ch-title').classList.toggle('hidden', !onFirstTx);
   $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
@@ -347,14 +347,21 @@ function renderChapter(para) {
   const wrap = document.createElement('div');
   wrap.className = 'tx-wrap' + (para.verified ? '' : ' unverified');
 
+  // The transaction's position within its block titles the verse ("Verse 3");
+  // when it carries a witness, a dagger beside the title links out to that
+  // appendix entry.
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
-  const markInner = para.witnessProse
-    ? `<a href="#appendix-1" title="${titleAttr}">${para.num}</a>`
-    : `<span title="${titleAttr}">${para.num}</span>`;
-  const mark = document.createElement('span');
-  mark.className = 'para-mark';
-  mark.innerHTML = markInner;
-  wrap.append(mark);
+  const verseTitle = $('verse-title');
+  verseTitle.textContent = `Verse ${para.num}`;
+  verseTitle.title = titleAttr;
+  if (para.witnessProse) {
+    const link = document.createElement('a');
+    link.href = '#appendix-1';
+    link.className = 'verse-witness';
+    link.textContent = '†';
+    link.title = 'witness appendix';
+    verseTitle.append(' ', link);
+  }
 
   // Left margin (provenance): what this text refers back to -- a float inside
   // the main cell, so a tall reference doesn't leave a blank gap beside an
