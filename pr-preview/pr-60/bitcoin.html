@@ -157,7 +157,7 @@ h2 { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-trans
 import { init } from './glossia-msg.js';
 import { parseTransaction } from './btc-tx.js';
 import { describeTransaction, describeWitness } from './btc-prose.js';
-import { volumeBookChapter, PAGE_SIZE } from './btc-citation.js';
+import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
@@ -214,8 +214,7 @@ async function renderCitation(tx, txid) {
       const txids = await r.json();
       const idx = txids.indexOf(txid);
       if (idx >= 0) {
-        const page = Math.floor(idx / PAGE_SIZE);
-        const href = `bitcoin-book.html?block=${height}&page=${page}`;
+        const href = `bitcoin-book.html?block=${height}&index=${idx}`;
         verseHtml = ` · Verse <a href="${href}">${(idx + 1).toLocaleString()}</a>`;
       }
     }
