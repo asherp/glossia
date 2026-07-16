@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glossia Bitcoin Book — a block, read as a chapter</title>
-<meta name="description" content="A Bitcoin block rendered as a chapter: each transaction a paragraph, its witness data an appendix, in grammatically correct Glossia prose.">
+<meta name="description" content="A Bitcoin block rendered as a chapter: each transaction a paragraph, its witness data footnotes, in grammatically correct Glossia prose.">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
 <link rel="icon" href="./favicon.svg" type="image/svg+xml">
@@ -29,7 +29,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Glossia">
 <meta property="og:title" content="Glossia Bitcoin Book — a block, read as a chapter">
-<meta property="og:description" content="Each transaction in a Bitcoin block, rendered as a paragraph of grammatically correct prose — witness data collected as an appendix.">
+<meta property="og:description" content="Each transaction in a Bitcoin block, rendered as a paragraph of grammatically correct prose — witness data collected as footnotes.">
 <meta property="og:url" content="https://glossia.io/bitcoin-book.html">
 <meta property="og:image" content="https://glossia.io/og-glossia.png">
 <meta property="og:image:width" content="1200">
@@ -113,7 +113,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    transaction's position within its block, rendered as "Verse N". */
 .verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
 .verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
-.verse-witness { font-size:.8em; vertical-align:super; letter-spacing:0; }
 
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 
@@ -183,13 +182,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .tx-out-value::before, .tx-locktime::before { content: '→ '; }
 }
 
-.chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
-.chapter-appendix h2 {
-  font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.24em; text-transform:uppercase;
-  color: var(--dim); margin: 0 0 22px; text-align: center;
-}
-.appendix-entry { margin: 0 0 1.5em; font: italic 400 15.5px/1.65 'Newsreader',serif; color: var(--meta); }
-.appendix-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
+/* A witness-bearing input carries a small superscript index inline; the matching
+   witness prose collects at the foot of the page. */
+.tx-witness-ref { font: 500 .62em/1 'IBM Plex Mono',monospace; color: var(--accent); vertical-align: super; text-decoration: none; margin-left: .12em; }
+.tx-witness-ref:hover { text-decoration: underline; }
+.chapter-footnotes { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--rule); }
+.footnote-entry { margin: 0 0 1.1em; font: italic 400 14.5px/1.6 'Newsreader',serif; color: var(--meta); }
+.footnote-entry:target { color: var(--ink-soft); }
+.footnote-mark { font: 500 10.5px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; vertical-align: .35em; }
 </style>
 </head>
 <body>
@@ -222,15 +222,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
     <div class="chapter-body" id="ch-paragraphs"></div>
 
-    <div class="chapter-appendix hidden" id="ch-appendix-section">
-      <h2>Appendix</h2>
-      <div id="ch-appendix"></div>
+    <div class="chapter-footnotes hidden" id="ch-footnotes-section">
+      <div id="ch-footnotes"></div>
     </div>
   </article>
 
   <details class="about">
     <summary>About</summary>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
   </details>
 </div>
 
@@ -280,11 +279,12 @@ let state = null;   // { hash, height, block, txids, index }
 // rather than reprobed on every step off the same last block.
 let tipHeight = null;
 
-// The on-screen transaction's witness bytes (or null), stashed so the witness
-// appendix can be encoded lazily when the reader asks for it rather than on
-// every load. `appendixLoaded` guards against re-encoding on repeat clicks.
-let currentWitnessHex = null;
-let appendixLoaded = false;
+// The on-screen transaction's per-input witnesses ({ n, hex }), stashed so they
+// can be encoded lazily -- as numbered footnotes -- when the reader clicks an
+// input's witness reference rather than on every load. `footnotesLoaded` guards
+// against re-encoding on repeat clicks.
+let currentFootnotes = [];
+let footnotesLoaded = false;
 
 async function loadBlockMeta(hash) {
   const [blockRes, txidsRes] = await Promise.all([
@@ -331,15 +331,10 @@ async function showCurrentTx() {
   const parsed = parseTransaction(hex);
   const verifiedTxid = await computeTxid(parsed.baseHex);
   const fields = composeTransactionFields(parsed, BEST_OF);
-  // The witness appendix is the heaviest thing to encode, and most readers
-  // never open it -- so it isn't encoded here. renderChapter only offers the
-  // dagger control; loadAppendix does the work on demand (see below).
-  currentWitnessHex = parsed.witnessHex || null;
-
-  renderChapter({
-    num: state.index + 1, txid, fields,
-    verified: verifiedTxid === txid, hasWitness: !!parsed.witnessHex,
-  });
+  // Witnesses aren't encoded here -- they're the heaviest thing to render and
+  // most readers never open them. renderChapter marks each witness-bearing
+  // input with a footnote reference; loadFootnotes encodes them on demand.
+  renderChapter({ num: state.index + 1, txid, fields, verified: verifiedTxid === txid });
   updateUrl();
   $('chapter').classList.remove('hidden');
   setStatus('');
@@ -375,22 +370,11 @@ function renderChapter(para) {
   const wrap = document.createElement('div');
   wrap.className = 'tx-wrap' + (para.verified ? '' : ' unverified');
 
-  // The transaction's position within its block titles the verse ("Verse 3");
-  // when it carries a witness, a dagger beside the title loads that appendix
-  // entry on demand (it isn't encoded up front -- see showCurrentTx).
+  // The transaction's position within its block titles the verse ("Verse 3").
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
   const verseTitle = $('verse-title');
   verseTitle.textContent = `Verse ${para.num}`;
   verseTitle.title = titleAttr;
-  if (para.hasWitness) {
-    const link = document.createElement('a');
-    link.href = '#appendix-1';
-    link.className = 'verse-witness';
-    link.textContent = '†';
-    link.title = 'load witness appendix';
-    link.addEventListener('click', (e) => { e.preventDefault(); loadAppendix(); });
-    verseTitle.append(' ', link);
-  }
 
   // The transaction is laid out in horizontal bands (see .tx-flow CSS): a
   // coinbase ∅ prevout in a left grid cell; the inputs' prose in the body
@@ -447,33 +431,49 @@ function renderChapter(para) {
     if (inp.sequenceDefault) s.title = 'final — no replace-by-fee';
     return s;
   };
-  const addSeqLine = (seq) => {
+  const addSeqLine = (tail) => {
     const p = document.createElement('p');
     p.className = 'tx-seq-line';
-    p.append(seq);
+    p.append(...tail);
     inputsEl.append(p);
   };
+  // A superscript index tying a witness-bearing input to its footnote; clicking
+  // it encodes the footnotes (once) and scrolls to this one.
+  const witnessRef = (n) => {
+    const a = document.createElement('a');
+    a.className = 'tx-witness-ref';
+    a.href = `#fn-${n}`;
+    a.textContent = String(n);
+    a.title = 'witness — see footnote';
+    a.addEventListener('click', (e) => { e.preventDefault(); loadFootnotes(n); });
+    return a;
+  };
 
-  const addScriptAndSeq = (inp, seq) => {
-    if (inp.scriptAscii) { addQuote(inputsEl, inp.scriptAscii); addSeqLine(seq); }
-    else if (inp.script) addLine(inputsEl, inp.script).append(' ', seq);
-    else addSeqLine(seq);
+  const addScriptAndSeq = (inp, tail) => {
+    if (inp.scriptAscii) { addQuote(inputsEl, inp.scriptAscii); addSeqLine(tail); }
+    else if (inp.script) addLine(inputsEl, inp.script).append(' ', ...tail);
+    else addSeqLine(tail);
   };
 
   const f = para.fields;
+  const footnotes = [];
   if (f.version !== '1') addFloatNote(f.version);   // version 1 is the default -- omitted
   for (const inp of f.inputs) {
-    const seq = seqSpan(inp);
+    // Each input's trailing marks: its sequence, then -- when it carries a
+    // witness -- a superscript footnote reference numbered in input order.
+    const tail = [seqSpan(inp)];
+    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex }); tail.push(witnessRef(footnotes.length)); }
     if (inp.isNullPrevout) {                        // coinbase: ∅ -> its own left grid cell
       addNullPrevout(inp.prevout);
-      addScriptAndSeq(inp, seq);
+      addScriptAndSeq(inp, tail);
     } else if (!inp.script && !inp.scriptAscii) {   // segwit: no scriptSig, so the prevout IS the body line
-      addLine(inputsEl, inp.prevout).append(' ', seq);
+      addLine(inputsEl, inp.prevout).append(' ', ...tail);
     } else {                                        // legacy: float the prevout, scriptSig prose wraps around it
       addFloatNote(inp.prevout);
-      addScriptAndSeq(inp, seq);
+      addScriptAndSeq(inp, tail);
     }
   }
+  currentFootnotes = footnotes;
   for (const out of f.outputs) {
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-out-script';
@@ -492,40 +492,44 @@ function renderChapter(para) {
   wrap.append(flow);
   body.append(wrap);
 
-  // The appendix starts empty and hidden every time; it's populated only when
-  // the reader clicks the witness dagger (loadAppendix), not on load.
-  $('ch-appendix').innerHTML = '';
-  $('ch-appendix-section').classList.add('hidden');
-  appendixLoaded = false;
+  // Footnotes start empty and hidden every time; they're encoded only when the
+  // reader clicks a witness reference (loadFootnotes), not on load.
+  $('ch-footnotes').innerHTML = '';
+  $('ch-footnotes-section').classList.add('hidden');
+  footnotesLoaded = false;
 
   $('page-prev').disabled = state.height === 0 && state.index === 0;
   $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txids.length - 1;
 }
 
-// Encode the current transaction's witness stack and reveal it as the appendix,
-// on demand (the witness dagger). Encoded once per transaction, then just
-// scrolled to on repeat clicks.
-async function loadAppendix() {
-  if (!currentWitnessHex) return;
-  if (!appendixLoaded) {
-    setStatus('<span class="spinner"></span>encoding witness…');
+// Encode every witness-bearing input's witness into a numbered footnote and
+// reveal the footnotes section, on demand (a witness reference). Encoded once
+// per transaction, then just scrolled to on repeat clicks. `targetN` is the
+// footnote to scroll to.
+async function loadFootnotes(targetN) {
+  if (!currentFootnotes.length) return;
+  if (!footnotesLoaded) {
+    setStatus('<span class="spinner"></span>encoding witnesses…');
     if (!ready) await init().catch(() => {});
     // encodeSeedPhrase is synchronous and can be heavy, so yield once to let
     // the spinner paint before it blocks the main thread.
     await new Promise((r) => setTimeout(r, 0));
-    const { prose } = encodeSeedPhrase(currentWitnessHex, 'english', BEST_OF);
-    const a = document.createElement('p');
-    a.className = 'appendix-entry';
-    a.id = 'appendix-1';
-    a.innerHTML = `<span class="appendix-mark">¶${state.index + 1}</span>${prose}`;
-    const el = $('ch-appendix');
+    const el = $('ch-footnotes');
     el.innerHTML = '';
-    el.append(a);
-    $('ch-appendix-section').classList.remove('hidden');
-    appendixLoaded = true;
+    for (const fn of currentFootnotes) {
+      const { prose } = encodeSeedPhrase(fn.hex, 'english', BEST_OF);
+      const p = document.createElement('p');
+      p.className = 'footnote-entry';
+      p.id = `fn-${fn.n}`;
+      p.innerHTML = `<span class="footnote-mark">${fn.n}</span>${prose}`;
+      el.append(p);
+    }
+    $('ch-footnotes-section').classList.remove('hidden');
+    footnotesLoaded = true;
     setStatus('');
   }
-  $('appendix-1').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const target = $(`fn-${targetN}`);
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function updateUrl() {
