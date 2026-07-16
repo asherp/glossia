@@ -33,11 +33,6 @@ const NULL_PREVOUT_MARK = '∅';
 const FINAL_SEQUENCE_MARK = '·';
 const LOCKTIME_ZERO_MARK = '◼︎';
 
-// A clause is already "finished" if it ends in real punctuation or one of
-// the symbolic marks above -- either way, no redundant period gets appended.
-const TERMINAL_CHARS = new Set(['.', ';', '!', '?', FINAL_SEQUENCE_MARK]);
-function endSentence(s) { s = s.trim(); return TERMINAL_CHARS.has(s.slice(-1)) ? s : s + '.'; }
-
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
 // Glossia-generated prose it's untrusted content and must be escaped before
@@ -49,7 +44,7 @@ function escapeHtml(s) {
 // A parsed transaction (btc-tx.js's parseTransaction) -> { prose, payloadWords }.
 // `bestOf` forwards to encodeSeedPhrase for cover-word quality (default 1).
 export function describeTransaction(parsed, bestOf = 1) {
-  const parts = [`${parsed.version}.`, `${parsed.vin.length}.`];
+  const parts = [`${parsed.version}`, `${parsed.vin.length}`];
   const payloadWords = [];
   const collect = (hex) => {
     if (!hex) return '';
@@ -78,17 +73,17 @@ export function describeTransaction(parsed, bestOf = 1) {
     const prevoutPart = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
     const scriptProse = collectScript(v.scriptSig, isNullPrevout);
     const sequencePart = v.sequence === FINAL_SEQUENCE ? FINAL_SEQUENCE_MARK : String(v.sequence);
-    parts.push(endSentence(`${prevoutPart} ${scriptProse} ${sequencePart}`));
+    parts.push(`${prevoutPart} ${scriptProse} ${sequencePart}`);
   }
 
-  parts.push(`${parsed.vout.length}.`);
+  parts.push(`${parsed.vout.length}`);
   for (const o of parsed.vout) {
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
     const scriptProse = collectScript(o.scriptPubKey, isOpReturn);
-    parts.push(endSentence(`${o.value} ${scriptProse}`));
+    parts.push(`${o.value} ${scriptProse}`);
   }
 
-  parts.push(parsed.locktime === 0 ? `${LOCKTIME_ZERO_MARK}.` : `${parsed.locktime}.`);
+  parts.push(parsed.locktime === 0 ? LOCKTIME_ZERO_MARK : `${parsed.locktime}`);
   return { prose: parts.join(' ').replace(/\s+/g, ' ').trim(), payloadWords };
 }
 
