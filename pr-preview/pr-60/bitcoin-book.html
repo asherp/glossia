@@ -123,7 +123,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .para-mark a { color: var(--meta); text-decoration: none; }
 .para-mark a:hover { color: var(--accent); text-decoration: underline; }
 
-.tx-grid { display: grid; grid-template-columns: minmax(3.5em, 11em) 1fr minmax(3em, 8em); column-gap: 18px; row-gap: .55em; align-items: baseline; }
+/* fit-content, not minmax(min, <length>) -- a fixed-length max is still the
+   track's growth *target*, so grid's "maximize tracks" step fills it in
+   regardless of actual content, stealing width from the 1fr body column
+   even when a margin only holds a single glyph. fit-content grows a track
+   only as far as its own content needs, capped at the given length. */
+.tx-grid { display: grid; grid-template-columns: fit-content(11em) 1fr fit-content(8em); column-gap: 18px; row-gap: .55em; align-items: baseline; }
 .tx-margin-left, .tx-margin-right { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--meta); }
 .tx-margin-left { text-align: right; }
 .tx-margin-right { text-align: left; }
