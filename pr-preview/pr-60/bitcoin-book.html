@@ -122,9 +122,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .para-mark a { color: var(--meta); text-decoration: none; }
 .para-mark a:hover { color: var(--accent); text-decoration: underline; }
-.para.coinbase::after {
-  content: 'coinbase'; margin-left: .6em; font: italic 400 13px/1 'Newsreader',serif; color: var(--meta);
-}
 .para-txid { display:none; }   /* carries the txid for JS reference; hidden from the reading view */
 
 .chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
@@ -134,6 +131,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .appendix-entry { margin: 0 0 1.5em; font: italic 400 15.5px/1.65 'Newsreader',serif; color: var(--meta); }
 .appendix-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
+
+.chapter-marginalia { margin-top: 48px; padding-top: 26px; border-top: 1px dashed var(--rule); }
+.chapter-marginalia h2 {
+  font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.24em; text-transform:uppercase;
+  color: var(--dim); margin: 0 0 18px; text-align: center;
+}
+.marginalia-entry { margin: 0 0 .9em; font: italic 400 14.5px/1.6 'Newsreader',serif; color: var(--meta); }
+.marginalia-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
 
 .chapter-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top: 54px; padding-top: 24px; border-top: 1px solid var(--rule); }
 .chapter-nav .page-status { font: 400 12.5px/1 'IBM Plex Mono',monospace; color: var(--meta); }
@@ -170,6 +175,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
     <div class="chapter-body" id="ch-paragraphs"></div>
 
+    <div class="chapter-marginalia hidden" id="ch-marginalia-section">
+      <h2>Marginalia</h2>
+      <div id="ch-marginalia"></div>
+    </div>
+
     <div class="chapter-appendix hidden" id="ch-appendix-section">
       <h2>Appendix — Witness Data</h2>
       <div id="ch-appendix"></div>
@@ -185,7 +195,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
-import { parseTransaction, computeTxid } from './btc-tx.js';
+import { parseTransaction, computeTxid, findTransactionAscii } from './btc-tx.js';
 import { describeTransaction } from './btc-prose.js';
 import { volumeBookChapter, PAGE_SIZE } from './btc-citation.js';
 
@@ -262,6 +272,7 @@ async function readChapter(input, page) {
 
     const paragraphs = [];
     const appendix = [];
+    const marginalia = [];
     for (let i = 0; i < hexes.length; i++) {
       const parsed = parseTransaction(hexes[i]);
       const txid = pageTxids[i];
@@ -275,10 +286,11 @@ async function readChapter(input, page) {
         appendixIndex = appendix.length + 1;
         appendix.push({ num, txid, prose: witProse });
       }
+      for (const text of findTransactionAscii(parsed, isCoinbase)) marginalia.push({ num, txid, text });
       paragraphs.push({ num, txid, prose: bodyProse, isCoinbase, appendixIndex, verified: verifiedTxid === txid });
     }
 
-    renderChapter(block, hash, page, maxPage, txids.length, paragraphs, appendix);
+    renderChapter(block, hash, page, maxPage, txids.length, paragraphs, appendix, marginalia);
     updateUrl(input, page);
     $('chapter').classList.remove('hidden');
     setStatus('');
@@ -289,7 +301,15 @@ async function readChapter(input, page) {
   }
 }
 
-function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
+// Marginalia text comes directly from raw blockchain data -- a miner's
+// coinbase tag, an OP_RETURN message -- so unlike the Glossia-generated
+// prose (always built from our own wordlist), it's untrusted content and
+// must be escaped before it ever reaches innerHTML.
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix, marginalia) {
   const { volume, book, chapter } = volumeBookChapter(block.height);
   $('ch-volume').textContent = volume.toLocaleString();
   $('ch-book').textContent = book.toLocaleString();
@@ -302,12 +322,22 @@ function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix
   body.innerHTML = '';
   for (const p of paragraphs) {
     const el = document.createElement('p');
-    el.className = 'para' + (p.isCoinbase ? ' coinbase' : '') + (p.verified ? '' : ' unverified');
+    el.className = 'para' + (p.verified ? '' : ' unverified');
     const markInner = p.appendixIndex
       ? `<a href="#appendix-${p.appendixIndex}" title="txid ${p.txid}${p.verified ? '' : ' — could not be independently verified'}">${p.num}</a>`
       : `<span title="txid ${p.txid}${p.verified ? '' : ' — could not be independently verified'}">${p.num}</span>`;
     el.innerHTML = `<span class="para-mark">${markInner}</span>${p.prose}`;
     body.append(el);
+  }
+
+  const marginaliaEl = $('ch-marginalia');
+  marginaliaEl.innerHTML = '';
+  $('ch-marginalia-section').classList.toggle('hidden', !marginalia.length);
+  for (const m of marginalia) {
+    const el = document.createElement('p');
+    el.className = 'marginalia-entry';
+    el.innerHTML = `<span class="marginalia-mark">¶${m.num}</span>“${escapeHtml(m.text)}”`;
+    marginaliaEl.append(el);
   }
 
   const appendixEl = $('ch-appendix');

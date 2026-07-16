@@ -225,3 +225,85 @@ export async function withAddresses(tx) {
   for (const o of tx.vout) vout.push({ ...o, ...(await scriptToAddress(o.scriptPubKey)) });
   return { ...tx, vout };
 }
+
+// ─── embedded ASCII text ───────────────────────────────────────────────
+//
+// scriptSig and scriptPubKey bytes are usually cryptographic material --
+// signatures, pubkeys, hashes -- effectively random. But two spots
+// routinely carry deliberate human-readable text: a coinbase input's
+// scriptSig (mining pool tags like "/ViaBTC/") and OP_RETURN outputs
+// (arbitrary embedded messages). This scans any byte string for runs of
+// printable ASCII, so those can be surfaced instead of run through the
+// wordlist as if they were opaque.
+//
+// A minimum run length matters: a single random byte has roughly a 37%
+// chance of falling in the printable range (0x20-0x7E is 95 of 256 values),
+// so short "printable-looking" runs turn up by pure chance in genuine
+// cryptographic material. Requiring several consecutive printable bytes
+// keeps that noise out.
+const ASCII_MIN_RUN = 5;
+
+// Parse a script into its push-data segments, ignoring non-push opcodes
+// (OP_DUP, OP_HASH160, OP_CHECKSIG, the OP_RETURN marker itself, etc.).
+// Scanning each push independently -- rather than the whole script blob --
+// matters: a pushdata length-prefix byte is just as likely to fall in the
+// printable-ASCII range as any other, and scanning the raw blob glues it
+// onto the front of the real text (0x45 = 'E' preceding a 69-byte push,
+// for example). Returns null if the bytes don't parse as a clean sequence
+// of opcodes (some coinbase scriptSigs are arbitrary, not necessarily
+// well-formed script) so the caller can fall back to a raw scan.
+function scriptPushes(bytes) {
+  const pushes = [];
+  let i = 0;
+  while (i < bytes.length) {
+    const op = bytes[i];
+    let len, dataStart;
+    if (op >= 0x01 && op <= 0x4b) { len = op; dataStart = i + 1; }
+    else if (op === 0x4c) { if (i + 2 > bytes.length) return null; len = bytes[i + 1]; dataStart = i + 2; }
+    else if (op === 0x4d) { if (i + 3 > bytes.length) return null; len = bytes[i + 1] | (bytes[i + 2] << 8); dataStart = i + 3; }
+    else if (op === 0x4e) {
+      if (i + 5 > bytes.length) return null;
+      len = (bytes[i + 1] | (bytes[i + 2] << 8) | (bytes[i + 3] << 16) | (bytes[i + 4] << 24)) >>> 0;
+      dataStart = i + 5;
+    } else { i += 1; continue; }   // non-push opcode -- no associated data to extract
+    if (dataStart + len > bytes.length) return null;
+    pushes.push(bytes.subarray(dataStart, dataStart + len));
+    i = dataStart + len;
+  }
+  return pushes;
+}
+
+export function findAsciiStrings(hex, minRun = ASCII_MIN_RUN) {
+  const bytes = hexToBytes(hex);
+  const segments = scriptPushes(bytes) || [bytes];   // fall back to the raw blob if it isn't clean script
+  const found = [];
+  for (const seg of segments) {
+    let start = -1;
+    for (let i = 0; i <= seg.length; i++) {
+      const printable = i < seg.length && seg[i] >= 0x20 && seg[i] <= 0x7e;
+      if (printable) {
+        if (start === -1) start = i;
+      } else if (start !== -1) {
+        if (i - start >= minRun) found.push(String.fromCharCode(...seg.subarray(start, i)));
+        start = -1;
+      }
+    }
+  }
+  return found;
+}
+
+// Where to actually look for embedded text in a parsed transaction: a
+// coinbase input's scriptSig (mining pool tags), and any OP_RETURN output's
+// scriptPubKey (arbitrary embedded messages). Everywhere else -- ordinary
+// scriptSig/scriptPubKey/witness data -- is cryptographic material, where a
+// scan like this turns up "coincidental" printable-looking noise roughly
+// half the time (verified empirically at minRun=5 against random 140-byte
+// blobs), not genuine text, so it's deliberately skipped.
+export function findTransactionAscii(parsed, isCoinbase) {
+  const found = [];
+  if (isCoinbase && parsed.vin[0]) found.push(...findAsciiStrings(parsed.vin[0].scriptSig));
+  for (const o of parsed.vout) {
+    if (o.scriptPubKey.slice(0, 2).toLowerCase() === '6a') found.push(...findAsciiStrings(o.scriptPubKey));
+  }
+  return found;
+}
