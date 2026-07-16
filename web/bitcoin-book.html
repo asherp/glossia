@@ -123,24 +123,26 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .para-mark a { color: var(--meta); text-decoration: none; }
 .para-mark a:hover { color: var(--accent); text-decoration: underline; }
 
-/* fit-content, not minmax(min, <length>) -- a fixed-length max is still the
-   track's growth *target*, so grid's "maximize tracks" step fills it in
-   regardless of actual content, stealing width from the 1fr body column
-   even when a margin only holds a single glyph. fit-content grows a track
-   only as far as its own content needs, capped at the given length. */
-.tx-grid { display: grid; grid-template-columns: fit-content(11em) 1fr fit-content(8em); column-gap: 18px; row-gap: .55em; align-items: baseline; }
-.tx-margin-left, .tx-margin-right { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
-.tx-margin-left { text-align: right; }
-.tx-margin-right { text-align: left; }
-.tx-body-lead::first-letter {
+/* Margins are floats, not grid cells -- a grid row's height is the tallest
+   of its cells, so a long prevout reference paired with an empty scriptSig
+   (the common case for a segwit input, whose signature lives in the
+   witness) produced a tall, mostly-blank row that pushed the next
+   transaction field's real prose down behind it. Floats fall out of normal
+   flow, so a body line just starts wherever the flow already is instead of
+   waiting for a tall neighboring note to finish. */
+.tx-flow::after { content: ''; display: table; clear: both; }
+.tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
+.tx-note-left { float: left; clear: left; width: auto; max-width: 11em; margin: 0 1.1em .55em 0; text-align: right; }
+.tx-note-right { float: right; clear: right; width: auto; max-width: 8em; margin: 0 0 .55em 1.1em; text-align: left; }
+.tx-line { margin: 0 0 .55em; }
+.tx-line.tx-body-lead::first-letter {
   font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
   font-weight: 500; color: var(--accent);
 }
 @media (max-width: 560px) {
-  .tx-grid { grid-template-columns: 1fr; row-gap: .2em; }
-  .tx-margin-left, .tx-margin-right { text-align: left; font-size: 12px; }
-  .tx-margin-left:not(:empty)::before { content: '← '; }
-  .tx-margin-right:not(:empty)::before { content: '→ '; }
+  .tx-note-left, .tx-note-right { float: none; clear: both; max-width: none; width: auto; text-align: left; margin: 0 0 .2em; }
+  .tx-note-left::before { content: '← '; }
+  .tx-note-right::before { content: '→ '; }
 }
 
 .chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
@@ -158,7 +160,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <div class="wrap">
   <div class="masthead">
     <span class="title">The Bitcoin Book</span>
-    <span class="sub">a block, read as a chapter</span>
     <span class="home"><a href="./bitcoin.html">transaction lookup</a> &nbsp;·&nbsp; <a href="./index.html">Glossia</a></span>
   </div>
 
@@ -333,27 +334,42 @@ function renderChapter(para) {
   mark.innerHTML = markInner;
   wrap.append(mark);
 
-  // Left margin (provenance): what this row's text refers back to.
-  // Right margin (consequences): what it produces / how it ends. The body
-  // in between is the canonical prose -- scripts, quoted ASCII literals.
-  const grid = document.createElement('div');
-  grid.className = 'tx-grid';
+  // Left margin (provenance): what this text refers back to. Right margin
+  // (consequences): what it produces / how it ends. Both float alongside
+  // the canonical prose -- scripts, quoted ASCII literals -- rather than
+  // sharing a grid row with it, so an empty script doesn't leave a blank
+  // gap the height of a long neighboring reference.
+  const flow = document.createElement('div');
+  flow.className = 'tx-flow';
   let leadUsed = false;
-  const addRow = (left, bodyHtml, right) => {
-    const l = document.createElement('div'); l.className = 'tx-margin-left'; l.innerHTML = left || '';
-    const b = document.createElement('div');
-    b.className = 'tx-body' + (!leadUsed && bodyHtml ? (leadUsed = true, ' tx-body-lead') : '');
-    b.innerHTML = bodyHtml || '';
-    const r = document.createElement('div'); r.className = 'tx-margin-right'; r.innerHTML = right || '';
-    grid.append(l, b, r);
+  const addNote = (cls, html) => {
+    if (!html) return;
+    const n = document.createElement('div');
+    n.className = cls;
+    n.innerHTML = html;
+    flow.append(n);
+  };
+  const addLine = (html) => {
+    if (!html) return;
+    const p = document.createElement('p');
+    p.className = 'tx-line' + (!leadUsed ? (leadUsed = true, ' tx-body-lead') : '');
+    p.innerHTML = html;
+    flow.append(p);
   };
 
   const f = para.fields;
-  if (f.version !== '1') addRow(f.version, '', '');   // version 1 is the default -- omitted
-  for (const inp of f.inputs) addRow(inp.prevout, inp.script, inp.sequence);
-  for (const out of f.outputs) addRow('', out.script, out.value);
-  addRow('', '', f.locktime);
-  wrap.append(grid);
+  if (f.version !== '1') addNote('tx-note tx-note-left', f.version);   // version 1 is the default -- omitted
+  for (const inp of f.inputs) {
+    addNote('tx-note tx-note-left', inp.prevout);
+    addNote('tx-note tx-note-right', inp.sequence);
+    addLine(inp.script);
+  }
+  for (const out of f.outputs) {
+    addNote('tx-note tx-note-right', out.value);
+    addLine(out.script);
+  }
+  addNote('tx-note tx-note-right', f.locktime);
+  wrap.append(flow);
   body.append(wrap);
 
   const appendixEl = $('ch-appendix');
