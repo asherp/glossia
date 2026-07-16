@@ -135,10 +135,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
      .tx-locktime the closing locktime, right column, last band -- the end. */
 .tx-flow { display: grid; grid-template-columns: [left] 6.5em [body] minmax(0,1fr) [right] 7em; column-gap: 1.3em; align-items: start; }
 .tx-inputs { grid-column: left / right; grid-row: 1; display: grid; grid-template-columns: subgrid; column-gap: 1.3em; align-items: start; }
-.tx-in-cite { grid-column: 1; text-align: right; font: 500 11.5px/1.5 'IBM Plex Mono',monospace; color: var(--dim); word-break: break-word; }
+/* padding-top nudges the small-cap reference down onto the top of the taller
+   prose line beside it (the two line boxes top-align, but the glyphs don't). */
+.tx-in-cite { grid-column: 1; text-align: right; padding-top: .34em; font: 500 11.5px/1.5 'IBM Plex Mono',monospace; color: var(--dim); word-break: break-word; }
 .tx-in-cite.resolving { color: var(--meta); }
 .tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
 .tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
+.cite-verse-link { color: var(--accent); text-decoration: none; }
+.cite-verse-link:hover { text-decoration: underline; }
 .tx-in-script { grid-column: 2; min-width: 0; }
 .tx-outputs {
   grid-column: body / -1; grid-row: 2;
@@ -314,26 +318,42 @@ function toRoman(n) {
   return out || '0';
 }
 
-// A scripture-style citation: volume (Roman) book chapter §verse.output-index --
-// e.g. "XII 37 184 §17.2".
-function formatCitation(height, pos, vout) {
+// Populate a citation cell with the scripture-style reference "volume(Roman)
+// book chapter §verse.output-index" (e.g. "XII 37 184 §17.2"), where the
+// §verse.output part is a link to that verse.
+function renderCitation(citeBody, height, pos, vout) {
   const { volume, book, chapter } = volumeBookChapter(height);
-  return `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
+  citeBody.textContent = '';
+  citeBody.append(`${toRoman(volume)} ${book} ${chapter} `);
+  const link = document.createElement('a');
+  link.className = 'cite-verse-link';
+  link.href = `?block=${height}&index=${pos}`;
+  link.textContent = `§${pos + 1}.${vout}`;
+  link.title = `go to verse ${pos + 1}`;
+  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos); });
+  citeBody.append(link);
+}
+
+// Navigate to a referenced verse (the transaction at `index` in the block at
+// `height`) in place, updating the lookup field and URL.
+function goToVerse(height, index) {
+  $('block-input').value = String(height);
+  openLookup(String(height), index);
 }
 
 // Fill each pending citation cell once its reference resolves; skip if the
 // reader has since paged to another verse (gen no longer current).
 async function resolveCitations(pending, gen) {
-  await Promise.all(pending.map(async ({ cite, txid, vout }) => {
+  await Promise.all(pending.map(async ({ citeBody, cite, txid, vout }) => {
     try {
       const { height, pos } = await resolveCitation(txid);
       if (gen !== renderGen) return;
-      cite.textContent = formatCitation(height, pos, vout);
+      renderCitation(citeBody, height, pos, vout);
       cite.classList.remove('resolving');
       cite.title = `${txid}:${vout}`;
     } catch (e) {
       if (gen !== renderGen) return;
-      cite.textContent = `${txid.slice(0, 8)}… [${vout}]`;
+      citeBody.textContent = `${txid.slice(0, 8)}… .${vout}`;
       cite.classList.remove('resolving');
       cite.classList.add('cite-unresolved');
       cite.title = `${txid}:${vout} — reference could not be resolved`;
@@ -511,19 +531,22 @@ function renderChapter(para) {
   for (const inp of f.inputs) {
     const cite = document.createElement('div');
     cite.className = 'tx-in-cite';
+    const citeBody = document.createElement('span');
+    citeBody.className = 'cite-body';
     if (inp.isNullPrevout) {
-      cite.textContent = '∅';   // coinbase: no previous output
+      citeBody.textContent = '∅';   // coinbase: no previous output
     } else {
-      cite.textContent = '⋯';   // placeholder until the reference resolves
+      citeBody.textContent = '⋯';   // placeholder until the reference resolves
       cite.classList.add('resolving');
-      pendingCites.push({ cite, txid: inp.prevTxid, vout: inp.prevVout });
+      pendingCites.push({ citeBody, cite, txid: inp.prevTxid, vout: inp.prevVout });
     }
+    cite.append(citeBody);
+    // A witness-bearing input hangs its footnote reference off the citation,
+    // numbered in input order.
+    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex }); cite.append(witnessRef(footnotes.length)); }
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-in-script';
-    // Trailing marks: the sequence, then -- when the input carries a witness --
-    // a superscript footnote reference numbered in input order.
     const tail = [seqSpan(inp)];
-    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex }); tail.push(witnessRef(footnotes.length)); }
     if (inp.scriptAscii) { addQuote(scriptCell, inp.scriptAscii); addSeqLineTo(scriptCell, tail); }
     else if (inp.script) addLine(scriptCell, inp.script).append(' ', ...tail);
     else addSeqLineTo(scriptCell, tail);
