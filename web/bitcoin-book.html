@@ -100,7 +100,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-meta { font: 400 12.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-meta span + span::before { content: ' · '; color: var(--rule); }
 
-.chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); }
+.chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 .para { margin: 0 0 1.6em; text-indent: 1.6em; position: relative; }
 .para:first-of-type { text-indent: 0; }
 .para:first-of-type::first-letter {
@@ -145,7 +145,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, or a 64-character block hash" autocomplete="off" spellcheck="false">
       <button type="button" id="block-btn">Read chapter</button>
     </div>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph; its witness stack, if any, becomes an appendix entry. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
     <div id="block-status" class="status-line hidden"></div>
   </div>
 
@@ -193,6 +193,36 @@ function trimTrailingZeroBytes(hex) {
   let end = hex.length;
   while (end >= 2 && hex.slice(end - 2, end) === '00') end -= 2;
   return hex.slice(0, end);
+}
+
+// Compose a transaction's paragraph: small structural integers (version, an
+// input's referenced output index and sequence, an output's value, locktime)
+// are spliced in as literal numerals rather than routed through the
+// wordlist -- they're exactly what produces long zero-byte word runs (see
+// the zero-run note above), and as plain digits they read as digits, not
+// noise. The genuinely opaque bytes (prevout txid, scriptSig, scriptPubKey)
+// stay Glossia-encoded, one call per field so its numeral sits right beside it.
+function describeTransaction(parsed) {
+  const clauses = [
+    `Version ${parsed.version}, ${parsed.vin.length} input${parsed.vin.length === 1 ? '' : 's'}, ${parsed.vout.length} output${parsed.vout.length === 1 ? '' : 's'}.`,
+  ];
+
+  for (const v of parsed.vin) {
+    const isNullPrevout = v.txid === '00'.repeat(32);
+    const opaqueHex = isNullPrevout ? v.scriptSig : v.txid + v.scriptSig;
+    const prose = opaqueHex ? encodeSeedPhrase(opaqueHex, 'english', BEST_OF).prose : '(empty script)';
+    clauses.push(isNullPrevout
+      ? `Minted new, unbacked by any prior output — its coinbase script speaks: ${prose} Sequence ${v.sequence}.`
+      : `Drawing on output ${v.vout} of an earlier hand, secured by: ${prose} Sequence ${v.sequence}.`);
+  }
+
+  for (const o of parsed.vout) {
+    const prose = o.scriptPubKey ? encodeSeedPhrase(o.scriptPubKey, 'english', BEST_OF).prose : '(empty script)';
+    clauses.push(`It pays ${o.value.toLocaleString()} satoshis to: ${prose}`);
+  }
+
+  clauses.push(`Locktime ${parsed.locktime}.`);
+  return clauses.join(' ');
 }
 
 let ready = false;
@@ -253,9 +283,9 @@ async function readChapter(input, page) {
       const parsed = parseTransaction(hexes[i]);
       const txid = pageTxids[i];
       const verifiedTxid = await computeTxid(parsed.baseHex);
-      const { prose: bodyProse } = encodeSeedPhrase(parsed.baseHex, 'english', BEST_OF);
       const num = start + i + 1;
       const isCoinbase = parsed.vin.length === 1 && parsed.vin[0].txid === '00'.repeat(32);
+      const bodyProse = describeTransaction(parsed);
       let appendixIndex = null;
       if (parsed.witnessHex) {
         const { prose: witProse } = encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF);
