@@ -197,7 +197,8 @@ function renderProse(parsed) {
 async function renderCitation(tx, txid) {
   const el = $('tx-citation');
   if (!tx.status.confirmed) {
-    el.textContent = '— Unknown';
+    const observedAt = new Date().toISOString().slice(0, 10);
+    el.textContent = `— Unknown, circa ${observedAt}`;
     return;
   }
   const height = tx.status.block_height;
