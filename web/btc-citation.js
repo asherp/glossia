@@ -29,9 +29,3 @@ export function volumeBookChapter(height) {
     chapterCount: bookLength,
   };
 }
-
-// The page size bitcoin-book.html paginates a chapter's transactions by --
-// matches Esplora's own /block/:hash/txs/:start_index granularity. Shared
-// here so a transaction's "Verse" citation can link straight to the page
-// of the chapter it actually appears on.
-export const PAGE_SIZE = 25;

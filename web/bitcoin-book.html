@@ -133,7 +133,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .appendix-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
 
 .chapter-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top: 54px; padding-top: 24px; border-top: 1px solid var(--rule); }
-.chapter-nav .page-status { font: 400 12.5px/1 'IBM Plex Mono',monospace; color: var(--meta); }
 </style>
 </head>
 <body>
@@ -174,7 +173,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
     <nav class="chapter-nav">
       <button type="button" id="page-prev">← Previous</button>
-      <span class="page-status" id="page-status"></span>
       <button type="button" id="page-next">Next →</button>
     </nav>
   </article>
@@ -184,7 +182,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid } from './btc-tx.js';
 import { describeTransaction } from './btc-prose.js';
-import { volumeBookChapter, PAGE_SIZE } from './btc-citation.js';
+import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
@@ -226,58 +224,112 @@ async function resolveBlockHash(input) {
   throw new Error('Enter a block height (e.g. 0) or a 64-character block hash.');
 }
 
-async function readChapter(input, page) {
+// The current block's info + full ordered txid list, plus which transaction
+// within it is on screen -- fetched once per block, so stepping between
+// transactions inside it needs no further list fetch. `null` before the
+// first successful load.
+let state = null;   // { hash, height, block, txids, index }
+
+// The chain tip isn't knowable in advance -- discovered only by trying to
+// fetch the next block and having it 404 -- so it's cached once learned
+// rather than reprobed on every step off the same last block.
+let tipHeight = null;
+
+async function loadBlockMeta(hash) {
+  const [blockRes, txidsRes] = await Promise.all([
+    fetch(`${ESPLORA}/block/${hash}`),
+    fetch(`${ESPLORA}/block/${hash}/txids`),
+  ]);
+  if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
+  if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
+  const block = await blockRes.json();
+  const txids = await txidsRes.json();
+  return { hash, height: block.height, block, txids };
+}
+
+async function loadBlockByHeight(height) {
+  const res = await fetch(`${ESPLORA}/block-height/${height}`);
+  if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${height}.` : `Esplora returned ${res.status}.`);
+  return loadBlockMeta((await res.text()).trim());
+}
+
+async function showCurrentTx() {
+  setStatus('<span class="spinner"></span>fetching transaction…');
+  const txid = state.txids[state.index];
+  const r = await fetch(`${ESPLORA}/tx/${txid}/hex`);
+  if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
+  const hex = (await r.text()).trim();
+
+  if (!ready) await init().catch(() => {});
+  setStatus('<span class="spinner"></span>encoding as prose…');
+
+  const parsed = parseTransaction(hex);
+  const verifiedTxid = await computeTxid(parsed.baseHex);
+  const { prose: bodyProse } = describeTransaction(parsed, BEST_OF);
+  const witness = parsed.witnessHex ? encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF) : null;
+
+  renderChapter({
+    num: state.index + 1, txid, prose: bodyProse,
+    verified: verifiedTxid === txid, witnessProse: witness ? witness.prose : null,
+  });
+  updateUrl();
+  $('chapter').classList.remove('hidden');
+  setStatus('');
+}
+
+function renderChapter(para) {
+  const { volume, book, chapter } = volumeBookChapter(state.height);
+  $('ch-volume').textContent = volume.toLocaleString();
+  $('ch-book').textContent = book.toLocaleString();
+  // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
+  // earns its own title rather than just being "Chapter 1".
+  $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
+  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
+  $('ch-hash-short').textContent = hashProse;
+  $('ch-hash-short').title = state.hash;
+
+  const body = $('ch-paragraphs');
+  body.innerHTML = '';
+  const el = document.createElement('p');
+  el.className = 'para' + (para.verified ? '' : ' unverified');
+  const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
+  const markInner = para.witnessProse
+    ? `<a href="#appendix-1" title="${titleAttr}">${para.num}</a>`
+    : `<span title="${titleAttr}">${para.num}</span>`;
+  el.innerHTML = `<span class="para-mark">${markInner}</span>${para.prose}`;
+  body.append(el);
+
+  const appendixEl = $('ch-appendix');
+  appendixEl.innerHTML = '';
+  $('ch-appendix-section').classList.toggle('hidden', !para.witnessProse);
+  if (para.witnessProse) {
+    const a = document.createElement('p');
+    a.className = 'appendix-entry';
+    a.id = 'appendix-1';
+    a.innerHTML = `<span class="appendix-mark">¶${para.num}</span>${para.witnessProse}`;
+    appendixEl.append(a);
+  }
+
+  $('page-prev').disabled = state.height === 0 && state.index === 0;
+  $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txids.length - 1;
+}
+
+function updateUrl() {
+  const params = new URLSearchParams();
+  params.set('block', String(state.height));
+  if (state.index) params.set('index', String(state.index));
+  history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+}
+
+async function openBlock(input, index) {
   $('chapter').classList.add('hidden');
   setStatus('<span class="spinner"></span>fetching block…');
   $('block-btn').disabled = true;
   try {
     const hash = await resolveBlockHash(input);
-
-    const [blockRes, txidsRes] = await Promise.all([
-      fetch(`${ESPLORA}/block/${hash}`),
-      fetch(`${ESPLORA}/block/${hash}/txids`),
-    ]);
-    if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
-    if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
-    const block = await blockRes.json();
-    const txids = await txidsRes.json();
-
-    const maxPage = Math.max(0, Math.ceil(txids.length / PAGE_SIZE) - 1);
-    page = Math.min(Math.max(0, page), maxPage);
-    const start = page * PAGE_SIZE;
-    const pageTxids = txids.slice(start, start + PAGE_SIZE);
-
-    setStatus(`<span class="spinner"></span>fetching ${pageTxids.length} transaction${pageTxids.length === 1 ? '' : 's'}…`);
-    const hexes = await Promise.all(pageTxids.map(async (txid) => {
-      const r = await fetch(`${ESPLORA}/tx/${txid}/hex`);
-      if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
-      return (await r.text()).trim();
-    }));
-
-    if (!ready) await init().catch(() => {});
-    setStatus('<span class="spinner"></span>encoding as prose…');
-
-    const paragraphs = [];
-    const appendix = [];
-    for (let i = 0; i < hexes.length; i++) {
-      const parsed = parseTransaction(hexes[i]);
-      const txid = pageTxids[i];
-      const verifiedTxid = await computeTxid(parsed.baseHex);
-      const num = start + i + 1;
-      const { prose: bodyProse } = describeTransaction(parsed, BEST_OF);
-      let appendixIndex = null;
-      if (parsed.witnessHex) {
-        const { prose: witProse } = encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF);
-        appendixIndex = appendix.length + 1;
-        appendix.push({ num, txid, prose: witProse });
-      }
-      paragraphs.push({ num, txid, prose: bodyProse, appendixIndex, verified: verifiedTxid === txid });
-    }
-
-    renderChapter(block, hash, page, maxPage, txids.length, paragraphs, appendix);
-    updateUrl(input, page);
-    $('chapter').classList.remove('hidden');
-    setStatus('');
+    const next = await loadBlockMeta(hash);
+    state = { ...next, index: Math.min(Math.max(0, index), next.txids.length - 1) };
+    await showCurrentTx();
   } catch (e) {
     setStatus(e.message || 'Failed to load chapter.', 'err');
   } finally {
@@ -285,64 +337,49 @@ async function readChapter(input, page) {
   }
 }
 
-function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
-  const { volume, book, chapter } = volumeBookChapter(block.height);
-  $('ch-volume').textContent = volume.toLocaleString();
-  $('ch-book').textContent = book.toLocaleString();
-  // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
-  // earns its own title rather than just being "Chapter 1".
-  $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
-  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english', BEST_OF);
-  $('ch-hash-short').textContent = hashProse;
-  $('ch-hash-short').title = hash;
-
-  const body = $('ch-paragraphs');
-  body.innerHTML = '';
-  for (const p of paragraphs) {
-    const el = document.createElement('p');
-    el.className = 'para' + (p.verified ? '' : ' unverified');
-    const markInner = p.appendixIndex
-      ? `<a href="#appendix-${p.appendixIndex}" title="txid ${p.txid}${p.verified ? '' : ' — could not be independently verified'}">${p.num}</a>`
-      : `<span title="txid ${p.txid}${p.verified ? '' : ' — could not be independently verified'}">${p.num}</span>`;
-    el.innerHTML = `<span class="para-mark">${markInner}</span>${p.prose}`;
-    body.append(el);
+// direction: +1 (Next) or -1 (Previous). Steps within the current block's
+// transaction list; at either edge, crosses into the adjacent block (if one
+// exists) and continues from its first/last transaction.
+async function stepTx(direction) {
+  const withinBlock = state.index + direction;
+  if (withinBlock >= 0 && withinBlock < state.txids.length) {
+    state.index = withinBlock;
+    try {
+      await showCurrentTx();
+    } catch (e) {
+      setStatus(e.message || 'Failed to load transaction.', 'err');
+    }
+    return;
   }
 
-  const appendixEl = $('ch-appendix');
-  appendixEl.innerHTML = '';
-  $('ch-appendix-section').classList.toggle('hidden', !appendix.length);
-  for (const [i, a] of appendix.entries()) {
-    const el = document.createElement('p');
-    el.className = 'appendix-entry';
-    el.id = `appendix-${i + 1}`;
-    el.innerHTML = `<span class="appendix-mark">¶${a.num}</span>${a.prose}`;
-    appendixEl.append(el);
+  const newHeight = state.height + direction;
+  if (newHeight < 0) return;   // Genesis has no earlier block
+
+  $('page-prev').disabled = true;
+  $('page-next').disabled = true;
+  setStatus(`<span class="spinner"></span>loading ${direction > 0 ? 'next' : 'previous'} block…`);
+  try {
+    const next = await loadBlockByHeight(newHeight);
+    state = { ...next, index: direction > 0 ? 0 : next.txids.length - 1 };
+    await showCurrentTx();
+  } catch (e) {
+    if (direction > 0) tipHeight = state.height;
+    setStatus(direction > 0 ? 'No next block yet — this is the current chain tip.' : (e.message || 'Failed to load previous block.'), 'err');
+    $('page-prev').disabled = state.height === 0 && state.index === 0;
+    $('page-next').disabled = direction > 0;
   }
-
-  const start = page * PAGE_SIZE + 1;
-  const end = Math.min((page + 1) * PAGE_SIZE, totalTx);
-  $('page-status').textContent = `paragraphs ${start.toLocaleString()}–${end.toLocaleString()} of ${totalTx.toLocaleString()}`;
-  $('page-prev').disabled = page <= 0;
-  $('page-next').disabled = page >= maxPage;
-  $('page-prev').onclick = () => readChapter($('block-input').value, page - 1);
-  $('page-next').onclick = () => readChapter($('block-input').value, page + 1);
 }
 
-function updateUrl(input, page) {
-  const params = new URLSearchParams();
-  params.set('block', input.trim());
-  if (page) params.set('page', String(page));
-  history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
-}
-
-$('block-btn').addEventListener('click', () => readChapter($('block-input').value, 0));
-$('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') readChapter($('block-input').value, 0); });
+$('block-btn').addEventListener('click', () => openBlock($('block-input').value, 0));
+$('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openBlock($('block-input').value, 0); });
+$('page-prev').addEventListener('click', () => stepTx(-1));
+$('page-next').addEventListener('click', () => stepTx(1));
 
 const params = new URLSearchParams(location.search);
 const blockParam = params.get('block');
-const pageParam = parseInt(params.get('page'), 10) || 0;
+const indexParam = parseInt(params.get('index'), 10) || 0;
 if (blockParam) $('block-input').value = blockParam;
-readChapter($('block-input').value, pageParam);
+openBlock($('block-input').value, indexParam);
 </script>
 </body>
 </html>
