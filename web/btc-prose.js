@@ -84,7 +84,9 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     const { script, ascii } = collectScript(v.scriptSig, isNullPrevout);
     const sequenceDefault = v.sequence === FINAL_SEQUENCE;
     const sequence = sequenceDefault ? FINAL_SEQUENCE_MARK : String(v.sequence);
-    return { prevout, isNullPrevout, script, scriptAscii: ascii, sequence, sequenceDefault };
+    // Raw per-input witness bytes (segwit only), carried through so the book can
+    // encode each input's witness as its own footnote. Empty for a legacy input.
+    return { prevout, isNullPrevout, script, scriptAscii: ascii, sequence, sequenceDefault, witnessHex: v.witnessHex || '' };
   });
 
   const outputs = parsed.vout.map((o) => {
