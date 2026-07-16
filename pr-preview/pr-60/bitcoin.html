@@ -169,17 +169,25 @@ h2 { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-trans
 
     <div class="card">
       <h2>Encoded as Glossia prose</h2>
-      <p class="muted" style="margin:0 0 4px; font-size:13px;">The raw signed transaction — every byte, verbatim — rendered as natural-language English. Filtering this prose against the wordlist recovers the exact hex.</p>
+      <p class="muted" style="margin:0 0 4px; font-size:13px;">Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose.</p>
       <div class="prose-box" id="tx-prose"></div>
       <div class="prose-meta">
         <span class="muted mono" id="tx-prose-stats" style="font-size:12px;"></span>
         <button type="button" class="copy-btn" id="tx-copy">Copy prose</button>
       </div>
+      <div id="tx-witness-wrap" class="hidden" style="margin-top:22px;">
+        <div class="muted" style="font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px;">Witness data</div>
+        <div class="prose-box" id="tx-witness-prose"></div>
+        <div class="prose-meta">
+          <span class="muted mono" id="tx-witness-stats" style="font-size:12px;"></span>
+          <button type="button" class="copy-btn" id="tx-witness-copy">Copy witness prose</button>
+        </div>
+      </div>
     </div>
 
     <div class="card">
-      <h2>Decoded independently from the prose</h2>
-      <p class="muted" style="margin:0 0 4px; font-size:13px;">The prose above, filtered back to bytes and parsed as a raw transaction — no explorer API involved below this line. Input amounts and fee are absent on purpose: a transaction only references its inputs by <span class="mono">txid:vout</span>, not their value, so recovering those still requires chain context.</p>
+      <h2>Parsed independently</h2>
+      <p class="muted" style="margin:0 0 4px; font-size:13px;">The same raw bytes fetched above, parsed by Glossia's own transaction parser rather than Esplora's JSON — its txid verified by hashing those bytes directly, no explorer API involved below this line. Input amounts and fee are absent on purpose: a transaction only references its inputs by <span class="mono">txid:vout</span>, not their value, so recovering those still requires chain context.</p>
       <dl class="rows" id="tx-decoded-summary"></dl>
       <div class="io-cols" style="margin-top:18px;">
         <div>
@@ -197,8 +205,9 @@ h2 { font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-trans
 </div>
 
 <script type="module">
-import { init, encodeSeedPhrase, decodeSeedPhrase } from './glossia-msg.js';
-import { parseTransaction, withAddresses } from './btc-tx.js';
+import { init } from './glossia-msg.js';
+import { parseTransaction, computeTxid, withAddresses } from './btc-tx.js';
+import { describeTransaction, describeWitness } from './btc-prose.js';
 
 const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
@@ -257,22 +266,28 @@ function renderIO(tx) {
 
 const BEST_OF = 5;
 
-function renderProse(hex) {
-  const { prose, payloadWords } = encodeSeedPhrase(hex, 'english', BEST_OF);
+function renderProse(parsed) {
+  const { prose, payloadWords } = describeTransaction(parsed, BEST_OF);
   $('tx-prose').textContent = prose;
-  const bytes = hex.length / 2;
-  $('tx-prose-stats').textContent = `${bytes.toLocaleString()} bytes → ${payloadWords.length.toLocaleString()} payload words`;
-  return prose;
+  $('tx-prose-stats').textContent = `${payloadWords.length.toLocaleString()} payload words`;
+
+  const { prose: witProse, payloadWords: witWords } = describeWitness(parsed, BEST_OF);
+  if (witProse) {
+    $('tx-witness-prose').textContent = witProse;
+    $('tx-witness-stats').textContent = `${witWords.length.toLocaleString()} payload words`;
+    $('tx-witness-wrap').classList.remove('hidden');
+  } else {
+    $('tx-witness-wrap').classList.add('hidden');
+  }
 }
 
-async function renderDecoded(prose, expectedHex, esploraTx) {
+async function renderVerified(parsed, txid, esploraTx) {
   const errEl = $('tx-decoded-error');
   errEl.classList.add('hidden');
   try {
-    const { hex: recoveredHex } = decodeSeedPhrase(prose, expectedHex.length / 2, 'english');
-    if (recoveredHex !== expectedHex) throw new Error('decoded bytes did not match the original transaction — round-trip mismatch.');
-
-    const parsed = await withAddresses(parseTransaction(recoveredHex));
+    const withAddr = await withAddresses(parsed);
+    const verifiedTxid = await computeTxid(parsed.baseHex);
+    const txidMatch = verifiedTxid === txid;
     const sizeMatch = parsed.size === esploraTx.size && parsed.vsize === esploraTx.vsize && parsed.weight === esploraTx.weight;
 
     const dl = $('tx-decoded-summary');
@@ -281,6 +296,7 @@ async function renderDecoded(prose, expectedHex, esploraTx) {
       ['Version', String(parsed.version)],
       ['Locktime', String(parsed.locktime)],
       ['Segwit', parsed.segwit ? 'yes' : 'no'],
+      ['Txid', txidMatch ? '<span class="pill confirmed">independently verified</span>' : '<span class="pill pending">mismatch</span>'],
       ['Size / vsize / weight', `${parsed.size} B / ${parsed.vsize} vB / ${parsed.weight} WU ` +
         (sizeMatch ? '<span class="pill confirmed">matches explorer</span>' : '<span class="pill pending">mismatch</span>')],
     ];
@@ -288,7 +304,7 @@ async function renderDecoded(prose, expectedHex, esploraTx) {
 
     const vinEl = $('tx-decoded-vin'), voutEl = $('tx-decoded-vout');
     vinEl.innerHTML = ''; voutEl.innerHTML = '';
-    for (const vin of parsed.vin) {
+    for (const vin of withAddr.vin) {
       const li = document.createElement('li');
       const witnessLine = vin.witness.length
         ? `<div class="io-detail"><b>witness</b> (${vin.witness.length} item${vin.witness.length === 1 ? '' : 's'}): ${vin.witness.join(' ')}</div>`
@@ -299,7 +315,7 @@ async function renderDecoded(prose, expectedHex, esploraTx) {
         ${witnessLine}`;
       vinEl.append(li);
     }
-    for (const vout of parsed.vout) {
+    for (const vout of withAddr.vout) {
       const li = document.createElement('li');
       li.innerHTML = `<span class="io-addr">${vout.address || vout.type}</span><span class="io-val">${sats(vout.value)}</span>`;
       voutEl.append(li);
@@ -308,7 +324,7 @@ async function renderDecoded(prose, expectedHex, esploraTx) {
     $('tx-decoded-summary').innerHTML = '';
     $('tx-decoded-vin').innerHTML = '';
     $('tx-decoded-vout').innerHTML = '';
-    errEl.textContent = e.message || 'Decode failed.';
+    errEl.textContent = e.message || 'Verification failed.';
     errEl.classList.remove('hidden');
   }
 }
@@ -335,8 +351,9 @@ async function lookup(txid) {
     renderSummary(tx);
     renderIO(tx);
     if (!ready) await init().catch(() => {});
-    const prose = renderProse(hex);
-    await renderDecoded(prose, hex, tx);
+    const parsed = parseTransaction(hex);
+    renderProse(parsed);
+    await renderVerified(parsed, txid, tx);
 
     $('tx-result').classList.remove('hidden');
     setStatus('');
@@ -353,6 +370,13 @@ $('tx-copy').addEventListener('click', async () => {
   try {
     await navigator.clipboard.writeText($('tx-prose').textContent);
     const btn = $('tx-copy'); const old = btn.textContent;
+    btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = old; }, 1400);
+  } catch (e) { /* clipboard unavailable */ }
+});
+$('tx-witness-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText($('tx-witness-prose').textContent);
+    const btn = $('tx-witness-copy'); const old = btn.textContent;
     btn.textContent = 'Copied ✓'; setTimeout(() => { btn.textContent = old; }, 1400);
   } catch (e) { /* clipboard unavailable */ }
 });
