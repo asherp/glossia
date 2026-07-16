@@ -9,8 +9,8 @@
 // difficulty periods -- the last book of every era is a shorter, truncated
 // one (336 blocks instead of 2016).
 //
-// Shared by bitcoin-book.html (the chapter view) and bitcoin.html (a single
-// transaction's "verse" citation).
+// Used by bitcoin-book.html to place each block within the volume/book/chapter
+// scheme.
 
 const ERA_BLOCKS = 210000;
 const DIFFICULTY_BLOCKS = 2016;
