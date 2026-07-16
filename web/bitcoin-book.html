@@ -493,14 +493,23 @@ function renderChapter(para) {
     q.innerHTML = html;
     container.append(q);
   };
-  // The input's sequence, inline, as a symbol: ○ final · † replaceable ·
-  // ■n / ⊥n relative block / time delay. Rides the tail of the scriptSig prose,
-  // or stands alone when there is none (an empty segwit script or coinbase tag).
+  // The input's sequence, inline, as a symbol: ● final · ○ respects locktime ·
+  // † replaceable · † ■n / † ⊥n replaceable with a relative block / time delay.
+  // Rides the tail of the scriptSig prose, or stands alone when there is none
+  // (an empty segwit script or coinbase tag). The † is kept a shade warmer than
+  // the delay it precedes, so it reads as its own mark.
   const seqSpan = (inp) => {
     const s = document.createElement('span');
     s.className = `tx-seq tx-seq-${inp.sequenceKind}`;
-    s.textContent = inp.sequence;
     s.title = inp.sequenceTitle;
+    if (inp.sequenceRbf && inp.sequence) {
+      const dagger = document.createElement('span');
+      dagger.className = 'tx-seq-rbf';
+      dagger.textContent = '†';
+      s.append(dagger, ` ${inp.sequence}`);
+    } else {
+      s.textContent = inp.sequenceRbf ? '†' : inp.sequence;
+    }
     return s;
   };
   // A superscript index tying a witness-bearing input to its footnote; clicking

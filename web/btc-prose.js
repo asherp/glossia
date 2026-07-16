@@ -39,21 +39,23 @@ function locktimeInfo(locktime) {
   return { mark: `⊥${locktime}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
 }
 
-// nSequence -> { mark, kind, title }. BIP68 relative locktime is enabled when
-// bit 31 is clear; bit 22 then selects time (512 s units) over blocks, with the
-// value in the low 16 bits. Otherwise: ● final (0xffffffff, disables the
-// transaction locktime for this input), ○ non-replaceable but respecting the
-// locktime (0xfffffffe), or † replaceable (< 0xfffffffe, opt-in RBF).
+// nSequence -> { rbf, mark, kind, title }. BIP68 relative locktime is enabled
+// when bit 31 is clear; bit 22 then selects time (512 s units) over blocks, with
+// the value in the low 16 bits -- and since such a value is always < 0xfffffffe
+// it ALSO signals opt-in RBF, so it's shown as two marks, † then the delay
+// (e.g. "† ■144"). Otherwise: ● final (0xffffffff, disables the transaction
+// locktime for this input), ○ non-replaceable but respecting the locktime
+// (0xfffffffe), or a bare † replaceable (< 0xfffffffe, opt-in RBF).
 function sequenceInfo(seq) {
   if ((seq & 0x80000000) === 0) {
     const n = seq & 0x0000ffff;
     return (seq & 0x00400000)
-      ? { mark: `⊥${n}`, kind: 'time', title: `relative locktime: ${n} × 512 s after the input's confirmation` }
-      : { mark: `■${n}`, kind: 'block', title: `relative locktime: ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
+      ? { rbf: true, mark: `⊥${n}`, kind: 'time', title: `replaceable; relative locktime ${n} × 512 s after the input's confirmation` }
+      : { rbf: true, mark: `■${n}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
-  if (seq === 0xffffffff) return { mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
-  if (seq === 0xfffffffe) return { mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
-  return { mark: '†', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
+  if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
+  if (seq === 0xfffffffe) return { rbf: false, mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
+  return { rbf: true, mark: '', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
 }
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
@@ -114,7 +116,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
       prevTxid: isNullPrevout ? '' : v.txid,
       prevVout: v.vout,
       script, scriptAscii: ascii,
-      sequence: seq.mark, sequenceKind: seq.kind, sequenceTitle: seq.title,
+      sequence: seq.mark, sequenceKind: seq.kind, sequenceTitle: seq.title, sequenceRbf: seq.rbf,
       witnessHex: v.witnessHex || '',
     };
   });
