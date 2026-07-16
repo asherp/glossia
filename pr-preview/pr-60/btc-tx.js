@@ -291,19 +291,3 @@ export function findAsciiStrings(hex, minRun = ASCII_MIN_RUN) {
   }
   return found;
 }
-
-// Where to actually look for embedded text in a parsed transaction: a
-// coinbase input's scriptSig (mining pool tags), and any OP_RETURN output's
-// scriptPubKey (arbitrary embedded messages). Everywhere else -- ordinary
-// scriptSig/scriptPubKey/witness data -- is cryptographic material, where a
-// scan like this turns up "coincidental" printable-looking noise roughly
-// half the time (verified empirically at minRun=5 against random 140-byte
-// blobs), not genuine text, so it's deliberately skipped.
-export function findTransactionAscii(parsed, isCoinbase) {
-  const found = [];
-  if (isCoinbase && parsed.vin[0]) found.push(...findAsciiStrings(parsed.vin[0].scriptSig));
-  for (const o of parsed.vout) {
-    if (o.scriptPubKey.slice(0, 2).toLowerCase() === '6a') found.push(...findAsciiStrings(o.scriptPubKey));
-  }
-  return found;
-}
