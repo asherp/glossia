@@ -9,6 +9,10 @@
 // genuinely opaque bytes -- prevout txid, scriptSig, scriptPubKey, the
 // witness stack -- are still Glossia-encoded.
 //
+// Two of those numerals get a symbol instead of a digit string when they
+// carry a specific conventional meaning: a coinbase's null prevout (∅) and
+// the sequence field's default "final" value (◼︎) -- see the constants below.
+//
 // Shared by bitcoin.html (single transaction lookup) and bitcoin-book.html
 // (block chapters) so both pages render a transaction identically.
 
@@ -16,6 +20,16 @@ import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings } from './btc-tx.js';
 
 function endSentence(s) { s = s.trim(); return s.endsWith('.') ? s : s + '.'; }
+
+// Two more conventional values worth a symbol instead of a digit string:
+// a coinbase's null prevout (txid all-zero, paired with vout = 0xffffffff --
+// together they mean "no real previous output", so shown once as ∅ rather
+// than as two separate numbers) and the sequence field's default "final, no
+// RBF" value 0xffffffff (shown as ◼︎, wherever it appears -- this isn't
+// coinbase-specific, ordinary transactions set it just as often).
+const FINAL_SEQUENCE = 4294967295;
+const NULL_PREVOUT_MARK = '∅';
+const FINAL_SEQUENCE_MARK = '◼︎';
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
@@ -54,9 +68,10 @@ export function describeTransaction(parsed, bestOf = 1) {
 
   for (const v of parsed.vin) {
     const isNullPrevout = v.txid === '00'.repeat(32);
-    const txidPart = isNullPrevout ? '0' : collect(v.txid);
+    const prevoutPart = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
     const scriptProse = collectScript(v.scriptSig, isNullPrevout);
-    parts.push(endSentence(`${txidPart} ${v.vout} ${scriptProse} ${v.sequence}`));
+    const sequencePart = v.sequence === FINAL_SEQUENCE ? FINAL_SEQUENCE_MARK : String(v.sequence);
+    parts.push(endSentence(`${prevoutPart} ${scriptProse} ${sequencePart}`));
   }
 
   parts.push(`${parsed.vout.length}.`);
