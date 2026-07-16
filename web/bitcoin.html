@@ -255,8 +255,10 @@ function renderIO(tx) {
   }
 }
 
+const BEST_OF = 5;
+
 function renderProse(hex) {
-  const { prose, payloadWords } = encodeSeedPhrase(hex, 'english');
+  const { prose, payloadWords } = encodeSeedPhrase(hex, 'english', BEST_OF);
   $('tx-prose').textContent = prose;
   const bytes = hex.length / 2;
   $('tx-prose-stats').textContent = `${bytes.toLocaleString()} bytes → ${payloadWords.length.toLocaleString()} payload words`;

@@ -178,6 +178,7 @@ import { parseTransaction, computeTxid } from './btc-tx.js';
 const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
 const PAGE_SIZE = 25;   // matches Esplora's own /block/:hash/txs/:start_index granularity
+const BEST_OF = 5;
 
 // Esplora's block hash, like a txid, is displayed byte-reversed relative to its
 // internal (wire/hashing) byte order -- see btc-tx.js's txid handling. Reverse
@@ -252,12 +253,12 @@ async function readChapter(input, page) {
       const parsed = parseTransaction(hexes[i]);
       const txid = pageTxids[i];
       const verifiedTxid = await computeTxid(parsed.baseHex);
-      const { prose: bodyProse } = encodeSeedPhrase(parsed.baseHex, 'english');
+      const { prose: bodyProse } = encodeSeedPhrase(parsed.baseHex, 'english', BEST_OF);
       const num = start + i + 1;
       const isCoinbase = parsed.vin.length === 1 && parsed.vin[0].txid === '00'.repeat(32);
       let appendixIndex = null;
       if (parsed.witnessHex) {
-        const { prose: witProse } = encodeSeedPhrase(parsed.witnessHex, 'english');
+        const { prose: witProse } = encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF);
         appendixIndex = appendix.length + 1;
         appendix.push({ num, txid, prose: witProse });
       }
@@ -277,7 +278,7 @@ async function readChapter(input, page) {
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
   $('ch-height').textContent = block.height.toLocaleString();
-  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english');
+  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
   const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';

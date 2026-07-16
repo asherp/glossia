@@ -325,10 +325,17 @@ export function detectLang(prose) {
 // wordlist). Callers append a checksum to the key before encoding (see
 // glossia-nostr.js) so a mistyped word is caught on load.
 
-// hex string (any byte length) -> { prose, payloadWords, langId }.
-export function encodeSeedPhrase(hex, langId = 'english') {
+// hex string (any byte length) -> { prose, payloadWords, langId }. `bestOf`
+// (default 1) samples that many cover realizations and keeps the densest /
+// most coherent, same as renderArtifact -- it only changes cover words, never
+// the payload, so decoding is unaffected.
+export function encodeSeedPhrase(hex, langId = 'english', bestOf = 1) {
   const lang = msgLangById(langId);
-  const r = JSON.parse(wasmEncodeRawBaseN(hex, lang.language, lang.wordlist, lang.dialect, SEED));
+  const n = Math.max(1, Math.floor(bestOf));
+  const r = JSON.parse(
+    n > 1
+      ? wasmEncodeRawBaseNBestOf(hex, lang.language, lang.wordlist, lang.dialect, SEED, n)
+      : wasmEncodeRawBaseN(hex, lang.language, lang.wordlist, lang.dialect, SEED));
   if (r.error) throw new Error(r.error);
   return { prose: (r.encoded_text || '').trim(), payloadWords: r.payload_words || [], langId: lang.id };
 }
