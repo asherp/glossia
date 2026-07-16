@@ -298,9 +298,15 @@ function renderChapter(para) {
   // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
   // earns its own title rather than just being "Chapter 1".
   $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
-  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
-  $('ch-hash-short').textContent = hashProse;
-  $('ch-hash-short').title = state.hash;
+  // The block-hash subtitle introduces the chapter as a whole, so it only
+  // belongs on the chapter's first transaction, not every one stepped to.
+  const onFirstTx = state.index === 0;
+  $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
+  if (onFirstTx) {
+    const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
+    $('ch-hash-short').textContent = hashProse;
+    $('ch-hash-short').title = state.hash;
+  }
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
