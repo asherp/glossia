@@ -95,6 +95,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* ── the chapter itself: a manuscript page, not a utility card ── */
 #chapter { margin-top: 48px; }
 .chapter-head { text-align: center; padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--rule); }
+.chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
 .chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
 .chapter-meta { font: 400 12.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
@@ -150,7 +151,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
   <article id="chapter" class="hidden">
     <header class="chapter-head">
-      <h1 class="chapter-title">Chapter <span id="ch-height"></span></h1>
+      <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span></div>
+      <h1 class="chapter-title">Chapter <span id="ch-chapter"></span></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
       <div class="chapter-meta" id="ch-meta"></div>
     </header>
@@ -193,6 +195,30 @@ function trimTrailingZeroBytes(hex) {
   let end = hex.length;
   while (end >= 2 && hex.slice(end - 2, end) === '00') end -= 2;
   return hex.slice(0, end);
+}
+
+// The book's three-tier numbering: Volume = halving era (210,000 blocks --
+// the block subsidy halves at each boundary), Book = a difficulty-adjustment
+// window (2016 blocks -- Bitcoin retargets every 2016 blocks), Chapter = a
+// block's position within its book. 210000 isn't a multiple of 2016
+// (210000/2016 ~= 104.17), so book numbering restarts at 1 with each volume
+// rather than counting real global difficulty periods -- the last book of
+// every era is a shorter, truncated one (336 blocks instead of 2016).
+const ERA_BLOCKS = 210000;
+const DIFFICULTY_BLOCKS = 2016;
+function volumeBookChapter(height) {
+  const volumeIndex = Math.floor(height / ERA_BLOCKS);
+  const eraStart = volumeIndex * ERA_BLOCKS;
+  const offsetInEra = height - eraStart;
+  const bookIndex = Math.floor(offsetInEra / DIFFICULTY_BLOCKS);
+  const bookStart = eraStart + bookIndex * DIFFICULTY_BLOCKS;
+  const bookLength = Math.min(DIFFICULTY_BLOCKS, ERA_BLOCKS - bookIndex * DIFFICULTY_BLOCKS);
+  return {
+    volume: volumeIndex + 1,
+    book: bookIndex + 1,
+    chapter: height - bookStart + 1,
+    chapterCount: bookLength,
+  };
 }
 
 let ready = false;
@@ -277,12 +303,15 @@ async function readChapter(input, page) {
 }
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
-  $('ch-height').textContent = block.height.toLocaleString();
+  const { volume, book, chapter, chapterCount } = volumeBookChapter(block.height);
+  $('ch-volume').textContent = volume.toLocaleString();
+  $('ch-book').textContent = book.toLocaleString();
+  $('ch-chapter').textContent = `${chapter.toLocaleString()} of ${chapterCount.toLocaleString()}`;
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
   const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-  $('ch-meta').innerHTML = `<span>${when}</span><span>${totalTx.toLocaleString()} transaction${totalTx === 1 ? '' : 's'}</span><span>${block.size.toLocaleString()} B</span><span>weight ${block.weight.toLocaleString()} WU</span>`;
+  $('ch-meta').innerHTML = `<span>block ${block.height.toLocaleString()}</span><span>${when}</span><span>${totalTx.toLocaleString()} transaction${totalTx === 1 ? '' : 's'}</span><span>${block.size.toLocaleString()} B</span><span>weight ${block.weight.toLocaleString()} WU</span>`;
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
