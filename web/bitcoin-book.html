@@ -196,7 +196,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <div class="wrap">
   <div class="masthead">
     <span class="title">The Bitcoin Book</span>
-    <span class="home"><a href="./bitcoin.html">transaction lookup</a> &nbsp;·&nbsp; <a href="./index.html">Glossia</a></span>
+    <span class="home"><a href="./index.html">Glossia</a></span>
   </div>
 
   <div class="card">
@@ -305,8 +305,8 @@ async function loadBlockByHeight(height) {
 }
 
 // A txid -> the block that confirmed it plus the transaction's index within
-// that block (its verse). Mirrors bitcoin.html's citation lookup: /tx tells us
-// the confirming block, and its ordered txid list tells us where the tx sits.
+// that block (its verse): /tx tells us the confirming block, and its ordered
+// txid list tells us where the tx sits.
 async function loadBlockByTxid(txid) {
   const res = await fetch(`${ESPLORA}/tx/${txid}`);
   if (!res.ok) throw new Error(res.status === 404 ? `No transaction ${txid.slice(0, 8)}…` : `Esplora returned ${res.status}.`);

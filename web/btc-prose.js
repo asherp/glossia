@@ -11,11 +11,11 @@
 //
 // Some of those numerals get a symbol instead of a digit string when they
 // carry a specific conventional meaning -- a coinbase's null prevout (∅),
-// the sequence field's default "final" value (·), and locktime = 0, the
+// the sequence field's default "final" value (∘), and locktime = 0, the
 // overwhelmingly common case (◼︎) -- see the constants below.
 //
-// Shared by bitcoin.html (single transaction lookup) and bitcoin-book.html
-// (block chapters) so both pages render a transaction identically.
+// Consumed by bitcoin-book.html, which renders each field into its manuscript
+// margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings } from './btc-tx.js';
@@ -42,10 +42,9 @@ function escapeHtml(s) {
 }
 
 // A parsed transaction (btc-tx.js's parseTransaction) -> a structured
-// breakdown of every field's rendered text, in wire order, plus the
-// payload words consumed. Both describeTransaction (the flat canonical
-// string) and bitcoin-book.html's margin layout are built from this, so
-// a field is only ever Glossia-encoded once.
+// breakdown of every field's rendered text, in wire order, plus the payload
+// words consumed. bitcoin-book.html's margin layout is built from this, each
+// field Glossia-encoded exactly once.
 // `bestOf` forwards to encodeSeedPhrase for cover-word quality (default 1).
 export function composeTransactionFields(parsed, bestOf = 1) {
   const payloadWords = [];
@@ -103,26 +102,4 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     locktime: parsed.locktime === 0 ? LOCKTIME_ZERO_MARK : String(parsed.locktime),
     payloadWords,
   };
-}
-
-// A parsed transaction -> { prose, payloadWords }, prose being the flat
-// canonical text in exact wire order -- the linear, decodable form
-// (Copy buttons, filtering against the payload wordlist). Any renderer
-// (e.g. bitcoin-book.html's margin layout) is free to reposition these
-// same fields visually without touching this canonical order.
-export function describeTransaction(parsed, bestOf = 1) {
-  const f = composeTransactionFields(parsed, bestOf);
-  const parts = [f.version, f.inputCount];
-  for (const inp of f.inputs) parts.push(`${inp.prevout} ${inp.script} ${inp.sequence}`);
-  parts.push(f.outputCount);
-  for (const out of f.outputs) parts.push(`${out.value} ${out.script}`);
-  parts.push(f.locktime);
-  return { prose: parts.join(' ').replace(/\s+/g, ' ').trim(), payloadWords: f.payloadWords };
-}
-
-// The witness section's raw hex (parsed.witnessHex) -> { prose, payloadWords },
-// or { prose: '', payloadWords: [] } when the transaction carries no witness data.
-export function describeWitness(parsed, bestOf = 1) {
-  if (!parsed.witnessHex) return { prose: '', payloadWords: [] };
-  return encodeSeedPhrase(parsed.witnessHex, 'english', bestOf);
 }
