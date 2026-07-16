@@ -9,10 +9,9 @@
 // genuinely opaque bytes -- prevout txid, scriptSig, scriptPubKey, the
 // witness stack -- are still Glossia-encoded.
 //
-// Some of those numerals get a symbol instead of a digit string when they
-// carry a specific conventional meaning -- a coinbase's null prevout (∅),
-// the sequence field's default "final" value (∘), and locktime = 0, the
-// overwhelmingly common case (◼︎) -- see the constants below.
+// The timelock fields -- an input's sequence and the transaction's locktime --
+// are rendered as a small symbol grammar rather than raw numerals; see the
+// helpers below.
 //
 // Consumed by bitcoin-book.html, which renders each field into its manuscript
 // margin layout.
@@ -20,16 +19,40 @@
 import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings } from './btc-tx.js';
 
-// Conventional values worth a symbol instead of a digit string: the sequence
-// field's default "final, no RBF" value 0xffffffff (shown as ∘, wherever it
-// appears -- ordinary transactions set it just as often as coinbases), and
-// locktime = 0 (shown as ◼︎ -- no timelock, the case for the overwhelming
-// majority of transactions). A coinbase's null prevout is flagged with
-// isNullPrevout so the renderer can mark it (∅); other prevouts are carried as
-// references and resolved to a citation downstream, not encoded here.
-const FINAL_SEQUENCE = 4294967295;
-const FINAL_SEQUENCE_MARK = '∘';   // U+2218 RING OPERATOR
-const LOCKTIME_ZERO_MARK = '◼︎';
+// The timelock fields get symbols rather than digit strings, on a small grammar
+// that separates the whole transaction's status (nLockTime) from each input's
+// (nSequence), sharing ■/⊥ for the block/time distinction:
+//   Transaction (nLockTime):  □ none · ■n absolute block height · ⊥n absolute unix time
+//   Input (nSequence):        ○ final · † replaceable (opt-in RBF) ·
+//                             ■n relative block delay · ⊥n relative time delay
+// The square reads as the whole document, the circle as one input. A coinbase's
+// null prevout is flagged with isNullPrevout so the renderer can mark it (∅);
+// other prevouts are carried as references and resolved to a citation
+// downstream, not encoded here.
+const LOCKTIME_THRESHOLD = 500000000;   // nLockTime below this is a block height, at/above a unix timestamp
+
+// nLockTime -> { mark, title }: □ (none), ■n (absolute block), ⊥n (absolute time).
+function locktimeInfo(locktime) {
+  if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
+  if (locktime < LOCKTIME_THRESHOLD) return { mark: `■${locktime}`, title: `locktime: not before block ${locktime}` };
+  const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
+  return { mark: `⊥${locktime}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
+}
+
+// nSequence -> { mark, kind, title }. BIP68 relative locktime is enabled when
+// bit 31 is clear; bit 22 then selects time (512 s units) over blocks, with the
+// value in the low 16 bits. Otherwise it's BIP125 replaceable (< 0xfffffffe) or
+// final (0xfffffffe / 0xffffffff, neither replaceable nor time-locking).
+function sequenceInfo(seq) {
+  if ((seq & 0x80000000) === 0) {
+    const n = seq & 0x0000ffff;
+    return (seq & 0x00400000)
+      ? { mark: `⊥${n}`, kind: 'time', title: `relative locktime: ${n} × 512 s after the input's confirmation` }
+      : { mark: `■${n}`, kind: 'block', title: `relative locktime: ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
+  }
+  if (seq < 0xfffffffe) return { mark: '†', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
+  return { mark: '○', kind: 'final', title: 'final — not replaceable, no relative locktime' };
+}
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
@@ -79,8 +102,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
     const { script, ascii } = collectScript(v.scriptSig, isNullPrevout);
-    const sequenceDefault = v.sequence === FINAL_SEQUENCE;
-    const sequence = sequenceDefault ? FINAL_SEQUENCE_MARK : String(v.sequence);
+    const seq = sequenceInfo(v.sequence);
     // The prevout is carried as a reference (txid + output index), not encoded:
     // the book resolves it to a volume/book/chapter/verse citation for the left
     // margin. A coinbase has none. Raw per-input witness bytes (segwit only) ride
@@ -89,7 +111,8 @@ export function composeTransactionFields(parsed, bestOf = 1) {
       isNullPrevout,
       prevTxid: isNullPrevout ? '' : v.txid,
       prevVout: v.vout,
-      script, scriptAscii: ascii, sequence, sequenceDefault,
+      script, scriptAscii: ascii,
+      sequence: seq.mark, sequenceKind: seq.kind, sequenceTitle: seq.title,
       witnessHex: v.witnessHex || '',
     };
   });
@@ -100,13 +123,14 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     return { script, scriptAscii: ascii, value: String(o.value) };
   });
 
+  const lock = locktimeInfo(parsed.locktime);
   return {
     version: String(parsed.version),
     inputCount: String(parsed.vin.length),
     inputs,
     outputCount: String(parsed.vout.length),
     outputs,
-    locktime: parsed.locktime === 0 ? LOCKTIME_ZERO_MARK : String(parsed.locktime),
+    locktime: lock.mark, locktimeTitle: lock.title,
     payloadWords,
   };
 }
