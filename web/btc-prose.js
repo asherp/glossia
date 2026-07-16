@@ -13,8 +13,17 @@
 // (block chapters) so both pages render a transaction identically.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
+import { findAsciiStrings } from './btc-tx.js';
 
 function endSentence(s) { s = s.trim(); return s.endsWith('.') ? s : s + '.'; }
+
+// Quoted script text comes directly from raw blockchain data -- a miner's
+// coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
+// Glossia-generated prose it's untrusted content and must be escaped before
+// it's spliced into a string callers render via innerHTML.
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 
 // A parsed transaction (btc-tx.js's parseTransaction) -> { prose, payloadWords }.
 // `bestOf` forwards to encodeSeedPhrase for cover-word quality (default 1).
@@ -27,17 +36,33 @@ export function describeTransaction(parsed, bestOf = 1) {
     payloadWords.push(...r.payloadWords);
     return r.prose;
   };
+  // Two spots carry deliberate human-readable text rather than
+  // cryptographic material: a coinbase input's scriptSig (mining pool
+  // tags) and an OP_RETURN output's scriptPubKey (arbitrary embedded
+  // messages). When detected there, that text is quoted inline verbatim
+  // instead of Glossia-encoded -- it's already legible, so routing it
+  // through the wordlist would just swap real words for unrelated ones.
+  // See btc-tx.js's findAsciiStrings for why this stays scoped to just
+  // these two fields rather than scriptSig/scriptPubKey/witness generally.
+  const collectScript = (hex, eligible) => {
+    if (eligible) {
+      const found = findAsciiStrings(hex);
+      if (found.length) return found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+    }
+    return collect(hex);
+  };
 
   for (const v of parsed.vin) {
     const isNullPrevout = v.txid === '00'.repeat(32);
     const txidPart = isNullPrevout ? '0' : collect(v.txid);
-    const scriptProse = collect(v.scriptSig);
+    const scriptProse = collectScript(v.scriptSig, isNullPrevout);
     parts.push(endSentence(`${txidPart} ${v.vout} ${scriptProse} ${v.sequence}`));
   }
 
   parts.push(`${parsed.vout.length}.`);
   for (const o of parsed.vout) {
-    const scriptProse = collect(o.scriptPubKey);
+    const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
+    const scriptProse = collectScript(o.scriptPubKey, isOpReturn);
     parts.push(endSentence(`${o.value} ${scriptProse}`));
   }
 
