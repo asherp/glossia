@@ -110,19 +110,33 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
 
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
-.para { margin: 0 0 1.6em; text-indent: 1.6em; position: relative; }
-.para:first-of-type { text-indent: 0; }
-.para:first-of-type::first-letter {
-  font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
-  font-weight: 500; color: var(--accent);
-}
+
+/* Each transaction is a three-column manuscript layout: a left margin for
+   provenance (what this text refers back to), a body for the canonical
+   prose, a right margin for consequences (what this text produces / how it
+   ends). The verse number sits further left still, outside the grid. */
+.tx-wrap { position: relative; margin: 0 0 2em; }
 .para-mark {
   position: absolute; left: -2.4em; top: .15em; font: italic 400 13px/1 'Newsreader',serif;
-  color: var(--meta); text-indent: 0; width: 2em; text-align: right;
+  color: var(--meta); width: 2em; text-align: right;
 }
 .para-mark a { color: var(--meta); text-decoration: none; }
 .para-mark a:hover { color: var(--accent); text-decoration: underline; }
-.para-txid { display:none; }   /* carries the txid for JS reference; hidden from the reading view */
+
+.tx-grid { display: grid; grid-template-columns: minmax(3.5em, 11em) 1fr minmax(3em, 8em); column-gap: 18px; row-gap: .55em; align-items: baseline; }
+.tx-margin-left, .tx-margin-right { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--meta); }
+.tx-margin-left { text-align: right; }
+.tx-margin-right { text-align: left; }
+.tx-body-lead::first-letter {
+  font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
+  font-weight: 500; color: var(--accent);
+}
+@media (max-width: 560px) {
+  .tx-grid { grid-template-columns: 1fr; row-gap: .2em; }
+  .tx-margin-left, .tx-margin-right { text-align: left; font-size: 12px; }
+  .tx-margin-left:not(:empty)::before { content: '← '; }
+  .tx-margin-right:not(:empty)::before { content: '→ '; }
+}
 
 .chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
 .chapter-appendix h2 {
@@ -167,7 +181,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <div class="chapter-body" id="ch-paragraphs"></div>
 
     <div class="chapter-appendix hidden" id="ch-appendix-section">
-      <h2>Appendix — Witness Data</h2>
+      <h2>Appendix</h2>
       <div id="ch-appendix"></div>
     </div>
 
@@ -181,7 +195,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid } from './btc-tx.js';
-import { describeTransaction } from './btc-prose.js';
+import { composeTransactionFields } from './btc-prose.js';
 import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
@@ -265,11 +279,11 @@ async function showCurrentTx() {
 
   const parsed = parseTransaction(hex);
   const verifiedTxid = await computeTxid(parsed.baseHex);
-  const { prose: bodyProse } = describeTransaction(parsed, BEST_OF);
+  const fields = composeTransactionFields(parsed, BEST_OF);
   const witness = parsed.witnessHex ? encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF) : null;
 
   renderChapter({
-    num: state.index + 1, txid, prose: bodyProse,
+    num: state.index + 1, txid, fields,
     verified: verifiedTxid === txid, witnessProse: witness ? witness.prose : null,
   });
   updateUrl();
@@ -290,14 +304,41 @@ function renderChapter(para) {
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
-  const el = document.createElement('p');
-  el.className = 'para' + (para.verified ? '' : ' unverified');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tx-wrap' + (para.verified ? '' : ' unverified');
+
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
   const markInner = para.witnessProse
     ? `<a href="#appendix-1" title="${titleAttr}">${para.num}</a>`
     : `<span title="${titleAttr}">${para.num}</span>`;
-  el.innerHTML = `<span class="para-mark">${markInner}</span>${para.prose}`;
-  body.append(el);
+  const mark = document.createElement('span');
+  mark.className = 'para-mark';
+  mark.innerHTML = markInner;
+  wrap.append(mark);
+
+  // Left margin (provenance): what this row's text refers back to.
+  // Right margin (consequences): what it produces / how it ends. The body
+  // in between is the canonical prose -- scripts, quoted ASCII literals.
+  const grid = document.createElement('div');
+  grid.className = 'tx-grid';
+  let leadUsed = false;
+  const addRow = (left, bodyHtml, right) => {
+    const l = document.createElement('div'); l.className = 'tx-margin-left'; l.innerHTML = left || '';
+    const b = document.createElement('div');
+    b.className = 'tx-body' + (!leadUsed && bodyHtml ? (leadUsed = true, ' tx-body-lead') : '');
+    b.innerHTML = bodyHtml || '';
+    const r = document.createElement('div'); r.className = 'tx-margin-right'; r.innerHTML = right || '';
+    grid.append(l, b, r);
+  };
+
+  const f = para.fields;
+  if (f.version !== '1') addRow(f.version, '', '');   // version 1 is the default -- omitted
+  for (const inp of f.inputs) addRow(inp.prevout, inp.script, inp.sequence);
+  for (const out of f.outputs) addRow('', out.script, out.value);
+  addRow('', '', f.locktime);
+  wrap.append(grid);
+  body.append(wrap);
 
   const appendixEl = $('ch-appendix');
   appendixEl.innerHTML = '';
