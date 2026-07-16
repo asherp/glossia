@@ -583,42 +583,44 @@ function renderChapter(para) {
   body.append(wrap);
   resolveCitations(pendingCites, gen);
 
-  // Footnotes start empty and hidden every time; they're encoded only when the
-  // reader clicks a witness reference (loadFootnotes), not on load.
+  // Footnotes are reset, then expanded automatically once the transaction is on
+  // screen (renderFootnotes runs async so the prose paints first).
   $('ch-footnotes').innerHTML = '';
   $('ch-footnotes-section').classList.add('hidden');
   footnotesLoaded = false;
+  renderFootnotes(gen);
 
   $('page-prev').disabled = state.height === 0 && state.index === 0;
   $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txids.length - 1;
 }
 
 // Encode every witness-bearing input's witness into a numbered footnote and
-// reveal the footnotes section, on demand (a witness reference). Encoded once
-// per transaction, then just scrolled to on repeat clicks. `targetN` is the
-// footnote to scroll to.
-async function loadFootnotes(targetN) {
-  if (!currentFootnotes.length) return;
-  if (!footnotesLoaded) {
-    setStatus('<span class="spinner"></span>encoding witnesses…');
-    if (!ready) await init().catch(() => {});
-    // encodeSeedPhrase is synchronous and can be heavy, so yield once to let
-    // the spinner paint before it blocks the main thread.
-    await new Promise((r) => setTimeout(r, 0));
-    const el = $('ch-footnotes');
-    el.innerHTML = '';
-    for (const fn of currentFootnotes) {
-      const { prose } = encodeSeedPhrase(fn.hex, 'english', BEST_OF);
-      const p = document.createElement('p');
-      p.className = 'footnote-entry';
-      p.id = `fn-${fn.n}`;
-      p.innerHTML = `<span class="footnote-mark">${fn.n}</span>${prose}`;
-      el.append(p);
-    }
-    $('ch-footnotes-section').classList.remove('hidden');
-    footnotesLoaded = true;
-    setStatus('');
+// reveal the footnotes section. Done once per transaction, and skipped if the
+// reader has paged to another verse before the (heavy) encoding finishes.
+async function renderFootnotes(gen) {
+  if (footnotesLoaded || !currentFootnotes.length) return;
+  if (!ready) await init().catch(() => {});
+  // encodeSeedPhrase is synchronous and can be heavy, so yield once to let the
+  // transaction paint before it blocks the main thread.
+  await new Promise((r) => setTimeout(r, 0));
+  if (gen !== renderGen) return;
+  const el = $('ch-footnotes');
+  el.innerHTML = '';
+  for (const fn of currentFootnotes) {
+    const { prose } = encodeSeedPhrase(fn.hex, 'english', BEST_OF);
+    const p = document.createElement('p');
+    p.className = 'footnote-entry';
+    p.id = `fn-${fn.n}`;
+    p.innerHTML = `<span class="footnote-mark">${fn.n}</span>${prose}`;
+    el.append(p);
   }
+  $('ch-footnotes-section').classList.remove('hidden');
+  footnotesLoaded = true;
+}
+
+// A witness reference: make sure the footnotes are rendered, then scroll to this one.
+async function loadFootnotes(targetN) {
+  await renderFootnotes(renderGen);
   const target = $(`fn-${targetN}`);
   if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
