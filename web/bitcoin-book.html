@@ -195,34 +195,33 @@ function trimTrailingZeroBytes(hex) {
   return hex.slice(0, end);
 }
 
-// Compose a transaction's paragraph: small structural integers (version, an
-// input's referenced output index and sequence, an output's value, locktime)
-// are spliced in as literal numerals rather than routed through the
-// wordlist -- they're exactly what produces long zero-byte word runs (see
-// the zero-run note above), and as plain digits they read as digits, not
-// noise. The genuinely opaque bytes (prevout txid, scriptSig, scriptPubKey)
-// stay Glossia-encoded, one call per field so its numeral sits right beside it.
+// Compose a transaction's paragraph, wire field by wire field, in wire
+// order: small structural integers (version, counts, an input's referenced
+// output index and sequence, an output's value, locktime) are spliced in as
+// literal numerals -- they're exactly what produces long zero-byte word
+// runs (see the zero-run note above). Only the genuinely opaque bytes
+// (prevout txid, scriptSig, scriptPubKey) are still Glossia-encoded. No
+// added wording -- just the numbers where the numbers are.
+function endSentence(s) { s = s.trim(); return s.endsWith('.') ? s : s + '.'; }
+
 function describeTransaction(parsed) {
-  const clauses = [
-    `Version ${parsed.version}, ${parsed.vin.length} input${parsed.vin.length === 1 ? '' : 's'}, ${parsed.vout.length} output${parsed.vout.length === 1 ? '' : 's'}.`,
-  ];
+  const parts = [`${parsed.version}.`, `${parsed.vin.length}.`];
 
   for (const v of parsed.vin) {
     const isNullPrevout = v.txid === '00'.repeat(32);
-    const opaqueHex = isNullPrevout ? v.scriptSig : v.txid + v.scriptSig;
-    const prose = opaqueHex ? encodeSeedPhrase(opaqueHex, 'english', BEST_OF).prose : '(empty script)';
-    clauses.push(isNullPrevout
-      ? `Minted new, unbacked by any prior output — its coinbase script speaks: ${prose} Sequence ${v.sequence}.`
-      : `Drawing on output ${v.vout} of an earlier hand, secured by: ${prose} Sequence ${v.sequence}.`);
+    const txidPart = isNullPrevout ? '0' : encodeSeedPhrase(v.txid, 'english', BEST_OF).prose;
+    const scriptProse = v.scriptSig ? encodeSeedPhrase(v.scriptSig, 'english', BEST_OF).prose : '';
+    parts.push(endSentence(`${txidPart} ${v.vout} ${scriptProse} ${v.sequence}`));
   }
 
+  parts.push(`${parsed.vout.length}.`);
   for (const o of parsed.vout) {
-    const prose = o.scriptPubKey ? encodeSeedPhrase(o.scriptPubKey, 'english', BEST_OF).prose : '(empty script)';
-    clauses.push(`It pays ${o.value.toLocaleString()} satoshis to: ${prose}`);
+    const scriptProse = o.scriptPubKey ? encodeSeedPhrase(o.scriptPubKey, 'english', BEST_OF).prose : '';
+    parts.push(endSentence(`${o.value} ${scriptProse}`));
   }
 
-  clauses.push(`Locktime ${parsed.locktime}.`);
-  return clauses.join(' ');
+  parts.push(`${parsed.locktime}.`);
+  return parts.join(' ').replace(/\s+/g, ' ').trim();
 }
 
 let ready = false;
