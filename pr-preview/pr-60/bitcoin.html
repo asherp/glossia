@@ -197,7 +197,7 @@ function renderProse(parsed) {
 async function renderCitation(tx, txid) {
   const el = $('tx-citation');
   if (!tx.status.confirmed) {
-    el.textContent = 'Unconfirmed — not yet part of a chapter';
+    el.textContent = '— Unknown';
     return;
   }
   const height = tx.status.block_height;
