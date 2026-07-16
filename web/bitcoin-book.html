@@ -303,10 +303,10 @@ async function readChapter(input, page) {
 }
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
-  const { volume, book, chapter, chapterCount } = volumeBookChapter(block.height);
+  const { volume, book, chapter } = volumeBookChapter(block.height);
   $('ch-volume').textContent = volume.toLocaleString();
   $('ch-book').textContent = book.toLocaleString();
-  $('ch-chapter').textContent = `${chapter.toLocaleString()} of ${chapterCount.toLocaleString()}`;
+  $('ch-chapter').textContent = chapter.toLocaleString();
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
