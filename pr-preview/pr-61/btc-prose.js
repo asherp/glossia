@@ -20,16 +20,14 @@
 import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings } from './btc-tx.js';
 
-// Conventional values worth a symbol instead of a digit string: a coinbase's
-// null prevout (txid all-zero, paired with vout = 0xffffffff -- together
-// they mean "no real previous output", so shown once as ∅ rather than as
-// two separate numbers), the sequence field's default "final, no RBF" value
-// 0xffffffff (shown as ∘, wherever it appears -- this isn't coinbase-
-// specific, ordinary transactions set it just as often), and locktime = 0
-// (shown as ◼︎ -- no timelock, the case for the overwhelming majority of
-// transactions).
+// Conventional values worth a symbol instead of a digit string: the sequence
+// field's default "final, no RBF" value 0xffffffff (shown as ∘, wherever it
+// appears -- ordinary transactions set it just as often as coinbases), and
+// locktime = 0 (shown as ◼︎ -- no timelock, the case for the overwhelming
+// majority of transactions). A coinbase's null prevout is flagged with
+// isNullPrevout so the renderer can mark it (∅); other prevouts are carried as
+// references and resolved to a citation downstream, not encoded here.
 const FINAL_SEQUENCE = 4294967295;
-const NULL_PREVOUT_MARK = '∅';
 const FINAL_SEQUENCE_MARK = '∘';   // U+2218 RING OPERATOR
 const LOCKTIME_ZERO_MARK = '◼︎';
 
@@ -80,13 +78,20 @@ export function composeTransactionFields(parsed, bestOf = 1) {
 
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
-    const prevout = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
     const { script, ascii } = collectScript(v.scriptSig, isNullPrevout);
     const sequenceDefault = v.sequence === FINAL_SEQUENCE;
     const sequence = sequenceDefault ? FINAL_SEQUENCE_MARK : String(v.sequence);
-    // Raw per-input witness bytes (segwit only), carried through so the book can
-    // encode each input's witness as its own footnote. Empty for a legacy input.
-    return { prevout, isNullPrevout, script, scriptAscii: ascii, sequence, sequenceDefault, witnessHex: v.witnessHex || '' };
+    // The prevout is carried as a reference (txid + output index), not encoded:
+    // the book resolves it to a volume/book/chapter/verse citation for the left
+    // margin. A coinbase has none. Raw per-input witness bytes (segwit only) ride
+    // along so each input's witness can become its own footnote.
+    return {
+      isNullPrevout,
+      prevTxid: isNullPrevout ? '' : v.txid,
+      prevVout: v.vout,
+      script, scriptAscii: ascii, sequence, sequenceDefault,
+      witnessHex: v.witnessHex || '',
+    };
   });
 
   const outputs = parsed.vout.map((o) => {
