@@ -153,10 +153,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-out-value  { grid-column: 2; }
 .tx-locktime { grid-column: right; grid-row: 3; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
-/* The default final-sequence mark (∘) and any real sequence number ride inline
-   at the tail of the input's body rather than out in the margin. */
+.tx-locktime { font-style: normal; }
+/* The input's sequence mark rides inline at the tail of its body: ○ final,
+   † replaceable (a shade warmer), ■n / ⊥n a relative block / time delay. */
 .tx-seq { font-style: normal; color: var(--meta); }
-.tx-seq-num { color: var(--dim); font-variant-numeric: normal; }
+.tx-seq-rbf { color: var(--accent-2); }
+.tx-seq-block, .tx-seq-time { color: var(--dim); font-variant-numeric: normal; }
 .tx-seq-line { margin: 0 0 .55em; font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--meta); }
 .tx-line { margin: 0 0 .55em; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
@@ -491,14 +493,14 @@ function renderChapter(para) {
     q.innerHTML = html;
     container.append(q);
   };
-  // The input's sequence, inline: ∘ for the final/no-RBF default, else the
-  // number. Rides the tail of the scriptSig prose, or stands alone when there
-  // is none (an empty segwit script or a quoted coinbase tag).
+  // The input's sequence, inline, as a symbol: ○ final · † replaceable ·
+  // ■n / ⊥n relative block / time delay. Rides the tail of the scriptSig prose,
+  // or stands alone when there is none (an empty segwit script or coinbase tag).
   const seqSpan = (inp) => {
     const s = document.createElement('span');
-    s.className = 'tx-seq' + (inp.sequenceDefault ? '' : ' tx-seq-num');
+    s.className = `tx-seq tx-seq-${inp.sequenceKind}`;
     s.textContent = inp.sequence;
-    if (inp.sequenceDefault) s.title = 'final — no replace-by-fee';
+    s.title = inp.sequenceTitle;
     return s;
   };
   // A superscript index tying a witness-bearing input to its footnote; clicking
@@ -565,6 +567,7 @@ function renderChapter(para) {
   const lock = document.createElement('div');
   lock.className = 'tx-note tx-locktime';
   lock.textContent = f.locktime;
+  lock.title = f.locktimeTitle;
 
   flow.append(inputsEl, outputsEl, lock);
   wrap.append(flow);
