@@ -184,6 +184,16 @@ const PAGE_SIZE = 25;   // matches Esplora's own /block/:hash/txs/:start_index g
 // it back before encoding so the prose carries the hash's actual bytes.
 function reverseHex(hex) { return (hex.match(/../g) || []).reverse().join(''); }
 
+// A block hash's leading (display-order) zero bytes -- required by proof-of-work,
+// and longer for higher-difficulty blocks -- become TRAILING zero bytes once
+// reversed into internal order. They carry no information, so drop them before
+// encoding rather than spending payload words on them.
+function trimTrailingZeroBytes(hex) {
+  let end = hex.length;
+  while (end >= 2 && hex.slice(end - 2, end) === '00') end -= 2;
+  return hex.slice(0, end);
+}
+
 let ready = false;
 init().then(() => { ready = true; }).catch((e) => console.error('WASM init failed:', e));
 
@@ -267,7 +277,7 @@ async function readChapter(input, page) {
 
 function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix) {
   $('ch-height').textContent = block.height.toLocaleString();
-  const { prose: hashProse } = encodeSeedPhrase(reverseHex(hash), 'english');
+  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english');
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
   const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
