@@ -41,10 +41,13 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// A parsed transaction (btc-tx.js's parseTransaction) -> { prose, payloadWords }.
+// A parsed transaction (btc-tx.js's parseTransaction) -> a structured
+// breakdown of every field's rendered text, in wire order, plus the
+// payload words consumed. Both describeTransaction (the flat canonical
+// string) and bitcoin-book.html's margin layout are built from this, so
+// a field is only ever Glossia-encoded once.
 // `bestOf` forwards to encodeSeedPhrase for cover-word quality (default 1).
-export function describeTransaction(parsed, bestOf = 1) {
-  const parts = [`${parsed.version}`, `${parsed.vin.length}`];
+export function composeTransactionFields(parsed, bestOf = 1) {
   const payloadWords = [];
   const collect = (hex) => {
     if (!hex) return '';
@@ -68,23 +71,44 @@ export function describeTransaction(parsed, bestOf = 1) {
     return collect(hex);
   };
 
-  for (const v of parsed.vin) {
+  const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
-    const prevoutPart = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
-    const scriptProse = collectScript(v.scriptSig, isNullPrevout);
-    const sequencePart = v.sequence === FINAL_SEQUENCE ? FINAL_SEQUENCE_MARK : String(v.sequence);
-    parts.push(`${prevoutPart} ${scriptProse} ${sequencePart}`);
-  }
+    const prevout = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
+    const script = collectScript(v.scriptSig, isNullPrevout);
+    const sequence = v.sequence === FINAL_SEQUENCE ? FINAL_SEQUENCE_MARK : String(v.sequence);
+    return { prevout, script, sequence };
+  });
 
-  parts.push(`${parsed.vout.length}`);
-  for (const o of parsed.vout) {
+  const outputs = parsed.vout.map((o) => {
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
-    const scriptProse = collectScript(o.scriptPubKey, isOpReturn);
-    parts.push(`${o.value} ${scriptProse}`);
-  }
+    const script = collectScript(o.scriptPubKey, isOpReturn);
+    return { script, value: String(o.value) };
+  });
 
-  parts.push(parsed.locktime === 0 ? LOCKTIME_ZERO_MARK : `${parsed.locktime}`);
-  return { prose: parts.join(' ').replace(/\s+/g, ' ').trim(), payloadWords };
+  return {
+    version: String(parsed.version),
+    inputCount: String(parsed.vin.length),
+    inputs,
+    outputCount: String(parsed.vout.length),
+    outputs,
+    locktime: parsed.locktime === 0 ? LOCKTIME_ZERO_MARK : String(parsed.locktime),
+    payloadWords,
+  };
+}
+
+// A parsed transaction -> { prose, payloadWords }, prose being the flat
+// canonical text in exact wire order -- the linear, decodable form
+// (Copy buttons, filtering against the payload wordlist). Any renderer
+// (e.g. bitcoin-book.html's margin layout) is free to reposition these
+// same fields visually without touching this canonical order.
+export function describeTransaction(parsed, bestOf = 1) {
+  const f = composeTransactionFields(parsed, bestOf);
+  const parts = [f.version, f.inputCount];
+  for (const inp of f.inputs) parts.push(`${inp.prevout} ${inp.script} ${inp.sequence}`);
+  parts.push(f.outputCount);
+  for (const out of f.outputs) parts.push(`${out.value} ${out.script}`);
+  parts.push(f.locktime);
+  return { prose: parts.join(' ').replace(/\s+/g, ' ').trim(), payloadWords: f.payloadWords };
 }
 
 // The witness section's raw hex (parsed.witnessHex) -> { prose, payloadWords },
