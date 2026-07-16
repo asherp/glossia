@@ -87,6 +87,16 @@ button:hover:not(:disabled) { background: var(--accent-2); }
 button:disabled { opacity: .4; cursor: not-allowed; }
 .hint { margin-top: 10px; font-size: 12.5px; color: var(--meta); }
 
+.about { margin-top: 16px; }
+.about summary {
+  cursor: pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--dim); list-style: none;
+}
+.about summary::-webkit-details-marker { display: none; }
+.about summary::before { content: '+ '; color: var(--accent); }
+.about[open] summary::before { content: '– '; }
+.about .hint { margin-top: 10px; }
+
 .status-line { margin-top: 16px; font: 500 13px/1.4 'IBM Plex Mono',monospace; }
 .status-line.err { color: var(--error); }
 .spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--rule); border-top-color: var(--accent); border-radius:50%; animation: spin .7s linear infinite; vertical-align: -1px; margin-right: 6px; }
@@ -98,8 +108,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
 .chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
-.chapter-meta { font: 400 12.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
-.chapter-meta span + span::before { content: ' · '; color: var(--rule); }
 
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 .para { margin: 0 0 1.6em; text-indent: 1.6em; position: relative; }
@@ -134,9 +142,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <body>
 <div class="wrap">
   <div class="masthead">
-    <span class="title">Glossia · Bitcoin Book</span>
+    <span class="title">The Bitcoin Book</span>
     <span class="sub">a block, read as a chapter</span>
-    <span class="home"><a href="./bitcoin.html">transaction lookup</a> &nbsp;·&nbsp; <a href="./index.html">demo</a></span>
+    <span class="home"><a href="./bitcoin.html">transaction lookup</a> &nbsp;·&nbsp; <a href="./index.html">Glossia</a></span>
   </div>
 
   <div class="card">
@@ -145,16 +153,19 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, or a 64-character block hash" autocomplete="off" spellcheck="false">
       <button type="button" id="block-btn">Read chapter</button>
     </div>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
     <div id="block-status" class="status-line hidden"></div>
   </div>
+
+  <details class="about">
+    <summary>About</summary>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+  </details>
 
   <article id="chapter" class="hidden">
     <header class="chapter-head">
       <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span></div>
       <h1 class="chapter-title">Chapter <span id="ch-chapter"></span></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
-      <div class="chapter-meta" id="ch-meta"></div>
     </header>
 
     <div class="chapter-body" id="ch-paragraphs"></div>
@@ -310,8 +321,6 @@ function renderChapter(block, hash, page, maxPage, totalTx, paragraphs, appendix
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = hash;
-  const when = new Date(block.timestamp * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC';
-  $('ch-meta').innerHTML = `<span>block ${block.height.toLocaleString()}</span><span>${when}</span><span>${totalTx.toLocaleString()} transaction${totalTx === 1 ? '' : 's'}</span><span>${block.size.toLocaleString()} B</span><span>weight ${block.weight.toLocaleString()} WU</span>`;
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
