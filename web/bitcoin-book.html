@@ -123,24 +123,46 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .para-mark a { color: var(--meta); text-decoration: none; }
 .para-mark a:hover { color: var(--accent); text-decoration: underline; }
 
-/* Margins are floats, not grid cells -- a grid row's height is the tallest
-   of its cells, so a long prevout reference paired with an empty scriptSig
-   (the common case for a segwit input, whose signature lives in the
-   witness) produced a tall, mostly-blank row that pushed the next
-   transaction field's real prose down behind it. Floats fall out of normal
-   flow, so a body line just starts wherever the flow already is instead of
-   waiting for a tall neighboring note to finish. */
-.tx-flow::after { content: ''; display: table; clear: both; }
+/* The layout is a grid of two cells: a main column (canonical prose plus its
+   left margin) and a reserved right column for consequences. Only the RIGHT
+   margin is a grid cell; the LEFT margin stays a float inside the main cell.
+   That split is deliberate -- a grid row is as tall as its tallest cell, so a
+   long prevout reference (left) beside an empty scriptSig (the common segwit
+   case, whose signature lives in the witness) would make a tall, mostly-blank
+   row and shove the next field's prose down. A left float falls out of flow,
+   so the body just starts wherever it already is. The right notes are always
+   short structural numbers (sequence, value, locktime), so parking them in a
+   fixed column never triggers that problem -- and it keeps the body from
+   wrapping underneath them the way a right float let it. */
+.tx-flow { display: grid; grid-template-columns: minmax(0, 1fr) 8.5em; column-gap: 1.4em; align-items: start; }
+.tx-main { grid-column: 1; min-width: 0; }
+.tx-main::after { content: ''; display: table; clear: both; }
+.tx-right { grid-column: 2; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
 .tx-note-left { float: left; clear: left; width: auto; max-width: 11em; margin: 0 1.1em .55em 0; text-align: right; }
-.tx-note-right { float: right; clear: right; width: auto; max-width: 8em; margin: 0 0 .55em 1.1em; text-align: left; }
+.tx-note-right { display: block; margin: 0 0 .55em; text-align: left; }
 .tx-line { margin: 0 0 .55em; }
+/* Verbatim human-readable text embedded in a script (a coinbase mining-pool
+   tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
+   not part of its prose -- so it's set as a quote block (a marginal accent
+   rule, indented, italic) rather than wrapped in inline quotation marks. Like
+   .tx-line it's a normal-flow block, so it wraps around the floated notes. */
+.tx-ascii {
+  margin: 0 0 .55em; padding: .12em 0 .12em 1.05em;
+  border-left: 2px solid var(--accent); border-radius: 1px;
+  font: italic 400 17.5px/1.6 'Newsreader',serif; color: var(--ink-soft);
+}
 .tx-line.tx-body-lead::first-letter {
   font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
   font-weight: 500; color: var(--accent);
 }
 @media (max-width: 560px) {
-  .tx-note-left, .tx-note-right { float: none; clear: both; max-width: none; width: auto; text-align: left; margin: 0 0 .2em; }
+  /* Collapse to a single column: the reserved right cell stacks under the main
+     one, and the left float becomes a full-width block. */
+  .tx-flow { grid-template-columns: 1fr; }
+  .tx-main, .tx-right { grid-column: 1; }
+  .tx-note-left { float: none; clear: both; max-width: none; width: auto; text-align: left; margin: 0 0 .2em; }
+  .tx-note-right { margin: 0 0 .2em; }
   .tx-note-left::before { content: '← '; }
   .tx-note-right::before { content: '→ '; }
 }
@@ -334,41 +356,55 @@ function renderChapter(para) {
   mark.innerHTML = markInner;
   wrap.append(mark);
 
-  // Left margin (provenance): what this text refers back to. Right margin
-  // (consequences): what it produces / how it ends. Both float alongside
-  // the canonical prose -- scripts, quoted ASCII literals -- rather than
-  // sharing a grid row with it, so an empty script doesn't leave a blank
-  // gap the height of a long neighboring reference.
+  // Left margin (provenance): what this text refers back to -- a float inside
+  // the main cell, so a tall reference doesn't leave a blank gap beside an
+  // empty script. Right margin (consequences): what it produces / how it ends
+  // -- a reserved grid cell (.tx-right) the body never wraps under.
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
+  const main = document.createElement('div');
+  main.className = 'tx-main';
+  const right = document.createElement('div');
+  right.className = 'tx-right';
+  flow.append(main, right);
   let leadUsed = false;
-  const addNote = (cls, html) => {
+  const addNote = (side, html) => {
     if (!html) return;
     const n = document.createElement('div');
-    n.className = cls;
+    n.className = 'tx-note tx-note-' + side;
     n.innerHTML = html;
-    flow.append(n);
+    (side === 'left' ? main : right).append(n);
   };
   const addLine = (html) => {
     if (!html) return;
     const p = document.createElement('p');
     p.className = 'tx-line' + (!leadUsed ? (leadUsed = true, ' tx-body-lead') : '');
     p.innerHTML = html;
-    flow.append(p);
+    main.append(p);
+  };
+  // Detected ASCII (a coinbase tag, an OP_RETURN message) is set as a quote
+  // block instead of an inline-quoted line -- and does not claim the drop-cap
+  // lead, which stays on the first line of the transaction's own prose.
+  const addQuote = (html) => {
+    if (!html) return;
+    const q = document.createElement('blockquote');
+    q.className = 'tx-ascii';
+    q.innerHTML = html;
+    main.append(q);
   };
 
   const f = para.fields;
-  if (f.version !== '1') addNote('tx-note tx-note-left', f.version);   // version 1 is the default -- omitted
+  if (f.version !== '1') addNote('left', f.version);   // version 1 is the default -- omitted
   for (const inp of f.inputs) {
-    addNote('tx-note tx-note-left', inp.prevout);
-    addNote('tx-note tx-note-right', inp.sequence);
-    addLine(inp.script);
+    addNote('left', inp.prevout);
+    addNote('right', inp.sequence);
+    if (inp.scriptAscii) addQuote(inp.scriptAscii); else addLine(inp.script);
   }
   for (const out of f.outputs) {
-    addNote('tx-note tx-note-right', out.value);
-    addLine(out.script);
+    addNote('right', out.value);
+    if (out.scriptAscii) addQuote(out.scriptAscii); else addLine(out.script);
   }
-  addNote('tx-note tx-note-right', f.locktime);
+  addNote('right', f.locktime);
   wrap.append(flow);
   body.append(wrap);
 

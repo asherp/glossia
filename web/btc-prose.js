@@ -63,26 +63,34 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   // through the wordlist would just swap real words for unrelated ones.
   // See btc-tx.js's findAsciiStrings for why this stays scoped to just
   // these two fields rather than scriptSig/scriptPubKey/witness generally.
+  // Returns both forms of a script: `script` is the display string --
+  // detected ASCII wrapped in inline curly quotes, otherwise Glossia prose --
+  // and `ascii` is the same detected text unquoted (still HTML-escaped), or
+  // null when the script wasn't legible ASCII. A flat renderer uses `script`
+  // as-is; a manuscript renderer can set `ascii` as a quote block instead.
   const collectScript = (hex, eligible) => {
     if (eligible) {
       const found = findAsciiStrings(hex);
-      if (found.length) return found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+      if (found.length) {
+        const ascii = found.map((s) => escapeHtml(s)).join(' ');
+        return { script: found.map((s) => `“${escapeHtml(s)}”`).join(' '), ascii };
+      }
     }
-    return collect(hex);
+    return { script: collect(hex), ascii: null };
   };
 
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
     const prevout = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
-    const script = collectScript(v.scriptSig, isNullPrevout);
+    const { script, ascii } = collectScript(v.scriptSig, isNullPrevout);
     const sequence = v.sequence === FINAL_SEQUENCE ? FINAL_SEQUENCE_MARK : String(v.sequence);
-    return { prevout, script, sequence };
+    return { prevout, script, scriptAscii: ascii, sequence };
   });
 
   const outputs = parsed.vout.map((o) => {
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
-    const script = collectScript(o.scriptPubKey, isOpReturn);
-    return { script, value: String(o.value) };
+    const { script, ascii } = collectScript(o.scriptPubKey, isOpReturn);
+    return { script, scriptAscii: ascii, value: String(o.value) };
   });
 
   return {
