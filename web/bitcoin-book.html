@@ -113,6 +113,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    transaction's position within its block, rendered as "Verse N". */
 .verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
 .verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
+/* The transaction's own txid, rendered as Glossia prose beneath the verse title
+   (as the block hash is beneath the chapter title). */
+.verse-hash { margin: 13px auto 0; max-width: 46ch; font: italic 400 14px/1.55 'Newsreader',serif; color: var(--meta); }
 
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 
@@ -218,6 +221,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h2 class="verse-title" id="verse-title"></h2>
         <button type="button" id="page-next">Next →</button>
       </nav>
+      <div class="verse-hash" id="verse-hash"></div>
     </header>
 
     <div class="chapter-body" id="ch-paragraphs"></div>
@@ -363,6 +367,13 @@ function renderChapter(para) {
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = state.hash;
+
+  // This verse's own txid, encoded as prose beneath the verse title. Reversed
+  // to internal byte order first (like the block hash) so it carries the txid's
+  // actual bytes; every byte kept, since a txid has no droppable leading zeros.
+  const { prose: txidProse } = encodeSeedPhrase(reverseHex(para.txid), 'english', BEST_OF);
+  $('verse-hash').textContent = txidProse;
+  $('verse-hash').title = para.txid;
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
