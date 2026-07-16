@@ -178,7 +178,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
   <article id="chapter" class="hidden">
     <header class="chapter-head">
-      <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span></div>
+      <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
     </header>
@@ -300,18 +300,23 @@ function renderChapter(para) {
   const { volume, book, chapter } = volumeBookChapter(state.height);
   $('ch-volume').textContent = volume.toLocaleString();
   $('ch-book').textContent = book.toLocaleString();
-  // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
-  // earns its own title rather than just being "Chapter 1".
-  $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
-  // The block-hash subtitle introduces the chapter as a whole, so it only
-  // belongs on the chapter's first transaction, not every one stepped to.
+
+  // The big title (and hash subtitle) introduce the chapter as a whole, so
+  // they only belong on its first transaction. Every later transaction
+  // instead folds the chapter number into the Volume/Book eyebrow line --
+  // "Volume 1 · Book 100 · Chapter 333" -- a running head, not a heading.
   const onFirstTx = state.index === 0;
+  // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
+  // earns its own title rather than just being "Chapter 1". Set both the
+  // big title and the inline running-head form unconditionally (not just
+  // whichever is visible) so neither goes stale while hidden.
+  $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
+  $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · Chapter ${chapter.toLocaleString()}`;
+  $('ch-title').classList.toggle('hidden', !onFirstTx);
   $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
-  if (onFirstTx) {
-    const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
-    $('ch-hash-short').textContent = hashProse;
-    $('ch-hash-short').title = state.hash;
-  }
+  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
+  $('ch-hash-short').textContent = hashProse;
+  $('ch-hash-short').title = state.hash;
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
