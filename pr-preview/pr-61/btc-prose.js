@@ -24,13 +24,13 @@ import { findAsciiStrings } from './btc-tx.js';
 // null prevout (txid all-zero, paired with vout = 0xffffffff -- together
 // they mean "no real previous output", so shown once as ∅ rather than as
 // two separate numbers), the sequence field's default "final, no RBF" value
-// 0xffffffff (shown as ·, wherever it appears -- this isn't coinbase-
+// 0xffffffff (shown as ∘, wherever it appears -- this isn't coinbase-
 // specific, ordinary transactions set it just as often), and locktime = 0
 // (shown as ◼︎ -- no timelock, the case for the overwhelming majority of
 // transactions).
 const FINAL_SEQUENCE = 4294967295;
 const NULL_PREVOUT_MARK = '∅';
-const FINAL_SEQUENCE_MARK = '·';
+const FINAL_SEQUENCE_MARK = '∘';   // U+2218 RING OPERATOR
 const LOCKTIME_ZERO_MARK = '◼︎';
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
@@ -83,8 +83,9 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     const isNullPrevout = v.txid === '00'.repeat(32);
     const prevout = isNullPrevout ? NULL_PREVOUT_MARK : `${collect(v.txid)} ${v.vout}`;
     const { script, ascii } = collectScript(v.scriptSig, isNullPrevout);
-    const sequence = v.sequence === FINAL_SEQUENCE ? FINAL_SEQUENCE_MARK : String(v.sequence);
-    return { prevout, script, scriptAscii: ascii, sequence };
+    const sequenceDefault = v.sequence === FINAL_SEQUENCE;
+    const sequence = sequenceDefault ? FINAL_SEQUENCE_MARK : String(v.sequence);
+    return { prevout, isNullPrevout, script, scriptAscii: ascii, sequence, sequenceDefault };
   });
 
   const outputs = parsed.vout.map((o) => {

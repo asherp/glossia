@@ -111,7 +111,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
 /* Per-verse navigation: Previous / Next flanking the verse title -- the
    transaction's position within its block, rendered as "Verse N". */
-.verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 0 0 30px; }
+.verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
 .verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
 .verse-witness { font-size:.8em; vertical-align:super; letter-spacing:0; }
 
@@ -122,28 +122,38 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    margin for consequences (what this text produces / how it ends). */
 .tx-wrap { position: relative; margin: 0 0 2em; }
 
-/* The layout is a grid of two cells: a main column (canonical prose plus its
-   left margin) and a reserved right column for consequences. Only the RIGHT
-   margin is a grid cell; the LEFT margin stays a float inside the main cell.
-   That split is deliberate -- a grid row is as tall as its tallest cell, so a
-   long prevout reference (left) beside an empty scriptSig (the common segwit
-   case, whose signature lives in the witness) would make a tall, mostly-blank
-   row and shove the next field's prose down. A left float falls out of flow,
-   so the body just starts wherever it already is. The right notes are always
-   short structural numbers (sequence, value, locktime), so parking them in a
-   fixed column never triggers that problem -- and it keeps the body from
-   wrapping underneath them the way a right float let it. */
-.tx-flow { display: grid; grid-template-columns: minmax(0, 1fr) 8.5em; column-gap: 1.4em; align-items: start; }
-.tx-main { grid-column: 1; min-width: 0; }
-.tx-main::after { content: ''; display: table; clear: both; }
-/* The right cell stretches to the full transaction height so its last note --
-   always the locktime -- can be pinned to the bottom, aligning it with the end
-   of the prose rather than clumping at the top with the other consequences. */
-.tx-right { grid-column: 2; align-self: stretch; display: flex; flex-direction: column; }
-.tx-right .tx-note-right:last-child { margin-top: auto; margin-bottom: 0; }
+/* A three-column manuscript grid -- [left margin | body | right margin] --
+   laid out in horizontal bands so each part aligns with the body it annotates:
+     .tx-left     the coinbase ∅ prevout, a grid cell beside the input body
+     .tx-inputs   the inputs' prose (row 1, body column). A non-empty prevout
+                  floats inside here so its scriptSig prose wraps around it, and
+                  an empty scriptSig (segwit) simply leaves the float standing --
+                  no tall blank grid cell, since outputs live in the next band.
+     .tx-outputs  a subgrid (row 2, spanning body + right) so every amount sits
+                  on the same line as the output it belongs to.
+     .tx-locktime the closing locktime, right column, last band -- the end.
+   The left track only exists for a coinbase (has-left), so ordinary rows aren't
+   shifted right by an empty gutter. */
+.tx-flow { display: grid; grid-template-columns: [body] minmax(0,1fr) [right] 8.5em; column-gap: 1.4em; align-items: start; }
+.tx-flow.has-left { grid-template-columns: [left] auto [body] minmax(0,1fr) [right] 8.5em; }
+.tx-left { grid-column: left; grid-row: 1; align-self: start; text-align: right; white-space: nowrap; }
+.tx-inputs { grid-column: body; grid-row: 1; min-width: 0; }
+.tx-inputs::after { content: ''; display: table; clear: both; }
+.tx-outputs {
+  grid-column: body / -1; grid-row: 2; min-width: 0;
+  display: grid; grid-template-columns: minmax(0,1fr) 8.5em; grid-template-columns: subgrid;
+  column-gap: 1.4em; align-items: start; row-gap: 0;
+}
+.tx-out-script { grid-column: 1; min-width: 0; }
+.tx-out-value  { grid-column: 2; }
+.tx-locktime { grid-column: right; grid-row: 3; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
 .tx-note-left { float: left; clear: left; width: auto; max-width: 11em; margin: 0 1.1em .55em 0; text-align: right; }
-.tx-note-right { display: block; margin: 0 0 .55em; text-align: left; }
+/* The default final-sequence mark (∘) and any real sequence number ride inline
+   at the tail of the input's prose rather than out in the margin. */
+.tx-seq { font-style: normal; color: var(--meta); }
+.tx-seq-num { color: var(--dim); font-variant-numeric: normal; }
+.tx-seq-line { margin: 0 0 .55em; font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--meta); }
 .tx-line { margin: 0 0 .55em; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
@@ -161,14 +171,16 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   font-weight: 500; color: var(--accent);
 }
 @media (max-width: 560px) {
-  /* Collapse to a single column: the reserved right cell stacks under the main
-     one, and the left float becomes a full-width block. */
-  .tx-flow { grid-template-columns: 1fr; }
-  .tx-main, .tx-right { grid-column: 1; }
+  /* Collapse every band into one column: margins become full-width blocks that
+     stack with the body they annotated, tagged with ← / → to keep the sense. */
+  .tx-flow, .tx-flow.has-left { grid-template-columns: 1fr; }
+  .tx-left, .tx-inputs, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; }
+  .tx-outputs { display: block; }
+  .tx-left { text-align: left; white-space: normal; }
+  .tx-out-value, .tx-locktime { text-align: left; margin: 0 0 .55em; }
   .tx-note-left { float: none; clear: both; max-width: none; width: auto; text-align: left; margin: 0 0 .2em; }
-  .tx-note-right { margin: 0 0 .2em; }
-  .tx-note-left::before { content: '← '; }
-  .tx-note-right::before { content: '→ '; }
+  .tx-note-left::before, .tx-left::before { content: '← '; }
+  .tx-out-value::before, .tx-locktime::before { content: '→ '; }
 }
 
 .chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
@@ -201,13 +213,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
+      <nav class="verse-nav">
+        <button type="button" id="page-prev">← Previous</button>
+        <h2 class="verse-title" id="verse-title"></h2>
+        <button type="button" id="page-next">Next →</button>
+      </nav>
     </header>
-
-    <nav class="verse-nav">
-      <button type="button" id="page-prev">← Previous</button>
-      <h2 class="verse-title" id="verse-title"></h2>
-      <button type="button" id="page-next">Next →</button>
-    </nav>
 
     <div class="chapter-body" id="ch-paragraphs"></div>
 
@@ -381,55 +392,103 @@ function renderChapter(para) {
     verseTitle.append(' ', link);
   }
 
-  // Left margin (provenance): what this text refers back to -- a float inside
-  // the main cell, so a tall reference doesn't leave a blank gap beside an
-  // empty script. Right margin (consequences): what it produces / how it ends
-  // -- a reserved grid cell (.tx-right) the body never wraps under.
+  // The transaction is laid out in horizontal bands (see .tx-flow CSS): a
+  // coinbase ∅ prevout in a left grid cell; the inputs' prose in the body
+  // column (a real prevout floats within it so its scriptSig wraps around the
+  // reference); the outputs as a subgrid so every amount lines up with the
+  // output it belongs to; and the locktime closing on the right.
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
-  const main = document.createElement('div');
-  main.className = 'tx-main';
-  const right = document.createElement('div');
-  right.className = 'tx-right';
-  flow.append(main, right);
+  const inputsEl = document.createElement('div');
+  inputsEl.className = 'tx-inputs';
+  const outputsEl = document.createElement('div');
+  outputsEl.className = 'tx-outputs';
+  let leftEl = null;   // created lazily, only for a coinbase ∅
   let leadUsed = false;
-  const addNote = (side, html) => {
+
+  // A non-null prevout (and the rare non-default version) floats in the left of
+  // the inputs band; the coinbase ∅ instead gets its own left grid cell.
+  const addFloatNote = (html) => {
     if (!html) return;
     const n = document.createElement('div');
-    n.className = 'tx-note tx-note-' + side;
+    n.className = 'tx-note tx-note-left';
     n.innerHTML = html;
-    (side === 'left' ? main : right).append(n);
+    inputsEl.append(n);
   };
-  const addLine = (html) => {
-    if (!html) return;
+  const addNullPrevout = (html) => {
+    if (!leftEl) { leftEl = document.createElement('div'); leftEl.className = 'tx-note tx-left'; flow.classList.add('has-left'); }
+    leftEl.textContent = html;
+  };
+  // A body line; the first one across the whole transaction claims the drop cap.
+  const addLine = (container, html) => {
+    if (!html) return null;
     const p = document.createElement('p');
     p.className = 'tx-line' + (!leadUsed ? (leadUsed = true, ' tx-body-lead') : '');
     p.innerHTML = html;
-    main.append(p);
+    container.append(p);
+    return p;
   };
   // Detected ASCII (a coinbase tag, an OP_RETURN message) is set as a quote
-  // block instead of an inline-quoted line -- and does not claim the drop-cap
-  // lead, which stays on the first line of the transaction's own prose.
-  const addQuote = (html) => {
+  // block instead of an inline-quoted line -- and never claims the drop cap.
+  const addQuote = (container, html) => {
     if (!html) return;
     const q = document.createElement('blockquote');
     q.className = 'tx-ascii';
     q.innerHTML = html;
-    main.append(q);
+    container.append(q);
+  };
+  // The input's sequence, inline: ∘ for the final/no-RBF default, else the
+  // number. Rides the tail of the scriptSig prose, or stands alone when there
+  // is none (an empty segwit script or a quoted coinbase tag).
+  const seqSpan = (inp) => {
+    const s = document.createElement('span');
+    s.className = 'tx-seq' + (inp.sequenceDefault ? '' : ' tx-seq-num');
+    s.textContent = inp.sequence;
+    if (inp.sequenceDefault) s.title = 'final — no replace-by-fee';
+    return s;
+  };
+  const addSeqLine = (seq) => {
+    const p = document.createElement('p');
+    p.className = 'tx-seq-line';
+    p.append(seq);
+    inputsEl.append(p);
+  };
+
+  const addScriptAndSeq = (inp, seq) => {
+    if (inp.scriptAscii) { addQuote(inputsEl, inp.scriptAscii); addSeqLine(seq); }
+    else if (inp.script) addLine(inputsEl, inp.script).append(' ', seq);
+    else addSeqLine(seq);
   };
 
   const f = para.fields;
-  if (f.version !== '1') addNote('left', f.version);   // version 1 is the default -- omitted
+  if (f.version !== '1') addFloatNote(f.version);   // version 1 is the default -- omitted
   for (const inp of f.inputs) {
-    addNote('left', inp.prevout);
-    addNote('right', inp.sequence);
-    if (inp.scriptAscii) addQuote(inp.scriptAscii); else addLine(inp.script);
+    const seq = seqSpan(inp);
+    if (inp.isNullPrevout) {                        // coinbase: ∅ -> its own left grid cell
+      addNullPrevout(inp.prevout);
+      addScriptAndSeq(inp, seq);
+    } else if (!inp.script && !inp.scriptAscii) {   // segwit: no scriptSig, so the prevout IS the body line
+      addLine(inputsEl, inp.prevout).append(' ', seq);
+    } else {                                        // legacy: float the prevout, scriptSig prose wraps around it
+      addFloatNote(inp.prevout);
+      addScriptAndSeq(inp, seq);
+    }
   }
   for (const out of f.outputs) {
-    addNote('right', out.value);
-    if (out.scriptAscii) addQuote(out.scriptAscii); else addLine(out.script);
+    const scriptCell = document.createElement('div');
+    scriptCell.className = 'tx-out-script';
+    if (out.scriptAscii) addQuote(scriptCell, out.scriptAscii); else addLine(scriptCell, out.script);
+    const valueCell = document.createElement('div');
+    valueCell.className = 'tx-note tx-out-value';
+    valueCell.textContent = out.value;
+    outputsEl.append(scriptCell, valueCell);
   }
-  addNote('right', f.locktime);
+  const lock = document.createElement('div');
+  lock.className = 'tx-note tx-locktime';
+  lock.textContent = f.locktime;
+
+  if (leftEl) flow.append(leftEl);
+  flow.append(inputsEl, outputsEl, lock);
   wrap.append(flow);
   body.append(wrap);
 
