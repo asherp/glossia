@@ -125,34 +125,32 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-wrap { position: relative; margin: 0 0 2em; }
 
 /* A three-column manuscript grid -- [left margin | body | right margin] --
-   laid out in horizontal bands so each part aligns with the body it annotates:
-     .tx-left     the coinbase ∅ prevout, a grid cell beside the input body
-     .tx-inputs   the inputs' prose (row 1, body column). A non-empty prevout
-                  floats inside here so its scriptSig prose wraps around it, and
-                  an empty scriptSig (segwit) simply leaves the float standing --
-                  no tall blank grid cell, since outputs live in the next band.
-     .tx-outputs  a subgrid (row 2, spanning body + right) so every amount sits
-                  on the same line as the output it belongs to.
-     .tx-locktime the closing locktime, right column, last band -- the end.
-   The left track only exists for a coinbase (has-left), so ordinary rows aren't
-   shifted right by an empty gutter. */
-.tx-flow { display: grid; grid-template-columns: [body] minmax(0,1fr) [right] 8.5em; column-gap: 1.4em; align-items: start; }
-.tx-flow.has-left { grid-template-columns: [left] auto [body] minmax(0,1fr) [right] 8.5em; }
-.tx-left { grid-column: left; grid-row: 1; align-self: start; text-align: right; white-space: nowrap; }
-.tx-inputs { grid-column: body; grid-row: 1; min-width: 0; }
-.tx-inputs::after { content: ''; display: table; clear: both; }
+   laid out in horizontal bands, each part aligned with the body it annotates:
+     .tx-inputs   a subgrid (row 1, left + body): every input is a [citation |
+                  scriptSig] pair, so an input's provenance sits on its own line.
+                  The citation is the referenced output's volume·book·chapter·verse
+                  plus its output index (a coinbase shows ∅).
+     .tx-outputs  a subgrid (row 2, body + right): every output is a [scriptPubKey
+                  | amount] pair, so an amount sits on the line of its output.
+     .tx-locktime the closing locktime, right column, last band -- the end. */
+.tx-flow { display: grid; grid-template-columns: [left] 6.5em [body] minmax(0,1fr) [right] 7em; column-gap: 1.3em; align-items: start; }
+.tx-inputs { grid-column: left / right; grid-row: 1; display: grid; grid-template-columns: subgrid; column-gap: 1.3em; align-items: start; }
+.tx-in-cite { grid-column: 1; text-align: right; font: 500 11.5px/1.5 'IBM Plex Mono',monospace; color: var(--dim); word-break: break-word; }
+.tx-in-cite.resolving { color: var(--meta); }
+.tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
+.tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
+.tx-in-script { grid-column: 2; min-width: 0; }
 .tx-outputs {
-  grid-column: body / -1; grid-row: 2; min-width: 0;
-  display: grid; grid-template-columns: minmax(0,1fr) 8.5em; grid-template-columns: subgrid;
-  column-gap: 1.4em; align-items: start; row-gap: 0;
+  grid-column: body / -1; grid-row: 2;
+  display: grid; grid-template-columns: minmax(0,1fr) 7em; grid-template-columns: subgrid;
+  column-gap: 1.3em; align-items: start;
 }
 .tx-out-script { grid-column: 1; min-width: 0; }
 .tx-out-value  { grid-column: 2; }
 .tx-locktime { grid-column: right; grid-row: 3; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
-.tx-note-left { float: left; clear: left; width: auto; max-width: 11em; margin: 0 1.1em .55em 0; text-align: right; }
 /* The default final-sequence mark (∘) and any real sequence number ride inline
-   at the tail of the input's prose rather than out in the margin. */
+   at the tail of the input's body rather than out in the margin. */
 .tx-seq { font-style: normal; color: var(--meta); }
 .tx-seq-num { color: var(--dim); font-variant-numeric: normal; }
 .tx-seq-line { margin: 0 0 .55em; font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--meta); }
@@ -160,10 +158,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
    not part of its prose -- so it's set as a quote block (a marginal accent
-   rule, indented, italic) rather than wrapped in inline quotation marks. Like
-   .tx-line it's a normal-flow block, so it wraps around the floated notes. */
+   rule, indented, italic) rather than wrapped in inline quotation marks. */
 .tx-ascii {
-  display: flow-root;   /* a BFC, so it sits beside a left note rather than letting its border draw under the float */
   margin: 0 0 .55em; padding: .12em 0 .12em 1.05em;
   border-left: 2px solid var(--accent); border-radius: 1px;
   font: italic 400 17.5px/1.6 'Newsreader',serif; color: var(--ink-soft);
@@ -173,15 +169,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   font-weight: 500; color: var(--accent);
 }
 @media (max-width: 560px) {
-  /* Collapse every band into one column: margins become full-width blocks that
-     stack with the body they annotated, tagged with ← / → to keep the sense. */
-  .tx-flow, .tx-flow.has-left { grid-template-columns: 1fr; }
-  .tx-left, .tx-inputs, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; }
-  .tx-outputs { display: block; }
-  .tx-left { text-align: left; white-space: normal; }
+  /* Collapse every band into one column: each margin cell becomes a full-width
+     block stacked with the body it annotated, tagged with ← / → to keep the
+     sense. Citations lead their input; amounts follow their output. */
+  .tx-flow { grid-template-columns: 1fr; }
+  .tx-inputs, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
+  .tx-in-cite { text-align: left; margin: 0 0 .2em; }
+  .tx-in-cite::before { content: '← '; }
   .tx-out-value, .tx-locktime { text-align: left; margin: 0 0 .55em; }
-  .tx-note-left { float: none; clear: both; max-width: none; width: auto; text-align: left; margin: 0 0 .2em; }
-  .tx-note-left::before, .tx-left::before { content: '← '; }
   .tx-out-value::before, .tx-locktime::before { content: '→ '; }
 }
 
@@ -290,6 +285,53 @@ let tipHeight = null;
 let currentFootnotes = [];
 let footnotesLoaded = false;
 
+// Each input's prevout is shown as a citation to the output it spends -- the
+// referenced transaction's volume·book·chapter·verse. Resolving one needs a
+// lookup (its block height + position in that block), so results are memoized
+// by txid and `renderGen` lets a citation that resolves after the reader has
+// paged away drop its stale DOM update.
+const citationCache = new Map();   // txid -> Promise<{ height, pos }>
+let renderGen = 0;
+
+// txid -> { height, pos } via the tx's merkle proof (one call gives both the
+// confirming height and the transaction's index within that block).
+function resolveCitation(txid) {
+  if (!citationCache.has(txid)) {
+    citationCache.set(txid, (async () => {
+      const r = await fetch(`${ESPLORA}/tx/${txid}/merkle-proof`);
+      if (!r.ok) throw new Error(`Esplora returned ${r.status}`);
+      const j = await r.json();
+      return { height: j.block_height, pos: j.pos };
+    })().catch((e) => { citationCache.delete(txid); throw e; }));
+  }
+  return citationCache.get(txid);
+}
+
+function formatCitation(height, pos, vout) {
+  const { volume, book, chapter } = volumeBookChapter(height);
+  return `${volume}·${book}·${chapter}·${pos + 1} [${vout}]`;
+}
+
+// Fill each pending citation cell once its reference resolves; skip if the
+// reader has since paged to another verse (gen no longer current).
+async function resolveCitations(pending, gen) {
+  await Promise.all(pending.map(async ({ cite, txid, vout }) => {
+    try {
+      const { height, pos } = await resolveCitation(txid);
+      if (gen !== renderGen) return;
+      cite.textContent = formatCitation(height, pos, vout);
+      cite.classList.remove('resolving');
+      cite.title = `${txid}:${vout}`;
+    } catch (e) {
+      if (gen !== renderGen) return;
+      cite.textContent = `${txid.slice(0, 8)}… [${vout}]`;
+      cite.classList.remove('resolving');
+      cite.classList.add('cite-unresolved');
+      cite.title = `${txid}:${vout} — reference could not be resolved`;
+    }
+  }));
+}
+
 async function loadBlockMeta(hash) {
   const [blockRes, txidsRes] = await Promise.all([
     fetch(`${ESPLORA}/block/${hash}`),
@@ -387,33 +429,21 @@ function renderChapter(para) {
   verseTitle.textContent = `Verse ${para.num}`;
   verseTitle.title = titleAttr;
 
-  // The transaction is laid out in horizontal bands (see .tx-flow CSS): a
-  // coinbase ∅ prevout in a left grid cell; the inputs' prose in the body
-  // column (a real prevout floats within it so its scriptSig wraps around the
-  // reference); the outputs as a subgrid so every amount lines up with the
-  // output it belongs to; and the locktime closing on the right.
+  // The transaction is laid out in horizontal bands (see .tx-flow CSS). The
+  // inputs are a [citation | scriptSig] subgrid: each input's provenance -- the
+  // volume·book·chapter·verse of the output it spends, plus that output's index
+  // -- sits in the left margin, level with its scriptSig. The outputs are a
+  // [scriptPubKey | amount] subgrid; the locktime closes on the right.
+  const gen = ++renderGen;
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
   const inputsEl = document.createElement('div');
   inputsEl.className = 'tx-inputs';
   const outputsEl = document.createElement('div');
   outputsEl.className = 'tx-outputs';
-  let leftEl = null;   // created lazily, only for a coinbase ∅
   let leadUsed = false;
+  const pendingCites = [];
 
-  // A non-null prevout (and the rare non-default version) floats in the left of
-  // the inputs band; the coinbase ∅ instead gets its own left grid cell.
-  const addFloatNote = (html) => {
-    if (!html) return;
-    const n = document.createElement('div');
-    n.className = 'tx-note tx-note-left';
-    n.innerHTML = html;
-    inputsEl.append(n);
-  };
-  const addNullPrevout = (html) => {
-    if (!leftEl) { leftEl = document.createElement('div'); leftEl.className = 'tx-note tx-left'; flow.classList.add('has-left'); }
-    leftEl.textContent = html;
-  };
   // A body line; the first one across the whole transaction claims the drop cap.
   const addLine = (container, html) => {
     if (!html) return null;
@@ -442,12 +472,6 @@ function renderChapter(para) {
     if (inp.sequenceDefault) s.title = 'final — no replace-by-fee';
     return s;
   };
-  const addSeqLine = (tail) => {
-    const p = document.createElement('p');
-    p.className = 'tx-seq-line';
-    p.append(...tail);
-    inputsEl.append(p);
-  };
   // A superscript index tying a witness-bearing input to its footnote; clicking
   // it encodes the footnotes (once) and scrolls to this one.
   const witnessRef = (n) => {
@@ -459,30 +483,42 @@ function renderChapter(para) {
     a.addEventListener('click', (e) => { e.preventDefault(); loadFootnotes(n); });
     return a;
   };
-
-  const addScriptAndSeq = (inp, tail) => {
-    if (inp.scriptAscii) { addQuote(inputsEl, inp.scriptAscii); addSeqLine(tail); }
-    else if (inp.script) addLine(inputsEl, inp.script).append(' ', ...tail);
-    else addSeqLine(tail);
+  const addSeqLineTo = (container, tail) => {
+    const p = document.createElement('p');
+    p.className = 'tx-seq-line';
+    p.append(...tail);
+    container.append(p);
   };
 
   const f = para.fields;
   const footnotes = [];
-  if (f.version !== '1') addFloatNote(f.version);   // version 1 is the default -- omitted
+  // The rare non-default version leads the inputs as its own margin note.
+  if (f.version !== '1') {
+    const cite = document.createElement('div');
+    cite.className = 'tx-in-cite tx-version';
+    cite.textContent = `v${f.version}`;
+    inputsEl.append(cite, document.createElement('div'));
+  }
   for (const inp of f.inputs) {
-    // Each input's trailing marks: its sequence, then -- when it carries a
-    // witness -- a superscript footnote reference numbered in input order.
+    const cite = document.createElement('div');
+    cite.className = 'tx-in-cite';
+    if (inp.isNullPrevout) {
+      cite.textContent = '∅';   // coinbase: no previous output
+    } else {
+      cite.textContent = '⋯';   // placeholder until the reference resolves
+      cite.classList.add('resolving');
+      pendingCites.push({ cite, txid: inp.prevTxid, vout: inp.prevVout });
+    }
+    const scriptCell = document.createElement('div');
+    scriptCell.className = 'tx-in-script';
+    // Trailing marks: the sequence, then -- when the input carries a witness --
+    // a superscript footnote reference numbered in input order.
     const tail = [seqSpan(inp)];
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex }); tail.push(witnessRef(footnotes.length)); }
-    if (inp.isNullPrevout) {                        // coinbase: ∅ -> its own left grid cell
-      addNullPrevout(inp.prevout);
-      addScriptAndSeq(inp, tail);
-    } else if (!inp.script && !inp.scriptAscii) {   // segwit: no scriptSig, so the prevout IS the body line
-      addLine(inputsEl, inp.prevout).append(' ', ...tail);
-    } else {                                        // legacy: float the prevout, scriptSig prose wraps around it
-      addFloatNote(inp.prevout);
-      addScriptAndSeq(inp, tail);
-    }
+    if (inp.scriptAscii) { addQuote(scriptCell, inp.scriptAscii); addSeqLineTo(scriptCell, tail); }
+    else if (inp.script) addLine(scriptCell, inp.script).append(' ', ...tail);
+    else addSeqLineTo(scriptCell, tail);
+    inputsEl.append(cite, scriptCell);
   }
   currentFootnotes = footnotes;
   for (const out of f.outputs) {
@@ -498,10 +534,10 @@ function renderChapter(para) {
   lock.className = 'tx-note tx-locktime';
   lock.textContent = f.locktime;
 
-  if (leftEl) flow.append(leftEl);
   flow.append(inputsEl, outputsEl, lock);
   wrap.append(flow);
   body.append(wrap);
+  resolveCitations(pendingCites, gen);
 
   // Footnotes start empty and hidden every time; they're encoded only when the
   // reader clicks a witness reference (loadFootnotes), not on load.
