@@ -11,7 +11,7 @@
 //
 // Two of those numerals get a symbol instead of a digit string when they
 // carry a specific conventional meaning: a coinbase's null prevout (∅) and
-// the sequence field's default "final" value (◼︎) -- see the constants below.
+// the sequence field's default "final" value (;) -- see the constants below.
 //
 // Shared by bitcoin.html (single transaction lookup) and bitcoin-book.html
 // (block chapters) so both pages render a transaction identically.
@@ -19,17 +19,17 @@
 import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings } from './btc-tx.js';
 
-function endSentence(s) { s = s.trim(); return s.endsWith('.') ? s : s + '.'; }
+function endSentence(s) { s = s.trim(); return /[.;!?]$/.test(s) ? s : s + '.'; }
 
 // Two more conventional values worth a symbol instead of a digit string:
 // a coinbase's null prevout (txid all-zero, paired with vout = 0xffffffff --
 // together they mean "no real previous output", so shown once as ∅ rather
 // than as two separate numbers) and the sequence field's default "final, no
-// RBF" value 0xffffffff (shown as ◼︎, wherever it appears -- this isn't
+// RBF" value 0xffffffff (shown as ;, wherever it appears -- this isn't
 // coinbase-specific, ordinary transactions set it just as often).
 const FINAL_SEQUENCE = 4294967295;
 const NULL_PREVOUT_MARK = '∅';
-const FINAL_SEQUENCE_MARK = '◼︎';
+const FINAL_SEQUENCE_MARK = ';';
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
