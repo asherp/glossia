@@ -9,9 +9,10 @@
 // genuinely opaque bytes -- prevout txid, scriptSig, scriptPubKey, the
 // witness stack -- are still Glossia-encoded.
 //
-// Two of those numerals get a symbol instead of a digit string when they
-// carry a specific conventional meaning: a coinbase's null prevout (∅) and
-// the sequence field's default "final" value (;) -- see the constants below.
+// Some of those numerals get a symbol instead of a digit string when they
+// carry a specific conventional meaning -- a coinbase's null prevout (∅),
+// the sequence field's default "final" value (·), and locktime = 0, the
+// overwhelmingly common case (◼︎) -- see the constants below.
 //
 // Shared by bitcoin.html (single transaction lookup) and bitcoin-book.html
 // (block chapters) so both pages render a transaction identically.
@@ -19,17 +20,23 @@
 import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings } from './btc-tx.js';
 
-function endSentence(s) { s = s.trim(); return /[.;!?]$/.test(s) ? s : s + '.'; }
-
-// Two more conventional values worth a symbol instead of a digit string:
-// a coinbase's null prevout (txid all-zero, paired with vout = 0xffffffff --
-// together they mean "no real previous output", so shown once as ∅ rather
-// than as two separate numbers) and the sequence field's default "final, no
-// RBF" value 0xffffffff (shown as ;, wherever it appears -- this isn't
-// coinbase-specific, ordinary transactions set it just as often).
+// Conventional values worth a symbol instead of a digit string: a coinbase's
+// null prevout (txid all-zero, paired with vout = 0xffffffff -- together
+// they mean "no real previous output", so shown once as ∅ rather than as
+// two separate numbers), the sequence field's default "final, no RBF" value
+// 0xffffffff (shown as ·, wherever it appears -- this isn't coinbase-
+// specific, ordinary transactions set it just as often), and locktime = 0
+// (shown as ◼︎ -- no timelock, the case for the overwhelming majority of
+// transactions).
 const FINAL_SEQUENCE = 4294967295;
 const NULL_PREVOUT_MARK = '∅';
-const FINAL_SEQUENCE_MARK = ';';
+const FINAL_SEQUENCE_MARK = '·';
+const LOCKTIME_ZERO_MARK = '◼︎';
+
+// A clause is already "finished" if it ends in real punctuation or one of
+// the symbolic marks above -- either way, no redundant period gets appended.
+const TERMINAL_CHARS = new Set(['.', ';', '!', '?', FINAL_SEQUENCE_MARK]);
+function endSentence(s) { s = s.trim(); return TERMINAL_CHARS.has(s.slice(-1)) ? s : s + '.'; }
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
@@ -81,7 +88,7 @@ export function describeTransaction(parsed, bestOf = 1) {
     parts.push(endSentence(`${o.value} ${scriptProse}`));
   }
 
-  parts.push(`${parsed.locktime}.`);
+  parts.push(parsed.locktime === 0 ? `${LOCKTIME_ZERO_MARK}.` : `${parsed.locktime}.`);
   return { prose: parts.join(' ').replace(/\s+/g, ' ').trim(), payloadWords };
 }
 
