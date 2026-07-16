@@ -136,7 +136,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-flow { display: grid; grid-template-columns: minmax(0, 1fr) 8.5em; column-gap: 1.4em; align-items: start; }
 .tx-main { grid-column: 1; min-width: 0; }
 .tx-main::after { content: ''; display: table; clear: both; }
-.tx-right { grid-column: 2; }
+/* The right cell stretches to the full transaction height so its last note --
+   always the locktime -- can be pinned to the bottom, aligning it with the end
+   of the prose rather than clumping at the top with the other consequences. */
+.tx-right { grid-column: 2; align-self: stretch; display: flex; flex-direction: column; }
+.tx-right .tx-note-right:last-child { margin-top: auto; margin-bottom: 0; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
 .tx-note-left { float: left; clear: left; width: auto; max-width: 11em; margin: 0 1.1em .55em 0; text-align: right; }
 .tx-note-right { display: block; margin: 0 0 .55em; text-align: left; }
@@ -147,6 +151,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    rule, indented, italic) rather than wrapped in inline quotation marks. Like
    .tx-line it's a normal-flow block, so it wraps around the floated notes. */
 .tx-ascii {
+  display: flow-root;   /* a BFC, so it sits beside a left note rather than letting its border draw under the float */
   margin: 0 0 .55em; padding: .12em 0 .12em 1.05em;
   border-left: 2px solid var(--accent); border-radius: 1px;
   font: italic 400 17.5px/1.6 'Newsreader',serif; color: var(--ink-soft);
@@ -183,9 +188,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   </div>
 
   <div class="card">
-    <label for="block-input">Block height or hash</label>
+    <label for="block-input">Block height, hash, or transaction id</label>
     <div class="lookup-row">
-      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, or a 64-character block hash" autocomplete="off" spellcheck="false">
+      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, a block hash, or a transaction id" autocomplete="off" spellcheck="false">
       <button type="button" id="block-btn">Read chapter</button>
     </div>
     <div id="block-status" class="status-line hidden"></div>
@@ -253,17 +258,6 @@ function setStatus(msg, kind) {
   el.classList.toggle('hidden', !msg);
 }
 
-async function resolveBlockHash(input) {
-  input = input.trim();
-  if (/^[0-9a-f]{64}$/i.test(input)) return input.toLowerCase();
-  if (/^\d+$/.test(input)) {
-    const res = await fetch(`${ESPLORA}/block-height/${input}`);
-    if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${input}.` : `Esplora returned ${res.status}.`);
-    return (await res.text()).trim();
-  }
-  throw new Error('Enter a block height (e.g. 0) or a 64-character block hash.');
-}
-
 // The current block's info + full ordered txid list, plus which transaction
 // within it is on screen -- fetched once per block, so stepping between
 // transactions inside it needs no further list fetch. `null` before the
@@ -274,6 +268,12 @@ let state = null;   // { hash, height, block, txids, index }
 // fetch the next block and having it 404 -- so it's cached once learned
 // rather than reprobed on every step off the same last block.
 let tipHeight = null;
+
+// The on-screen transaction's witness bytes (or null), stashed so the witness
+// appendix can be encoded lazily when the reader asks for it rather than on
+// every load. `appendixLoaded` guards against re-encoding on repeat clicks.
+let currentWitnessHex = null;
+let appendixLoaded = false;
 
 async function loadBlockMeta(hash) {
   const [blockRes, txidsRes] = await Promise.all([
@@ -293,6 +293,20 @@ async function loadBlockByHeight(height) {
   return loadBlockMeta((await res.text()).trim());
 }
 
+// A txid -> the block that confirmed it plus the transaction's index within
+// that block (its verse). Mirrors bitcoin.html's citation lookup: /tx tells us
+// the confirming block, and its ordered txid list tells us where the tx sits.
+async function loadBlockByTxid(txid) {
+  const res = await fetch(`${ESPLORA}/tx/${txid}`);
+  if (!res.ok) throw new Error(res.status === 404 ? `No transaction ${txid.slice(0, 8)}…` : `Esplora returned ${res.status}.`);
+  const tx = await res.json();
+  if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no verse yet.');
+  const meta = await loadBlockMeta(tx.status.block_hash);
+  const index = meta.txids.indexOf(txid);
+  if (index < 0) throw new Error('Transaction not found in its confirming block.');
+  return { meta, index };
+}
+
 async function showCurrentTx() {
   setStatus('<span class="spinner"></span>fetching transaction…');
   const txid = state.txids[state.index];
@@ -306,11 +320,14 @@ async function showCurrentTx() {
   const parsed = parseTransaction(hex);
   const verifiedTxid = await computeTxid(parsed.baseHex);
   const fields = composeTransactionFields(parsed, BEST_OF);
-  const witness = parsed.witnessHex ? encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF) : null;
+  // The witness appendix is the heaviest thing to encode, and most readers
+  // never open it -- so it isn't encoded here. renderChapter only offers the
+  // dagger control; loadAppendix does the work on demand (see below).
+  currentWitnessHex = parsed.witnessHex || null;
 
   renderChapter({
     num: state.index + 1, txid, fields,
-    verified: verifiedTxid === txid, witnessProse: witness ? witness.prose : null,
+    verified: verifiedTxid === txid, hasWitness: !!parsed.witnessHex,
   });
   updateUrl();
   $('chapter').classList.remove('hidden');
@@ -348,18 +365,19 @@ function renderChapter(para) {
   wrap.className = 'tx-wrap' + (para.verified ? '' : ' unverified');
 
   // The transaction's position within its block titles the verse ("Verse 3");
-  // when it carries a witness, a dagger beside the title links out to that
-  // appendix entry.
+  // when it carries a witness, a dagger beside the title loads that appendix
+  // entry on demand (it isn't encoded up front -- see showCurrentTx).
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
   const verseTitle = $('verse-title');
   verseTitle.textContent = `Verse ${para.num}`;
   verseTitle.title = titleAttr;
-  if (para.witnessProse) {
+  if (para.hasWitness) {
     const link = document.createElement('a');
     link.href = '#appendix-1';
     link.className = 'verse-witness';
     link.textContent = '†';
-    link.title = 'witness appendix';
+    link.title = 'load witness appendix';
+    link.addEventListener('click', (e) => { e.preventDefault(); loadAppendix(); });
     verseTitle.append(' ', link);
   }
 
@@ -415,19 +433,40 @@ function renderChapter(para) {
   wrap.append(flow);
   body.append(wrap);
 
-  const appendixEl = $('ch-appendix');
-  appendixEl.innerHTML = '';
-  $('ch-appendix-section').classList.toggle('hidden', !para.witnessProse);
-  if (para.witnessProse) {
-    const a = document.createElement('p');
-    a.className = 'appendix-entry';
-    a.id = 'appendix-1';
-    a.innerHTML = `<span class="appendix-mark">¶${para.num}</span>${para.witnessProse}`;
-    appendixEl.append(a);
-  }
+  // The appendix starts empty and hidden every time; it's populated only when
+  // the reader clicks the witness dagger (loadAppendix), not on load.
+  $('ch-appendix').innerHTML = '';
+  $('ch-appendix-section').classList.add('hidden');
+  appendixLoaded = false;
 
   $('page-prev').disabled = state.height === 0 && state.index === 0;
   $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txids.length - 1;
+}
+
+// Encode the current transaction's witness stack and reveal it as the appendix,
+// on demand (the witness dagger). Encoded once per transaction, then just
+// scrolled to on repeat clicks.
+async function loadAppendix() {
+  if (!currentWitnessHex) return;
+  if (!appendixLoaded) {
+    setStatus('<span class="spinner"></span>encoding witness…');
+    if (!ready) await init().catch(() => {});
+    // encodeSeedPhrase is synchronous and can be heavy, so yield once to let
+    // the spinner paint before it blocks the main thread.
+    await new Promise((r) => setTimeout(r, 0));
+    const { prose } = encodeSeedPhrase(currentWitnessHex, 'english', BEST_OF);
+    const a = document.createElement('p');
+    a.className = 'appendix-entry';
+    a.id = 'appendix-1';
+    a.innerHTML = `<span class="appendix-mark">¶${state.index + 1}</span>${prose}`;
+    const el = $('ch-appendix');
+    el.innerHTML = '';
+    el.append(a);
+    $('ch-appendix-section').classList.remove('hidden');
+    appendixLoaded = true;
+    setStatus('');
+  }
+  $('appendix-1').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function updateUrl() {
@@ -437,17 +476,38 @@ function updateUrl() {
   history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
 }
 
-async function openBlock(input, index) {
+const clampIndex = (i, meta) => Math.min(Math.max(0, i || 0), meta.txids.length - 1);
+
+// Load whatever the reader gave us: a block height, a block hash, or a
+// transaction id. A 64-hex value is either a block hash or a txid -- they're
+// indistinguishable by shape -- so it's tried as a block first and, failing
+// that, as a txid, which jumps straight to that transaction's verse.
+async function openLookup(input, index = 0) {
+  input = (input || '').trim();
   $('chapter').classList.add('hidden');
-  setStatus('<span class="spinner"></span>fetching block…');
   $('block-btn').disabled = true;
   try {
-    const hash = await resolveBlockHash(input);
-    const next = await loadBlockMeta(hash);
-    state = { ...next, index: Math.min(Math.max(0, index), next.txids.length - 1) };
+    if (/^\d+$/.test(input)) {
+      setStatus('<span class="spinner"></span>fetching block…');
+      const meta = await loadBlockByHeight(input);
+      state = { ...meta, index: clampIndex(index, meta) };
+    } else if (/^[0-9a-f]{64}$/i.test(input)) {
+      const hex = input.toLowerCase();
+      setStatus('<span class="spinner"></span>fetching block…');
+      const meta = await loadBlockMeta(hex).catch(() => null);
+      if (meta) {
+        state = { ...meta, index: clampIndex(index, meta) };
+      } else {
+        setStatus('<span class="spinner"></span>locating transaction…');
+        const loc = await loadBlockByTxid(hex);
+        state = { ...loc.meta, index: loc.index };
+      }
+    } else {
+      throw new Error('Enter a block height, a block hash, or a transaction id.');
+    }
     await showCurrentTx();
   } catch (e) {
-    setStatus(e.message || 'Failed to load chapter.', 'err');
+    setStatus(e.message || 'Failed to load.', 'err');
   } finally {
     $('block-btn').disabled = false;
   }
@@ -486,16 +546,25 @@ async function stepTx(direction) {
   }
 }
 
-$('block-btn').addEventListener('click', () => openBlock($('block-input').value, 0));
-$('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openBlock($('block-input').value, 0); });
+$('block-btn').addEventListener('click', () => openLookup($('block-input').value, 0));
+$('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLookup($('block-input').value, 0); });
 $('page-prev').addEventListener('click', () => stepTx(-1));
 $('page-next').addEventListener('click', () => stepTx(1));
 
+// Entry points, in priority order: ?txid= jumps straight to a transaction's
+// verse; ?block= (with optional ?index=) opens a block; otherwise the input's
+// default value.
 const params = new URLSearchParams(location.search);
+const txidParam = params.get('txid');
 const blockParam = params.get('block');
 const indexParam = parseInt(params.get('index'), 10) || 0;
-if (blockParam) $('block-input').value = blockParam;
-openBlock($('block-input').value, indexParam);
+if (txidParam) {
+  $('block-input').value = txidParam;
+  openLookup(txidParam);
+} else {
+  if (blockParam) $('block-input').value = blockParam;
+  openLookup($('block-input').value, indexParam);
+}
 </script>
 </body>
 </html>
