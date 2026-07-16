@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glossia Bitcoin Book — a block, read as a chapter</title>
+<meta name="description" content="A Bitcoin block rendered as a chapter: each transaction a paragraph, its witness data an appendix, in grammatically correct Glossia prose.">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+
+<!-- PWA: installable, offline-capable app shell -->
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#08080a">
+<link rel="apple-touch-icon" href="./icons/glossia-icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Glossia">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
+    });
+  }
+</script>
+
+<!-- Social / rich unfurl -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Glossia">
+<meta property="og:title" content="Glossia Bitcoin Book — a block, read as a chapter">
+<meta property="og:description" content="Each transaction in a Bitcoin block, rendered as a paragraph of grammatically correct prose — witness data collected as an appendix.">
+<meta property="og:url" content="https://glossia.io/bitcoin-book.html">
+<meta property="og:image" content="https://glossia.io/og-glossia.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Glossia — machine data, made human. A lossless linguistic codec.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Glossia Bitcoin Book — a block, read as a chapter">
+<meta name="twitter:description" content="Each transaction in a Bitcoin block, rendered as a paragraph of grammatically correct prose.">
+<meta name="twitter:image" content="https://glossia.io/og-glossia.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,300;1,6..72,400;1,6..72,500&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page:#08080a; --card:#0d0d10; --card-bd:#232228; --ink:#e8e4da; --ink-soft:#cfcabf;
+  --accent:#c9a25f; --accent-2:#dcb877; --btn-ink:#17140c;
+  --dim:#8a8794; --meta:#5c5a63; --rule:#1c1b21; --hair:#2a2930;
+  --input-bg:#151519; --input-bd:#2a2930; --error:#e07b6a; --ok:#7fb98a;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100vh; background: var(--page); color: var(--ink);
+  font-family: 'Public Sans', system-ui, sans-serif; line-height: 1.55;
+}
+.wrap { max-width: 720px; margin: 0 auto; padding: 48px 22px 100px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.muted { color: var(--dim); }
+.hidden { display: none !important; }
+
+.masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
+.masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
+.masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+
+.card {
+  background: var(--card); border: 1px solid var(--card-bd); border-radius: 6px;
+  padding: 24px 26px 26px; box-shadow: 0 24px 60px -32px rgba(0,0,0,.7);
+}
+label { display:block; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); margin-bottom:8px; }
+.lookup-row { display:flex; gap:10px; }
+#block-input {
+  flex: 1; background: var(--input-bg); border: 1px solid var(--input-bd); border-radius: 4px;
+  color: var(--ink); font: 400 14px/1.4 'IBM Plex Mono',monospace; padding: 11px 12px;
+}
+#block-input:focus { outline: none; border-color: var(--accent); }
+button {
+  background: var(--accent); color: var(--btn-ink); border: none; border-radius: 4px;
+  font: 600 12.5px/1 'IBM Plex Mono',monospace; letter-spacing: .04em; text-transform: uppercase;
+  padding: 0 20px; cursor: pointer; transition: background .15s ease;
+}
+button:hover:not(:disabled) { background: var(--accent-2); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+.hint { margin-top: 10px; font-size: 12.5px; color: var(--meta); }
+
+.about { margin-top: 16px; }
+.about summary {
+  cursor: pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--dim); list-style: none;
+}
+.about summary::-webkit-details-marker { display: none; }
+.about summary::before { content: '+ '; color: var(--accent); }
+.about[open] summary::before { content: '– '; }
+.about .hint { margin-top: 10px; }
+
+.status-line { margin-top: 16px; font: 500 13px/1.4 'IBM Plex Mono',monospace; }
+.status-line.err { color: var(--error); }
+.spinner { display:inline-block; width:12px; height:12px; border:2px solid var(--rule); border-top-color: var(--accent); border-radius:50%; animation: spin .7s linear infinite; vertical-align: -1px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── the chapter itself: a manuscript page, not a utility card ── */
+#chapter { margin-top: 48px; }
+.chapter-head { text-align: center; padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--rule); }
+.chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
+.chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
+.chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
+
+/* Per-verse navigation: Previous / Next flanking the verse title -- the
+   transaction's position within its block, rendered as "Verse N". */
+.verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 0 0 30px; }
+.verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
+.verse-witness { font-size:.8em; vertical-align:super; letter-spacing:0; }
+
+.chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
+
+/* Each transaction is a manuscript page: a left margin for provenance (what
+   this text refers back to), a body for the canonical prose, and a right
+   margin for consequences (what this text produces / how it ends). */
+.tx-wrap { position: relative; margin: 0 0 2em; }
+
+/* The layout is a grid of two cells: a main column (canonical prose plus its
+   left margin) and a reserved right column for consequences. Only the RIGHT
+   margin is a grid cell; the LEFT margin stays a float inside the main cell.
+   That split is deliberate -- a grid row is as tall as its tallest cell, so a
+   long prevout reference (left) beside an empty scriptSig (the common segwit
+   case, whose signature lives in the witness) would make a tall, mostly-blank
+   row and shove the next field's prose down. A left float falls out of flow,
+   so the body just starts wherever it already is. The right notes are always
+   short structural numbers (sequence, value, locktime), so parking them in a
+   fixed column never triggers that problem -- and it keeps the body from
+   wrapping underneath them the way a right float let it. */
+.tx-flow { display: grid; grid-template-columns: minmax(0, 1fr) 8.5em; column-gap: 1.4em; align-items: start; }
+.tx-main { grid-column: 1; min-width: 0; }
+.tx-main::after { content: ''; display: table; clear: both; }
+.tx-right { grid-column: 2; }
+.tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
+.tx-note-left { float: left; clear: left; width: auto; max-width: 11em; margin: 0 1.1em .55em 0; text-align: right; }
+.tx-note-right { display: block; margin: 0 0 .55em; text-align: left; }
+.tx-line { margin: 0 0 .55em; }
+/* Verbatim human-readable text embedded in a script (a coinbase mining-pool
+   tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
+   not part of its prose -- so it's set as a quote block (a marginal accent
+   rule, indented, italic) rather than wrapped in inline quotation marks. Like
+   .tx-line it's a normal-flow block, so it wraps around the floated notes. */
+.tx-ascii {
+  margin: 0 0 .55em; padding: .12em 0 .12em 1.05em;
+  border-left: 2px solid var(--accent); border-radius: 1px;
+  font: italic 400 17.5px/1.6 'Newsreader',serif; color: var(--ink-soft);
+}
+.tx-line.tx-body-lead::first-letter {
+  font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
+  font-weight: 500; color: var(--accent);
+}
+@media (max-width: 560px) {
+  /* Collapse to a single column: the reserved right cell stacks under the main
+     one, and the left float becomes a full-width block. */
+  .tx-flow { grid-template-columns: 1fr; }
+  .tx-main, .tx-right { grid-column: 1; }
+  .tx-note-left { float: none; clear: both; max-width: none; width: auto; text-align: left; margin: 0 0 .2em; }
+  .tx-note-right { margin: 0 0 .2em; }
+  .tx-note-left::before { content: '← '; }
+  .tx-note-right::before { content: '→ '; }
+}
+
+.chapter-appendix { margin-top: 56px; padding-top: 30px; border-top: 1px solid var(--rule); }
+.chapter-appendix h2 {
+  font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.24em; text-transform:uppercase;
+  color: var(--dim); margin: 0 0 22px; text-align: center;
+}
+.appendix-entry { margin: 0 0 1.5em; font: italic 400 15.5px/1.65 'Newsreader',serif; color: var(--meta); }
+.appendix-mark { font: 500 11px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="title">The Bitcoin Book</span>
+    <span class="home"><a href="./bitcoin.html">transaction lookup</a> &nbsp;·&nbsp; <a href="./index.html">Glossia</a></span>
+  </div>
+
+  <div class="card">
+    <label for="block-input">Block height or hash</label>
+    <div class="lookup-row">
+      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, or a 64-character block hash" autocomplete="off" spellcheck="false">
+      <button type="button" id="block-btn">Read chapter</button>
+    </div>
+    <div id="block-status" class="status-line hidden"></div>
+  </div>
+
+  <article id="chapter" class="hidden">
+    <header class="chapter-head">
+      <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
+      <h1 class="chapter-title" id="ch-title"></h1>
+      <div class="chapter-hash" id="ch-hash-short"></div>
+    </header>
+
+    <nav class="verse-nav">
+      <button type="button" id="page-prev">← Previous</button>
+      <h2 class="verse-title" id="verse-title"></h2>
+      <button type="button" id="page-next">Next →</button>
+    </nav>
+
+    <div class="chapter-body" id="ch-paragraphs"></div>
+
+    <div class="chapter-appendix hidden" id="ch-appendix-section">
+      <h2>Appendix</h2>
+      <div id="ch-appendix"></div>
+    </div>
+  </article>
+
+  <details class="about">
+    <summary>About</summary>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, its witness stack an appendix entry. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+  </details>
+</div>
+
+<script type="module">
+import { init, encodeSeedPhrase } from './glossia-msg.js';
+import { parseTransaction, computeTxid } from './btc-tx.js';
+import { composeTransactionFields } from './btc-prose.js';
+import { volumeBookChapter } from './btc-citation.js';
+
+const $ = (id) => document.getElementById(id);
+const ESPLORA = 'https://blockstream.info/api';
+const BEST_OF = 5;
+
+// Esplora's block hash, like a txid, is displayed byte-reversed relative to its
+// internal (wire/hashing) byte order -- see btc-tx.js's txid handling. Reverse
+// it back before encoding so the prose carries the hash's actual bytes.
+function reverseHex(hex) { return (hex.match(/../g) || []).reverse().join(''); }
+
+// A block hash's leading (display-order) zero bytes -- required by proof-of-work,
+// and longer for higher-difficulty blocks -- become TRAILING zero bytes once
+// reversed into internal order. They carry no information, so drop them before
+// encoding rather than spending payload words on them.
+function trimTrailingZeroBytes(hex) {
+  let end = hex.length;
+  while (end >= 2 && hex.slice(end - 2, end) === '00') end -= 2;
+  return hex.slice(0, end);
+}
+
+let ready = false;
+init().then(() => { ready = true; }).catch((e) => console.error('WASM init failed:', e));
+
+function setStatus(msg, kind) {
+  const el = $('block-status');
+  el.className = 'status-line' + (kind ? ' ' + kind : '');
+  el.innerHTML = msg;
+  el.classList.toggle('hidden', !msg);
+}
+
+async function resolveBlockHash(input) {
+  input = input.trim();
+  if (/^[0-9a-f]{64}$/i.test(input)) return input.toLowerCase();
+  if (/^\d+$/.test(input)) {
+    const res = await fetch(`${ESPLORA}/block-height/${input}`);
+    if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${input}.` : `Esplora returned ${res.status}.`);
+    return (await res.text()).trim();
+  }
+  throw new Error('Enter a block height (e.g. 0) or a 64-character block hash.');
+}
+
+// The current block's info + full ordered txid list, plus which transaction
+// within it is on screen -- fetched once per block, so stepping between
+// transactions inside it needs no further list fetch. `null` before the
+// first successful load.
+let state = null;   // { hash, height, block, txids, index }
+
+// The chain tip isn't knowable in advance -- discovered only by trying to
+// fetch the next block and having it 404 -- so it's cached once learned
+// rather than reprobed on every step off the same last block.
+let tipHeight = null;
+
+async function loadBlockMeta(hash) {
+  const [blockRes, txidsRes] = await Promise.all([
+    fetch(`${ESPLORA}/block/${hash}`),
+    fetch(`${ESPLORA}/block/${hash}/txids`),
+  ]);
+  if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
+  if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
+  const block = await blockRes.json();
+  const txids = await txidsRes.json();
+  return { hash, height: block.height, block, txids };
+}
+
+async function loadBlockByHeight(height) {
+  const res = await fetch(`${ESPLORA}/block-height/${height}`);
+  if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${height}.` : `Esplora returned ${res.status}.`);
+  return loadBlockMeta((await res.text()).trim());
+}
+
+async function showCurrentTx() {
+  setStatus('<span class="spinner"></span>fetching transaction…');
+  const txid = state.txids[state.index];
+  const r = await fetch(`${ESPLORA}/tx/${txid}/hex`);
+  if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
+  const hex = (await r.text()).trim();
+
+  if (!ready) await init().catch(() => {});
+  setStatus('<span class="spinner"></span>encoding as prose…');
+
+  const parsed = parseTransaction(hex);
+  const verifiedTxid = await computeTxid(parsed.baseHex);
+  const fields = composeTransactionFields(parsed, BEST_OF);
+  const witness = parsed.witnessHex ? encodeSeedPhrase(parsed.witnessHex, 'english', BEST_OF) : null;
+
+  renderChapter({
+    num: state.index + 1, txid, fields,
+    verified: verifiedTxid === txid, witnessProse: witness ? witness.prose : null,
+  });
+  updateUrl();
+  $('chapter').classList.remove('hidden');
+  setStatus('');
+}
+
+function renderChapter(para) {
+  const { volume, book, chapter } = volumeBookChapter(state.height);
+  $('ch-volume').textContent = volume.toLocaleString();
+  $('ch-book').textContent = book.toLocaleString();
+
+  // The big title (and hash subtitle) introduce the chapter as a whole, so
+  // they only belong on its first transaction. Every later transaction
+  // instead folds the chapter number into the Volume/Book eyebrow line --
+  // "Volume 1 · Book 100 · Chapter 333" -- a running head, not a heading.
+  const onFirstTx = state.index === 0;
+  // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
+  // earns its own title rather than just being "Chapter 1". Set both the
+  // big title and the inline running-head form unconditionally (not just
+  // whichever is visible) so neither goes stale while hidden.
+  $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
+  // Running-head chapter number (every verse past the first): a bare numeral,
+  // no thousands comma -- it reads as a locator, not a quantity.
+  $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · Chapter ${chapter}`;
+  $('ch-title').classList.toggle('hidden', !onFirstTx);
+  $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
+  const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
+  $('ch-hash-short').textContent = hashProse;
+  $('ch-hash-short').title = state.hash;
+
+  const body = $('ch-paragraphs');
+  body.innerHTML = '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tx-wrap' + (para.verified ? '' : ' unverified');
+
+  // The transaction's position within its block titles the verse ("Verse 3");
+  // when it carries a witness, a dagger beside the title links out to that
+  // appendix entry.
+  const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
+  const verseTitle = $('verse-title');
+  verseTitle.textContent = `Verse ${para.num}`;
+  verseTitle.title = titleAttr;
+  if (para.witnessProse) {
+    const link = document.createElement('a');
+    link.href = '#appendix-1';
+    link.className = 'verse-witness';
+    link.textContent = '†';
+    link.title = 'witness appendix';
+    verseTitle.append(' ', link);
+  }
+
+  // Left margin (provenance): what this text refers back to -- a float inside
+  // the main cell, so a tall reference doesn't leave a blank gap beside an
+  // empty script. Right margin (consequences): what it produces / how it ends
+  // -- a reserved grid cell (.tx-right) the body never wraps under.
+  const flow = document.createElement('div');
+  flow.className = 'tx-flow';
+  const main = document.createElement('div');
+  main.className = 'tx-main';
+  const right = document.createElement('div');
+  right.className = 'tx-right';
+  flow.append(main, right);
+  let leadUsed = false;
+  const addNote = (side, html) => {
+    if (!html) return;
+    const n = document.createElement('div');
+    n.className = 'tx-note tx-note-' + side;
+    n.innerHTML = html;
+    (side === 'left' ? main : right).append(n);
+  };
+  const addLine = (html) => {
+    if (!html) return;
+    const p = document.createElement('p');
+    p.className = 'tx-line' + (!leadUsed ? (leadUsed = true, ' tx-body-lead') : '');
+    p.innerHTML = html;
+    main.append(p);
+  };
+  // Detected ASCII (a coinbase tag, an OP_RETURN message) is set as a quote
+  // block instead of an inline-quoted line -- and does not claim the drop-cap
+  // lead, which stays on the first line of the transaction's own prose.
+  const addQuote = (html) => {
+    if (!html) return;
+    const q = document.createElement('blockquote');
+    q.className = 'tx-ascii';
+    q.innerHTML = html;
+    main.append(q);
+  };
+
+  const f = para.fields;
+  if (f.version !== '1') addNote('left', f.version);   // version 1 is the default -- omitted
+  for (const inp of f.inputs) {
+    addNote('left', inp.prevout);
+    addNote('right', inp.sequence);
+    if (inp.scriptAscii) addQuote(inp.scriptAscii); else addLine(inp.script);
+  }
+  for (const out of f.outputs) {
+    addNote('right', out.value);
+    if (out.scriptAscii) addQuote(out.scriptAscii); else addLine(out.script);
+  }
+  addNote('right', f.locktime);
+  wrap.append(flow);
+  body.append(wrap);
+
+  const appendixEl = $('ch-appendix');
+  appendixEl.innerHTML = '';
+  $('ch-appendix-section').classList.toggle('hidden', !para.witnessProse);
+  if (para.witnessProse) {
+    const a = document.createElement('p');
+    a.className = 'appendix-entry';
+    a.id = 'appendix-1';
+    a.innerHTML = `<span class="appendix-mark">¶${para.num}</span>${para.witnessProse}`;
+    appendixEl.append(a);
+  }
+
+  $('page-prev').disabled = state.height === 0 && state.index === 0;
+  $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txids.length - 1;
+}
+
+function updateUrl() {
+  const params = new URLSearchParams();
+  params.set('block', String(state.height));
+  if (state.index) params.set('index', String(state.index));
+  history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+}
+
+async function openBlock(input, index) {
+  $('chapter').classList.add('hidden');
+  setStatus('<span class="spinner"></span>fetching block…');
+  $('block-btn').disabled = true;
+  try {
+    const hash = await resolveBlockHash(input);
+    const next = await loadBlockMeta(hash);
+    state = { ...next, index: Math.min(Math.max(0, index), next.txids.length - 1) };
+    await showCurrentTx();
+  } catch (e) {
+    setStatus(e.message || 'Failed to load chapter.', 'err');
+  } finally {
+    $('block-btn').disabled = false;
+  }
+}
+
+// direction: +1 (Next) or -1 (Previous). Steps within the current block's
+// transaction list; at either edge, crosses into the adjacent block (if one
+// exists) and continues from its first/last transaction.
+async function stepTx(direction) {
+  const withinBlock = state.index + direction;
+  if (withinBlock >= 0 && withinBlock < state.txids.length) {
+    state.index = withinBlock;
+    try {
+      await showCurrentTx();
+    } catch (e) {
+      setStatus(e.message || 'Failed to load transaction.', 'err');
+    }
+    return;
+  }
+
+  const newHeight = state.height + direction;
+  if (newHeight < 0) return;   // Genesis has no earlier block
+
+  $('page-prev').disabled = true;
+  $('page-next').disabled = true;
+  setStatus(`<span class="spinner"></span>loading ${direction > 0 ? 'next' : 'previous'} block…`);
+  try {
+    const next = await loadBlockByHeight(newHeight);
+    state = { ...next, index: direction > 0 ? 0 : next.txids.length - 1 };
+    await showCurrentTx();
+  } catch (e) {
+    if (direction > 0) tipHeight = state.height;
+    setStatus(direction > 0 ? 'No next block yet — this is the current chain tip.' : (e.message || 'Failed to load previous block.'), 'err');
+    $('page-prev').disabled = state.height === 0 && state.index === 0;
+    $('page-next').disabled = direction > 0;
+  }
+}
+
+$('block-btn').addEventListener('click', () => openBlock($('block-input').value, 0));
+$('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openBlock($('block-input').value, 0); });
+$('page-prev').addEventListener('click', () => stepTx(-1));
+$('page-next').addEventListener('click', () => stepTx(1));
+
+const params = new URLSearchParams(location.search);
+const blockParam = params.get('block');
+const indexParam = parseInt(params.get('index'), 10) || 0;
+if (blockParam) $('block-input').value = blockParam;
+openBlock($('block-input').value, indexParam);
+</script>
+</body>
+</html>
