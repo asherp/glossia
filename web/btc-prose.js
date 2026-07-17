@@ -61,7 +61,7 @@ function sequenceInfo(seq) {
 // A decimal integer string with thousands separators (an output amount, in
 // satoshis): "407621551" -> "407,621,551". Operates on the string to avoid any
 // precision loss on large values.
-function groupDigits(s) {
+export function groupDigits(s) {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
