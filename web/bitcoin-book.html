@@ -330,17 +330,20 @@ function renderCitation(citeBody, height, pos, vout) {
   link.className = 'cite-verse-link';
   link.href = `?block=${height}&index=${pos}`;
   link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
-  link.title = `go to §${pos + 1}`;
-  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos); });
+  link.title = `go to §${pos + 1}.${vout}`;
+  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, vout); });
   citeBody.textContent = '';
   citeBody.append(link);
 }
 
 // Navigate to a referenced verse (the transaction at `index` in the block at
-// `height`) in place, updating the lookup field and URL.
-function goToVerse(height, index) {
+// `height`) in place, updating the lookup field and URL, then scroll so the
+// referenced output (#vout) -- the one this input spends -- leads the page.
+async function goToVerse(height, index, vout) {
   $('block-input').value = String(height);
-  openLookup(String(height), index);
+  await openLookup(String(height), index);
+  const out = $(`out-${vout}`);
+  if (out) out.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Fill each pending citation cell once its reference resolves; skip if the
@@ -544,9 +547,9 @@ function renderChapter(para) {
       cite.classList.add('resolving');
       pendingCites.push({ citeBody, cite, txid: inp.prevTxid, vout: inp.prevVout });
     }
-    // The reference is followed by the input's sequence mark and -- for a
+    // The input's sequence mark leads, then the reference and -- for a
     // witness-bearing input -- its footnote superscript, numbered in input order.
-    cite.append(citeBody, ' ', seqSpan(inp));
+    cite.append(seqSpan(inp), ' ', citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-in-script';
@@ -555,15 +558,16 @@ function renderChapter(para) {
     inputsEl.append(cite, scriptCell);
   }
   currentFootnotes = footnotes;
-  for (const out of f.outputs) {
+  f.outputs.forEach((out, i) => {
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-out-script';
+    scriptCell.id = `out-${i}`;   // a referencing input scrolls here so this output leads the page
     if (out.scriptAscii) addQuote(scriptCell, out.scriptAscii); else addLine(scriptCell, out.script);
     const valueCell = document.createElement('div');
     valueCell.className = 'tx-note tx-out-value';
     valueCell.textContent = out.value;
     outputsEl.append(scriptCell, valueCell);
-  }
+  });
   const lock = document.createElement('div');
   lock.className = 'tx-note tx-locktime';
   lock.textContent = f.locktime;
