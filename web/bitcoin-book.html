@@ -150,10 +150,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   column-gap: 1.3em; align-items: start;
 }
 .tx-out-script { grid-column: 1; min-width: 0; }
-.tx-out-value  { grid-column: 2; }
-.tx-locktime { grid-column: right; grid-row: 3; }
+/* Amounts and the closing locktime right-align to the page edge, like a ledger
+   column, and the amount digits are grouped in threes (see btc-prose.js). */
+.tx-out-value  { grid-column: 2; text-align: right; }
+.tx-locktime { grid-column: right; grid-row: 3; text-align: right; font-style: normal; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
-.tx-locktime { font-style: normal; }
 /* The input's sequence mark, shown in the margin just after the reference:
    ●/○ final/respects-locktime, † replaceable (a shade warmer), ■n / ⊥n a
    relative block / time delay. */

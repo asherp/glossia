@@ -58,6 +58,13 @@ function sequenceInfo(seq) {
   return { rbf: true, mark: '', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
 }
 
+// A decimal integer string with thousands separators (an output amount, in
+// satoshis): "407621551" -> "407,621,551". Operates on the string to avoid any
+// precision loss on large values.
+function groupDigits(s) {
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
 // Glossia-generated prose it's untrusted content and must be escaped before
@@ -127,7 +134,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   const outputs = parsed.vout.map((o) => {
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
     const { script, ascii } = collectScript(o.scriptPubKey, isOpReturn);
-    return { script, scriptAscii: ascii, value: String(o.value) };
+    return { script, scriptAscii: ascii, value: groupDigits(String(o.value)) };
   });
 
   const lock = locktimeInfo(parsed.locktime);
