@@ -279,11 +279,14 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   });
 
   const lock = locktimeInfo(parsed.locktime);
+  // Serialization framing is never encoded -- the input/output counts, the
+  // witness item count and its per-item length prefixes, and a script's push
+  // length prefixes are all structural and reconstructable from the parse, so
+  // only genuine payload bytes become prose. (The counts are implicit in the
+  // number of input/output rows; witness items render individually.)
   return {
     version: String(parsed.version),
-    inputCount: String(parsed.vin.length),
     inputs,
-    outputCount: String(parsed.vout.length),
     outputs,
     locktime: lock.mark, locktimeTitle: lock.title,
     payloadWords,
