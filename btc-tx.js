@@ -84,10 +84,15 @@ export function parseTransaction(hex) {
   const witStart = voutEnd;
   if (segwit) {
     for (let i = 0; i < vinCount; i++) {
+      const itemStart = r.pos;
       const itemCount = r.varint();
       const items = [];
       for (let j = 0; j < itemCount; j++) items.push(bytesToHex(r.bytesN(r.varint())));
       vin[i].witness = items;
+      // The raw serialized witness stack for this input (item count + each
+      // length-prefixed item), so each input's witness can be encoded on its
+      // own -- concatenating them all reproduces the whole witnessHex below.
+      vin[i].witnessHex = bytesToHex(bytes.subarray(itemStart, r.pos));
     }
     witnessBytes = r.pos - witStart;
   }
