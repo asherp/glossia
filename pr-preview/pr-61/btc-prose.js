@@ -118,6 +118,9 @@ export function composeTransactionFields(parsed, bestOf = 1) {
       script, scriptAscii: ascii,
       sequence: seq.mark, sequenceKind: seq.kind, sequenceTitle: seq.title, sequenceRbf: seq.rbf,
       witnessHex: v.witnessHex || '',
+      // An all-zero witness (a coinbase's reserved value, or an empty stack) is
+      // shown as ∅ rather than encoded to a run of zero-words.
+      witnessZero: (v.witness || []).every((it) => /^0*$/.test(it)),
     };
   });
 

@@ -141,8 +141,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-in-cite.resolving { color: var(--meta); }
 .tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
 .tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
-.cite-verse-link { color: var(--accent); text-decoration: none; }
-.cite-verse-link:hover { text-decoration: underline; }
+.cite-verse-link { color: inherit; text-decoration: none; }
+.cite-verse-link:hover { color: var(--accent); text-decoration: underline; }
 .tx-in-script { grid-column: 2; min-width: 0; }
 .tx-outputs {
   grid-column: body / -1; grid-row: 2;
@@ -154,12 +154,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-locktime { grid-column: right; grid-row: 3; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
 .tx-locktime { font-style: normal; }
-/* The input's sequence mark rides inline at the tail of its body: ○ final,
-   † replaceable (a shade warmer), ■n / ⊥n a relative block / time delay. */
+/* The input's sequence mark, shown in the margin just after the reference:
+   ●/○ final/respects-locktime, † replaceable (a shade warmer), ■n / ⊥n a
+   relative block / time delay. */
 .tx-seq { font-style: normal; color: var(--meta); }
 .tx-seq-rbf { color: var(--accent-2); }
 .tx-seq-block, .tx-seq-time { color: var(--dim); font-variant-numeric: normal; }
-.tx-seq-line { margin: 0 0 .55em; font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--meta); }
 .tx-line { margin: 0 0 .55em; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
@@ -321,18 +321,17 @@ function toRoman(n) {
 }
 
 // Populate a citation cell with the scripture-style reference "volume(Roman)
-// book chapter §verse.output-index" (e.g. "XII 37 184 §17.2"), where the
-// §verse.output part is a link to that verse.
+// book chapter §verse.output-index" (e.g. "XII 37 184 §17.2"), the whole of
+// which links to that verse.
 function renderCitation(citeBody, height, pos, vout) {
   const { volume, book, chapter } = volumeBookChapter(height);
-  citeBody.textContent = '';
-  citeBody.append(`${toRoman(volume)} ${book} ${chapter} `);
   const link = document.createElement('a');
   link.className = 'cite-verse-link';
   link.href = `?block=${height}&index=${pos}`;
-  link.textContent = `§${pos + 1}.${vout}`;
-  link.title = `go to verse ${pos + 1}`;
+  link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
+  link.title = `go to §${pos + 1}`;
   link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos); });
+  citeBody.textContent = '';
   citeBody.append(link);
 }
 
@@ -454,10 +453,10 @@ function renderChapter(para) {
   const wrap = document.createElement('div');
   wrap.className = 'tx-wrap' + (para.verified ? '' : ' unverified');
 
-  // The transaction's position within its block titles the verse ("Verse 3").
+  // The transaction's position within its block titles the section ("§ 3").
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
   const verseTitle = $('verse-title');
-  verseTitle.textContent = `Verse ${para.num}`;
+  verseTitle.textContent = `§ ${para.num}`;
   verseTitle.title = titleAttr;
 
   // The transaction is laid out in horizontal bands (see .tx-flow CSS). The
@@ -493,11 +492,10 @@ function renderChapter(para) {
     q.innerHTML = html;
     container.append(q);
   };
-  // The input's sequence, inline, as a symbol: ● final · ○ respects locktime ·
-  // † replaceable · † ■n / † ⊥n replaceable with a relative block / time delay.
-  // Rides the tail of the scriptSig prose, or stands alone when there is none
-  // (an empty segwit script or coinbase tag). The † is kept a shade warmer than
-  // the delay it precedes, so it reads as its own mark.
+  // The input's sequence mark, shown in the margin just after its reference:
+  // ● final · ○ respects locktime · † replaceable · † ■n / † ⊥n replaceable with
+  // a relative block / time delay. The † is kept a shade warmer than the delay
+  // it precedes, so it reads as its own mark.
   const seqSpan = (inp) => {
     const s = document.createElement('span');
     s.className = `tx-seq tx-seq-${inp.sequenceKind}`;
@@ -523,12 +521,6 @@ function renderChapter(para) {
     a.addEventListener('click', (e) => { e.preventDefault(); loadFootnotes(n); });
     return a;
   };
-  const addSeqLineTo = (container, tail) => {
-    const p = document.createElement('p');
-    p.className = 'tx-seq-line';
-    p.append(...tail);
-    container.append(p);
-  };
 
   const f = para.fields;
   const footnotes = [];
@@ -551,16 +543,14 @@ function renderChapter(para) {
       cite.classList.add('resolving');
       pendingCites.push({ citeBody, cite, txid: inp.prevTxid, vout: inp.prevVout });
     }
-    cite.append(citeBody);
-    // A witness-bearing input hangs its footnote reference off the citation,
-    // numbered in input order.
-    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex }); cite.append(witnessRef(footnotes.length)); }
+    // The reference is followed by the input's sequence mark and -- for a
+    // witness-bearing input -- its footnote superscript, numbered in input order.
+    cite.append(citeBody, ' ', seqSpan(inp));
+    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-in-script';
-    const tail = [seqSpan(inp)];
-    if (inp.scriptAscii) { addQuote(scriptCell, inp.scriptAscii); addSeqLineTo(scriptCell, tail); }
-    else if (inp.script) addLine(scriptCell, inp.script).append(' ', ...tail);
-    else addSeqLineTo(scriptCell, tail);
+    if (inp.scriptAscii) addQuote(scriptCell, inp.scriptAscii);
+    else if (inp.script) addLine(scriptCell, inp.script);
     inputsEl.append(cite, scriptCell);
   }
   currentFootnotes = footnotes;
@@ -607,7 +597,9 @@ async function renderFootnotes(gen) {
   const el = $('ch-footnotes');
   el.innerHTML = '';
   for (const fn of currentFootnotes) {
-    const { prose } = encodeSeedPhrase(fn.hex, 'english', BEST_OF);
+    // An all-zero witness (coinbase reserved value, empty stack) shows ∅ instead
+    // of a run of zero-words.
+    const prose = fn.zero ? '∅' : encodeSeedPhrase(fn.hex, 'english', BEST_OF).prose;
     const p = document.createElement('p');
     p.className = 'footnote-entry';
     p.id = `fn-${fn.n}`;
