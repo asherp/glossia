@@ -17,7 +17,7 @@
 // margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
-import { findAsciiStrings } from './btc-tx.js';
+import { findAsciiStrings, tokenizeScript } from './btc-tx.js';
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
@@ -73,6 +73,87 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ─── script → opcode notation ──────────────────────────────────────────
+//
+// A scriptSig / scriptPubKey is rendered as its sequence of opcodes and data
+// pushes. An opcode we've given a Glossia glyph renders as that glyph; every
+// other opcode falls back to Bitcoin Core's OP_* name. Data pushes stay
+// Glossia prose (or, for an OP_RETURN payload, inline-quoted when they're
+// legible ASCII) -- exactly what carried the whole script before opcodes had
+// their own marks.
+
+// Opcode byte -> Glossia glyph, for the opcodes we've defined so far.
+const OPCODE_SYMBOLS = {
+  0x00: '⓪',                                                  // OP_0
+  0x4f: '⊖',                                                  // OP_1NEGATE
+  0x51: '①', 0x52: '②', 0x53: '③', 0x54: '④', 0x55: '⑤',      // OP_1 …
+  0x56: '⑥', 0x57: '⑦', 0x58: '⑧', 0x59: '⑨', 0x5a: '⑩',
+  0x5b: '⑪', 0x5c: '⑫', 0x5d: '⑬', 0x5e: '⑭', 0x5f: '⑮', 0x60: '⑯',   // … OP_16
+  0x63: '⟨', 0x67: '│', 0x68: '⟩',                            // OP_IF / OP_ELSE / OP_ENDIF
+  0x69: '✓',                                                  // OP_VERIFY
+  0x6a: '¶',                                                  // OP_RETURN
+  0x75: '↧', 0x76: '⧉',                                       // OP_DROP / OP_DUP
+  0x87: '=', 0x88: '≡',                                       // OP_EQUAL / OP_EQUALVERIFY
+  0xa6: 'ρ', 0xa7: 'σ', 0xa8: 'Σ', 0xa9: '⌖', 0xaa: '⌘',      // RIPEMD160 / SHA1 / SHA256 / HASH160 / HASH256
+  0xac: '∇', 0xad: '▼', 0xae: '◇', 0xaf: '◆',                 // CHECKSIG(VERIFY) / CHECKMULTISIG(VERIFY)
+  0xb1: 'τ', 0xb2: 'Δ',                                       // CLTV (absolute) / CSV (relative)
+};
+
+// Opcode byte -> Bitcoin Core name, the fallback for opcodes without a glyph.
+// Data-push opcodes (0x01-0x4b, OP_PUSHDATA1/2/4) never reach this table --
+// tokenizeScript surfaces them as their pushed data, not as an opcode.
+const OPCODE_NAMES = {
+  0x50: 'OP_RESERVED',
+  0x61: 'OP_NOP', 0x62: 'OP_VER', 0x64: 'OP_NOTIF', 0x65: 'OP_VERIF', 0x66: 'OP_VERNOTIF',
+  0x6b: 'OP_TOALTSTACK', 0x6c: 'OP_FROMALTSTACK', 0x6d: 'OP_2DROP', 0x6e: 'OP_2DUP', 0x6f: 'OP_3DUP',
+  0x70: 'OP_2OVER', 0x71: 'OP_2ROT', 0x72: 'OP_2SWAP', 0x73: 'OP_IFDUP', 0x74: 'OP_DEPTH',
+  0x77: 'OP_NIP', 0x78: 'OP_OVER', 0x79: 'OP_PICK', 0x7a: 'OP_ROLL', 0x7b: 'OP_ROT', 0x7c: 'OP_SWAP', 0x7d: 'OP_TUCK',
+  0x7e: 'OP_CAT', 0x7f: 'OP_SUBSTR', 0x80: 'OP_LEFT', 0x81: 'OP_RIGHT', 0x82: 'OP_SIZE',
+  0x83: 'OP_INVERT', 0x84: 'OP_AND', 0x85: 'OP_OR', 0x86: 'OP_XOR',
+  0x89: 'OP_RESERVED1', 0x8a: 'OP_RESERVED2',
+  0x8b: 'OP_1ADD', 0x8c: 'OP_1SUB', 0x8d: 'OP_2MUL', 0x8e: 'OP_2DIV', 0x8f: 'OP_NEGATE',
+  0x90: 'OP_ABS', 0x91: 'OP_NOT', 0x92: 'OP_0NOTEQUAL',
+  0x93: 'OP_ADD', 0x94: 'OP_SUB', 0x95: 'OP_MUL', 0x96: 'OP_DIV', 0x97: 'OP_MOD', 0x98: 'OP_LSHIFT', 0x99: 'OP_RSHIFT',
+  0x9a: 'OP_BOOLAND', 0x9b: 'OP_BOOLOR', 0x9c: 'OP_NUMEQUAL', 0x9d: 'OP_NUMEQUALVERIFY', 0x9e: 'OP_NUMNOTEQUAL',
+  0x9f: 'OP_LESSTHAN', 0xa0: 'OP_GREATERTHAN', 0xa1: 'OP_LESSTHANOREQUAL', 0xa2: 'OP_GREATERTHANOREQUAL',
+  0xa3: 'OP_MIN', 0xa4: 'OP_MAX', 0xa5: 'OP_WITHIN',
+  0xab: 'OP_CODESEPARATOR',
+  0xb0: 'OP_NOP1', 0xb3: 'OP_NOP4', 0xb4: 'OP_NOP5', 0xb5: 'OP_NOP6', 0xb6: 'OP_NOP7',
+  0xb7: 'OP_NOP8', 0xb8: 'OP_NOP9', 0xb9: 'OP_NOP10', 0xba: 'OP_CHECKSIGADD',
+  0xff: 'OP_INVALIDOPCODE',
+};
+
+// One opcode -> its HTML: a defined glyph (accent-styled), else the OP_* name.
+function opToken(code) {
+  const sym = OPCODE_SYMBOLS[code];
+  if (sym) return `<span class="op">${sym}</span>`;
+  return `<span class="op-name">${OPCODE_NAMES[code] || 'OP_UNKNOWN'}</span>`;
+}
+
+// A script (hex) -> its opcode-notation display string. `collect` encodes a
+// data push to Glossia prose; `eligible` (an OP_RETURN payload) turns on inline
+// ASCII quoting for legible pushes. Opcode glyphs and OP_* names are the only
+// HTML added here; pushed data is Glossia prose (safe) and quoted ASCII is
+// escaped, so the result is safe to render via innerHTML like before.
+function renderScript(hex, collect, eligible) {
+  const parts = [];
+  for (const t of tokenizeScript(hex)) {
+    if (t.op !== undefined) {
+      parts.push(opToken(t.op));
+    } else if (t.push !== undefined) {
+      if (!t.push) continue;                                  // empty push -- nothing to show
+      if (eligible) {
+        const found = findAsciiStrings(t.push);
+        if (found.length) { parts.push(found.map((s) => `“${escapeHtml(s)}”`).join(' ')); continue; }
+      }
+      parts.push(collect(t.push));
+    } else {
+      parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
+    }
+  }
+  return parts.join(' ');
+}
+
 // A parsed transaction (btc-tx.js's parseTransaction) -> a structured
 // breakdown of every field's rendered text, in wire order, plus the payload
 // words consumed. bitcoin-book.html's margin layout is built from this, each
@@ -86,33 +167,24 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     payloadWords.push(...r.payloadWords);
     return r.prose;
   };
-  // Two spots carry deliberate human-readable text rather than
-  // cryptographic material: a coinbase input's scriptSig (mining pool
-  // tags) and an OP_RETURN output's scriptPubKey (arbitrary embedded
-  // messages). When detected there, that text is quoted inline verbatim
-  // instead of Glossia-encoded -- it's already legible, so routing it
-  // through the wordlist would just swap real words for unrelated ones.
-  // See btc-tx.js's findAsciiStrings for why this stays scoped to just
-  // these two fields rather than scriptSig/scriptPubKey/witness generally.
-  // Returns both forms of a script: `script` is the display string --
-  // detected ASCII wrapped in inline curly quotes, otherwise Glossia prose --
-  // and `ascii` is the same detected text unquoted (still HTML-escaped), or
-  // null when the script wasn't legible ASCII. A flat renderer uses `script`
-  // as-is; a manuscript renderer can set `ascii` as a quote block instead.
-  const collectScript = (hex, eligible) => {
-    if (eligible) {
-      const found = findAsciiStrings(hex);
-      if (found.length) {
-        const ascii = found.map((s) => escapeHtml(s)).join(' ');
-        return { script: found.map((s) => `“${escapeHtml(s)}”`).join(' '), ascii };
-      }
-    }
-    return { script: collect(hex), ascii: null };
-  };
-
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
-    const { script, ascii } = collectScript(v.scriptSig, isNullPrevout);
+    // A coinbase scriptSig is arbitrary data, not valid script, so tokenizing
+    // it as opcodes would be noise -- it keeps the legible-text treatment,
+    // where a mining-pool tag is surfaced as a quote block (`scriptAscii`).
+    // Every other scriptSig is genuine script, rendered in opcode notation.
+    let script, scriptAscii = null;
+    if (isNullPrevout) {
+      const found = findAsciiStrings(v.scriptSig);
+      if (found.length) {
+        scriptAscii = found.map((s) => escapeHtml(s)).join(' ');
+        script = found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+      } else {
+        script = collect(v.scriptSig);
+      }
+    } else {
+      script = renderScript(v.scriptSig, collect, false);
+    }
     const seq = sequenceInfo(v.sequence);
     // The prevout is carried as a reference (txid + output index), not encoded:
     // the book resolves it to a volume/book/chapter/verse citation for the left
@@ -122,7 +194,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
       isNullPrevout,
       prevTxid: isNullPrevout ? '' : v.txid,
       prevVout: v.vout,
-      script, scriptAscii: ascii,
+      script, scriptAscii,
       sequence: seq.mark, sequenceKind: seq.kind, sequenceTitle: seq.title, sequenceRbf: seq.rbf,
       witnessHex: v.witnessHex || '',
       // An all-zero witness (a coinbase's reserved value, or an empty stack) is
@@ -132,9 +204,11 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   });
 
   const outputs = parsed.vout.map((o) => {
+    // A scriptPubKey is always genuine script, rendered in opcode notation. An
+    // OP_RETURN (¶) payload is `eligible` for inline ASCII quoting, so an
+    // embedded message reads verbatim rather than as prose.
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
-    const { script, ascii } = collectScript(o.scriptPubKey, isOpReturn);
-    return { script, scriptAscii: ascii, value: groupDigits(String(o.value)) };
+    return { script: renderScript(o.scriptPubKey, collect, isOpReturn), scriptAscii: null, value: groupDigits(String(o.value)) };
   });
 
   const lock = locktimeInfo(parsed.locktime);

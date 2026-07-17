@@ -164,6 +164,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-seq-rbf { color: var(--accent-2); }
 .tx-seq-block, .tx-seq-time { color: var(--dim); font-variant-numeric: normal; }
 .tx-line { margin: 0 0 .55em; }
+/* Opcodes rendered inline in a script: a defined opcode shows as its Glossia
+   glyph (accent, so the grammar punctuates the prose data pushes); an opcode
+   we haven't given a glyph falls back to Bitcoin Core's OP_* name in small mono. */
+.op { color: var(--accent); font-style: normal; }
+.op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
    not part of its prose -- so it's set as a quote block (a marginal accent
