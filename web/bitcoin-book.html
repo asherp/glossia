@@ -169,6 +169,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    we haven't given a glyph falls back to Bitcoin Core's OP_* name in small mono. */
 .op { color: var(--accent); font-style: normal; }
 .op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
+/* A witness footnote is a stack of items; a thin middot separates each, and an
+   empty stack item shows as ∅. */
+.wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
    not part of its prose -- so it's set as a quote block (a marginal accent
@@ -363,7 +366,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid } from './btc-tx.js';
-import { composeTransactionFields, groupDigits } from './btc-prose.js';
+import { composeTransactionFields, groupDigits, renderWitness } from './btc-prose.js';
 import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
@@ -684,7 +687,7 @@ function renderChapter(para) {
     // witness-bearing input -- its footnote superscript, numbered in input order;
     // the amount of the output it spends sits underneath.
     cite.append(seqSpan(inp), ' ', citeBody);
-    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
+    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     if (amtEl) cite.append(amtEl);
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-in-script';
@@ -739,7 +742,7 @@ async function renderFootnotes(gen) {
   for (const fn of currentFootnotes) {
     // An all-zero witness (coinbase reserved value, empty stack) shows ∅ instead
     // of a run of zero-words.
-    const prose = fn.zero ? '∅' : encodeSeedPhrase(fn.hex, 'english', BEST_OF).prose;
+    const prose = fn.zero ? '∅' : renderWitness(fn.items, (hex) => encodeSeedPhrase(hex, 'english', BEST_OF).prose);
     const p = document.createElement('p');
     p.className = 'footnote-entry';
     p.id = `fn-${fn.n}`;
