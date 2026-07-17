@@ -58,11 +58,11 @@ function sequenceInfo(seq) {
   return { rbf: true, mark: '', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
 }
 
-// A decimal integer string with thousands separators (an output amount, in
-// satoshis): "407621551" -> "407,621,551". Operates on the string to avoid any
-// precision loss on large values.
+// A decimal integer string with a middle-dot every three digits (an output
+// amount, in satoshis): "407621551" -> "407·621·551". Operates on the string to
+// avoid any precision loss on large values.
 export function groupDigits(s) {
-  return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return s.replace(/\B(?=(\d{3})+(?!\d))/g, '·');
 }
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
