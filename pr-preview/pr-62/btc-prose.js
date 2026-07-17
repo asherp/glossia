@@ -154,6 +154,72 @@ function renderScript(hex, collect, eligible) {
   return parts.join(' ');
 }
 
+// ─── witness → per-item rendering ──────────────────────────────────────
+//
+// An input's witness is a stack of items. Rendering them individually (rather
+// than as one blob) lets a signature, a key and a script read as distinct
+// stack elements -- and the one item that is a script (a P2WSH witnessScript or
+// a Taproot tapscript) is rendered in opcode notation like any other script.
+
+const witHexLen = (h) => h.length / 2;
+const witFirst = (h) => parseInt(h.slice(0, 2), 16);
+
+// A witness item that is plainly data, never a script:
+function isPubkey(h) {
+  const n = witHexLen(h), b = witFirst(h);
+  return (n === 33 && (b === 0x02 || b === 0x03)) || (n === 65 && b === 0x04);
+}
+function isSignature(h) {
+  const n = witHexLen(h), b = witFirst(h);
+  return n === 64 || n === 65 || (b === 0x30 && n >= 68 && n <= 73);   // Schnorr, or DER (+sighash byte)
+}
+// A Taproot script-path control block: a 0xc0/0xc1 leaf byte, then a 32-byte
+// internal key and a merkle path of 32-byte hashes.
+function isControlBlock(h) {
+  const n = witHexLen(h);
+  return n >= 33 && (n - 33) % 32 === 0 && (witFirst(h) & 0xfe) === 0xc0;
+}
+// A signature check or a timelock is the hallmark of a spending script and
+// essentially never turns up by chance in a data item, so its presence (in an
+// item that parses cleanly as script) marks the item as a witnessScript.
+const SCRIPT_SIGNAL = new Set([0xac, 0xad, 0xae, 0xaf, 0xba, 0xb1, 0xb2]);
+function looksLikeScript(h) {
+  if (!h || isPubkey(h) || isSignature(h)) return false;
+  const toks = tokenizeScript(h);
+  if (!toks.length || toks.some((t) => t.trunc !== undefined)) return false;
+  return toks.some((t) => t.op !== undefined && SCRIPT_SIGNAL.has(t.op));
+}
+
+// Which witness item (if any) is the script to render as opcodes: a Taproot
+// tapscript (sitting just below its control block) or a P2WSH witnessScript
+// (the last item). Returns -1 when the witness is all data -- P2WPKH, a
+// key-path spend, a bare signature.
+function witnessScriptIndex(items) {
+  const n = items.length;
+  if (n === 0) return -1;
+  let last = n - 1;
+  if (n >= 2 && witFirst(items[last]) === 0x50) last -= 1;    // strip an optional annex
+  if (last >= 1 && isControlBlock(items[last])) return last - 1;
+  const tail = items[n - 1];
+  if (isPubkey(tail) || isSignature(tail)) return -1;
+  return looksLikeScript(tail) ? n - 1 : -1;
+}
+
+// An input's witness stack (hex items) -> its footnote display. `encode` turns
+// a data item's hex into Glossia prose; the one script item, if present,
+// becomes opcode notation. Items are separated so each reads as its own stack
+// element.
+export function renderWitness(items, encode) {
+  if (!items || !items.length) return '∅';
+  const scriptIdx = witnessScriptIndex(items);
+  return items
+    .map((hex, i) => {
+      if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
+      return i === scriptIdx ? renderScript(hex, encode, false) : encode(hex);
+    })
+    .join('<span class="wit-sep"> · </span>');
+}
+
 // A parsed transaction (btc-tx.js's parseTransaction) -> a structured
 // breakdown of every field's rendered text, in wire order, plus the payload
 // words consumed. bitcoin-book.html's margin layout is built from this, each
@@ -197,6 +263,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
       script, scriptAscii,
       sequence: seq.mark, sequenceKind: seq.kind, sequenceTitle: seq.title, sequenceRbf: seq.rbf,
       witnessHex: v.witnessHex || '',
+      witnessItems: v.witness || [],
       // An all-zero witness (a coinbase's reserved value, or an empty stack) is
       // shown as ∅ rather than encoded to a run of zero-words.
       witnessZero: (v.witness || []).every((it) => /^0*$/.test(it)),
