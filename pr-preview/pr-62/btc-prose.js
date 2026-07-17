@@ -130,6 +130,58 @@ function opToken(code) {
   return `<span class="op-name">${OPCODE_NAMES[code] || 'OP_UNKNOWN'}</span>`;
 }
 
+// ─── DER signature compaction ──────────────────────────────────────────
+//
+// A legacy / segwit-v0 ECDSA signature push is a DER envelope -- SEQUENCE and
+// INTEGER tags, length bytes, canonical leading-zero padding -- wrapped around
+// two 32-byte scalars, plus a trailing sighash byte. Only r, s and the sighash
+// carry information; the ~7 envelope bytes are pure framing. derToCompact
+// strips it to a fixed 65-byte r‖s‖sighash -- but ONLY when re-encoding those
+// scalars reproduces the input byte-for-byte. That guard leaves every
+// non-canonical signature (pre-BIP66 blocks) and every non-signature push
+// untouched, so the compact form is always a faithful stand-in.
+
+const SIGHASH_TYPES = new Set([0x01, 0x02, 0x03, 0x81, 0x82, 0x83]);
+const byteAt = (hex, i) => parseInt(hex.substr(i * 2, 2), 16);
+
+// Strip leading 0x00 bytes from a hex value, keeping at least one byte.
+function stripLeadZeros(h) {
+  let i = 0;
+  while (i + 2 < h.length && h.substr(i, 2) === '00') i += 2;
+  return h.slice(i);
+}
+// The canonical DER INTEGER *content* for a big-endian value: minimal length,
+// with a single 0x00 prepended when the top bit would otherwise read negative.
+function derInt(valHex) {
+  const v = stripLeadZeros(valHex);
+  return (byteAt(v, 0) & 0x80) ? '00' + v : v;
+}
+const lenByte = (h) => (h.length / 2).toString(16).padStart(2, '0');
+
+// A signature push (DER sig + sighash byte) -> 65-byte r‖s‖sighash, or null when
+// the bytes are not a strictly-canonical signature (so the caller keeps them).
+function derToCompact(hex) {
+  const n = hex.length / 2;
+  if (n < 9 || n > 73 || byteAt(hex, 0) !== 0x30) return null;         // SEQUENCE
+  if (2 + byteAt(hex, 1) + 1 !== n) return null;                       // header + body + sighash
+  if (byteAt(hex, 2) !== 0x02) return null;                           // INTEGER r
+  const rLen = byteAt(hex, 3);
+  if (rLen < 1 || 6 + rLen > n || byteAt(hex, 4 + rLen) !== 0x02) return null;   // INTEGER s
+  const sLen = byteAt(hex, 5 + rLen);
+  if (sLen < 1 || 7 + rLen + sLen !== n) return null;
+  const sighash = hex.substr((n - 1) * 2, 2);
+  if (!SIGHASH_TYPES.has(parseInt(sighash, 16))) return null;
+  const rVal = stripLeadZeros(hex.substr(8, rLen * 2));
+  const sVal = stripLeadZeros(hex.substr((6 + rLen) * 2, sLen * 2));
+  if (rVal.length > 64 || sVal.length > 64) return null;              // a scalar wider than 32 bytes
+  const r32 = rVal.padStart(64, '0'), s32 = sVal.padStart(64, '0');
+  // Re-encode the scalars as canonical DER and require an exact match -- the
+  // fidelity guard that rejects non-canonical framing.
+  const body = '02' + lenByte(derInt(r32)) + derInt(r32) + '02' + lenByte(derInt(s32)) + derInt(s32);
+  const rebuilt = '30' + lenByte(body) + body + sighash;
+  return rebuilt.toLowerCase() === hex.toLowerCase() ? r32 + s32 + sighash : null;
+}
+
 // A script (hex) -> its opcode-notation display string. `collect` encodes a
 // data push to Glossia prose; `eligible` (an OP_RETURN payload) turns on inline
 // ASCII quoting for legible pushes. Opcode glyphs and OP_* names are the only
@@ -146,7 +198,7 @@ function renderScript(hex, collect, eligible) {
         const found = findAsciiStrings(t.push);
         if (found.length) { parts.push(found.map((s) => `“${escapeHtml(s)}”`).join(' ')); continue; }
       }
-      parts.push(collect(t.push));
+      parts.push(collect(derToCompact(t.push) || t.push));    // a DER signature is stripped to r‖s‖sighash
     } else {
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
     }
@@ -215,7 +267,8 @@ export function renderWitness(items, encode) {
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      return i === scriptIdx ? renderScript(hex, encode, false) : encode(hex);
+      if (i === scriptIdx) return renderScript(hex, encode, false);
+      return encode(derToCompact(hex) || hex);                // a DER signature is stripped to r‖s‖sighash
     })
     .join('<span class="wit-sep"> · </span>');
 }
