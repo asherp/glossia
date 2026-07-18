@@ -65,27 +65,31 @@ const toSuperscript = (n) => String(n).split('').map((d) => SUPERSCRIPT_DIGITS[+
 
 // nBits (a compact difficulty target) -> { sym, num, title }. The target is
 // rendered as the thing it is -- the ceiling a mined hash must dip under --
-// via its leading zero run: β's subscript counts the zero hex digits beyond
-// the eight the genesis target opens with, so β₀ is difficulty 1 and the
-// subscript climbs as difficulty rises. `num` carries the target's remaining
-// significant digits; empty for the baseline mantissa ffff, so every
-// difficulty-1 block reads as a bare β₀ -- and when digits are shown they
-// are set off with a middot (β₃·4864c) so the hex mantissa can't read as
-// part of the decimal subscript. Exact both ways: zeros + digits
-// rebuild the full 256-bit target, which re-packs to the compact form. A
-// target looser than the genesis baseline (never on mainnet) falls back to
-// the raw compact hex. The title keeps the raw nBits, the full target and
-// the difficulty ratio for hover.
+// and β's subscript is that demand in its physical unit: the number of
+// leading zero BITS a valid hash must open with. Genesis (difficulty 1) is
+// β₃₂, and the subscript climbs as difficulty rises -- each +1 is a
+// doubling of the work. `num` carries the target's remaining significant
+// hex digits, set off with a middot (β₄₅·4864c) so they can't read as part
+// of the decimal subscript; empty for the baseline mantissa ffff, so every
+// difficulty-1 block reads as a bare β₃₂. Exact both ways: the digits fix
+// the zero bits inside their own first digit, so n + digits rebuild the
+// full 256-bit target, which re-packs to the compact form. A target looser
+// than the genesis baseline (never on mainnet) falls back to the raw
+// compact hex. The title keeps the raw nBits, the full target and the
+// difficulty ratio for hover.
 function bitsInfo(bits) {
   const targetHex = bitsToTargetHex(bits);
   const difficulty = bitsToDifficulty(bits);
   const diffStr = difficulty.toLocaleString(undefined, { maximumFractionDigits: difficulty < 1000 ? 2 : 0 });
   const compact = bits.toString(16).padStart(8, '0');
-  const title = `nBits ${compact} — a valid block hash must read below ${targetHex} — difficulty ${diffStr} (relative to the genesis block)`;
   const zeros = targetHex.length - targetHex.replace(/^0+/, '').length;
-  if (zeros < 8) return { sym: compact, num: '', title };
+  const baseTitle = (extra) => `nBits ${compact} — a valid block hash must read below ${targetHex}${extra} — difficulty ${diffStr} (relative to the genesis block)`;
+  if (zeros < 8) return { sym: compact, num: '', title: baseTitle('') };
   const digits = targetHex.slice(zeros).replace(/0+$/, '') || '0';
-  return { sym: `β${toSubscript(zeros - 8)}`, num: digits === 'ffff' ? '' : '·' + digits, title };
+  // Zero bits inside the first significant hex digit: 1 -> 3, 2-3 -> 2, 4-7 -> 1, 8-f -> 0.
+  const first = parseInt(digits[0], 16);
+  const lz = zeros * 4 + (first >= 8 ? 0 : first >= 4 ? 1 : first >= 2 ? 2 : 3);
+  return { sym: `β${toSubscript(lz)}`, num: digits === 'ffff' ? '' : '·' + digits, title: baseTitle(` (${lz} leading zero bits)`) };
 }
 
 // A block header's nTime -> { mark, title }: the mark is the human date --
