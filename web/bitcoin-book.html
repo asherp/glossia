@@ -108,6 +108,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
 .chapter-title { font: 500 34px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 12px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--meta); margin: 0 auto 16px; max-width: 46ch; }
+/* The block header's own fields -- version, previous-block hash, merkle
+   root, timestamp, difficulty target, nonce -- in wire order, under the
+   chapter hash. A small mono line, like the manuscript's other margin notes;
+   each field carries its decoded form in `title` (a tooltip). */
+.chapter-frontispiece { margin: 0 auto 4px; max-width: 46ch; font: 500 11.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
+.chapter-frontispiece .cfx + .cfx::before { content: ' · '; }
 
 /* Per-verse navigation: Previous / Next flanking the verse title -- the
    transaction's position within its block, rendered as "Verse N". */
@@ -263,6 +269,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
+      <div class="chapter-frontispiece" id="ch-frontispiece"></div>
       <nav class="verse-nav">
         <button type="button" id="page-prev">← Previous</button>
         <h2 class="verse-title" id="verse-title"></h2>
@@ -382,14 +389,15 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <summary>About</summary>
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and push/item length prefixes — is dropped, since it is reconstructable from structure. And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
+    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
   </details>
 </div>
 
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
-import { parseTransaction, computeTxid } from './btc-tx.js';
-import { composeTransactionFields, groupDigits, renderWitness } from './btc-prose.js';
+import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
+import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
 import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
@@ -523,15 +531,22 @@ async function resolveCitations(pending, gen) {
 }
 
 async function loadBlockMeta(hash) {
-  const [blockRes, txidsRes] = await Promise.all([
+  const [blockRes, txidsRes, headerRes] = await Promise.all([
     fetch(`${ESPLORA}/block/${hash}`),
     fetch(`${ESPLORA}/block/${hash}/txids`),
+    fetch(`${ESPLORA}/block/${hash}/header`),
   ]);
   if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
   if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
+  if (!headerRes.ok) throw new Error(`Esplora returned ${headerRes.status} fetching the block header.`);
   const block = await blockRes.json();
   const txids = await txidsRes.json();
-  return { hash, height: block.height, block, txids };
+  const headerHex = (await headerRes.text()).trim();
+  // Parsed from the raw 80-byte header, not trusted from the JSON above --
+  // same self-parsed, self-verified stance as a transaction's txid.
+  const header = parseBlockHeader(headerHex);
+  const headerVerified = (await computeBlockHash(headerHex)) === hash;
+  return { hash, height: block.height, block, txids, header, headerVerified };
 }
 
 async function loadBlockByHeight(height) {
@@ -576,6 +591,37 @@ async function showCurrentTx() {
   setStatus('');
 }
 
+// The block header itself, in wire order, as a small mono line under the
+// chapter hash: version, previous-block hash, merkle root, timestamp,
+// difficulty target, nonce. The two hashes are Glossia-encoded here (like
+// the chapter/verse hash above); the rest come pre-decoded from
+// composeBlockHeaderFields. Genesis has no previous block, shown as ∅.
+function renderFrontispiece(header) {
+  const el = $('ch-frontispiece');
+  el.innerHTML = '';
+  const hf = composeBlockHeaderFields(header);
+  const isGenesisPrev = header.prevBlockHash === '00'.repeat(32);
+  const prevProse = isGenesisPrev ? '∅' : encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(header.prevBlockHash)), 'english', BEST_OF).prose;
+  // The merkle root isn't proof-of-work-constrained, so unlike a block hash
+  // it has no expected run of zero bytes worth trimming.
+  const merkleProse = encodeSeedPhrase(reverseHex(header.merkleRoot), 'english', BEST_OF).prose;
+  const items = [
+    { text: `v${hf.version}`, title: 'block version' },
+    { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : `previous block: ${header.prevBlockHash}` },
+    { text: merkleProse, title: `merkle root of this block's transactions: ${header.merkleRoot}` },
+    { text: hf.timestamp, title: hf.timestampTitle },
+    { text: hf.bits, title: hf.bitsTitle },
+    { text: hf.nonce, title: 'nonce — the value the miner incremented while searching for a hash below the difficulty target' },
+  ];
+  for (const { text, title } of items) {
+    const span = document.createElement('span');
+    span.className = 'cfx';
+    span.textContent = text;
+    span.title = title;
+    el.append(span);
+  }
+}
+
 function renderChapter(para) {
   const { volume, book, chapter } = volumeBookChapter(state.height);
   $('ch-volume').textContent = volume.toLocaleString();
@@ -599,6 +645,8 @@ function renderChapter(para) {
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
   $('ch-hash-short').title = state.hash;
+  $('ch-frontispiece').classList.toggle('hidden', !onFirstTx);
+  if (onFirstTx) renderFrontispiece(state.header);
 
   // This verse's own txid, encoded as prose beneath the verse title. Reversed
   // to internal byte order first (like the block hash) so it carries the txid's

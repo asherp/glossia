@@ -17,7 +17,7 @@
 // margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
-import { findAsciiStrings, tokenizeScript } from './btc-tx.js';
+import { findAsciiStrings, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
@@ -56,6 +56,48 @@ function sequenceInfo(seq) {
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
   if (seq === 0xfffffffe) return { rbf: false, mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
   return { rbf: true, mark: '', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
+}
+
+// nBits (a block header's compact difficulty target) -> { mark, title }: the
+// raw compact form leads, as it appears on the wire and in Bitcoin Core's own
+// display of it; the title expands it to the full 256-bit target and the
+// difficulty relative to the genesis block, so hovering explains what the
+// four bytes actually require of a valid block hash.
+function bitsInfo(bits) {
+  const targetHex = bitsToTargetHex(bits);
+  const difficulty = bitsToDifficulty(bits);
+  const diffStr = difficulty.toLocaleString(undefined, { maximumFractionDigits: difficulty < 1000 ? 2 : 0 });
+  return { mark: bits.toString(16).padStart(8, '0'), title: `a valid block hash must read below ${targetHex} — difficulty ${diffStr} (relative to the genesis block)` };
+}
+
+// A block header's nTime -> { mark, title }: the mark is the human date --
+// the interpreted, legible form -- since unlike nonce there's nothing more
+// "raw" a reader would want at a glance; the title carries the literal unix
+// value for verification against the wire bytes.
+function timestampInfo(timestamp) {
+  const date = new Date(timestamp * 1000).toISOString().slice(0, 16).replace('T', ' ');
+  return { mark: `${date} UTC`, title: `unix ${timestamp}` };
+}
+
+// A parsed block header (btc-tx.js's parseBlockHeader) -> its rendered
+// fields. version, timestamp, bits and nonce are small structural numbers --
+// never entropy -- so they're rendered literally/decoded rather than
+// Glossia-encoded, mirroring how composeTransactionFields treats a
+// transaction's version and locktime. The nonce in particular gets no
+// further decoding: it's already exactly what it looks like, the number a
+// miner incremented in the search for a hash below the bits target. The
+// previous-block hash and merkle root are genuinely opaque 32-byte hashes --
+// callers Glossia-encode those themselves (as bitcoin-book.html already does
+// for the block/txid hashes), not here.
+export function composeBlockHeaderFields(header) {
+  const time = timestampInfo(header.timestamp);
+  const bits = bitsInfo(header.bits);
+  return {
+    version: String(header.version),
+    timestamp: time.mark, timestampTitle: time.title,
+    bits: bits.mark, bitsTitle: bits.title,
+    nonce: String(header.nonce),
+  };
 }
 
 // A decimal integer string with a middle-dot every three digits (an output
