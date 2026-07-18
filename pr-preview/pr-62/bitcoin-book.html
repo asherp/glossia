@@ -238,7 +238,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .pattern-list { display: grid; grid-template-columns: auto 1fr; gap: 9px 18px; align-items: baseline; }
 .pattern-list .pname { font: 600 10px/1.5 'IBM Plex Mono',monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--meta); white-space: nowrap; }
 .pattern-list .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); }
-.pattern-list .seq .ph { color: var(--dim); font-style: italic; }
+.ph { color: var(--dim); font-style: italic; }
 @media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -339,18 +339,18 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
       <div class="notation-group">
         <h4>Common script patterns</h4>
-        <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight. <span class="ph" style="font-style:italic">‹…›</span> is pushed data (rendered as prose).</p>
+        <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight. <span class="ph">…</span> stands for pushed data (a key, a hash, a signature), rendered as prose.</p>
         <div class="pattern-list">
-          <span class="pname">P2PK</span><span class="seq"><span class="ph">‹key›</span> <span class="op">∇</span></span>
-          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">‹…›</span> <span class="op">≡</span> <span class="op">∇</span></span>
-          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="ph">‹…›</span> <span class="op">=</span></span>
-          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="ph">‹20-byte …›</span></span>
-          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="ph">‹32-byte …›</span></span>
-          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="ph">‹key›</span></span>
-          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="ph">‹key›‹key›‹key›</span> <span class="op">③</span> <span class="op">◇</span></span>
-          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="ph">‹data›</span></span>
+          <span class="pname">P2PK</span><span class="seq"><span class="ph">…</span> <span class="op">∇</span></span>
+          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">…</span> <span class="op">≡</span> <span class="op">∇</span></span>
+          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="ph">…</span> <span class="op">=</span></span>
+          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="ph">…</span></span>
+          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="ph">…</span></span>
+          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="ph">…</span></span>
+          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="ph">… … …</span> <span class="op">③</span> <span class="op">◇</span></span>
+          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="ph">…</span></span>
         </div>
-        <p class="notation-note">P2WPKH and P2WSH share the mark <span class="op" style="font-style:normal">⓪</span> — a witness-v0 program — and differ only in the hashed length: a 20-byte HASH160 of a key, or a 32-byte SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. The scripts hidden inside P2SH / P2WSH — an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph" style="font-style:italic">‹…›</span> <span class="op" style="font-style:normal">≡ … │ …</span> <span class="op" style="font-style:normal">τ ⌄ … ⟩</span> — are revealed in the same notation when spent.</p>
+        <p class="notation-note">P2WPKH and P2WSH share the mark <span class="op" style="font-style:normal">⓪</span> — a witness-v0 program — and differ only in the hashed length: a 20-byte HASH160 of a key, or a 32-byte SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. The scripts hidden inside P2SH / P2WSH — an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">…</span> <span class="op" style="font-style:normal">≡ … │ …</span> <span class="op" style="font-style:normal">τ ⌄ … ⟩</span> — are revealed in the same notation when spent.</p>
       </div>
 
       <div class="notation-group">
