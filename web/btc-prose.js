@@ -17,7 +17,7 @@
 // margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
-import { findAsciiStrings, tokenizeScript } from './btc-tx.js';
+import { findAsciiStrings, tokenizeScript, scriptType } from './btc-tx.js';
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
@@ -92,7 +92,7 @@ const OPCODE_SYMBOLS = {
   0x63: '⟨', 0x67: '│', 0x68: '⟩',                            // OP_IF / OP_ELSE / OP_ENDIF
   0x69: '✓',                                                  // OP_VERIFY
   0x6a: '¶',                                                  // OP_RETURN
-  0x75: '↧', 0x76: '⧉',                                       // OP_DROP / OP_DUP
+  0x75: '⌄', 0x76: '⧉',                                       // OP_DROP / OP_DUP
   0x87: '=', 0x88: '≡',                                       // OP_EQUAL / OP_EQUALVERIFY
   0xa6: 'ρ', 0xa7: 'σ', 0xa8: 'Σ', 0xa9: '⌖', 0xaa: '⌘',      // RIPEMD160 / SHA1 / SHA256 / HASH160 / HASH256
   0xac: '∇', 0xad: '▼', 0xae: '◇', 0xaf: '◆',                 // CHECKSIG(VERIFY) / CHECKMULTISIG(VERIFY)
@@ -354,7 +354,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     // OP_RETURN (¶) payload is `eligible` for inline ASCII quoting, so an
     // embedded message reads verbatim rather than as prose.
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
-    return { script: renderScript(o.scriptPubKey, collect, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
+    return { type: scriptType(o.scriptPubKey), script: renderScript(o.scriptPubKey, collect, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
   });
 
   const lock = locktimeInfo(parsed.locktime);

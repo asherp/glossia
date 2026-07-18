@@ -224,6 +224,27 @@ export async function scriptToAddress(scriptHex) {
   return { type: 'unknown', address: null };
 }
 
+// scriptPubKey hex -> a short human label for its payment type ('p2pkh',
+// 'p2wsh', 'p2tr', 'multisig', 'data', …), or '' when it matches no standard
+// template. Lets a reader tell payment kinds apart at a glance; unlike
+// scriptToAddress this is synchronous and also names bare P2PK and multisig.
+export function scriptType(scriptHex) {
+  const s = hexToBytes(scriptHex);
+  const n = s.length, last = s[n - 1];
+  if (n === 25 && s[0] === 0x76 && s[1] === 0xa9 && s[2] === 0x14 && s[23] === 0x88 && last === 0xac) return 'p2pkh';
+  if (n === 23 && s[0] === 0xa9 && s[1] === 0x14 && last === 0x87) return 'p2sh';
+  if (n > 0 && s[0] === 0x6a) return 'data';                          // OP_RETURN
+  if (n === 22 && s[0] === 0x00 && s[1] === 0x14) return 'p2wpkh';
+  if (n === 34 && s[0] === 0x00 && s[1] === 0x20) return 'p2wsh';
+  if (n === 34 && s[0] === 0x51 && s[1] === 0x20) return 'p2tr';
+  if (((n === 35 && s[0] === 0x21) || (n === 67 && s[0] === 0x41)) && last === 0xac) return 'p2pk';
+  // bare multisig: OP_m <pubkeys…> OP_n OP_CHECKMULTISIG
+  if (n >= 37 && last === 0xae && s[0] >= 0x51 && s[0] <= 0x60 && s[n - 2] >= 0x51 && s[n - 2] <= 0x60) return 'multisig';
+  // any other witness program (v2+, or a non-standard length)
+  if (n >= 4 && n <= 42 && s[0] >= 0x51 && s[0] <= 0x60 && s[1] === n - 2 && s[1] >= 2) return `witness v${s[0] - 0x50}`;
+  return '';
+}
+
 // Attach a derived { type, address } to every output of a parsed transaction.
 export async function withAddresses(tx) {
   const vout = [];
