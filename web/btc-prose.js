@@ -225,23 +225,88 @@ function derToCompact(hex) {
 }
 
 // A script (hex) -> its opcode-notation display string. `collect` encodes a
+// ─── the early coinbase mining preamble ────────────────────────────────
+//
+// For the chain's first years, a coinbase scriptSig opened not with
+// arbitrary tag data but with a small mining preamble: a 4-byte push
+// restating the block's compact difficulty target (the header's nBits,
+// byte for byte), then a small-integer push -- the extranonce, the counter
+// a miner rolled once the header's 32-bit nonce was exhausted. Both are
+// numbers, not entropy, so they render as decoded marks (◎target, ⊕n)
+// rather than payload words -- which also lets embedded text (the genesis
+// headline) stand as the coinbase's first words instead of trailing runs
+// of bytes-as-prose.
+
+const reverseHexStr = (hex) => (hex.match(/../g) || []).reverse().join('');
+
+// A 4-byte push -> its u32le value, when that value is a plausible compact
+// difficulty target: a byte-length exponent in the range real targets
+// occupy, and a positive nonzero mantissa. The exponent is the push's LAST
+// byte, so printable-ASCII tag data (every byte ≥ 0x20) can never match;
+// nor can a BIP34 height push, whose most-significant byte is far below
+// 0x03 for any realistic height. Fixed-width, so the mark reconstructs the
+// wire bytes exactly.
+function compactBitsFromPush(push) {
+  if (push.length !== 8) return null;
+  const bits = parseInt(reverseHexStr(push), 16);
+  const exponent = bits >>> 24, mantissa = bits & 0x00ffffff;
+  if (exponent < 0x03 || exponent > 0x20 || mantissa === 0 || (mantissa & 0x800000) !== 0) return null;
+  return bits;
+}
+
+// An extranonce push -> its decimal string: up to 8 little-endian bytes,
+// minimally encoded (no most-significant zero byte), so the number alone
+// reconstructs the exact bytes. A non-minimal encoding falls back to prose
+// rather than risk a lossy round trip.
+function extranonceFromPush(push) {
+  if (push.length < 2 || push.length > 16 || push.slice(-2) === '00') return null;
+  return BigInt('0x' + reverseHexStr(push)).toString();
+}
+
+// A decoded mark: glyph + value, both carrying the same explanatory title.
+const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span><span class="op-num" title="${title}">${text}</span>`;
+
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
-// rendering it as opcodes in turn. Opcode glyphs and OP_* names are the only
-// HTML added here; pushed data is Glossia prose (safe) and quoted ASCII is
-// escaped, so the result is safe to render via innerHTML like before.
-function renderScript(hex, collect, { eligible = false, nested = false } = {}) {
+// rendering it as opcodes in turn; `preamble` (a coinbase) decodes the early
+// mining preamble's leading pushes into ◎/⊕ marks. Opcode glyphs, OP_* names
+// and the preamble marks are the only HTML added here; pushed data is Glossia
+// prose (safe) and quoted ASCII is escaped, so the result is safe to render
+// via innerHTML like before.
+function renderScript(hex, collect, { eligible = false, nested = false, preamble = false } = {}) {
   const toks = tokenizeScript(hex);
   // A P2SH scriptSig ends with its redeemScript, pushed as data; reveal that
   // final push as opcodes when it parses as a genuine script.
   const redeemIdx = nested ? toks.map((t) => t.push !== undefined).lastIndexOf(true) : -1;
   const parts = [];
+  // The preamble is strictly positional -- the target must open the script,
+  // the extranonce must directly follow it; anything else ends the hunt and
+  // the push falls through to the ordinary treatment.
+  let pre = preamble ? 'target' : 'done';
   toks.forEach((t, i) => {
     if (t.op !== undefined) {
+      pre = 'done';
       parts.push(opToken(t.op));
     } else if (t.push !== undefined) {
       if (!t.push) return;                                    // empty push -- nothing to show
+      if (pre === 'target') {
+        pre = 'done';
+        const bits = compactBitsFromPush(t.push);
+        if (bits !== null) {
+          const info = bitsInfo(bits);
+          parts.push(markToken('◎', info.mark, `the difficulty target this block was mined against — ${info.title}`));
+          pre = 'extranonce';
+          return;
+        }
+      } else if (pre === 'extranonce') {
+        pre = 'done';
+        const n = extranonceFromPush(t.push);
+        if (n !== null) {
+          parts.push(markToken('⊕', n, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce was exhausted`));
+          return;
+        }
+      }
       if (i === redeemIdx && looksLikeScript(t.push)) {
         parts.push(renderScript(t.push, collect));            // reveal the redeemScript
         return;
@@ -252,6 +317,7 @@ function renderScript(hex, collect, { eligible = false, nested = false } = {}) {
       }
       parts.push(collect(derToCompact(t.push) || t.push));    // a DER signature is stripped to r‖s‖sighash
     } else {
+      pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
     }
   });
@@ -351,15 +417,17 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
     // A coinbase scriptSig is arbitrary miner data -- but the earliest blocks'
-    // are clean push-scripts, so render those in opcode notation (embedded text
-    // like the genesis headline is quoted inline). Messier ones keep the plain
-    // treatment, where a mining-pool tag is surfaced as a quote block
-    // (`scriptAscii`). Every other scriptSig is genuine script (with a P2SH
-    // redeemScript revealed as opcodes via `nested`).
+    // are clean push-scripts, so render those in opcode notation, with the
+    // mining preamble (restated difficulty target + extranonce) decoded to
+    // marks and embedded text like the genesis headline quoted inline.
+    // Messier ones keep the plain treatment, where a mining-pool tag is
+    // surfaced as a quote block (`scriptAscii`). Every other scriptSig is
+    // genuine script (with a P2SH redeemScript revealed as opcodes via
+    // `nested`).
     let script, scriptAscii = null;
     if (isNullPrevout) {
       if (isCleanScript(v.scriptSig)) {
-        script = renderScript(v.scriptSig, collect, { eligible: true });
+        script = renderScript(v.scriptSig, collect, { eligible: true, preamble: true });
       } else {
         const found = findAsciiStrings(v.scriptSig);
         if (found.length) {
