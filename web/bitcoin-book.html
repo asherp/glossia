@@ -516,7 +516,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq none">—</span>
         </div>
         </div>
-        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push subscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ₂₀ a HASH160 of a key, ₃₂ a SHA-256 of a script. A script hidden behind a hash — ℛ, 𝒲, 𝒯 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">ℋ</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">⟩ ∇</span>. In witness cells, · separates stack items and ∅ is the multisig dummy; the Data output is provably unspendable, so it has no spend at all.</p>
+        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push subscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ₂₀ a HASH160 of a key, ₃₂ a SHA-256 of a script. A script hidden behind a hash — ℛ, 𝒲, 𝒯 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">ℋ</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">⟩ ∇</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
       </div>
 
       <div class="notation-group">
@@ -536,7 +536,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">□</span><span class="m">no locktime</span></div>
           <div class="glyph-row"><span class="g">■<i>n</i></span><span class="m">not before block n</span></div>
           <div class="glyph-row"><span class="g">⊥<i>n</i></span><span class="m">not before time n</span></div>
-          <div class="glyph-row"><span class="g">∅</span><span class="m">a coinbase — no prior output</span></div>
+          <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
           <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">verse — the transaction's position</span></div>
         </div>
         <p class="notation-note">■ and ⊥ mean block-height and time in both places; a square reads as the whole transaction, a circle as one input.</p>
