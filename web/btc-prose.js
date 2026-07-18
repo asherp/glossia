@@ -183,27 +183,47 @@ function derToCompact(hex) {
 }
 
 // A script (hex) -> its opcode-notation display string. `collect` encodes a
-// data push to Glossia prose; `eligible` (an OP_RETURN payload) turns on inline
-// ASCII quoting for legible pushes. Opcode glyphs and OP_* names are the only
+// data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
+// coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
+// script pushed as data -- a P2SH redeemScript, always the final push -- by
+// rendering it as opcodes in turn. Opcode glyphs and OP_* names are the only
 // HTML added here; pushed data is Glossia prose (safe) and quoted ASCII is
 // escaped, so the result is safe to render via innerHTML like before.
-function renderScript(hex, collect, eligible) {
+function renderScript(hex, collect, { eligible = false, nested = false } = {}) {
+  const toks = tokenizeScript(hex);
+  // A P2SH scriptSig ends with its redeemScript, pushed as data; reveal that
+  // final push as opcodes when it parses as a genuine script.
+  const redeemIdx = nested ? toks.map((t) => t.push !== undefined).lastIndexOf(true) : -1;
   const parts = [];
-  for (const t of tokenizeScript(hex)) {
+  toks.forEach((t, i) => {
     if (t.op !== undefined) {
       parts.push(opToken(t.op));
     } else if (t.push !== undefined) {
-      if (!t.push) continue;                                  // empty push -- nothing to show
+      if (!t.push) return;                                    // empty push -- nothing to show
+      if (i === redeemIdx && looksLikeScript(t.push)) {
+        parts.push(renderScript(t.push, collect));            // reveal the redeemScript
+        return;
+      }
       if (eligible) {
         const found = findAsciiStrings(t.push);
-        if (found.length) { parts.push(found.map((s) => `“${escapeHtml(s)}”`).join(' ')); continue; }
+        if (found.length) { parts.push(found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
       }
       parts.push(collect(derToCompact(t.push) || t.push));    // a DER signature is stripped to r‖s‖sighash
     } else {
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
     }
-  }
+  });
   return parts.join(' ');
+}
+
+// Every token is a data push or a defined opcode, with no malformed tail -- the
+// test for whether a coinbase scriptSig (otherwise arbitrary miner data) is a
+// clean script worth rendering as opcodes, as the earliest blocks' are.
+const isDefinedOp = (code) => OPCODE_SYMBOLS[code] !== undefined || OPCODE_NAMES[code] !== undefined;
+function isCleanScript(hex) {
+  const toks = tokenizeScript(hex);
+  return toks.length > 0 && toks.every((t) =>
+    t.trunc === undefined && (t.push !== undefined || isDefinedOp(t.op)));
 }
 
 // ─── witness → per-item rendering ──────────────────────────────────────
@@ -267,7 +287,7 @@ export function renderWitness(items, encode) {
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      if (i === scriptIdx) return renderScript(hex, encode, false);
+      if (i === scriptIdx) return renderScript(hex, encode);
       return encode(derToCompact(hex) || hex);                // a DER signature is stripped to r‖s‖sighash
     })
     .join('<span class="wit-sep"> · </span>');
@@ -288,21 +308,27 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   };
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
-    // A coinbase scriptSig is arbitrary data, not valid script, so tokenizing
-    // it as opcodes would be noise -- it keeps the legible-text treatment,
-    // where a mining-pool tag is surfaced as a quote block (`scriptAscii`).
-    // Every other scriptSig is genuine script, rendered in opcode notation.
+    // A coinbase scriptSig is arbitrary miner data -- but the earliest blocks'
+    // are clean push-scripts, so render those in opcode notation (embedded text
+    // like the genesis headline is quoted inline). Messier ones keep the plain
+    // treatment, where a mining-pool tag is surfaced as a quote block
+    // (`scriptAscii`). Every other scriptSig is genuine script (with a P2SH
+    // redeemScript revealed as opcodes via `nested`).
     let script, scriptAscii = null;
     if (isNullPrevout) {
-      const found = findAsciiStrings(v.scriptSig);
-      if (found.length) {
-        scriptAscii = found.map((s) => escapeHtml(s)).join(' ');
-        script = found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+      if (isCleanScript(v.scriptSig)) {
+        script = renderScript(v.scriptSig, collect, { eligible: true });
       } else {
-        script = collect(v.scriptSig);
+        const found = findAsciiStrings(v.scriptSig);
+        if (found.length) {
+          scriptAscii = found.map((s) => escapeHtml(s)).join(' ');
+          script = found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+        } else {
+          script = collect(v.scriptSig);
+        }
       }
     } else {
-      script = renderScript(v.scriptSig, collect, false);
+      script = renderScript(v.scriptSig, collect, { nested: true });
     }
     const seq = sequenceInfo(v.sequence);
     // The prevout is carried as a reference (txid + output index), not encoded:
@@ -328,7 +354,7 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     // OP_RETURN (¶) payload is `eligible` for inline ASCII quoting, so an
     // embedded message reads verbatim rather than as prose.
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
-    return { script: renderScript(o.scriptPubKey, collect, isOpReturn), scriptAscii: null, value: groupDigits(String(o.value)) };
+    return { script: renderScript(o.scriptPubKey, collect, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
   });
 
   const lock = locktimeInfo(parsed.locktime);
