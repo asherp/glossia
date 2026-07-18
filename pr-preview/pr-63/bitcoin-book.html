@@ -196,7 +196,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .op { color: var(--accent); font-style: normal; }
 .op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
 /* A decoded value riding a mark (the coinbase preamble's βtarget and
-   ⊕extranonce): mono like an OP_ name, but a size up -- it's a number to
+   ηextranonce): mono like an OP_ name, but a size up -- it's a number to
    read, not a fallback label. */
 .op-num { font: 500 .72em/1 'IBM Plex Mono',monospace; color: var(--dim); font-style: normal; vertical-align: .1em; white-space: nowrap; margin-left: .08em; }
 /* A push opcode's mark (↧ₙ and the OP_PUSHDATA variants): quieter than the
@@ -324,7 +324,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">₂₀</span><span class="m"><b>push</b> — the bare subscript is the byte count (₂₀ pushes twenty)</span></div>
           <div class="glyph-row"><span class="g">↧<i>n</i> ⇊<i>n</i> ⤋<i>n</i></span><span class="m">extended push — length in a 1 / 2 / 4-byte prefix</span></div>
         </div>
-        <p class="notation-note">The pushed bytes follow the mark, as prose or an inline quote; arrow weight matches prefix width. The coinbase preamble's β<i>n</i> and ⊕<i>n</i> fold their push in — the mark alone determines the exact bytes.</p>
+        <p class="notation-note">The pushed bytes follow the mark, as prose or an inline quote; arrow weight matches prefix width. The coinbase preamble's β<i>n</i> and η<i>n</i> fold their push in — the mark alone determines the exact bytes.</p>
       </div>
 
       <div class="notation-group">
@@ -373,7 +373,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Coinbase — the mining preamble</h4>
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b> — a hash opening with 8+n zero digits</span></div>
-          <div class="glyph-row"><span class="g">⊕<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's nonce</span></div>
+          <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
         </div>
         <p class="notation-note">β's subscript counts the target's leading zero hex digits beyond the eight genesis opens with, so β₀ is difficulty 1 and the subscript climbs as difficulty rises. Digits after β are the target's remaining significant digits; a bare β<i>n</i> stands for the baseline ffff. The chain's earliest coinbases open with this preamble — the miner's restatement of the header's target, then the counter it rolled once the header's 32-bit nonce ran out — decoded to marks so any embedded words (the genesis headline) lead the text.</p>
       </div>
@@ -384,9 +384,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">v<i>n</i></span><span class="m">block <b>version</b></span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m">no previous block — the genesis chapter</span></div>
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b>, as in the preamble</span></div>
-          <div class="glyph-row"><span class="g">ν<i>n</i></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
+          <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
         </div>
-        <p class="notation-note">The chapter head runs the header's fields in wire order: version, the previous chapter's hash as prose (∅ for genesis), the merkle root as prose, the timestamp, β, ν. The header's ν and the coinbase's ⊕ together are the miner's full search space.</p>
+        <p class="notation-note">The chapter head runs the header's fields in wire order: version, the previous chapter's hash as prose (∅ for genesis), the merkle root as prose, the timestamp, β, η. The header's η and the coinbase preamble's extranonce together are the miner's full search space.</p>
       </div>
 
       <div class="notation-group">
@@ -455,19 +455,37 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       </div>
 
       <div class="notation-group">
-        <h4>Common script patterns</h4>
-        <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight. <span class="ph">…</span> stands for pushed data (a key, a hash, a signature), rendered as prose.</p>
-        <div class="pattern-list">
-          <span class="pname">P2PK</span><span class="seq"><span class="op op-push">₆₅</span><span class="ph">…</span> <span class="op">∇</span></span>
-          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">…</span> <span class="op">≡</span> <span class="op">∇</span></span>
-          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">…</span> <span class="op">=</span></span>
-          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₂₀</span><span class="ph">…</span></span>
-          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₃₂</span><span class="ph">…</span></span>
-          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="op op-push">₃₂</span><span class="ph">…</span></span>
-          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="op op-push">₃₃</span><span class="ph">…</span> <span class="op op-push">₃₃</span><span class="ph">…</span> <span class="op op-push">₃₃</span><span class="ph">…</span> <span class="op">③</span> <span class="op">◇</span></span>
-          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="op op-push">ₙ</span><span class="ph">…</span></span>
+        <h4>Data</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">𝒫</span><span class="m"><b>public key</b></span></div>
+          <div class="glyph-row"><span class="g">𝒮</span><span class="m"><b>signature</b></span></div>
+          <div class="glyph-row"><span class="g">ℋ</span><span class="m"><b>hash</b></span></div>
+          <div class="glyph-row"><span class="g">ℛ</span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
+          <div class="glyph-row"><span class="g">𝒲</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
+          <div class="glyph-row"><span class="g">𝒯</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
         </div>
-        <p class="notation-note">The push subscripts are the patterns' fingerprints: P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length — ₂₀ a HASH160 of a key, ₃₂ a SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. The scripts hidden inside P2SH / P2WSH — an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">…</span> <span class="op" style="font-style:normal">≡ … │ …</span> <span class="op" style="font-style:normal">τ ⌄ … ⟩</span> — are revealed in the same notation when spent.</p>
+        <p class="notation-note">Type marks naming what a push carries, used in the pattern key below. On the page itself the bytes read as prose — the type is legible from the marks around them.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Common script patterns</h4>
+        <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight.</p>
+        <div class="pattern-list">
+          <span class="pname">P2PK</span><span class="seq"><span class="op op-push">₆₅</span><span class="ph">𝒫</span> <span class="op">∇</span></span>
+          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span> <span class="op">≡</span> <span class="op">∇</span></span>
+          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span> <span class="op">=</span></span>
+          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span></span>
+          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₃₂</span><span class="ph">ℋ</span></span>
+          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="op op-push">₃₂</span><span class="ph">𝒫</span></span>
+          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op">③</span> <span class="op">◇</span></span>
+          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="op op-push">ₙ</span><span class="ph">…</span></span>
+          <span class="pname">P2PKH spend</span><span class="seq"><span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span></span>
+          <span class="pname">P2SH spend</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">ₙ</span><span class="ph">ℛ</span></span>
+          <span class="pname">P2WPKH wit.</span><span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒫</span></span>
+          <span class="pname">P2WSH wit.</span><span class="seq">∅ · <span class="ph">𝒮</span> · <span class="ph">𝒮</span> · <span class="ph">𝒲</span></span>
+          <span class="pname">P2TR script</span><span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒯</span> · <span class="ph">…</span></span>
+        </div>
+        <p class="notation-note">The push subscripts are the patterns' fingerprints: P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length — ₂₀ a HASH160 of a key, ₃₂ a SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. A script hidden behind a hash — ℛ, 𝒲, 𝒯 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">ℋ</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">⟩ ∇</span>. Witness rows read stack items left to right; ∅ is the multisig dummy.</p>
       </div>
 
       <div class="notation-group">
@@ -499,7 +517,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <summary>About</summary>
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as subscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
-    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and ⊕ marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
+    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
   </details>
@@ -742,7 +760,7 @@ function renderFrontispiece(header) {
     { text: merkleProse, copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
     { text: hf.bits, title: hf.bitsTitle },
-    { text: `ν${hf.nonce}`, title: `nonce ${hf.nonce} — the value the miner incremented while searching for a hash below the difficulty target` },
+    { text: `η${hf.nonce}`, title: `nonce ${hf.nonce} — the value the miner incremented while searching for a hash below the difficulty target` },
   ];
   for (const { text, title, copy } of items) {
     const span = document.createElement('span');

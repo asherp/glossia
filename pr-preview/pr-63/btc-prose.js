@@ -227,7 +227,7 @@ function opToken(code) {
 // whose length rides in a separate prefix -- arrow weight matching prefix
 // width: ↧ₙ (1-byte), ⇊ₙ (2-byte), ⤋ₙ (4-byte). The pushed data itself
 // follows the mark, as prose or an inline quote. (The coinbase preamble's
-// βₙ and ⊕n marks fold their push opcode in -- the mark alone determines
+// βₙ and ηn marks fold their push opcode in -- the mark alone determines
 // the exact bytes.)
 const PUSH_GLYPHS = { 0: '', 1: '↧', 2: '⇊', 4: '⤋' };
 function pushToken(form, byteLen) {
@@ -297,7 +297,7 @@ function derToCompact(hex) {
 // restating the block's compact difficulty target (the header's nBits,
 // byte for byte), then a small-integer push -- the extranonce, the counter
 // a miner rolled once the header's 32-bit nonce was exhausted. Both are
-// numbers, not entropy, so they render as decoded marks (βₙ, ⊕n) rather
+// numbers, not entropy, so they render as decoded marks (βₙ, ηn) rather
 // than payload words -- which also lets embedded text (the genesis
 // headline) stand as the coinbase's first words instead of trailing runs
 // of bytes-as-prose.
@@ -336,7 +336,7 @@ const markToken = (glyph, text, title) => `<span class="op" title="${title}">${g
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
 // rendering it as opcodes in turn; `preamble` (a coinbase) decodes the early
-// mining preamble's leading pushes into β/⊕ marks. Opcode glyphs, OP_* names
+// mining preamble's leading pushes into β/η marks. Opcode glyphs, OP_* names
 // and the preamble marks are the only HTML added here; pushed data is Glossia
 // prose (safe) and quoted ASCII is escaped, so the result is safe to render
 // via innerHTML like before.
@@ -368,7 +368,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         pre = 'done';
         const n = extranonceFromPush(t.push);
         if (n !== null) {
-          parts.push(markToken('⊕', n, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce was exhausted`));
+          parts.push(markToken('η', n, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce (η) was exhausted`));
           return;
         }
       }
