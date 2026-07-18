@@ -361,13 +361,17 @@ export function findAsciiStrings(hex, minRun = ASCII_MIN_RUN) {
 //
 // A scriptSig / scriptPubKey (hex) -> an ordered list of tokens, so a caller
 // can render it as opcode notation. Each token is one of:
-//   { op }         a non-push opcode (its byte)
-//   { push }       a data push (the pushed bytes, hex) -- covers direct pushes
-//                  (0x01-0x4b) and OP_PUSHDATA1/2/4 alike; the push opcode
-//                  itself is implicit, surfaced as its data
-//   { trunc }      a malformed tail (a push claiming more bytes than remain),
-//                  carried verbatim so a caller never crashes on odd bytes
-// Byte-exact and lossless: concatenating the tokens back reproduces the script.
+//   { op }            a non-push opcode (its byte)
+//   { push, pushForm } a data push (the pushed bytes, hex). pushForm records
+//                     which push opcode carried it -- 0 for a direct push
+//                     (OP_PUSHBYTES_1..75), or 1/2/4 for OP_PUSHDATA1/2/4 --
+//                     so a caller can render the push opcode itself, not just
+//                     its data
+//   { trunc }         a malformed tail (a push claiming more bytes than remain),
+//                     carried verbatim so a caller never crashes on odd bytes
+// Byte-exact and lossless: the tokens carry everything needed to reproduce
+// the script (a direct push's length prefix is its data's length; a PUSHDATA's
+// form is in pushForm).
 export function tokenizeScript(hex) {
   const bytes = hexToBytes(hex);
   const toks = [];
@@ -378,7 +382,7 @@ export function tokenizeScript(hex) {
     if (op >= 0x01 && op <= 0x4b) {                    // direct push of `op` bytes
       const start = i + 1, end = start + op;
       if (end > bytes.length) { tail(i); break; }
-      toks.push({ push: bytesToHex(bytes.subarray(start, end)) });
+      toks.push({ push: bytesToHex(bytes.subarray(start, end)), pushForm: 0 });
       i = end;
     } else if (op === 0x4c || op === 0x4d || op === 0x4e) {   // OP_PUSHDATA1/2/4
       const nlen = op === 0x4c ? 1 : op === 0x4d ? 2 : 4;
@@ -387,7 +391,7 @@ export function tokenizeScript(hex) {
       for (let k = 0; k < nlen; k++) len += bytes[i + 1 + k] * 2 ** (8 * k);
       const start = i + 1 + nlen, end = start + len;
       if (end > bytes.length) { tail(i); break; }
-      toks.push({ push: bytesToHex(bytes.subarray(start, end)) });
+      toks.push({ push: bytesToHex(bytes.subarray(start, end)), pushForm: nlen });
       i = end;
     } else {                                           // a non-push opcode
       toks.push({ op });

@@ -195,10 +195,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    we haven't given a glyph falls back to Bitcoin Core's OP_* name in small mono. */
 .op { color: var(--accent); font-style: normal; }
 .op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
-/* A decoded value riding a mark (the coinbase preamble's ◎target and
+/* A decoded value riding a mark (the coinbase preamble's βtarget and
    ⊕extranonce): mono like an OP_ name, but a size up -- it's a number to
    read, not a fallback label. */
 .op-num { font: 500 .72em/1 'IBM Plex Mono',monospace; color: var(--dim); font-style: normal; vertical-align: .1em; white-space: nowrap; margin-left: .08em; }
+/* A push opcode's mark (↧ₙ and the OP_PUSHDATA variants): quieter than the
+   operational opcodes -- it frames the data that follows rather than acting
+   on the stack, so it shouldn't compete with the prose it introduces. */
+.op-push { color: var(--meta); }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
@@ -312,7 +316,16 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <details class="notation">
     <summary>Notation</summary>
     <div class="notation-body">
-      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Pushed data — keys, hashes, signatures — is rendered as prose between the glyphs. (Push instructions — OP_PUSHBYTES_<i>n</i>, OP_PUSHDATA1/2/4 — are opcodes too; they surface as the data they carry rather than as marks, since their framing is reconstructable from it.)</p>
+      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Every defined opcode has a glyph, push instructions included; pushed data — keys, hashes, signatures — is rendered as prose after its push mark. Hovering any glyph names its opcode.</p>
+
+      <div class="notation-group">
+        <h4>Pushes</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">↧<i>n</i></span><span class="m"><b>push</b> the next n bytes</span></div>
+          <div class="glyph-row"><span class="g">↡<i>n</i> ⇊<i>n</i> ⤋<i>n</i></span><span class="m">extended push — length in a 1 / 2 / 4-byte prefix</span></div>
+        </div>
+        <p class="notation-note">The pushed bytes follow the mark, as prose or an inline quote. The coinbase preamble's β<i>n</i> and ⊕<i>n</i> fold their push in — the mark alone determines the exact bytes.</p>
+      </div>
 
       <div class="notation-group">
         <h4>Signatures &amp; keys</h4>
@@ -321,6 +334,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">▼</span><span class="m">check a signature, <b>else fail</b></span></div>
           <div class="glyph-row"><span class="g">◇</span><span class="m">check <b>m-of-n</b> signatures</span></div>
           <div class="glyph-row"><span class="g">◆</span><span class="m">check m-of-n, <b>else fail</b></span></div>
+          <div class="glyph-row"><span class="g">∇₊</span><span class="m">check a signature, <b>tallying</b> (tapscript multisig)</span></div>
         </div>
         <p class="notation-note">A triangle is one signer, a diamond is many; a filled shape must hold or the script fails.</p>
       </div>
@@ -365,15 +379,67 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       </div>
 
       <div class="notation-group">
-        <h4>Stack, comparison &amp; control</h4>
+        <h4>Stack</h4>
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">⧉</span><span class="m"><b>duplicate</b> the top item</span></div>
           <div class="glyph-row"><span class="g">⌄</span><span class="m"><b>drop</b> the top item</span></div>
-          <div class="glyph-row"><span class="g">=</span><span class="m">equal?</span></div>
-          <div class="glyph-row"><span class="g">≡</span><span class="m">equal, <b>else fail</b></span></div>
+          <div class="glyph-row"><span class="g">⧉?</span><span class="m">duplicate <b>if nonzero</b></span></div>
+          <div class="glyph-row"><span class="g">⇄</span><span class="m"><b>swap</b> the top two</span></div>
+          <div class="glyph-row"><span class="g">↻</span><span class="m"><b>rotate</b> the top three</span></div>
+          <div class="glyph-row"><span class="g">⇗</span><span class="m"><b>over</b> — copy the second to the top</span></div>
+          <div class="glyph-row"><span class="g">⌦</span><span class="m"><b>nip</b> out the second</span></div>
+          <div class="glyph-row"><span class="g">⇘</span><span class="m"><b>tuck</b> the top beneath the second</span></div>
+          <div class="glyph-row"><span class="g">⇡</span><span class="m"><b>pick</b> — copy the nth item up</span></div>
+          <div class="glyph-row"><span class="g">⥀</span><span class="m"><b>roll</b> — move the nth item up</span></div>
+          <div class="glyph-row"><span class="g">↕</span><span class="m"><b>depth</b> of the stack</span></div>
+          <div class="glyph-row"><span class="g">⇥ ⇤</span><span class="m"><b>shelve / retrieve</b> via the alt stack</span></div>
+        </div>
+        <p class="notation-note">A subscript doubles or triples the choreography: ⧉₂ ⧉₃ duplicate pairs and triples, ⌄₂ drops a pair, ⇄₂ ↻₂ ⇗₂ work on pairs.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Arithmetic &amp; comparison</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">+ − × ÷ %</span><span class="m">arithmetic on numbers</span></div>
+          <div class="glyph-row"><span class="g">+₁ −₁ ×₂ ÷₂</span><span class="m">by one · by two</span></div>
+          <div class="glyph-row"><span class="g">∓</span><span class="m"><b>negate</b></span></div>
+          <div class="glyph-row"><span class="g">|·|</span><span class="m"><b>absolute value</b></span></div>
+          <div class="glyph-row"><span class="g">⊓ ⊔</span><span class="m"><b>min</b> · <b>max</b></span></div>
+          <div class="glyph-row"><span class="g">∈</span><span class="m"><b>within</b> a range</span></div>
+          <div class="glyph-row"><span class="g">&lt; &gt; ≤ ≥</span><span class="m">comparisons</span></div>
+          <div class="glyph-row"><span class="g">≐ ≑</span><span class="m">numbers equal? · equal, <b>else fail</b></span></div>
+          <div class="glyph-row"><span class="g">≠ ≠₀</span><span class="m">numbers differ · <b>nonzero?</b></span></div>
+          <div class="glyph-row"><span class="g">¬ ∧ ∨</span><span class="m">not · and · or</span></div>
+          <div class="glyph-row"><span class="g">« »</span><span class="m">shift left · right</span></div>
+          <div class="glyph-row"><span class="g">= ≡</span><span class="m">bytes equal? · equal, <b>else fail</b></span></div>
+        </div>
+        <p class="notation-note">= compares raw bytes; ≐ compares as numbers. The doubled form is the else-fail variant, as everywhere in this notation.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Bytes</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">⧺</span><span class="m"><b>concatenate</b></span></div>
+          <div class="glyph-row"><span class="g">⊂</span><span class="m"><b>substring</b></span></div>
+          <div class="glyph-row"><span class="g">↤ ↦</span><span class="m">keep the <b>left</b> · <b>right</b> part</span></div>
+          <div class="glyph-row"><span class="g">∼ ∩ ∪ ⊻</span><span class="m">bitwise invert · and · or · xor</span></div>
+          <div class="glyph-row"><span class="g">ℓ</span><span class="m"><b>length</b> of the top item</span></div>
+        </div>
+        <p class="notation-note">The splice and bitwise family (and × ÷ % « » above) has been disabled since 2010 — but a script is notation whether or not the network would still run it.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Control</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">⟨ │ ⟩</span><span class="m">if … else … end</span></div>
+          <div class="glyph-row"><span class="g">¬⟨</span><span class="m"><b>if not</b></span></div>
           <div class="glyph-row"><span class="g">✓</span><span class="m">assert true</span></div>
           <div class="glyph-row"><span class="g">¶</span><span class="m"><b>data output</b> — provably unspendable</span></div>
-          <div class="glyph-row"><span class="g">⟨ │ ⟩</span><span class="m">if … else … end</span></div>
+          <div class="glyph-row"><span class="g">° °<i>n</i></span><span class="m"><b>no-op</b> · numbered no-ops</span></div>
+          <div class="glyph-row"><span class="g">‖</span><span class="m"><b>section divider</b> for signature coverage</span></div>
+          <div class="glyph-row"><span class="g">⊘ ⊘₁ ⊘₂</span><span class="m"><b>reserved</b> — invalid if executed</span></div>
+          <div class="glyph-row"><span class="g">⊘ᵛ ⊘⟨ ⊘¬⟨</span><span class="m">reserved VER family</span></div>
+          <div class="glyph-row"><span class="g">☒</span><span class="m"><b>invalid opcode</b></span></div>
         </div>
       </div>
 
@@ -381,14 +447,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Common script patterns</h4>
         <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight. <span class="ph">…</span> stands for pushed data (a key, a hash, a signature), rendered as prose.</p>
         <div class="pattern-list">
-          <span class="pname">P2PK</span><span class="seq"><span class="ph">…</span> <span class="op">∇</span></span>
-          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">…</span> <span class="op">≡</span> <span class="op">∇</span></span>
-          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="ph">…</span> <span class="op">=</span></span>
-          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="ph">…</span></span>
-          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="ph">…</span></span>
-          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="ph">…</span></span>
-          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="ph">… … …</span> <span class="op">③</span> <span class="op">◇</span></span>
-          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="ph">…</span></span>
+          <span class="pname">P2PK</span><span class="seq"><span class="op op-push">↧</span><span class="ph">…</span> <span class="op">∇</span></span>
+          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">↧</span><span class="ph">…</span> <span class="op">≡</span> <span class="op">∇</span></span>
+          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="op op-push">↧</span><span class="ph">…</span> <span class="op">=</span></span>
+          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">↧</span><span class="ph">…</span></span>
+          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">↧</span><span class="ph">…</span></span>
+          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="op op-push">↧</span><span class="ph">…</span></span>
+          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="op op-push">↧</span><span class="ph">…</span> <span class="op op-push">↧</span><span class="ph">…</span> <span class="op op-push">↧</span><span class="ph">…</span> <span class="op">③</span> <span class="op">◇</span></span>
+          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="op op-push">↧</span><span class="ph">…</span></span>
         </div>
         <p class="notation-note">P2WPKH and P2WSH share the mark <span class="op" style="font-style:normal">⓪</span> — a witness-v0 program — and differ only in the hashed length: a 20-byte HASH160 of a key, or a 32-byte SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. The scripts hidden inside P2SH / P2WSH — an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">…</span> <span class="op" style="font-style:normal">≡ … │ …</span> <span class="op" style="font-style:normal">τ ⌄ … ⟩</span> — are revealed in the same notation when spent.</p>
       </div>
@@ -421,7 +487,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <details class="about">
     <summary>About</summary>
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above.</p>
-    <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and push/item length prefixes — is dropped, since it is reconstructable from structure. And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
+    <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as ↧ marks, their subscript the byte count. And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and ⊕ marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>

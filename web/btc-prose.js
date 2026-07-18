@@ -138,34 +138,63 @@ function escapeHtml(s) {
 // legible ASCII) -- exactly what carried the whole script before opcodes had
 // their own marks.
 
-// Opcode byte -> Glossia glyph, for the opcodes we've defined so far.
+// Opcode byte -> Glossia glyph. Every defined opcode has one; families share
+// a base glyph, with the house subscript convention distinguishing variants
+// (⧉₂ = 2DUP, °₄ = NOP4, ∇₊ = CHECKSIGADD). Disabled opcodes keep their
+// natural symbol like any other -- a script is notation whether or not the
+// network would still execute it.
 const OPCODE_SYMBOLS = {
-  0x00: '⓪',                                                  // OP_0
-  0x4f: '⊖',                                                  // OP_1NEGATE
-  0x51: '①', 0x52: '②', 0x53: '③', 0x54: '④', 0x55: '⑤',      // OP_1 …
+  // constants
+  0x00: '⓪', 0x4f: '⊖',
+  0x51: '①', 0x52: '②', 0x53: '③', 0x54: '④', 0x55: '⑤',
   0x56: '⑥', 0x57: '⑦', 0x58: '⑧', 0x59: '⑨', 0x5a: '⑩',
-  0x5b: '⑪', 0x5c: '⑫', 0x5d: '⑬', 0x5e: '⑭', 0x5f: '⑮', 0x60: '⑯',   // … OP_16
-  0x63: '⟨', 0x67: '│', 0x68: '⟩',                            // OP_IF / OP_ELSE / OP_ENDIF
-  0x69: '✓',                                                  // OP_VERIFY
-  0x6a: '¶',                                                  // OP_RETURN
-  0x75: '⌄', 0x76: '⧉',                                       // OP_DROP / OP_DUP
-  0x87: '=', 0x88: '≡',                                       // OP_EQUAL / OP_EQUALVERIFY
-  0xa6: 'ρ', 0xa7: 'σ', 0xa8: 'Σ', 0xa9: '⌖', 0xaa: '⌘',      // RIPEMD160 / SHA1 / SHA256 / HASH160 / HASH256
-  0xac: '∇', 0xad: '▼', 0xae: '◇', 0xaf: '◆',                 // CHECKSIG(VERIFY) / CHECKMULTISIG(VERIFY)
-  0xb1: 'τ', 0xb2: 'Δ',                                       // CLTV (absolute) / CSV (relative)
+  0x5b: '⑪', 0x5c: '⑫', 0x5d: '⑬', 0x5e: '⑭', 0x5f: '⑮', 0x60: '⑯',
+  // flow control
+  0x61: '°', 0x63: '⟨', 0x64: '¬⟨', 0x67: '│', 0x68: '⟩', 0x69: '✓', 0x6a: '¶',
+  // stack choreography (arrows), the alt-stack shelf pair, and depth/size
+  0x6b: '⇥', 0x6c: '⇤',
+  0x6d: '⌄₂', 0x6e: '⧉₂', 0x6f: '⧉₃', 0x70: '⇗₂', 0x71: '↻₂', 0x72: '⇄₂',
+  0x73: '⧉?', 0x74: '↕', 0x75: '⌄', 0x76: '⧉', 0x77: '⌦', 0x78: '⇗',
+  0x79: '⇡', 0x7a: '⥀', 0x7b: '↻', 0x7c: '⇄', 0x7d: '⇘',
+  // splice
+  0x7e: '⧺', 0x7f: '⊂', 0x80: '↤', 0x81: '↦', 0x82: 'ℓ',
+  // bitwise, and byte equality
+  0x83: '∼', 0x84: '∩', 0x85: '∪', 0x86: '⊻', 0x87: '=', 0x88: '≡',
+  // arithmetic and comparison
+  0x8b: '+₁', 0x8c: '−₁', 0x8d: '×₂', 0x8e: '÷₂', 0x8f: '∓', 0x90: '|·|',
+  0x91: '¬', 0x92: '≠₀',
+  0x93: '+', 0x94: '−', 0x95: '×', 0x96: '÷', 0x97: '%', 0x98: '«', 0x99: '»',
+  0x9a: '∧', 0x9b: '∨', 0x9c: '≐', 0x9d: '≑', 0x9e: '≠',
+  0x9f: '<', 0xa0: '>', 0xa1: '≤', 0xa2: '≥', 0xa3: '⊓', 0xa4: '⊔', 0xa5: '∈',
+  // crypto
+  0xa6: 'ρ', 0xa7: 'σ', 0xa8: 'Σ', 0xa9: '⌖', 0xaa: '⌘', 0xab: '‖',
+  0xac: '∇', 0xad: '▼', 0xae: '◇', 0xaf: '◆', 0xba: '∇₊',
+  // timelocks
+  0xb1: 'τ', 0xb2: 'Δ',
+  // no-ops
+  0xb0: '°₁', 0xb3: '°₄', 0xb4: '°₅', 0xb5: '°₆', 0xb6: '°₇',
+  0xb7: '°₈', 0xb8: '°₉', 0xb9: '°₁₀',
+  // reserved / invalid
+  0x50: '⊘', 0x62: '⊘ᵛ', 0x65: '⊘⟨', 0x66: '⊘¬⟨', 0x89: '⊘₁', 0x8a: '⊘₂',
+  0xff: '☒',
 };
 
-// Opcode byte -> Bitcoin Core name, the fallback for opcodes without a glyph.
-// Data-push opcodes (0x01-0x4b, OP_PUSHDATA1/2/4) never reach this table --
-// tokenizeScript surfaces them as their pushed data, not as an opcode.
+// Opcode byte -> Bitcoin Core name: the hover title carried on every glyph,
+// and the display fallback for undefined bytes (shown as OP_UNKNOWN).
 const OPCODE_NAMES = {
-  0x50: 'OP_RESERVED',
-  0x61: 'OP_NOP', 0x62: 'OP_VER', 0x64: 'OP_NOTIF', 0x65: 'OP_VERIF', 0x66: 'OP_VERNOTIF',
+  0x00: 'OP_0', 0x4f: 'OP_1NEGATE', 0x50: 'OP_RESERVED',
+  0x51: 'OP_1', 0x52: 'OP_2', 0x53: 'OP_3', 0x54: 'OP_4', 0x55: 'OP_5',
+  0x56: 'OP_6', 0x57: 'OP_7', 0x58: 'OP_8', 0x59: 'OP_9', 0x5a: 'OP_10',
+  0x5b: 'OP_11', 0x5c: 'OP_12', 0x5d: 'OP_13', 0x5e: 'OP_14', 0x5f: 'OP_15', 0x60: 'OP_16',
+  0x61: 'OP_NOP', 0x62: 'OP_VER', 0x63: 'OP_IF', 0x64: 'OP_NOTIF', 0x65: 'OP_VERIF', 0x66: 'OP_VERNOTIF',
+  0x67: 'OP_ELSE', 0x68: 'OP_ENDIF', 0x69: 'OP_VERIFY', 0x6a: 'OP_RETURN',
   0x6b: 'OP_TOALTSTACK', 0x6c: 'OP_FROMALTSTACK', 0x6d: 'OP_2DROP', 0x6e: 'OP_2DUP', 0x6f: 'OP_3DUP',
   0x70: 'OP_2OVER', 0x71: 'OP_2ROT', 0x72: 'OP_2SWAP', 0x73: 'OP_IFDUP', 0x74: 'OP_DEPTH',
+  0x75: 'OP_DROP', 0x76: 'OP_DUP',
   0x77: 'OP_NIP', 0x78: 'OP_OVER', 0x79: 'OP_PICK', 0x7a: 'OP_ROLL', 0x7b: 'OP_ROT', 0x7c: 'OP_SWAP', 0x7d: 'OP_TUCK',
   0x7e: 'OP_CAT', 0x7f: 'OP_SUBSTR', 0x80: 'OP_LEFT', 0x81: 'OP_RIGHT', 0x82: 'OP_SIZE',
   0x83: 'OP_INVERT', 0x84: 'OP_AND', 0x85: 'OP_OR', 0x86: 'OP_XOR',
+  0x87: 'OP_EQUAL', 0x88: 'OP_EQUALVERIFY',
   0x89: 'OP_RESERVED1', 0x8a: 'OP_RESERVED2',
   0x8b: 'OP_1ADD', 0x8c: 'OP_1SUB', 0x8d: 'OP_2MUL', 0x8e: 'OP_2DIV', 0x8f: 'OP_NEGATE',
   0x90: 'OP_ABS', 0x91: 'OP_NOT', 0x92: 'OP_0NOTEQUAL',
@@ -173,17 +202,36 @@ const OPCODE_NAMES = {
   0x9a: 'OP_BOOLAND', 0x9b: 'OP_BOOLOR', 0x9c: 'OP_NUMEQUAL', 0x9d: 'OP_NUMEQUALVERIFY', 0x9e: 'OP_NUMNOTEQUAL',
   0x9f: 'OP_LESSTHAN', 0xa0: 'OP_GREATERTHAN', 0xa1: 'OP_LESSTHANOREQUAL', 0xa2: 'OP_GREATERTHANOREQUAL',
   0xa3: 'OP_MIN', 0xa4: 'OP_MAX', 0xa5: 'OP_WITHIN',
+  0xa6: 'OP_RIPEMD160', 0xa7: 'OP_SHA1', 0xa8: 'OP_SHA256', 0xa9: 'OP_HASH160', 0xaa: 'OP_HASH256',
   0xab: 'OP_CODESEPARATOR',
-  0xb0: 'OP_NOP1', 0xb3: 'OP_NOP4', 0xb4: 'OP_NOP5', 0xb5: 'OP_NOP6', 0xb6: 'OP_NOP7',
+  0xac: 'OP_CHECKSIG', 0xad: 'OP_CHECKSIGVERIFY', 0xae: 'OP_CHECKMULTISIG', 0xaf: 'OP_CHECKMULTISIGVERIFY',
+  0xb0: 'OP_NOP1', 0xb1: 'OP_CHECKLOCKTIMEVERIFY', 0xb2: 'OP_CHECKSEQUENCEVERIFY',
+  0xb3: 'OP_NOP4', 0xb4: 'OP_NOP5', 0xb5: 'OP_NOP6', 0xb6: 'OP_NOP7',
   0xb7: 'OP_NOP8', 0xb8: 'OP_NOP9', 0xb9: 'OP_NOP10', 0xba: 'OP_CHECKSIGADD',
   0xff: 'OP_INVALIDOPCODE',
 };
 
-// One opcode -> its HTML: a defined glyph (accent-styled), else the OP_* name.
+// One opcode -> its HTML: the glyph (accent-styled, canonical OP_* name as
+// its hover title), or the bare OP_* name for a byte with no glyph. The
+// glyph is escaped -- a few marks (< > ≤-family) are HTML-significant.
 function opToken(code) {
   const sym = OPCODE_SYMBOLS[code];
-  if (sym) return `<span class="op">${sym}</span>`;
-  return `<span class="op-name">${OPCODE_NAMES[code] || 'OP_UNKNOWN'}</span>`;
+  const name = OPCODE_NAMES[code] || 'OP_UNKNOWN';
+  if (sym) return `<span class="op" title="${name}">${escapeHtml(sym)}</span>`;
+  return `<span class="op-name">${name}</span>`;
+}
+
+// A push opcode's mark: ↧ₙ for a direct push (OP_PUSHBYTES_n), ↡ₙ / ⇊ₙ / ⤋ₙ
+// for OP_PUSHDATA1/2/4, whose length rides in a 1/2/4-byte prefix. The
+// subscript is the byte count; the pushed data itself follows the mark, as
+// prose or an inline quote. (The coinbase preamble's βₙ and ⊕n marks fold
+// their push opcode in -- the mark alone determines the exact bytes.)
+const PUSH_GLYPHS = { 0: '↧', 1: '↡', 2: '⇊', 4: '⤋' };
+function pushToken(form, byteLen) {
+  const title = form
+    ? `OP_PUSHDATA${form} — push ${byteLen} bytes, the length in a ${form}-byte prefix`
+    : `OP_PUSHBYTES_${byteLen} — push the next ${byteLen} bytes`;
+  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || '↧'}${toSubscript(byteLen)}</span>`;
 }
 
 // ─── DER signature compaction ──────────────────────────────────────────
@@ -304,7 +352,6 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       pre = 'done';
       parts.push(opToken(t.op));
     } else if (t.push !== undefined) {
-      if (!t.push) return;                                    // empty push -- nothing to show
       if (pre === 'target') {
         pre = 'done';
         const bits = compactBitsFromPush(t.push);
@@ -322,15 +369,17 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
           return;
         }
       }
+      const mark = pushToken(t.pushForm || 0, t.push.length / 2);
+      if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
-        parts.push(renderScript(t.push, collect));            // reveal the redeemScript
+        parts.push(mark, renderScript(t.push, collect));      // reveal the redeemScript
         return;
       }
       if (eligible) {
         const found = findAsciiStrings(t.push);
-        if (found.length) { parts.push(found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
+        if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
       }
-      parts.push(collect(derToCompact(t.push) || t.push));    // a DER signature is stripped to r‖s‖sighash
+      parts.push(mark, collect(derToCompact(t.push) || t.push));   // a DER signature is stripped to r‖s‖sighash
     } else {
       pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
