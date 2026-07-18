@@ -63,20 +63,16 @@ const toSubscript = (n) => String(n).split('').map((d) => SUBSCRIPT_DIGITS[+d]).
 const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
 const toSuperscript = (n) => String(n).split('').map((d) => SUPERSCRIPT_DIGITS[+d]).join('');
 
-// nBits (a compact difficulty target) -> { sym, num, title }. The target is
+// nBits (a compact difficulty target) -> { sym, title }. The target is
 // rendered as the thing it is -- the ceiling a mined hash must dip under --
 // and β's subscript is that demand in its physical unit: the number of
 // leading zero BITS a valid hash must open with. Genesis (difficulty 1) is
 // β₃₂, and the subscript climbs as difficulty rises -- each +1 is a
-// doubling of the work. `num` carries the target's remaining significant
-// hex digits, set off with a middot (β₄₅·4864c) so they can't read as part
-// of the decimal subscript; empty for the baseline mantissa ffff, so every
-// difficulty-1 block reads as a bare β₃₂. Exact both ways: the digits fix
-// the zero bits inside their own first digit, so n + digits rebuild the
-// full 256-bit target, which re-packs to the compact form. A target looser
-// than the genesis baseline (never on mainnet) falls back to the raw
-// compact hex. The title keeps the raw nBits, the full target and the
-// difficulty ratio for hover.
+// doubling of the work. The mantissa is deliberately not shown: βₙ is a
+// summary mark, and the exact compact nBits, the full 256-bit target and
+// the difficulty ratio all ride in the hover title. A target looser than
+// the genesis baseline (never on mainnet) falls back to the raw compact
+// hex.
 function bitsInfo(bits) {
   const targetHex = bitsToTargetHex(bits);
   const difficulty = bitsToDifficulty(bits);
@@ -84,12 +80,11 @@ function bitsInfo(bits) {
   const compact = bits.toString(16).padStart(8, '0');
   const zeros = targetHex.length - targetHex.replace(/^0+/, '').length;
   const baseTitle = (extra) => `nBits ${compact} — a valid block hash must read below ${targetHex}${extra} — difficulty ${diffStr} (relative to the genesis block)`;
-  if (zeros < 8) return { sym: compact, num: '', title: baseTitle('') };
-  const digits = targetHex.slice(zeros).replace(/0+$/, '') || '0';
+  if (zeros < 8) return { sym: compact, title: baseTitle('') };
   // Zero bits inside the first significant hex digit: 1 -> 3, 2-3 -> 2, 4-7 -> 1, 8-f -> 0.
-  const first = parseInt(digits[0], 16);
+  const first = parseInt(targetHex[zeros], 16);
   const lz = zeros * 4 + (first >= 8 ? 0 : first >= 4 ? 1 : first >= 2 ? 2 : 3);
-  return { sym: `β${toSubscript(lz)}`, num: digits === 'ffff' ? '' : '·' + digits, title: baseTitle(` (${lz} leading zero bits)`) };
+  return { sym: `β${toSubscript(lz)}`, title: baseTitle(` (${lz} leading zero bits)`) };
 }
 
 // A block header's nTime -> { mark, title }: the mark is the human date --
@@ -117,7 +112,7 @@ export function composeBlockHeaderFields(header) {
   return {
     version: String(header.version),
     timestamp: time.mark, timestampTitle: time.title,
-    bits: bits.sym + bits.num, bitsTitle: bits.title,
+    bits: bits.sym, bitsTitle: bits.title,
     nonce: String(header.nonce),
   };
 }
@@ -369,7 +364,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         const bits = compactBitsFromPush(t.push);
         if (bits !== null) {
           const info = bitsInfo(bits);
-          parts.push(markToken(info.sym, info.num, `the difficulty target this block was mined against — ${info.title}`));
+          parts.push(markToken(info.sym, '', `the difficulty target this block was mined against — ${info.title}`));
           pre = 'extranonce';
           return;
         }
