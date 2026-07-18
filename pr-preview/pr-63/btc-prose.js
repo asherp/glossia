@@ -221,17 +221,20 @@ function opToken(code) {
   return `<span class="op-name">${name}</span>`;
 }
 
-// A push opcode's mark: ↧ₙ for a direct push (OP_PUSHBYTES_n), ↡ₙ / ⇊ₙ / ⤋ₙ
-// for OP_PUSHDATA1/2/4, whose length rides in a 1/2/4-byte prefix. The
-// subscript is the byte count; the pushed data itself follows the mark, as
-// prose or an inline quote. (The coinbase preamble's βₙ and ⊕n marks fold
-// their push opcode in -- the mark alone determines the exact bytes.)
-const PUSH_GLYPHS = { 0: '↧', 1: '↡', 2: '⇊', 4: '⤋' };
+// A push opcode's mark. A direct push (OP_PUSHBYTES_n) is the quietest
+// instruction in the set, so its mark is the quietest possible: the bare
+// subscript byte count, ₙ. The arrows are reserved for OP_PUSHDATA1/2/4,
+// whose length rides in a separate prefix -- arrow weight matching prefix
+// width: ↧ₙ (1-byte), ⇊ₙ (2-byte), ⤋ₙ (4-byte). The pushed data itself
+// follows the mark, as prose or an inline quote. (The coinbase preamble's
+// βₙ and ⊕n marks fold their push opcode in -- the mark alone determines
+// the exact bytes.)
+const PUSH_GLYPHS = { 0: '', 1: '↧', 2: '⇊', 4: '⤋' };
 function pushToken(form, byteLen) {
   const title = form
     ? `OP_PUSHDATA${form} — push ${byteLen} bytes, the length in a ${form}-byte prefix`
     : `OP_PUSHBYTES_${byteLen} — push the next ${byteLen} bytes`;
-  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || '↧'}${toSubscript(byteLen)}</span>`;
+  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || ''}${toSubscript(byteLen)}</span>`;
 }
 
 // ─── DER signature compaction ──────────────────────────────────────────
