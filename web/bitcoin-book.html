@@ -115,6 +115,26 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-frontispiece { margin: 0 auto 4px; max-width: 46ch; font: 500 11.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-frontispiece .cfx + .cfx::before { content: ' · '; }
 
+/* A copyable hover tooltip for a Glossia-encoded hash (a block hash, a
+   txid, a merkle root): the prose is the visible text; hovering it reveals
+   the exact hex it encodes in a small selectable panel -- unlike a native
+   `title` tooltip, which can't be selected and vanishes before a pointer
+   can reach it -- and clicking anywhere on it copies that hex to the
+   clipboard, since a hex string this long is impractical to select by hand
+   on a touch device. */
+.hash-copy { position: relative; cursor: pointer; }
+.hash-tip {
+  display: none; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+  width: max-content; max-width: min(90vw, 30em); margin-top: 0; padding: 7px 11px 6px;
+  background: var(--card); border: 1px solid var(--card-bd); border-radius: 5px;
+  font: 400 11.5px/1.4 'IBM Plex Mono', monospace; font-style: normal; letter-spacing: 0;
+  color: var(--ink-soft); word-break: break-all; user-select: all; z-index: 5;
+  box-shadow: 0 14px 34px -18px rgba(0,0,0,.75);
+}
+.hash-copy:hover .hash-tip, .hash-copy:focus-visible .hash-tip { display: block; }
+.hash-tip::after { content: ' — click to copy'; color: var(--meta); }
+.hash-tip.copied::after { content: ' — copied'; color: var(--ok); }
+
 /* Per-verse navigation: Previous / Next flanking the verse title -- the
    transaction's position within its block, rendered as "Verse N". */
 .verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
@@ -390,6 +410,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and push/item length prefixes — is dropped, since it is reconstructable from structure. And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
   </details>
 </div>
@@ -591,6 +612,26 @@ async function showCurrentTx() {
   setStatus('');
 }
 
+// Attach a copyable hover tooltip to an element already showing a
+// Glossia-encoded hash as prose: `hex` is the exact raw value that prose
+// encodes. Hovering (or focusing, via keyboard) reveals it in a selectable
+// panel; clicking anywhere on the element copies it to the clipboard.
+function attachHashCopy(el, hex, label) {
+  el.classList.add('hash-copy');
+  el.tabIndex = 0;
+  el.setAttribute('aria-label', `${label}: ${hex} — click to copy`);
+  const tip = document.createElement('span');
+  tip.className = 'hash-tip mono';
+  tip.textContent = hex;
+  el.append(tip);
+  el.addEventListener('click', () => {
+    navigator.clipboard.writeText(hex).then(() => {
+      tip.classList.add('copied');
+      setTimeout(() => tip.classList.remove('copied'), 1400);
+    }).catch(() => {});
+  });
+}
+
 // The block header itself, in wire order, as a small mono line under the
 // chapter hash: version, previous-block hash, merkle root, timestamp,
 // difficulty target, nonce. The two hashes are Glossia-encoded here (like
@@ -607,17 +648,18 @@ function renderFrontispiece(header) {
   const merkleProse = encodeSeedPhrase(reverseHex(header.merkleRoot), 'english', BEST_OF).prose;
   const items = [
     { text: `v${hf.version}`, title: 'block version' },
-    { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : `previous block: ${header.prevBlockHash}` },
-    { text: merkleProse, title: `merkle root of this block's transactions: ${header.merkleRoot}` },
+    { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : null, copy: isGenesisPrev ? null : { hex: header.prevBlockHash, label: 'previous block hash' } },
+    { text: merkleProse, copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
     { text: hf.bits, title: hf.bitsTitle },
     { text: hf.nonce, title: 'nonce — the value the miner incremented while searching for a hash below the difficulty target' },
   ];
-  for (const { text, title } of items) {
+  for (const { text, title, copy } of items) {
     const span = document.createElement('span');
     span.className = 'cfx';
     span.textContent = text;
-    span.title = title;
+    if (copy) attachHashCopy(span, copy.hex, copy.label);
+    else if (title) span.title = title;
     el.append(span);
   }
 }
@@ -644,7 +686,7 @@ function renderChapter(para) {
   $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
   $('ch-hash-short').textContent = hashProse;
-  $('ch-hash-short').title = state.hash;
+  attachHashCopy($('ch-hash-short'), state.hash, 'block hash');
   $('ch-frontispiece').classList.toggle('hidden', !onFirstTx);
   if (onFirstTx) renderFrontispiece(state.header);
 
@@ -653,7 +695,7 @@ function renderChapter(para) {
   // actual bytes; every byte kept, since a txid has no droppable leading zeros.
   const { prose: txidProse } = encodeSeedPhrase(reverseHex(para.txid), 'english', BEST_OF);
   $('verse-hash').textContent = txidProse;
-  $('verse-hash').title = para.txid;
+  attachHashCopy($('verse-hash'), para.txid, 'transaction id');
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
