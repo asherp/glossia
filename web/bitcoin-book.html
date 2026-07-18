@@ -312,7 +312,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <details class="notation">
     <summary>Notation</summary>
     <div class="notation-body">
-      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Pushed data — keys, hashes, signatures — is rendered as prose between the glyphs.</p>
+      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Pushed data — keys, hashes, signatures — is rendered as prose between the glyphs. (Push instructions — OP_PUSHBYTES_<i>n</i>, OP_PUSHDATA1/2/4 — are opcodes too; they surface as the data they carry rather than as marks, since their framing is reconstructable from it.)</p>
 
       <div class="notation-group">
         <h4>Signatures &amp; keys</h4>
@@ -358,10 +358,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="notation-group">
         <h4>Coinbase — the mining preamble</h4>
         <div class="glyph-grid">
-          <div class="glyph-row"><span class="g">◎<i>t</i></span><span class="m">the <b>difficulty target</b> the block was mined against</span></div>
+          <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b> — a hash opening with 8+n zero digits</span></div>
           <div class="glyph-row"><span class="g">⊕<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's nonce</span></div>
         </div>
-        <p class="notation-note">The chain's earliest coinbases open with these two values — the miner's restatement of the header's difficulty target, and the counter it rolled once the header's 32-bit nonce ran out. Decoded to marks, so any embedded words (the genesis headline) lead the text.</p>
+        <p class="notation-note">β's subscript counts the target's leading zero hex digits beyond the eight genesis opens with, so β₀ is difficulty 1 and the subscript climbs as difficulty rises. Digits after β are the target's remaining significant digits; a bare β<i>n</i> stands for the baseline ffff. The chain's earliest coinbases open with this preamble — the miner's restatement of the header's target, then the counter it rolled once the header's 32-bit nonce ran out — decoded to marks so any embedded words (the genesis headline) lead the text.</p>
       </div>
 
       <div class="notation-group">
@@ -422,7 +422,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <summary>About</summary>
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and push/item length prefixes — is dropped, since it is reconstructable from structure. And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
-    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to ◎ and ⊕ marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
+    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and ⊕ marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
   </details>

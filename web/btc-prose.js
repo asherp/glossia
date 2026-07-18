@@ -58,16 +58,30 @@ function sequenceInfo(seq) {
   return { rbf: true, mark: '', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
 }
 
-// nBits (a block header's compact difficulty target) -> { mark, title }: the
-// raw compact form leads, as it appears on the wire and in Bitcoin Core's own
-// display of it; the title expands it to the full 256-bit target and the
-// difficulty relative to the genesis block, so hovering explains what the
-// four bytes actually require of a valid block hash.
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const toSubscript = (n) => String(n).split('').map((d) => SUBSCRIPT_DIGITS[+d]).join('');
+
+// nBits (a compact difficulty target) -> { sym, num, title }. The target is
+// rendered as the thing it is -- the ceiling a mined hash must dip under --
+// via its leading zero run: β's subscript counts the zero hex digits beyond
+// the eight the genesis target opens with, so β₀ is difficulty 1 and the
+// subscript climbs as difficulty rises. `num` carries the target's remaining
+// significant digits; empty for the baseline mantissa ffff, so every
+// difficulty-1 block reads as a bare β₀. Exact both ways: zeros + digits
+// rebuild the full 256-bit target, which re-packs to the compact form. A
+// target looser than the genesis baseline (never on mainnet) falls back to
+// the raw compact hex. The title keeps the raw nBits, the full target and
+// the difficulty ratio for hover.
 function bitsInfo(bits) {
   const targetHex = bitsToTargetHex(bits);
   const difficulty = bitsToDifficulty(bits);
   const diffStr = difficulty.toLocaleString(undefined, { maximumFractionDigits: difficulty < 1000 ? 2 : 0 });
-  return { mark: bits.toString(16).padStart(8, '0'), title: `a valid block hash must read below ${targetHex} — difficulty ${diffStr} (relative to the genesis block)` };
+  const compact = bits.toString(16).padStart(8, '0');
+  const title = `nBits ${compact} — a valid block hash must read below ${targetHex} — difficulty ${diffStr} (relative to the genesis block)`;
+  const zeros = targetHex.length - targetHex.replace(/^0+/, '').length;
+  if (zeros < 8) return { sym: compact, num: '', title };
+  const digits = targetHex.slice(zeros).replace(/0+$/, '') || '0';
+  return { sym: `β${toSubscript(zeros - 8)}`, num: digits === 'ffff' ? '' : digits, title };
 }
 
 // A block header's nTime -> { mark, title }: the mark is the human date --
@@ -95,7 +109,7 @@ export function composeBlockHeaderFields(header) {
   return {
     version: String(header.version),
     timestamp: time.mark, timestampTitle: time.title,
-    bits: bits.mark, bitsTitle: bits.title,
+    bits: bits.sym + bits.num, bitsTitle: bits.title,
     nonce: String(header.nonce),
   };
 }
@@ -232,8 +246,8 @@ function derToCompact(hex) {
 // restating the block's compact difficulty target (the header's nBits,
 // byte for byte), then a small-integer push -- the extranonce, the counter
 // a miner rolled once the header's 32-bit nonce was exhausted. Both are
-// numbers, not entropy, so they render as decoded marks (◎target, ⊕n)
-// rather than payload words -- which also lets embedded text (the genesis
+// numbers, not entropy, so they render as decoded marks (βₙ, ⊕n) rather
+// than payload words -- which also lets embedded text (the genesis
 // headline) stand as the coinbase's first words instead of trailing runs
 // of bytes-as-prose.
 
@@ -263,14 +277,15 @@ function extranonceFromPush(push) {
   return BigInt('0x' + reverseHexStr(push)).toString();
 }
 
-// A decoded mark: glyph + value, both carrying the same explanatory title.
-const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span><span class="op-num" title="${title}">${text}</span>`;
+// A decoded mark: glyph + value (when there is one to show), both carrying
+// the same explanatory title.
+const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span>${text ? `<span class="op-num" title="${title}">${text}</span>` : ''}`;
 
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
 // rendering it as opcodes in turn; `preamble` (a coinbase) decodes the early
-// mining preamble's leading pushes into ◎/⊕ marks. Opcode glyphs, OP_* names
+// mining preamble's leading pushes into β/⊕ marks. Opcode glyphs, OP_* names
 // and the preamble marks are the only HTML added here; pushed data is Glossia
 // prose (safe) and quoted ASCII is escaped, so the result is safe to render
 // via innerHTML like before.
@@ -295,7 +310,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         const bits = compactBitsFromPush(t.push);
         if (bits !== null) {
           const info = bitsInfo(bits);
-          parts.push(markToken('◎', info.mark, `the difficulty target this block was mined against — ${info.title}`));
+          parts.push(markToken(info.sym, info.num, `the difficulty target this block was mined against — ${info.title}`));
           pre = 'extranonce';
           return;
         }
