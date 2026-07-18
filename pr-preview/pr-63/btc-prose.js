@@ -60,6 +60,8 @@ function sequenceInfo(seq) {
 
 const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
 const toSubscript = (n) => String(n).split('').map((d) => SUBSCRIPT_DIGITS[+d]).join('');
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const toSuperscript = (n) => String(n).split('').map((d) => SUPERSCRIPT_DIGITS[+d]).join('');
 
 // nBits (a compact difficulty target) -> { sym, num, title }. The target is
 // rendered as the thing it is -- the ceiling a mined hash must dip under --
@@ -67,7 +69,9 @@ const toSubscript = (n) => String(n).split('').map((d) => SUBSCRIPT_DIGITS[+d]).
 // the eight the genesis target opens with, so β₀ is difficulty 1 and the
 // subscript climbs as difficulty rises. `num` carries the target's remaining
 // significant digits; empty for the baseline mantissa ffff, so every
-// difficulty-1 block reads as a bare β₀. Exact both ways: zeros + digits
+// difficulty-1 block reads as a bare β₀ -- and when digits are shown they
+// are set off with a middot (β₃·4864c) so the hex mantissa can't read as
+// part of the decimal subscript. Exact both ways: zeros + digits
 // rebuild the full 256-bit target, which re-packs to the compact form. A
 // target looser than the genesis baseline (never on mainnet) falls back to
 // the raw compact hex. The title keeps the raw nBits, the full target and
@@ -81,7 +85,7 @@ function bitsInfo(bits) {
   const zeros = targetHex.length - targetHex.replace(/^0+/, '').length;
   if (zeros < 8) return { sym: compact, num: '', title };
   const digits = targetHex.slice(zeros).replace(/0+$/, '') || '0';
-  return { sym: `β${toSubscript(zeros - 8)}`, num: digits === 'ffff' ? '' : digits, title };
+  return { sym: `β${toSubscript(zeros - 8)}`, num: digits === 'ffff' ? '' : '·' + digits, title };
 }
 
 // A block header's nTime -> { mark, title }: the mark is the human date --
@@ -223,9 +227,10 @@ function opToken(code) {
 
 // A push opcode's mark. A direct push (OP_PUSHBYTES_n) is the quietest
 // instruction in the set, so its mark is the quietest possible: the bare
-// subscript byte count, ₙ. The arrows are reserved for OP_PUSHDATA1/2/4,
-// whose length rides in a separate prefix -- arrow weight matching prefix
-// width: ↧ₙ (1-byte), ⇊ₙ (2-byte), ⤋ₙ (4-byte). The pushed data itself
+// superscript byte count, ⁿ. (Superscripts count bytes; subscripts index an
+// opcode family's variants -- ⧉₂, °₄, β₀.) The arrows are reserved for
+// OP_PUSHDATA1/2/4, whose length rides in a separate prefix -- arrow weight
+// matching prefix width: ↧ⁿ (1-byte), ⇊ⁿ (2-byte), ⤋ⁿ (4-byte). The pushed data itself
 // follows the mark, as prose or an inline quote. (The coinbase preamble's
 // βₙ and ηn marks fold their push opcode in -- the mark alone determines
 // the exact bytes.)
@@ -234,7 +239,7 @@ function pushToken(form, byteLen) {
   const title = form
     ? `OP_PUSHDATA${form} — push ${byteLen} bytes, the length in a ${form}-byte prefix`
     : `OP_PUSHBYTES_${byteLen} — push the next ${byteLen} bytes`;
-  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || ''}${toSubscript(byteLen)}</span>`;
+  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || ''}${toSuperscript(byteLen)}</span>`;
 }
 
 // ─── DER signature compaction ──────────────────────────────────────────
