@@ -336,6 +336,32 @@ function extranonceFromPush(push) {
 // the same explanatory title.
 const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span>${text ? `<span class="op-num" title="${title}">${text}</span>` : ''}`;
 
+// ─── data type marks ───────────────────────────────────────────────────
+//
+// A pushed datum whose kind is recognizable carries its type mark from the
+// Notation key -- 𝒫 public key, 𝒮 signature, ℋ hash, ℛ redeem script,
+// 𝒲 witness script, 𝒯 tapscript -- set just before its prose, so a script
+// reads as its pattern (⁶⁵𝒫 ∇) without consulting the key. Classification
+// is display-only annotation: it never changes what gets encoded.
+const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
+
+// Classify a script push -> a type mark, or '' when its kind isn't evident.
+// `compact` is derToCompact's verdict (a canonical DER signature). A 20-byte
+// push in script context is a HASH160; a 32-byte one is a hash -- except
+// directly after ① (a witness-v1 program: Taproot's tweaked output key), or
+// directly before a signature check (an x-only key inside a tapscript).
+// Non-canonical DER (0x30-led, signature-sized) still marks 𝒮.
+const SIG_CHECK_OPS = new Set([0xac, 0xad, 0xba]);
+function scriptDataMark(push, compact, prevOp, nextOp) {
+  const n = push.length / 2;
+  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('𝒮', 'signature');
+  if (isPubkey(push)) return dataMark('𝒫', 'public key');
+  if (n === 32 && prevOp === 0x51) return dataMark('𝒫', 'public key — Taproot tweaked output key');
+  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('𝒫', 'public key — x-only');
+  if (n === 20 || n === 32) return dataMark('ℋ', 'hash');
+  return '';
+}
+
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
@@ -354,9 +380,11 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
   // the extranonce must directly follow it; anything else ends the hunt and
   // the push falls through to the ordinary treatment.
   let pre = preamble ? 'target' : 'done';
+  let prevOp = null;   // the opcode preceding a push -- context for its type mark
   toks.forEach((t, i) => {
     if (t.op !== undefined) {
       pre = 'done';
+      prevOp = t.op;
       parts.push(opToken(t.op));
     } else if (t.push !== undefined) {
       if (pre === 'target') {
@@ -379,14 +407,16 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       const mark = pushToken(t.pushForm || 0, t.push.length / 2);
       if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
-        parts.push(mark, renderScript(t.push, collect));      // reveal the redeemScript
+        // reveal the redeemScript, typed ℛ
+        parts.push(mark + dataMark('ℛ', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
         return;
       }
       if (eligible) {
         const found = findAsciiStrings(t.push);
         if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
       }
-      parts.push(mark, collect(derToCompact(t.push) || t.push));   // a DER signature is stripped to r‖s‖sighash
+      const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
+      parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
     } else {
       pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
@@ -458,16 +488,25 @@ function witnessScriptIndex(items) {
 
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
 // a data item's hex into Glossia prose; the one script item, if present,
-// becomes opcode notation. Items are separated so each reads as its own stack
-// element.
+// becomes opcode notation, typed 𝒲 (a P2WSH witnessScript) or 𝒯 (a Taproot
+// tapscript, identified by the control block above it). Data items carry
+// their own type marks -- 𝒮 a signature, 𝒫 a key -- and items are separated
+// so each reads as its own stack element.
 export function renderWitness(items, encode) {
   if (!items || !items.length) return '∅';
   const scriptIdx = witnessScriptIndex(items);
+  const isTapscript = scriptIdx >= 0 && scriptIdx + 1 < items.length && isControlBlock(items[scriptIdx + 1]);
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      if (i === scriptIdx) return renderScript(hex, encode);
-      return encode(derToCompact(hex) || hex);                // a DER signature is stripped to r‖s‖sighash
+      if (i === scriptIdx) {
+        return (isTapscript ? dataMark('𝒯', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('𝒲', 'witness script — revealed as opcodes'))
+          + ' ' + renderScript(hex, encode);
+      }
+      const compact = derToCompact(hex);                      // a DER signature is stripped to r‖s‖sighash
+      const dm = (compact || isSignature(hex)) ? dataMark('𝒮', 'signature')
+        : isPubkey(hex) ? dataMark('𝒫', 'public key') : '';
+      return (dm ? dm + ' ' : '') + encode(compact || hex);
     })
     .join('<span class="wit-sep"> · </span>');
 }

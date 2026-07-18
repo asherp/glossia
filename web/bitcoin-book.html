@@ -203,6 +203,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    operational opcodes -- it frames the data that follows rather than acting
    on the stack, so it shouldn't compete with the prose it introduces. */
 .op-push { color: var(--meta); }
+/* A data type mark (𝒫 𝒮 ℋ ℛ 𝒲 𝒯): names what the prose after it carries.
+   Dim like the push count it rides with -- annotation, not instruction. */
+.dt { color: var(--dim); font-style: normal; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
@@ -469,7 +472,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">𝒲</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
           <div class="glyph-row"><span class="g">𝒯</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
         </div>
-        <p class="notation-note">Type marks naming what a push carries, used in the pattern key below. On the page itself the bytes read as prose — the type is legible from the marks around them.</p>
+        <p class="notation-note">Type marks naming what a push carries. On the page they sit between the push count and the prose (⁶⁵𝒫 …), wherever the kind is recognizable from the bytes and their context; a push that could be anything stays unmarked.</p>
       </div>
 
       <div class="notation-group">
