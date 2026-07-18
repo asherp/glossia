@@ -268,10 +268,15 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
 .glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
 .notation-note { margin: 9px 0 0; font-size: 12px; font-style: italic; color: var(--meta); }
-/* Common script patterns: a payment type -> the sequence of marks it reads as. */
-.pattern-list { display: grid; grid-template-columns: auto 1fr; gap: 9px 18px; align-items: baseline; }
-.pattern-list .pname { font: 600 10px/1.5 'IBM Plex Mono',monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--meta); white-space: nowrap; }
-.pattern-list .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); }
+/* Common script patterns: one row per payment type, its marks split across
+   where they live on the wire -- input (scriptSig), output (scriptPubKey),
+   witness. Wide, so it scrolls in its own container on narrow screens. */
+.pattern-scroll { overflow-x: auto; }
+.pattern-table { display: grid; grid-template-columns: repeat(4, max-content); gap: 9px 22px; align-items: baseline; }
+.pattern-table .phead, .pattern-table .pname { font: 600 10px/1.5 'IBM Plex Mono',monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--meta); white-space: nowrap; }
+.pattern-table .phead { color: var(--accent); }
+.pattern-table .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); white-space: nowrap; }
+.pattern-table .none { color: var(--meta); }
 .ph { color: var(--dim); font-style: italic; }
 @media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
@@ -469,23 +474,49 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
       <div class="notation-group">
         <h4>Common script patterns</h4>
-        <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight.</p>
-        <div class="pattern-list">
-          <span class="pname">P2PK</span><span class="seq"><span class="op op-push">₆₅</span><span class="ph">𝒫</span> <span class="op">∇</span></span>
-          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span> <span class="op">≡</span> <span class="op">∇</span></span>
-          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span> <span class="op">=</span></span>
-          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span></span>
-          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₃₂</span><span class="ph">ℋ</span></span>
-          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="op op-push">₃₂</span><span class="ph">𝒫</span></span>
-          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op">③</span> <span class="op">◇</span></span>
-          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="op op-push">ₙ</span><span class="ph">…</span></span>
-          <span class="pname">P2PKH spend</span><span class="seq"><span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span></span>
-          <span class="pname">P2SH spend</span><span class="seq"><span class="op">⓪</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">ₙ</span><span class="ph">ℛ</span></span>
-          <span class="pname">P2WPKH wit.</span><span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒫</span></span>
-          <span class="pname">P2WSH wit.</span><span class="seq">∅ · <span class="ph">𝒮</span> · <span class="ph">𝒮</span> · <span class="ph">𝒲</span></span>
-          <span class="pname">P2TR script</span><span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒯</span> · <span class="ph">…</span></span>
+        <p class="notation-note">A payment's kind is legible in its marks — one row per type, split across where its pieces live on the wire. The output column is the lock; the input and witness columns are the spend that opens it.</p>
+        <div class="pattern-scroll">
+        <div class="pattern-table">
+          <span class="phead"></span><span class="phead">Input</span><span class="phead">Output</span><span class="phead">Witness</span>
+          <span class="pname">P2PK</span>
+            <span class="seq"><span class="op op-push">₇₁</span><span class="ph">𝒮</span></span>
+            <span class="seq"><span class="op op-push">₆₅</span><span class="ph">𝒫</span> <span class="op">∇</span></span>
+            <span class="seq none">—</span>
+          <span class="pname">P2PKH</span>
+            <span class="seq"><span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span></span>
+            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq none">—</span>
+          <span class="pname">Multisig</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span></span>
+            <span class="seq"><span class="op">②</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op op-push">₃₃</span><span class="ph">𝒫</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq none">—</span>
+          <span class="pname">P2SH</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">₇₁</span><span class="ph">𝒮</span> <span class="op op-push">ₙ</span><span class="ph">ℛ</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span> <span class="op">=</span></span>
+            <span class="seq none">—</span>
+          <span class="pname">P2WPKH</span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">₂₀</span><span class="ph">ℋ</span></span>
+            <span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒫</span></span>
+          <span class="pname">P2WSH</span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">₃₂</span><span class="ph">ℋ</span></span>
+            <span class="seq">∅ · <span class="ph">𝒮</span> · <span class="ph">𝒮</span> · <span class="ph">𝒲</span></span>
+          <span class="pname">P2TR key</span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">₃₂</span><span class="ph">𝒫</span></span>
+            <span class="seq"><span class="ph">𝒮</span></span>
+          <span class="pname">P2TR script</span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">₃₂</span><span class="ph">𝒫</span></span>
+            <span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒯</span> · <span class="ph">…</span></span>
+          <span class="pname">Data</span>
+            <span class="seq none">—</span>
+            <span class="seq"><span class="op">¶</span> <span class="op op-push">ₙ</span><span class="ph">…</span></span>
+            <span class="seq none">—</span>
         </div>
-        <p class="notation-note">The push subscripts are the patterns' fingerprints: P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length — ₂₀ a HASH160 of a key, ₃₂ a SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. A script hidden behind a hash — ℛ, 𝒲, 𝒯 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">ℋ</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">⟩ ∇</span>. Witness rows read stack items left to right; ∅ is the multisig dummy.</p>
+        </div>
+        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push subscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ₂₀ a HASH160 of a key, ₃₂ a SHA-256 of a script. A script hidden behind a hash — ℛ, 𝒲, 𝒯 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">ℋ</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">⟩ ∇</span>. In witness cells, · separates stack items and ∅ is the multisig dummy; the Data output is provably unspendable, so it has no spend at all.</p>
       </div>
 
       <div class="notation-group">
