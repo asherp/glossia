@@ -164,6 +164,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-seq-rbf { color: var(--accent-2); }
 .tx-seq-block, .tx-seq-time { color: var(--dim); font-variant-numeric: normal; }
 .tx-line { margin: 0 0 .55em; }
+/* Opcodes rendered inline in a script: a defined opcode shows as its Glossia
+   glyph (accent, so the grammar punctuates the prose data pushes); an opcode
+   we haven't given a glyph falls back to Bitcoin Core's OP_* name in small mono. */
+.op { color: var(--accent); font-style: normal; }
+.op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
+/* A witness footnote is a stack of items; a thin middot separates each, and an
+   empty stack item shows as ∅. */
+.wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
    not part of its prose -- so it's set as a quote block (a marginal accent
@@ -197,6 +205,41 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .footnote-entry { margin: 0 0 1.1em; font: italic 400 14.5px/1.6 'Newsreader',serif; color: var(--meta); }
 .footnote-entry:target { color: var(--ink-soft); }
 .footnote-mark { font: 500 10.5px/1 'IBM Plex Mono',monospace; color: var(--accent); margin-right: .5em; font-style: normal; vertical-align: .35em; }
+
+/* ── Notation: a key to the manuscript's sigla — the glyphs that notate a
+   script's opcodes, and the marks drawn in each transaction's margins. ── */
+.notation { margin-top: 16px; }
+.notation summary {
+  cursor: pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--dim); list-style: none;
+}
+.notation summary::-webkit-details-marker { display: none; }
+.notation summary::before { content: '+ '; color: var(--accent); }
+.notation[open] summary::before { content: '– '; }
+.notation-body { margin-top: 14px; }
+.notation-lede { margin: 0 0 22px; font-size: 12.5px; line-height: 1.5; color: var(--meta); }
+.notation-group { margin: 0 0 22px; }
+.notation-group > h4 {
+  margin: 0 0 11px; font: 600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em;
+  text-transform: uppercase; color: var(--accent);
+}
+.glyph-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 7px 22px; }
+.glyph-row { display: flex; align-items: baseline; gap: 12px; }
+.glyph-row .g {
+  flex: 0 0 1.7em; text-align: center;
+  font: 400 17px/1.3 'Newsreader', system-ui, 'Segoe UI Symbol', 'Apple Symbols', serif;
+  color: var(--ink); font-variant-numeric: normal;
+}
+.glyph-row .g i { font-style: normal; opacity: .5; font-size: .82em; }
+.glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
+.glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
+.notation-note { margin: 9px 0 0; font-size: 12px; font-style: italic; color: var(--meta); }
+/* Common script patterns: a payment type -> the sequence of marks it reads as. */
+.pattern-list { display: grid; grid-template-columns: auto 1fr; gap: 9px 18px; align-items: baseline; }
+.pattern-list .pname { font: 600 10px/1.5 'IBM Plex Mono',monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--meta); white-space: nowrap; }
+.pattern-list .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); }
+.ph { color: var(--dim); font-style: italic; }
+@media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -235,16 +278,118 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     </div>
   </article>
 
+  <details class="notation">
+    <summary>Notation</summary>
+    <div class="notation-body">
+      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Pushed data — keys, hashes, signatures — is rendered as prose between the glyphs.</p>
+
+      <div class="notation-group">
+        <h4>Signatures &amp; keys</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">∇</span><span class="m">check a <b>signature</b></span></div>
+          <div class="glyph-row"><span class="g">▼</span><span class="m">check a signature, <b>else fail</b></span></div>
+          <div class="glyph-row"><span class="g">◇</span><span class="m">check <b>m-of-n</b> signatures</span></div>
+          <div class="glyph-row"><span class="g">◆</span><span class="m">check m-of-n, <b>else fail</b></span></div>
+        </div>
+        <p class="notation-note">A triangle is one signer, a diamond is many; a filled shape must hold or the script fails.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Hashes</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">⌖</span><span class="m"><b>address</b> hash · HASH160</span></div>
+          <div class="glyph-row"><span class="g">⌘</span><span class="m"><b>identity</b> hash · HASH256</span></div>
+          <div class="glyph-row"><span class="g">Σ</span><span class="m">SHA-256</span></div>
+          <div class="glyph-row"><span class="g">σ</span><span class="m">SHA-1</span></div>
+          <div class="glyph-row"><span class="g">ρ</span><span class="m">RIPEMD-160</span></div>
+        </div>
+        <p class="notation-note">Lower-case Greek is a 160-bit digest, upper-case a 256-bit one. ⌖ points to where value is sent; ⌘ marks what names a transaction.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Timelocks</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">τ</span><span class="m"><b>absolute</b> — not before a fixed time or block</span></div>
+          <div class="glyph-row"><span class="g">Δ</span><span class="m"><b>relative</b> — a delay after this coin confirmed</span></div>
+        </div>
+        <p class="notation-note">τ is a fixed point in time; Δ is an interval measured from the moment the coin was received.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Numbers</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">⓪</span><span class="m">push zero</span></div>
+          <div class="glyph-row"><span class="g">①–⑯</span><span class="m">push a small number (1–16)</span></div>
+          <div class="glyph-row"><span class="g">⊖</span><span class="m">push minus one</span></div>
+        </div>
+      </div>
+
+      <div class="notation-group">
+        <h4>Stack, comparison &amp; control</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">⧉</span><span class="m"><b>duplicate</b> the top item</span></div>
+          <div class="glyph-row"><span class="g">⌄</span><span class="m"><b>drop</b> the top item</span></div>
+          <div class="glyph-row"><span class="g">=</span><span class="m">equal?</span></div>
+          <div class="glyph-row"><span class="g">≡</span><span class="m">equal, <b>else fail</b></span></div>
+          <div class="glyph-row"><span class="g">✓</span><span class="m">assert true</span></div>
+          <div class="glyph-row"><span class="g">¶</span><span class="m"><b>data output</b> — provably unspendable</span></div>
+          <div class="glyph-row"><span class="g">⟨ │ ⟩</span><span class="m">if … else … end</span></div>
+        </div>
+      </div>
+
+      <div class="notation-group">
+        <h4>Common script patterns</h4>
+        <p class="notation-note">A payment's kind is legible in its sequence of marks — learn these and you can read a script's purpose at sight. <span class="ph">…</span> stands for pushed data (a key, a hash, a signature), rendered as prose.</p>
+        <div class="pattern-list">
+          <span class="pname">P2PK</span><span class="seq"><span class="ph">…</span> <span class="op">∇</span></span>
+          <span class="pname">P2PKH</span><span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">…</span> <span class="op">≡</span> <span class="op">∇</span></span>
+          <span class="pname">P2SH</span><span class="seq"><span class="op">⌖</span> <span class="ph">…</span> <span class="op">=</span></span>
+          <span class="pname">P2WPKH</span><span class="seq"><span class="op">⓪</span> <span class="ph">…</span></span>
+          <span class="pname">P2WSH</span><span class="seq"><span class="op">⓪</span> <span class="ph">…</span></span>
+          <span class="pname">P2TR</span><span class="seq"><span class="op">①</span> <span class="ph">…</span></span>
+          <span class="pname">Multisig</span><span class="seq"><span class="op">②</span> <span class="ph">… … …</span> <span class="op">③</span> <span class="op">◇</span></span>
+          <span class="pname">Data</span><span class="seq"><span class="op">¶</span> <span class="ph">…</span></span>
+        </div>
+        <p class="notation-note">P2WPKH and P2WSH share the mark <span class="op" style="font-style:normal">⓪</span> — a witness-v0 program — and differ only in the hashed length: a 20-byte HASH160 of a key, or a 32-byte SHA-256 of a script. P2TR opens with <span class="op" style="font-style:normal">①</span> instead. The scripts hidden inside P2SH / P2WSH — an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">…</span> <span class="op" style="font-style:normal">≡ … │ …</span> <span class="op" style="font-style:normal">τ ⌄ … ⟩</span> — are revealed in the same notation when spent.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Margin — an input's sequence</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">●</span><span class="m"><b>final</b></span></div>
+          <div class="glyph-row"><span class="g">○</span><span class="m">respects the locktime</span></div>
+          <div class="glyph-row"><span class="g">†</span><span class="m"><b>replaceable</b> (opt-in RBF)</span></div>
+          <div class="glyph-row"><span class="g">■<i>n</i></span><span class="m">relative: n blocks after confirmation</span></div>
+          <div class="glyph-row"><span class="g">⊥<i>n</i></span><span class="m">relative: n × 512 s after confirmation</span></div>
+        </div>
+      </div>
+
+      <div class="notation-group">
+        <h4>Margin — the transaction's locktime &amp; other marks</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g">□</span><span class="m">no locktime</span></div>
+          <div class="glyph-row"><span class="g">■<i>n</i></span><span class="m">not before block n</span></div>
+          <div class="glyph-row"><span class="g">⊥<i>n</i></span><span class="m">not before time n</span></div>
+          <div class="glyph-row"><span class="g">∅</span><span class="m">a coinbase — no prior output</span></div>
+          <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">verse — the transaction's position</span></div>
+        </div>
+        <p class="notation-note">■ and ⊥ mean block-height and time in both places; a square reads as the whole transaction, a circle as one input.</p>
+      </div>
+    </div>
+  </details>
+
   <details class="about">
     <summary>About</summary>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits; the genuinely opaque bytes — prevout references, scripts — are what's rendered in prose. Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above.</p>
+    <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and push/item length prefixes — is dropped, since it is reconstructable from structure. And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
+    <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
   </details>
 </div>
 
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid } from './btc-tx.js';
-import { composeTransactionFields, groupDigits } from './btc-prose.js';
+import { composeTransactionFields, groupDigits, renderWitness } from './btc-prose.js';
 import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
@@ -565,7 +710,7 @@ function renderChapter(para) {
     // witness-bearing input -- its footnote superscript, numbered in input order;
     // the amount of the output it spends sits underneath.
     cite.append(seqSpan(inp), ' ', citeBody);
-    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, hex: inp.witnessHex, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
+    if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     if (amtEl) cite.append(amtEl);
     const scriptCell = document.createElement('div');
     scriptCell.className = 'tx-in-script';
@@ -620,7 +765,7 @@ async function renderFootnotes(gen) {
   for (const fn of currentFootnotes) {
     // An all-zero witness (coinbase reserved value, empty stack) shows ∅ instead
     // of a run of zero-words.
-    const prose = fn.zero ? '∅' : encodeSeedPhrase(fn.hex, 'english', BEST_OF).prose;
+    const prose = fn.zero ? '∅' : renderWitness(fn.items, (hex) => encodeSeedPhrase(hex, 'english', BEST_OF).prose);
     const p = document.createElement('p');
     p.className = 'footnote-entry';
     p.id = `fn-${fn.n}`;
