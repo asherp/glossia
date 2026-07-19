@@ -339,9 +339,9 @@ const markToken = (glyph, text, title) => `<span class="op" title="${title}">${g
 // ─── data type marks ───────────────────────────────────────────────────
 //
 // A pushed datum whose kind is recognizable carries its type mark from the
-// Notation key -- 𝒫 public key, 𝒮 signature, ℋ hash, ℛ redeem script,
-// 𝒲 witness script, 𝒯 tapscript -- set just before its prose, so a script
-// reads as its pattern (⁶⁵𝒫 ∇) without consulting the key. Classification
+// Notation key -- 𝓅 public key, 𝓈 signature, 𝒽 hash, 𝓇 redeem script,
+// 𝓌 witness script, 𝓉 tapscript -- set just before its prose, so a script
+// reads as its pattern (⁶⁵𝓅 ∇) without consulting the key. Classification
 // is display-only annotation: it never changes what gets encoded.
 const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
 
@@ -350,15 +350,15 @@ const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span
 // push in script context is a HASH160; a 32-byte one is a hash -- except
 // directly after ① (a witness-v1 program: Taproot's tweaked output key), or
 // directly before a signature check (an x-only key inside a tapscript).
-// Non-canonical DER (0x30-led, signature-sized) still marks 𝒮.
+// Non-canonical DER (0x30-led, signature-sized) still marks 𝓈.
 const SIG_CHECK_OPS = new Set([0xac, 0xad, 0xba]);
 function scriptDataMark(push, compact, prevOp, nextOp) {
   const n = push.length / 2;
-  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('𝒮', 'signature');
-  if (isPubkey(push)) return dataMark('𝒫', 'public key');
-  if (n === 32 && prevOp === 0x51) return dataMark('𝒫', 'public key — Taproot tweaked output key');
-  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('𝒫', 'public key — x-only');
-  if (n === 20 || n === 32) return dataMark('ℋ', 'hash');
+  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('𝓈', 'signature');
+  if (isPubkey(push)) return dataMark('𝓅', 'public key');
+  if (n === 32 && prevOp === 0x51) return dataMark('𝓅', 'public key — Taproot tweaked output key');
+  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('𝓅', 'public key — x-only');
+  if (n === 20 || n === 32) return dataMark('𝒽', 'hash');
   return '';
 }
 
@@ -407,8 +407,8 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       const mark = pushToken(t.pushForm || 0, t.push.length / 2);
       if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
-        // reveal the redeemScript, typed ℛ
-        parts.push(mark + dataMark('ℛ', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
+        // reveal the redeemScript, typed 𝓇
+        parts.push(mark + dataMark('𝓇', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
         return;
       }
       if (eligible) {
@@ -488,9 +488,9 @@ function witnessScriptIndex(items) {
 
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
 // a data item's hex into Glossia prose; the one script item, if present,
-// becomes opcode notation, typed 𝒲 (a P2WSH witnessScript) or 𝒯 (a Taproot
+// becomes opcode notation, typed 𝓌 (a P2WSH witnessScript) or 𝓉 (a Taproot
 // tapscript, identified by the control block above it). Data items carry
-// their own type marks -- 𝒮 a signature, 𝒫 a key -- and items are separated
+// their own type marks -- 𝓈 a signature, 𝓅 a key -- and items are separated
 // so each reads as its own stack element.
 export function renderWitness(items, encode) {
   if (!items || !items.length) return '∅';
@@ -500,12 +500,12 @@ export function renderWitness(items, encode) {
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
       if (i === scriptIdx) {
-        return (isTapscript ? dataMark('𝒯', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('𝒲', 'witness script — revealed as opcodes'))
+        return (isTapscript ? dataMark('𝓉', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('𝓌', 'witness script — revealed as opcodes'))
           + ' ' + renderScript(hex, encode);
       }
       const compact = derToCompact(hex);                      // a DER signature is stripped to r‖s‖sighash
-      const dm = (compact || isSignature(hex)) ? dataMark('𝒮', 'signature')
-        : isPubkey(hex) ? dataMark('𝒫', 'public key') : '';
+      const dm = (compact || isSignature(hex)) ? dataMark('𝓈', 'signature')
+        : isPubkey(hex) ? dataMark('𝓅', 'public key') : '';
       return (dm ? dm + ' ' : '') + encode(compact || hex);
     })
     .join('<span class="wit-sep"> · </span>');

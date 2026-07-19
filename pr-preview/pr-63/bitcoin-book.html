@@ -203,7 +203,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    operational opcodes -- it frames the data that follows rather than acting
    on the stack, so it shouldn't compete with the prose it introduces. */
 .op-push { color: var(--meta); }
-/* A data type mark (𝒫 𝒮 ℋ ℛ 𝒲 𝒯): names what the prose after it carries.
+/* A data type mark (𝓅 𝓈 𝒽 𝓇 𝓌 𝓉): names what the prose after it carries.
    Dim like the push count it rides with -- annotation, not instruction. */
 .dt { color: var(--dim); font-style: normal; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
@@ -463,14 +463,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="notation-group">
         <h4>Data</h4>
         <div class="glyph-grid">
-          <div class="glyph-row"><span class="g">𝒫</span><span class="m"><b>public key</b></span></div>
-          <div class="glyph-row"><span class="g">𝒮</span><span class="m"><b>signature</b></span></div>
-          <div class="glyph-row"><span class="g">ℋ</span><span class="m"><b>hash</b></span></div>
-          <div class="glyph-row"><span class="g">ℛ</span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
-          <div class="glyph-row"><span class="g">𝒲</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
-          <div class="glyph-row"><span class="g">𝒯</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
+          <div class="glyph-row"><span class="g">𝓅</span><span class="m"><b>public key</b></span></div>
+          <div class="glyph-row"><span class="g">𝓈</span><span class="m"><b>signature</b></span></div>
+          <div class="glyph-row"><span class="g">𝒽</span><span class="m"><b>hash</b></span></div>
+          <div class="glyph-row"><span class="g">𝓇</span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
+          <div class="glyph-row"><span class="g">𝓌</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
+          <div class="glyph-row"><span class="g">𝓉</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
         </div>
-        <p class="notation-note">Type marks naming what a push carries. On the page they sit between the push count and the prose (⁶⁵𝒫 …), wherever the kind is recognizable from the bytes and their context; a push that could be anything stays unmarked.</p>
+        <p class="notation-note">Type marks naming what a push carries. On the page they sit between the push count and the prose (⁶⁵𝓅 …), wherever the kind is recognizable from the bytes and their context; a push that could be anything stays unmarked.</p>
       </div>
 
       <div class="notation-group">
@@ -480,44 +480,44 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="pattern-table">
           <span class="phead"></span><span class="phead">Input</span><span class="phead">Output</span><span class="phead">Witness</span>
           <span class="pname">P2PK</span>
-            <span class="seq"><span class="op op-push">⁷¹</span><span class="ph">𝒮</span></span>
-            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">𝒫</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="op op-push">⁷¹</span><span class="ph">𝓈</span></span>
+            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">𝓅</span> <span class="op">∇</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2PKH</span>
-            <span class="seq"><span class="op op-push">⁷¹</span><span class="ph">𝒮</span> <span class="op op-push">³³</span><span class="ph">𝒫</span></span>
-            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">ℋ</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">³³</span><span class="ph">𝓅</span></span>
+            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
             <span class="seq none">—</span>
           <span class="pname">Multisig</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">⁷¹</span><span class="ph">𝒮</span> <span class="op op-push">⁷¹</span><span class="ph">𝒮</span></span>
-            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">𝒫</span> <span class="op op-push">³³</span><span class="ph">𝒫</span> <span class="op op-push">³³</span><span class="ph">𝒫</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span></span>
+            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2SH</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">⁷¹</span><span class="ph">𝒮</span> <span class="op op-push">⁷¹</span><span class="ph">𝒮</span> <span class="op op-push">ⁿ</span><span class="ph">ℛ</span></span>
-            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">ℋ</span> <span class="op">=</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">ⁿ</span><span class="ph">𝓇</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2WPKH</span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">ℋ</span></span>
-            <span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒫</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span></span>
+            <span class="seq"><span class="ph">𝓈</span> · <span class="ph">𝓅</span></span>
           <span class="pname">P2WSH</span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">ℋ</span></span>
-            <span class="seq">∅ · <span class="ph">𝒮</span> · <span class="ph">𝒮</span> · <span class="ph">𝒲</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
+            <span class="seq">∅ · <span class="ph">𝓈</span> · <span class="ph">𝓈</span> · <span class="ph">𝓌</span></span>
           <span class="pname">P2TR key</span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝒫</span></span>
-            <span class="seq"><span class="ph">𝒮</span></span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
+            <span class="seq"><span class="ph">𝓈</span></span>
           <span class="pname">P2TR script</span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝒫</span></span>
-            <span class="seq"><span class="ph">𝒮</span> · <span class="ph">𝒯</span> · <span class="ph">…</span></span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
+            <span class="seq"><span class="ph">𝓈</span> · <span class="ph">𝓉</span> · <span class="ph">…</span></span>
           <span class="pname">Data</span>
             <span class="seq none">—</span>
             <span class="seq"><span class="op">¶</span> <span class="op op-push">ⁿ</span><span class="ph">…</span></span>
             <span class="seq none">—</span>
         </div>
         </div>
-        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push superscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ²⁰ a HASH160 of a key, ³² a SHA-256 of a script. A script hidden behind a hash — ℛ, 𝒲, 𝒯 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">ℋ</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝒫</span> <span class="op" style="font-style:normal">⟩ ∇</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
+        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push superscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ²⁰ a HASH160 of a key, ³² a SHA-256 of a script. A script hidden behind a hash — 𝓇, 𝓌, 𝓉 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">𝒽</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">⟩ ∇</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
       </div>
 
       <div class="notation-group">
