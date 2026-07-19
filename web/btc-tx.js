@@ -126,6 +126,66 @@ export async function computeTxid(baseHex) {
   return bytesToHex(reverseBytes(await hash256(hexToBytes(baseHex))));
 }
 
+// ─── block header parsing ───────────────────────────────────────────────
+//
+// The 80-byte block header -- version, previous block hash, merkle root,
+// timestamp, bits (compact difficulty target), nonce. It never appears
+// inside a transaction; a transaction only references its confirming block
+// indirectly (a merkle proof), so this is a separate wire format, fetched
+// and parsed on its own.
+
+// Raw block header hex -> structured fields. Throws unless it's exactly 80
+// bytes -- a header has no variable-length parts to account for a short or
+// padded read. prevBlockHash/merkleRoot come back in display (byte-reversed)
+// order, same convention as parseTransaction's txid.
+export function parseBlockHeader(hex) {
+  const bytes = hexToBytes(hex);
+  if (bytes.length !== 80) throw new Error(`block header must be 80 bytes, got ${bytes.length}`);
+  const r = new Reader(bytes);
+  const version = r.u32le();
+  const prevBlockHash = bytesToHex(reverseBytes(r.bytesN(32)));
+  const merkleRoot = bytesToHex(reverseBytes(r.bytesN(32)));
+  const timestamp = r.u32le();
+  const bits = r.u32le();
+  const nonce = r.u32le();
+  return { version, prevBlockHash, merkleRoot, timestamp, bits, nonce };
+}
+
+// The header bytes hashed with double-SHA256 and byte-reversed -- a block's
+// hash, computed with no explorer API involved (mirrors computeTxid).
+export async function computeBlockHash(headerHex) {
+  return bytesToHex(reverseBytes(await hash256(hexToBytes(headerHex))));
+}
+
+// ─── compact difficulty target (nBits) ──────────────────────────────────
+//
+// nBits packs a 256-bit target into 4 bytes: the top byte is a byte-length
+// exponent, the low 3 bytes a mantissa -- arith_uint256::SetCompact in
+// Bitcoin Core. Unpacked two ways: the full 32-byte target (so its leading
+// zero bytes -- literally the proof-of-work requirement -- are visible in
+// full, unlike a mined hash's they're never dropped here) and a difficulty
+// ratio against the genesis block's target.
+
+// nBits -> the 256-bit target, as 64 hex chars (32 bytes, display order).
+export function bitsToTargetHex(bits) {
+  const exponent = bits >>> 24;
+  const mantissa = BigInt(bits & 0x007fffff);   // top bit of the 3-byte mantissa is a sign flag, masked off
+  const target = exponent <= 3 ? mantissa >> BigInt(8 * (3 - exponent)) : mantissa << BigInt(8 * (exponent - 3));
+  return target.toString(16).padStart(64, '0');
+}
+
+// nBits -> difficulty relative to the genesis block's target (defined as
+// difficulty 1). Mirrors Bitcoin Core's GetDifficulty: shift by whole bytes
+// in floating point rather than dividing the raw 256-bit targets, which
+// would overflow a double.
+export function bitsToDifficulty(bits) {
+  let shift = bits >>> 24;
+  let diff = 0x0000ffff / (bits & 0x00ffffff);
+  while (shift < 29) { diff *= 256; shift++; }
+  while (shift > 29) { diff /= 256; shift--; }
+  return diff;
+}
+
 // ─── address derivation from scriptPubKey (no external library) ──────────
 
 const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -301,13 +361,17 @@ export function findAsciiStrings(hex, minRun = ASCII_MIN_RUN) {
 //
 // A scriptSig / scriptPubKey (hex) -> an ordered list of tokens, so a caller
 // can render it as opcode notation. Each token is one of:
-//   { op }         a non-push opcode (its byte)
-//   { push }       a data push (the pushed bytes, hex) -- covers direct pushes
-//                  (0x01-0x4b) and OP_PUSHDATA1/2/4 alike; the push opcode
-//                  itself is implicit, surfaced as its data
-//   { trunc }      a malformed tail (a push claiming more bytes than remain),
-//                  carried verbatim so a caller never crashes on odd bytes
-// Byte-exact and lossless: concatenating the tokens back reproduces the script.
+//   { op }            a non-push opcode (its byte)
+//   { push, pushForm } a data push (the pushed bytes, hex). pushForm records
+//                     which push opcode carried it -- 0 for a direct push
+//                     (OP_PUSHBYTES_1..75), or 1/2/4 for OP_PUSHDATA1/2/4 --
+//                     so a caller can render the push opcode itself, not just
+//                     its data
+//   { trunc }         a malformed tail (a push claiming more bytes than remain),
+//                     carried verbatim so a caller never crashes on odd bytes
+// Byte-exact and lossless: the tokens carry everything needed to reproduce
+// the script (a direct push's length prefix is its data's length; a PUSHDATA's
+// form is in pushForm).
 export function tokenizeScript(hex) {
   const bytes = hexToBytes(hex);
   const toks = [];
@@ -318,7 +382,7 @@ export function tokenizeScript(hex) {
     if (op >= 0x01 && op <= 0x4b) {                    // direct push of `op` bytes
       const start = i + 1, end = start + op;
       if (end > bytes.length) { tail(i); break; }
-      toks.push({ push: bytesToHex(bytes.subarray(start, end)) });
+      toks.push({ push: bytesToHex(bytes.subarray(start, end)), pushForm: 0 });
       i = end;
     } else if (op === 0x4c || op === 0x4d || op === 0x4e) {   // OP_PUSHDATA1/2/4
       const nlen = op === 0x4c ? 1 : op === 0x4d ? 2 : 4;
@@ -327,7 +391,7 @@ export function tokenizeScript(hex) {
       for (let k = 0; k < nlen; k++) len += bytes[i + 1 + k] * 2 ** (8 * k);
       const start = i + 1 + nlen, end = start + len;
       if (end > bytes.length) { tail(i); break; }
-      toks.push({ push: bytesToHex(bytes.subarray(start, end)) });
+      toks.push({ push: bytesToHex(bytes.subarray(start, end)), pushForm: nlen });
       i = end;
     } else {                                           // a non-push opcode
       toks.push({ op });
