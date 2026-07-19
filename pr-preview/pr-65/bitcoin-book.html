@@ -200,6 +200,25 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   font: 600 12px/1 'IBM Plex Mono',monospace; padding: 6px 9px; cursor: pointer; text-transform: none;
 }
 .bookmarks .bookmark-del:hover { color: var(--error); border-color: var(--input-bd); background: transparent; }
+/* The bookmark glyph -- a manuscript fleuron -- marking a bookmarked hash
+   inline, and leading each row in the bookmarks list. */
+.bookmark-flag { color: var(--accent); margin-right: .35em; font-style: normal; }
+.bm-flag { color: var(--accent); margin-right: 8px; flex: none; }
+
+/* The title-entry form the menu swaps to when bookmarking: the title becomes a
+   table-of-contents entry. */
+.hash-menu-title { padding: 4px; }
+.hash-menu-title input {
+  width: 100%; background: var(--input-bg); border: 1px solid var(--input-bd); border-radius: 4px;
+  color: var(--ink); font: 400 12.5px/1.4 'IBM Plex Mono',monospace; padding: 8px 9px; margin-bottom: 7px;
+}
+.hash-menu-title input:focus { outline: none; border-color: var(--accent); }
+.hash-title-row { display: flex; gap: 6px; }
+.hash-menu-title .hash-title-row button {
+  flex: 1; padding: 8px 10px; font: 600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing: .04em; text-transform: uppercase;
+}
+.hash-menu-title .hash-title-row .ghost { background: transparent; color: var(--dim); border: 1px solid var(--input-bd); }
+.hash-menu-title .hash-title-row .ghost:hover { background: transparent; color: var(--ink); border-color: var(--accent); }
 
 /* Per-verse navigation: Previous / Next flanking the verse title -- the
    transaction's position within its block, rendered as "Verse N". */
@@ -654,14 +673,23 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the verse it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the verse that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
-    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it. Bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser and listed under <b>Bookmarks</b> in the lookup card.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash is marked with a <span style="color:var(--accent)">❦</span>; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and listed under <b>Bookmarks</b> in the lookup card — the beginnings of a table of contents.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
 
   <div id="hash-menu" class="hash-menu hidden" role="menu">
     <div id="hash-menu-head" class="hash-menu-head"></div>
-    <button type="button" class="hash-menu-item" data-act="copy" role="menuitem">Copy hex</button>
-    <button type="button" class="hash-menu-item" data-act="bookmark" role="menuitem">Bookmark</button>
+    <div id="hash-menu-actions">
+      <button type="button" class="hash-menu-item" data-act="copy" role="menuitem">Copy hex</button>
+      <button type="button" class="hash-menu-item" data-act="bookmark" role="menuitem">Bookmark</button>
+    </div>
+    <div id="hash-menu-title" class="hash-menu-title hidden">
+      <input type="text" id="hash-title-input" class="mono" placeholder="Title for contents" autocomplete="off" spellcheck="false">
+      <div class="hash-title-row">
+        <button type="button" data-act="title-save">Save</button>
+        <button type="button" class="ghost" data-act="title-cancel">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1141,6 +1169,8 @@ function attachHashCopy(el, hex, label) {
   tip.className = 'hash-tip mono';
   tip.textContent = hex;
   el.append(tip);
+  el.__hex = nav ? hex : null;             // only navigable hashes are bookmarkable, so only they get a flag
+  if (nav) setHashFlag(el, isBookmarked(hex));   // show the bookmark glyph if this hash is already saved
   const open = (e) => openHashMenu(e, { hex, label, prose, nav }, el);
   el.addEventListener('click', open);
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
@@ -1680,6 +1710,7 @@ renderEndpoints();
 // Clicking any Glossia-encoded hash opens a small menu (Copy hex / Bookmark).
 // Bookmarks -- navigable hashes the reader wants to return to (block hashes,
 // previous-block hashes, txids) -- persist in localStorage and list in the card.
+// Each carries a reader-supplied title, which a table of contents will draw on.
 const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
 const readBookmarks = () => {
   try { const v = JSON.parse(localStorage.getItem(BOOKMARKS_KEY)); return Array.isArray(v) ? v : []; }
@@ -1689,13 +1720,55 @@ let bookmarks = readBookmarks();
 const isBookmarked = (hex) => bookmarks.some((b) => b.hex === hex);
 const saveBookmarks = () => { try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks)); } catch {} };
 
-function toggleBookmark(entry) {
-  const i = bookmarks.findIndex((b) => b.hex === entry.hex);
-  if (i >= 0) bookmarks.splice(i, 1);
-  else bookmarks.unshift({ hex: entry.hex, label: entry.label, prose: entry.prose }); // newest first
+// Add (or retitle) a bookmark, then refresh the list and every on-page flag.
+function addBookmark(entry, title) {
+  const existing = bookmarks.find((b) => b.hex === entry.hex);
+  if (existing) existing.title = title;
+  else bookmarks.unshift({ hex: entry.hex, label: entry.label, prose: entry.prose, title }); // newest first
   saveBookmarks();
   renderBookmarks();
-  return i < 0; // true if it's now bookmarked
+  syncHashFlags();
+}
+function removeBookmark(hex) {
+  const i = bookmarks.findIndex((b) => b.hex === hex);
+  if (i < 0) return;
+  bookmarks.splice(i, 1);
+  saveBookmarks();
+  renderBookmarks();
+  syncHashFlags();
+}
+
+// Show/hide the bookmark glyph on a hash element to match its saved state.
+function setHashFlag(el, on) {
+  let flag = el.querySelector(':scope > .bookmark-flag');
+  if (on && !flag) {
+    flag = document.createElement('span');
+    flag.className = 'bookmark-flag';
+    flag.textContent = '❦';
+    flag.title = 'bookmarked';
+    el.insertBefore(flag, el.firstChild);
+  } else if (!on && flag) {
+    flag.remove();
+  }
+}
+// Re-sync every on-page hash's flag after the bookmark set changes.
+function syncHashFlags() {
+  for (const el of document.querySelectorAll('.hash-copy')) {
+    if (el.__hex) setHashFlag(el, isBookmarked(el.__hex));
+  }
+}
+
+// A first-guess title for the entry, drawn from the current section (every
+// bookmarkable hash on the page belongs to the chapter on screen). The reader
+// can accept or edit it.
+function suggestTitle(entry) {
+  const b = bookmarks.find((x) => x.hex === entry.hex);
+  if (b && b.title) return b.title;               // keep an existing title when retitling
+  if (!state) return '';
+  const { volume, book, chapter } = volumeBookChapter(state.height);
+  const genesis = volume === 1 && book === 1 && chapter === 1;
+  if (entry.label === 'transaction id') return `${toRoman(volume)} ${book} ${chapter} §${state.index + 1}`;
+  return genesis ? 'Genesis' : `Chapter ${chapter}`;
 }
 
 // Open a bookmarked hash: every stored bookmark is a lookup target, so route it
@@ -1718,10 +1791,13 @@ function renderBookmarks() {
     open.type = 'button';
     open.className = 'bookmark-open';
     const short = `${b.hex.slice(0, 10)}…${b.hex.slice(-6)}`;
+    const flag = document.createElement('span');
+    flag.className = 'bm-flag';
+    flag.textContent = '❦';
     const tag = document.createElement('span');
     tag.className = 'bm-label';
     tag.textContent = b.label;
-    open.append(tag, document.createTextNode(b.prose || short));
+    open.append(flag, tag, document.createTextNode(b.title || b.prose || short));
     open.title = `open — ${b.hex}`;
     open.addEventListener('click', () => openBookmark(b));
     const del = document.createElement('button');
@@ -1729,7 +1805,7 @@ function renderBookmarks() {
     del.className = 'bookmark-del';
     del.textContent = '✕';
     del.title = 'remove bookmark';
-    del.addEventListener('click', () => toggleBookmark(b));
+    del.addEventListener('click', () => removeBookmark(b.hex));
     item.append(open, del);
     list.append(item);
   }
@@ -1738,7 +1814,25 @@ function renderBookmarks() {
 const hashMenu = $('hash-menu');
 const menuCopyBtn = hashMenu.querySelector('[data-act="copy"]');
 const menuBmBtn = hashMenu.querySelector('[data-act="bookmark"]');
+const titleInput = $('hash-title-input');
 let menuEntry = null;
+let menuPoint = { x: 0, y: 0 };
+
+// Clamp the menu to the viewport at its remembered anchor point -- re-run after
+// a mode switch changes its height.
+function positionMenu() {
+  const pad = 8;
+  const r = hashMenu.getBoundingClientRect();
+  hashMenu.style.left = `${Math.min(Math.max(pad, menuPoint.x), window.innerWidth - r.width - pad)}px`;
+  hashMenu.style.top = `${Math.min(Math.max(pad, menuPoint.y), window.innerHeight - r.height - pad)}px`;
+}
+
+// Toggle between the action list and the title-entry form.
+function setMenuMode(mode) {
+  $('hash-menu-actions').classList.toggle('hidden', mode === 'title');
+  $('hash-menu-title').classList.toggle('hidden', mode !== 'title');
+  positionMenu();
+}
 
 function openHashMenu(ev, entry, anchorEl) {
   ev.preventDefault();
@@ -1749,17 +1843,11 @@ function openHashMenu(ev, entry, anchorEl) {
   menuBmBtn.classList.toggle('hidden', !entry.nav);
   if (entry.nav) menuBmBtn.textContent = isBookmarked(entry.hex) ? 'Remove bookmark' : 'Bookmark';
   hashMenu.classList.remove('hidden');
-  // Position at the click; for a keyboard open, anchor under the element. Clamp
-  // to the viewport so the menu is never cut off at an edge.
-  const pad = 8;
-  const r = hashMenu.getBoundingClientRect();
-  let x, y;
-  if (ev.type === 'keydown' && anchorEl) { const a = anchorEl.getBoundingClientRect(); x = a.left; y = a.bottom + 4; }
-  else { x = ev.clientX; y = ev.clientY; }
-  x = Math.min(Math.max(pad, x), window.innerWidth - r.width - pad);
-  y = Math.min(Math.max(pad, y), window.innerHeight - r.height - pad);
-  hashMenu.style.left = `${x}px`;
-  hashMenu.style.top = `${y}px`;
+  setMenuMode('actions');
+  // Anchor at the click; for a keyboard open, sit under the element.
+  if (ev.type === 'keydown' && anchorEl) { const a = anchorEl.getBoundingClientRect(); menuPoint = { x: a.left, y: a.bottom + 4 }; }
+  else menuPoint = { x: ev.clientX, y: ev.clientY };
+  positionMenu();
   menuCopyBtn.focus();
 }
 
@@ -1774,9 +1862,26 @@ menuCopyBtn.addEventListener('click', () => {
 });
 menuBmBtn.addEventListener('click', () => {
   if (!menuEntry) return;
-  toggleBookmark(menuEntry);
-  closeHashMenu();
+  if (isBookmarked(menuEntry.hex)) { removeBookmark(menuEntry.hex); closeHashMenu(); return; }
+  // Not yet saved: swap to the title form so the reader can name this entry.
+  titleInput.value = suggestTitle(menuEntry);
+  setMenuMode('title');
+  titleInput.focus();
+  titleInput.select();
 });
+
+function saveTitle() {
+  if (!menuEntry) return;
+  addBookmark(menuEntry, titleInput.value.trim());
+  closeHashMenu();
+}
+hashMenu.querySelector('[data-act="title-save"]').addEventListener('click', saveTitle);
+hashMenu.querySelector('[data-act="title-cancel"]').addEventListener('click', () => setMenuMode('actions'));
+titleInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); saveTitle(); }
+  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setMenuMode('actions'); }
+});
+
 // Dismiss on an outside press, Escape, scroll, or resize. mousedown (not click)
 // so opening the menu on one hash doesn't immediately close it.
 document.addEventListener('mousedown', (e) => {
