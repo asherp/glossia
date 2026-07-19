@@ -570,6 +570,59 @@ const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
 const BEST_OF = 5;
 
+// Every Esplora request goes through this throttle rather than the raw fetch.
+// A single transaction can fan out into dozens of lookups at once (a citation
+// per input, a forward citation per output, footnotes), and the public Esplora
+// instance sheds those bursts with 429/503. Two defenses, in order of
+// importance:
+//   1. a concurrency cap -- at most CONCURRENCY requests in flight, the rest
+//      queued -- which flattens the bursts that trip the limiter in the first
+//      place;
+//   2. exponential backoff with jitter on 429/503, honoring a Retry-After
+//      header when the server sends one, for the times we're throttled anyway.
+// Jitter matters: without it, a batch of parallel failures would all retry in
+// lockstep and re-burst. Returns a normal Response, so callers' .ok/.json()/
+// .text() handling is unchanged.
+const esploraFetch = (() => {
+  const CONCURRENCY = 3;
+  const MAX_RETRIES = 4;
+  const RETRYABLE = new Set([429, 503]);
+  let active = 0;
+  const queue = [];
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const pump = () => { while (active < CONCURRENCY && queue.length) queue.shift()(); };
+
+  return (url, opts) => new Promise((resolve, reject) => {
+    queue.push(async () => {
+      active++;
+      try {
+        for (let attempt = 0; ; attempt++) {
+          let res;
+          try {
+            res = await fetch(url, opts);
+          } catch (e) {
+            // Network-level failure (offline, DNS, CORS). Retry a few times
+            // with the same backoff before surfacing it.
+            if (attempt >= MAX_RETRIES) { reject(e); return; }
+            await sleep((2 ** attempt) * 500 + Math.random() * 250);
+            continue;
+          }
+          if (!RETRYABLE.has(res.status) || attempt >= MAX_RETRIES) { resolve(res); return; }
+          const retryAfter = Number(res.headers.get('Retry-After'));
+          const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter * 1000
+            : (2 ** attempt) * 500 + Math.random() * 250;
+          await sleep(backoff);
+        }
+      } finally {
+        active--;
+        pump();
+      }
+    });
+    pump();
+  });
+})();
+
 // Esplora's block hash, like a txid, is displayed byte-reversed relative to its
 // internal (wire/hashing) byte order -- see btc-tx.js's txid handling. Reverse
 // it back before encoding so the prose carries the hash's actual bytes.
@@ -629,8 +682,8 @@ function resolveCitation(txid) {
   if (!citationCache.has(txid)) {
     citationCache.set(txid, (async () => {
       const [mpRes, txRes] = await Promise.all([
-        fetch(`${ESPLORA}/tx/${txid}/merkle-proof`),
-        fetch(`${ESPLORA}/tx/${txid}`),
+        esploraFetch(`${ESPLORA}/tx/${txid}/merkle-proof`),
+        esploraFetch(`${ESPLORA}/tx/${txid}`),
       ]);
       if (!mpRes.ok) throw new Error(`Esplora returned ${mpRes.status}`);
       const mp = await mpRes.json();
@@ -654,7 +707,7 @@ const outspendsCache = new Map();
 function loadOutspends(txid) {
   if (!outspendsCache.has(txid)) {
     outspendsCache.set(txid, (async () => {
-      const res = await fetch(`${ESPLORA}/tx/${txid}/outspends`);
+      const res = await esploraFetch(`${ESPLORA}/tx/${txid}/outspends`);
       if (!res.ok) throw new Error(`Esplora returned ${res.status}`);
       return res.json();
     })().catch((e) => { outspendsCache.delete(txid); throw e; }));
@@ -745,9 +798,9 @@ async function resolveCitations(pending, gen) {
 
 async function loadBlockMeta(hash) {
   const [blockRes, txidsRes, headerRes] = await Promise.all([
-    fetch(`${ESPLORA}/block/${hash}`),
-    fetch(`${ESPLORA}/block/${hash}/txids`),
-    fetch(`${ESPLORA}/block/${hash}/header`),
+    esploraFetch(`${ESPLORA}/block/${hash}`),
+    esploraFetch(`${ESPLORA}/block/${hash}/txids`),
+    esploraFetch(`${ESPLORA}/block/${hash}/header`),
   ]);
   if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
   if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
@@ -763,7 +816,7 @@ async function loadBlockMeta(hash) {
 }
 
 async function loadBlockByHeight(height) {
-  const res = await fetch(`${ESPLORA}/block-height/${height}`);
+  const res = await esploraFetch(`${ESPLORA}/block-height/${height}`);
   if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${height}.` : `Esplora returned ${res.status}.`);
   return loadBlockMeta((await res.text()).trim());
 }
@@ -772,7 +825,7 @@ async function loadBlockByHeight(height) {
 // that block (its verse): /tx tells us the confirming block, and its ordered
 // txid list tells us where the tx sits.
 async function loadBlockByTxid(txid) {
-  const res = await fetch(`${ESPLORA}/tx/${txid}`);
+  const res = await esploraFetch(`${ESPLORA}/tx/${txid}`);
   if (!res.ok) throw new Error(res.status === 404 ? `No transaction ${txid.slice(0, 8)}…` : `Esplora returned ${res.status}.`);
   const tx = await res.json();
   if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no verse yet.');
@@ -785,7 +838,7 @@ async function loadBlockByTxid(txid) {
 async function showCurrentTx() {
   setStatus('<span class="spinner"></span>fetching transaction…');
   const txid = state.txids[state.index];
-  const r = await fetch(`${ESPLORA}/tx/${txid}/hex`);
+  const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
   if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
   const hex = (await r.text()).trim();
 
@@ -1157,10 +1210,64 @@ async function stepTx(direction) {
   }
 }
 
+// Rapid Next/Previous clicks -- or holding the button -- would otherwise fire
+// one transaction load, and its whole citation/outspend fan-out, per click,
+// with every intermediate load instantly stale. Debounce so a burst collapses
+// to a single load at the net destination. The net offset is accumulated and
+// applied once the clicks settle (STEP_DEBOUNCE_MS of quiet): if it stays
+// inside the current block it's a single load with no list re-fetch; if it runs
+// off an edge the burst lands on that edge, and a further step then crosses one
+// block via the existing boundary logic (never skipping blocks in one gesture).
+const STEP_DEBOUNCE_MS = 180;
+let stepTimer = null;
+let pendingSteps = 0;
+let stepping = false;
+
+function requestStep(direction) {
+  pendingSteps += direction;
+  if (stepTimer !== null) clearTimeout(stepTimer);
+  stepTimer = setTimeout(runPendingSteps, STEP_DEBOUNCE_MS);
+}
+
+async function runPendingSteps() {
+  stepTimer = null;
+  // A previous burst is still loading -- re-arm and let it finish first so two
+  // loads never overlap.
+  if (stepping) { stepTimer = setTimeout(runPendingSteps, STEP_DEBOUNCE_MS); return; }
+  const steps = pendingSteps;
+  pendingSteps = 0;
+  if (!state || steps === 0) return;
+
+  stepping = true;
+  try {
+    const target = state.index + steps;
+    if (target >= 0 && target < state.txids.length) {
+      state.index = target;
+      try {
+        await showCurrentTx();
+      } catch (e) {
+        setStatus(e.message || 'Failed to load transaction.', 'err');
+      }
+    } else if (steps > 0 && state.index < state.txids.length - 1) {
+      state.index = state.txids.length - 1;   // overshot forward -- land on the block's last tx
+      try { await showCurrentTx(); } catch (e) { setStatus(e.message || 'Failed to load transaction.', 'err'); }
+    } else if (steps < 0 && state.index > 0) {
+      state.index = 0;                          // overshot backward -- land on the block's first tx
+      try { await showCurrentTx(); } catch (e) { setStatus(e.message || 'Failed to load transaction.', 'err'); }
+    } else {
+      await stepTx(steps > 0 ? 1 : -1);         // already at the edge -- cross one block boundary
+    }
+  } finally {
+    stepping = false;
+    // Clicks that arrived mid-load are still pending -- run them next.
+    if (pendingSteps !== 0 && stepTimer === null) stepTimer = setTimeout(runPendingSteps, STEP_DEBOUNCE_MS);
+  }
+}
+
 $('block-btn').addEventListener('click', () => openLookup($('block-input').value, 0));
 $('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLookup($('block-input').value, 0); });
-$('page-prev').addEventListener('click', () => stepTx(-1));
-$('page-next').addEventListener('click', () => stepTx(1));
+$('page-prev').addEventListener('click', () => requestStep(-1));
+$('page-next').addEventListener('click', () => requestStep(1));
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
 // verse; ?block= (with optional ?index=) opens a block; otherwise the input's
