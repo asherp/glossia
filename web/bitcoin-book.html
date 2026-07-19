@@ -527,7 +527,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">○</span><span class="m">respects the locktime</span></div>
           <div class="glyph-row"><span class="g">†</span><span class="m"><b>replaceable</b> (opt-in RBF)</span></div>
           <div class="glyph-row"><span class="g">■<i>N</i></span><span class="m">relative: N blocks after confirmation (Roman — a count of chapters)</span></div>
-          <div class="glyph-row"><span class="g">⊥<i>n</i></span><span class="m">relative: n × 512 s after confirmation</span></div>
+          <div class="glyph-row"><span class="g">⊥<i>Δt</i></span><span class="m">relative: a duration after confirmation (d h m s)</span></div>
           <div class="glyph-row"><span class="g">(<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare</span></div>
         </div>
       </div>
@@ -537,11 +537,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">□</span><span class="m">no locktime</span></div>
           <div class="glyph-row"><span class="g">■ <i>v b c</i></span><span class="m">not before the cited chapter (volume book chapter)</span></div>
-          <div class="glyph-row"><span class="g">⊥<i>n</i></span><span class="m">not before time n</span></div>
+          <div class="glyph-row"><span class="g">⊥<i>t</i></span><span class="m">not before a UTC date</span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
           <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">verse — the transaction's position</span></div>
         </div>
-        <p class="notation-note">■ and ⊥ mean block-height and time in both places; a square reads as the whole transaction, a circle as one input. An absolute height is a place in the book, so it is cited; a relative delay is a count of chapters, so it is a Roman numeral.</p>
+        <p class="notation-note">■ and ⊥ mean block-height and time in both places; a square reads as the whole transaction, a circle as one input. An absolute height is a place in the book, so it is cited; a relative block delay is a count of chapters, so it is a Roman numeral. Time renders physically: an absolute lock as its UTC date, a relative one as a duration.</p>
       </div>
     </div>
   </details>

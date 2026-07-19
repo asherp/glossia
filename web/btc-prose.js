@@ -39,9 +39,23 @@ function toRoman(n) {
 // downstream, not encoded here.
 const LOCKTIME_THRESHOLD = 500000000;   // nLockTime below this is a block height, at/above a unix timestamp
 
+// A relative time delay (n × 512 s) -> an exact physical duration: 512 s
+// decomposes cleanly into d h m s (144 units = 73 728 s = 20h28m48s), so
+// the physical form loses nothing against the wire value.
+function durationFrom512s(n) {
+  let s = n * 512;
+  const parts = [];
+  const d = Math.floor(s / 86400); if (d) parts.push(d + 'd'); s %= 86400;
+  const h = Math.floor(s / 3600); if (h) parts.push(h + 'h'); s %= 3600;
+  const m = Math.floor(s / 60); if (m) parts.push(m + 'm'); s %= 60;
+  if (s || !parts.length) parts.push(s + 's');
+  return parts.join('');
+}
+
 // nLockTime -> { mark, title }: □ (none), ■ + citation (absolute block --
 // the block is a chapter of the book, so it's cited as volume book chapter
-// rather than a bare height), ⊥n (absolute time).
+// rather than a bare height), ⊥ + UTC date (absolute time -- rendered
+// physically, the raw unix value in the hover).
 function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
   if (locktime < LOCKTIME_THRESHOLD) {
@@ -49,7 +63,7 @@ function locktimeInfo(locktime) {
     return { mark: `■ ${toRoman(volume)} ${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
   }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
-  return { mark: `⊥${locktime}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
+  return { mark: `⊥${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
 }
 
 // nSequence -> { rbf, mark, kind, title }. BIP68 relative locktime is enabled
@@ -63,9 +77,10 @@ function sequenceInfo(seq) {
   if ((seq & 0x80000000) === 0) {
     const n = seq & 0x0000ffff;
     // A relative block delay counts chapters, so it reads in Roman numerals
-    // (■CXLIV = 144 blocks); a time delay is physical time and stays decimal.
+    // (■CXLIV = 144 blocks); a time delay is physical time, so it reads as
+    // an exact duration (⊥20h28m48s), the wire units kept in the hover.
     return (seq & 0x00400000)
-      ? { rbf: true, mark: `⊥${n}`, kind: 'time', title: `replaceable; relative locktime ${n} × 512 s after the input's confirmation` }
+      ? { rbf: true, mark: `⊥${durationFrom512s(n)}`, kind: 'time', title: `replaceable; relative locktime ${durationFrom512s(n)} (${n} × 512 s) after the input's confirmation` }
       : { rbf: true, mark: `■${toRoman(n)}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
