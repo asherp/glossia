@@ -29,10 +29,10 @@ function toRoman(n) {
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
-// (nSequence), sharing ■/⊥ for the block/time distinction:
-//   Transaction (nLockTime):  □ none · ■n absolute block height · ⊥n absolute unix time
+// (nSequence), sharing ■ (block) / Τ (temporal) for the block/time distinction:
+//   Transaction (nLockTime):  □ none · ■n absolute block height · Τn absolute unix time
 //   Input (nSequence):        ○ final · † replaceable (opt-in RBF) ·
-//                             ■n relative block delay · ⊥n relative time delay
+//                             ■n relative block delay · Τn relative time delay
 // The square reads as the whole document, the circle as one input. A coinbase's
 // null prevout is flagged with isNullPrevout so the renderer can mark it (∅);
 // other prevouts are carried as references and resolved to a citation
@@ -54,7 +54,7 @@ function durationFrom512s(n) {
 
 // nLockTime -> { mark, title }: □ (none), ■ + citation (absolute block --
 // the block is a chapter of the book, so it's cited as volume book chapter
-// rather than a bare height), ⊥ + UTC date (absolute time -- rendered
+// rather than a bare height), Τ + UTC date (absolute time -- rendered
 // physically, the raw unix value in the hover).
 function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
@@ -63,7 +63,7 @@ function locktimeInfo(locktime) {
     return { mark: `■ ${toRoman(volume)} ${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
   }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
-  return { mark: `⊥${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
+  return { mark: `Τ${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
 }
 
 // nSequence -> { rbf, mark, kind, title }. BIP68 relative locktime is enabled
@@ -78,9 +78,9 @@ function sequenceInfo(seq) {
     const n = seq & 0x0000ffff;
     // A relative block delay counts chapters, so it reads in Roman numerals
     // (■CXLIV = 144 blocks); a time delay is physical time, so it reads as
-    // an exact duration (⊥20h28m48s), the wire units kept in the hover.
+    // an exact duration (Τ20h28m48s), the wire units kept in the hover.
     return (seq & 0x00400000)
-      ? { rbf: true, mark: `⊥${durationFrom512s(n)}`, kind: 'time', title: `replaceable; relative locktime ${durationFrom512s(n)} (${n} × 512 s) after the input's confirmation` }
+      ? { rbf: true, mark: `Τ${durationFrom512s(n)}`, kind: 'time', title: `replaceable; relative locktime ${durationFrom512s(n)} (${n} × 512 s) after the input's confirmation` }
       : { rbf: true, mark: `■${toRoman(n)}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
