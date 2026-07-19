@@ -164,6 +164,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* padding-top nudges the small-cap reference down onto the top of the taller
    prose line beside it (the two line boxes top-align, but the glyphs don't). */
 .tx-in-cite { grid-column: 1; text-align: right; padding-top: .34em; font: 500 11.5px/1.5 'IBM Plex Mono',monospace; color: var(--dim); word-break: break-word; }
+/* An aligned input row's left cell: this input's citation, preceded by any
+   witness-input citations that came before it in the sequence and had no
+   scriptSig of their own -- stacked, in order, above it. */
+.tx-in-cite-group { grid-column: 1; }
+.tx-in-cite-group > .tx-in-cite + .tx-in-cite { margin-top: .5em; }
 .tx-in-cite.resolving { color: var(--meta); }
 .tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
 .tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
@@ -176,6 +181,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    Empty for an unspent output. */
 .fwd-cite { margin-top: .1em; font: 500 11.5px/1.3 'IBM Plex Mono',monospace; color: var(--dim); }
 .tx-in-script { grid-column: 2; min-width: 0; }
+/* Citations for inputs with no scriptSig (witness spends) + the version note.
+   They share the outputs' row in the left column, so the outputs slide up beside
+   them instead of being pushed below an input band full of empty body cells. The
+   stacked citations top-align with the first output. */
+.tx-margin-cites { grid-column: left; grid-row: 2; align-self: start; }
 .tx-outputs {
   grid-column: body / -1; grid-row: 2;
   display: grid; grid-template-columns: minmax(0,1fr) 7em; grid-template-columns: subgrid;
@@ -213,6 +223,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
+/* A push chunk whose prose hasn't been encoded yet -- it streams in when it
+   scrolls near the viewport (see lazyEncode). Shown as a dim ellipsis until
+   then; each data push is its own chunk, so a large witness fills piecewise. */
+.glossia-lazy { color: var(--dim); }
 /* Verbatim human-readable text embedded in a script (a coinbase mining-pool
    tag, an OP_RETURN message) is a foreign voice quoted into the transaction,
    not part of its prose -- so it's set as a quote block (a marginal accent
@@ -231,7 +245,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
      block stacked with the body it annotated. Citations lead their input;
      amounts follow their output -- position alone carries the sense. */
   .tx-flow { grid-template-columns: 1fr; }
-  .tx-inputs, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
+  .tx-inputs, .tx-margin-cites, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
   .tx-in-cite { text-align: left; margin: 0 0 .2em; }
   .tx-out-value, .tx-locktime { text-align: left; margin: 0 0 .55em; }
 }
@@ -570,6 +584,59 @@ const $ = (id) => document.getElementById(id);
 const ESPLORA = 'https://blockstream.info/api';
 const BEST_OF = 5;
 
+// Every Esplora request goes through this throttle rather than the raw fetch.
+// A single transaction can fan out into dozens of lookups at once (a citation
+// per input, a forward citation per output, footnotes), and the public Esplora
+// instance sheds those bursts with 429/503. Two defenses, in order of
+// importance:
+//   1. a concurrency cap -- at most CONCURRENCY requests in flight, the rest
+//      queued -- which flattens the bursts that trip the limiter in the first
+//      place;
+//   2. exponential backoff with jitter on 429/503, honoring a Retry-After
+//      header when the server sends one, for the times we're throttled anyway.
+// Jitter matters: without it, a batch of parallel failures would all retry in
+// lockstep and re-burst. Returns a normal Response, so callers' .ok/.json()/
+// .text() handling is unchanged.
+const esploraFetch = (() => {
+  const CONCURRENCY = 3;
+  const MAX_RETRIES = 4;
+  const RETRYABLE = new Set([429, 503]);
+  let active = 0;
+  const queue = [];
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const pump = () => { while (active < CONCURRENCY && queue.length) queue.shift()(); };
+
+  return (url, opts) => new Promise((resolve, reject) => {
+    queue.push(async () => {
+      active++;
+      try {
+        for (let attempt = 0; ; attempt++) {
+          let res;
+          try {
+            res = await fetch(url, opts);
+          } catch (e) {
+            // Network-level failure (offline, DNS, CORS). Retry a few times
+            // with the same backoff before surfacing it.
+            if (attempt >= MAX_RETRIES) { reject(e); return; }
+            await sleep((2 ** attempt) * 500 + Math.random() * 250);
+            continue;
+          }
+          if (!RETRYABLE.has(res.status) || attempt >= MAX_RETRIES) { resolve(res); return; }
+          const retryAfter = Number(res.headers.get('Retry-After'));
+          const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+            ? retryAfter * 1000
+            : (2 ** attempt) * 500 + Math.random() * 250;
+          await sleep(backoff);
+        }
+      } finally {
+        active--;
+        pump();
+      }
+    });
+    pump();
+  });
+})();
+
 // Esplora's block hash, like a txid, is displayed byte-reversed relative to its
 // internal (wire/hashing) byte order -- see btc-tx.js's txid handling. Reverse
 // it back before encoding so the prose carries the hash's actual bytes.
@@ -584,6 +651,50 @@ function trimTrailingZeroBytes(hex) {
   while (end >= 2 && hex.slice(end - 2, end) === '00') end -= 2;
   return hex.slice(0, end);
 }
+
+// Encode-on-scroll for script/witness prose. A data push is capped at 520 bytes
+// (MAX_SCRIPT_ELEMENT_SIZE), so any large payload -- an inscription's tapscript,
+// a bulky OP_RETURN -- already arrives pre-split into a run of bounded pushes.
+// We exploit that: renderScript/renderWitness emit each push as a placeholder
+// rather than encoding it, and an IntersectionObserver Glossia-encodes each one
+// only as it scrolls near the viewport. So a kilobyte-scale witness never blocks
+// the main thread up front; its prose streams in chunk by chunk, and pushes the
+// reader never scrolls to are never encoded at all. Structure (type marks, push
+// counts, opcode glyphs) still renders eagerly, so the skeleton is instant.
+const lazyEncode = (() => {
+  const fill = (el) => {
+    const hex = el.dataset.hex;
+    if (hex === undefined) return;   // already filled
+    delete el.dataset.hex;
+    el.classList.remove('glossia-lazy');
+    el.innerHTML = encodeSeedPhrase(hex, 'english', BEST_OF).prose;   // Glossia prose -- safe as innerHTML
+  };
+  // rootMargin pre-encodes a chunk before it enters view, so a scrolling reader
+  // almost never sees the raw placeholder.
+  const io = ('IntersectionObserver' in window)
+    ? new IntersectionObserver((entries, obs) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          obs.unobserve(e.target);
+          fill(e.target);
+        }
+      }, { rootMargin: '600px 0px' })
+    : null;
+  return {
+    // A push's prose, deferred: hex rides in a data attribute (hex is [0-9a-f],
+    // safe unquoted) and the ⋯ gives the span a layout box so the observer fires.
+    placeholder: (hex) => hex ? `<span class="glossia-lazy" data-hex="${hex}">⋯</span>` : '',
+    // Drop pending chunks from a previous verse (their nodes are already detached).
+    reset: () => { if (io) io.disconnect(); },
+    // Start watching every placeholder under `root`; encode all now if the
+    // browser has no IntersectionObserver.
+    observe: (root) => {
+      const pending = root.querySelectorAll('.glossia-lazy');
+      if (io) pending.forEach((el) => io.observe(el));
+      else pending.forEach(fill);
+    },
+  };
+})();
 
 let ready = false;
 init().then(() => { ready = true; }).catch((e) => console.error('WASM init failed:', e));
@@ -629,8 +740,8 @@ function resolveCitation(txid) {
   if (!citationCache.has(txid)) {
     citationCache.set(txid, (async () => {
       const [mpRes, txRes] = await Promise.all([
-        fetch(`${ESPLORA}/tx/${txid}/merkle-proof`),
-        fetch(`${ESPLORA}/tx/${txid}`),
+        esploraFetch(`${ESPLORA}/tx/${txid}/merkle-proof`),
+        esploraFetch(`${ESPLORA}/tx/${txid}`),
       ]);
       if (!mpRes.ok) throw new Error(`Esplora returned ${mpRes.status}`);
       const mp = await mpRes.json();
@@ -654,7 +765,7 @@ const outspendsCache = new Map();
 function loadOutspends(txid) {
   if (!outspendsCache.has(txid)) {
     outspendsCache.set(txid, (async () => {
-      const res = await fetch(`${ESPLORA}/tx/${txid}/outspends`);
+      const res = await esploraFetch(`${ESPLORA}/tx/${txid}/outspends`);
       if (!res.ok) throw new Error(`Esplora returned ${res.status}`);
       return res.json();
     })().catch((e) => { outspendsCache.delete(txid); throw e; }));
@@ -745,9 +856,9 @@ async function resolveCitations(pending, gen) {
 
 async function loadBlockMeta(hash) {
   const [blockRes, txidsRes, headerRes] = await Promise.all([
-    fetch(`${ESPLORA}/block/${hash}`),
-    fetch(`${ESPLORA}/block/${hash}/txids`),
-    fetch(`${ESPLORA}/block/${hash}/header`),
+    esploraFetch(`${ESPLORA}/block/${hash}`),
+    esploraFetch(`${ESPLORA}/block/${hash}/txids`),
+    esploraFetch(`${ESPLORA}/block/${hash}/header`),
   ]);
   if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
   if (!txidsRes.ok) throw new Error(`Esplora returned ${txidsRes.status} fetching the transaction list.`);
@@ -763,7 +874,7 @@ async function loadBlockMeta(hash) {
 }
 
 async function loadBlockByHeight(height) {
-  const res = await fetch(`${ESPLORA}/block-height/${height}`);
+  const res = await esploraFetch(`${ESPLORA}/block-height/${height}`);
   if (!res.ok) throw new Error(res.status === 404 ? `No block at height ${height}.` : `Esplora returned ${res.status}.`);
   return loadBlockMeta((await res.text()).trim());
 }
@@ -772,7 +883,7 @@ async function loadBlockByHeight(height) {
 // that block (its verse): /tx tells us the confirming block, and its ordered
 // txid list tells us where the tx sits.
 async function loadBlockByTxid(txid) {
-  const res = await fetch(`${ESPLORA}/tx/${txid}`);
+  const res = await esploraFetch(`${ESPLORA}/tx/${txid}`);
   if (!res.ok) throw new Error(res.status === 404 ? `No transaction ${txid.slice(0, 8)}…` : `Esplora returned ${res.status}.`);
   const tx = await res.json();
   if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no verse yet.');
@@ -785,7 +896,7 @@ async function loadBlockByTxid(txid) {
 async function showCurrentTx() {
   setStatus('<span class="spinner"></span>fetching transaction…');
   const txid = state.txids[state.index];
-  const r = await fetch(`${ESPLORA}/tx/${txid}/hex`);
+  const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
   if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
   const hex = (await r.text()).trim();
 
@@ -794,10 +905,13 @@ async function showCurrentTx() {
 
   const parsed = parseTransaction(hex);
   const verifiedTxid = await computeTxid(parsed.baseHex);
-  const fields = composeTransactionFields(parsed, BEST_OF);
-  // Witnesses aren't encoded here -- they're the heaviest thing to render and
-  // most readers never open them. renderChapter marks each witness-bearing
-  // input with a footnote reference; loadFootnotes encodes them on demand.
+  // A bulky OP_RETURN data carrier is deferred like a witness push -- its prose
+  // streams in on scroll (see lazyEncode); every other body field is encoded now.
+  const fields = composeTransactionFields(parsed, BEST_OF, lazyEncode.placeholder);
+  // Witnesses aren't encoded here either -- they're the heaviest thing to render.
+  // renderChapter marks each witness-bearing input with a footnote reference and
+  // lays out the footnotes as placeholders; their prose is encoded lazily, per
+  // push, as the reader scrolls to it (see lazyEncode / renderFootnotes).
   renderChapter({ num: state.index + 1, txid, fields, verified: verifiedTxid === txid });
   updateUrl();
   $('chapter').classList.remove('hidden');
@@ -907,10 +1021,17 @@ function renderChapter(para) {
   // -- sits in the left margin, level with its scriptSig. The outputs are a
   // [scriptPubKey | amount] subgrid; the locktime closes on the right.
   const gen = ++renderGen;
+  lazyEncode.reset();   // drop chunks still pending from the previous verse (body + footnotes)
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
   const inputsEl = document.createElement('div');
   inputsEl.className = 'tx-inputs';
+  // Citations for inputs with nothing in the body to annotate -- a witness spend
+  // has an empty scriptSig -- plus the version note. They can't align to a body
+  // line, so they sit in the left column of the outputs band instead of holding
+  // an input row open; that lets the outputs slide up beside them (see CSS).
+  const marginEl = document.createElement('div');
+  marginEl.className = 'tx-margin-cites';
   const outputsEl = document.createElement('div');
   outputsEl.className = 'tx-outputs';
   let leadUsed = false;
@@ -973,12 +1094,20 @@ function renderChapter(para) {
 
   const f = para.fields;
   const footnotes = [];
-  // The rare non-default version leads the inputs as its own margin note.
+  // Citations with no scriptSig body to sit beside -- witness-spend inputs, and
+  // the version note -- accumulate here in input order and flush into the next
+  // scriptSig row's left column (stacked above that input's own citation), so
+  // they keep their place in the input sequence without holding a row open.
+  // Whatever is still pending after the last scriptSig (trailing witness inputs,
+  // or every input when the whole transaction is segwit) goes to the margin band
+  // beside the outputs. This preserves input order even when witness and legacy
+  // inputs alternate -- the two kinds are not assumed to be contiguous.
+  const pendingMargin = [];
   if (f.version !== '1') {
     const cite = document.createElement('div');
     cite.className = 'tx-in-cite tx-version';
     cite.textContent = `v${f.version}`;
-    inputsEl.append(cite, document.createElement('div'));
+    pendingMargin.push(cite);
   }
   for (const inp of f.inputs) {
     const cite = document.createElement('div');
@@ -1001,12 +1130,28 @@ function renderChapter(para) {
     cite.append(seqSpan(inp), ' ', citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     if (amtEl) cite.append(amtEl);
-    const scriptCell = document.createElement('div');
-    scriptCell.className = 'tx-in-script';
-    if (inp.scriptAscii) addQuote(scriptCell, inp.scriptAscii);
-    else if (inp.script) addLine(scriptCell, inp.script);
-    inputsEl.append(cite, scriptCell);
+    // A witness spend has an empty scriptSig (no body content). An input that
+    // renders a scriptSig gets an aligned row: its left cell carries any pending
+    // witness-input citations that preceded it (in order) stacked above its own,
+    // and its scriptSig fills the body. An empty input just joins the pending
+    // list, so the outputs can slide up past it.
+    if (inp.scriptAscii || inp.script) {
+      const citeCell = document.createElement('div');
+      citeCell.className = 'tx-in-cite-group';
+      for (const p of pendingMargin) citeCell.append(p);
+      pendingMargin.length = 0;
+      citeCell.append(cite);
+      const scriptCell = document.createElement('div');
+      scriptCell.className = 'tx-in-script';
+      if (inp.scriptAscii) addQuote(scriptCell, inp.scriptAscii);
+      else addLine(scriptCell, inp.script);
+      inputsEl.append(citeCell, scriptCell);
+    } else {
+      pendingMargin.push(cite);
+    }
   }
+  // Trailing citations with no scriptSig left to attach to sit beside the outputs.
+  for (const p of pendingMargin) marginEl.append(p);
   currentFootnotes = footnotes;
   f.outputs.forEach((out, i) => {
     const scriptCell = document.createElement('div');
@@ -1030,9 +1175,10 @@ function renderChapter(para) {
   lock.textContent = f.locktime;
   lock.title = f.locktimeTitle;
 
-  flow.append(inputsEl, outputsEl, lock);
+  flow.append(inputsEl, marginEl, outputsEl, lock);
   wrap.append(flow);
   body.append(wrap);
+  lazyEncode.observe(body);   // encode any deferred OP_RETURN payload as it scrolls into view
   resolveCitations(pendingCites, gen);
   resolveForwardCitations(para.txid, fwdCells, gen);
 
@@ -1053,16 +1199,18 @@ function renderChapter(para) {
 async function renderFootnotes(gen) {
   if (footnotesLoaded || !currentFootnotes.length) return;
   if (!ready) await init().catch(() => {});
-  // encodeSeedPhrase is synchronous and can be heavy, so yield once to let the
-  // transaction paint before it blocks the main thread.
+  // Yield once so the transaction paints before we lay out the footnotes.
   await new Promise((r) => setTimeout(r, 0));
   if (gen !== renderGen) return;
   const el = $('ch-footnotes');
   el.innerHTML = '';
   for (const fn of currentFootnotes) {
     // An all-zero witness (coinbase reserved value, empty stack) shows ∅ instead
-    // of a run of zero-words.
-    const prose = fn.zero ? '∅' : renderWitness(fn.items, (hex) => encodeSeedPhrase(hex, 'english', BEST_OF).prose);
+    // of a run of zero-words. Every other witness item's prose is emitted as a
+    // placeholder (renderWitness feeds each push through lazyEncode.placeholder)
+    // and encoded when it scrolls into view -- building the DOM stays cheap even
+    // for a kilobyte-scale inscription witness.
+    const prose = fn.zero ? '∅' : renderWitness(fn.items, lazyEncode.placeholder);
     const p = document.createElement('p');
     p.className = 'footnote-entry';
     p.id = `fn-${fn.n}`;
@@ -1071,6 +1219,7 @@ async function renderFootnotes(gen) {
   }
   $('ch-footnotes-section').classList.remove('hidden');
   footnotesLoaded = true;
+  lazyEncode.observe(el);   // stream each push's prose in as the reader scrolls to it
 }
 
 // A witness reference: make sure the footnotes are rendered, then scroll to this one.
@@ -1157,10 +1306,64 @@ async function stepTx(direction) {
   }
 }
 
+// Rapid Next/Previous clicks -- or holding the button -- would otherwise fire
+// one transaction load, and its whole citation/outspend fan-out, per click,
+// with every intermediate load instantly stale. Debounce so a burst collapses
+// to a single load at the net destination. The net offset is accumulated and
+// applied once the clicks settle (STEP_DEBOUNCE_MS of quiet): if it stays
+// inside the current block it's a single load with no list re-fetch; if it runs
+// off an edge the burst lands on that edge, and a further step then crosses one
+// block via the existing boundary logic (never skipping blocks in one gesture).
+const STEP_DEBOUNCE_MS = 180;
+let stepTimer = null;
+let pendingSteps = 0;
+let stepping = false;
+
+function requestStep(direction) {
+  pendingSteps += direction;
+  if (stepTimer !== null) clearTimeout(stepTimer);
+  stepTimer = setTimeout(runPendingSteps, STEP_DEBOUNCE_MS);
+}
+
+async function runPendingSteps() {
+  stepTimer = null;
+  // A previous burst is still loading -- re-arm and let it finish first so two
+  // loads never overlap.
+  if (stepping) { stepTimer = setTimeout(runPendingSteps, STEP_DEBOUNCE_MS); return; }
+  const steps = pendingSteps;
+  pendingSteps = 0;
+  if (!state || steps === 0) return;
+
+  stepping = true;
+  try {
+    const target = state.index + steps;
+    if (target >= 0 && target < state.txids.length) {
+      state.index = target;
+      try {
+        await showCurrentTx();
+      } catch (e) {
+        setStatus(e.message || 'Failed to load transaction.', 'err');
+      }
+    } else if (steps > 0 && state.index < state.txids.length - 1) {
+      state.index = state.txids.length - 1;   // overshot forward -- land on the block's last tx
+      try { await showCurrentTx(); } catch (e) { setStatus(e.message || 'Failed to load transaction.', 'err'); }
+    } else if (steps < 0 && state.index > 0) {
+      state.index = 0;                          // overshot backward -- land on the block's first tx
+      try { await showCurrentTx(); } catch (e) { setStatus(e.message || 'Failed to load transaction.', 'err'); }
+    } else {
+      await stepTx(steps > 0 ? 1 : -1);         // already at the edge -- cross one block boundary
+    }
+  } finally {
+    stepping = false;
+    // Clicks that arrived mid-load are still pending -- run them next.
+    if (pendingSteps !== 0 && stepTimer === null) stepTimer = setTimeout(runPendingSteps, STEP_DEBOUNCE_MS);
+  }
+}
+
 $('block-btn').addEventListener('click', () => openLookup($('block-input').value, 0));
 $('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLookup($('block-input').value, 0); });
-$('page-prev').addEventListener('click', () => stepTx(-1));
-$('page-next').addEventListener('click', () => stepTx(1));
+$('page-prev').addEventListener('click', () => requestStep(-1));
+$('page-next').addEventListener('click', () => requestStep(1));
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
 // verse; ?block= (with optional ?index=) opens a block; otherwise the input's
