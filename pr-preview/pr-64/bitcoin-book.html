@@ -164,6 +164,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* padding-top nudges the small-cap reference down onto the top of the taller
    prose line beside it (the two line boxes top-align, but the glyphs don't). */
 .tx-in-cite { grid-column: 1; text-align: right; padding-top: .34em; font: 500 11.5px/1.5 'IBM Plex Mono',monospace; color: var(--dim); word-break: break-word; }
+/* An aligned input row's left cell: this input's citation, preceded by any
+   witness-input citations that came before it in the sequence and had no
+   scriptSig of their own -- stacked, in order, above it. */
+.tx-in-cite-group { grid-column: 1; }
+.tx-in-cite-group > .tx-in-cite + .tx-in-cite { margin-top: .5em; }
 .tx-in-cite.resolving { color: var(--meta); }
 .tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
 .tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
@@ -1089,13 +1094,20 @@ function renderChapter(para) {
 
   const f = para.fields;
   const footnotes = [];
-  // The rare non-default version is a margin note with no body to annotate, so
-  // it joins the empty-scriptSig citations rather than holding an input row open.
+  // Citations with no scriptSig body to sit beside -- witness-spend inputs, and
+  // the version note -- accumulate here in input order and flush into the next
+  // scriptSig row's left column (stacked above that input's own citation), so
+  // they keep their place in the input sequence without holding a row open.
+  // Whatever is still pending after the last scriptSig (trailing witness inputs,
+  // or every input when the whole transaction is segwit) goes to the margin band
+  // beside the outputs. This preserves input order even when witness and legacy
+  // inputs alternate -- the two kinds are not assumed to be contiguous.
+  const pendingMargin = [];
   if (f.version !== '1') {
     const cite = document.createElement('div');
     cite.className = 'tx-in-cite tx-version';
     cite.textContent = `v${f.version}`;
-    marginEl.append(cite);
+    pendingMargin.push(cite);
   }
   for (const inp of f.inputs) {
     const cite = document.createElement('div');
@@ -1118,19 +1130,28 @@ function renderChapter(para) {
     cite.append(seqSpan(inp), ' ', citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     if (amtEl) cite.append(amtEl);
-    // A witness spend has an empty scriptSig (no body content). Only an input
-    // that renders a scriptSig gets an aligned [citation | scriptSig] row; the
-    // rest contribute a margin citation that the outputs slide up past.
+    // A witness spend has an empty scriptSig (no body content). An input that
+    // renders a scriptSig gets an aligned row: its left cell carries any pending
+    // witness-input citations that preceded it (in order) stacked above its own,
+    // and its scriptSig fills the body. An empty input just joins the pending
+    // list, so the outputs can slide up past it.
     if (inp.scriptAscii || inp.script) {
+      const citeCell = document.createElement('div');
+      citeCell.className = 'tx-in-cite-group';
+      for (const p of pendingMargin) citeCell.append(p);
+      pendingMargin.length = 0;
+      citeCell.append(cite);
       const scriptCell = document.createElement('div');
       scriptCell.className = 'tx-in-script';
       if (inp.scriptAscii) addQuote(scriptCell, inp.scriptAscii);
       else addLine(scriptCell, inp.script);
-      inputsEl.append(cite, scriptCell);
+      inputsEl.append(citeCell, scriptCell);
     } else {
-      marginEl.append(cite);
+      pendingMargin.push(cite);
     }
   }
+  // Trailing citations with no scriptSig left to attach to sit beside the outputs.
+  for (const p of pendingMargin) marginEl.append(p);
   currentFootnotes = footnotes;
   f.outputs.forEach((out, i) => {
     const scriptCell = document.createElement('div');
