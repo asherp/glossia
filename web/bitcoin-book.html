@@ -528,6 +528,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">†</span><span class="m"><b>replaceable</b> (opt-in RBF)</span></div>
           <div class="glyph-row"><span class="g">■<i>n</i></span><span class="m">relative: n blocks after confirmation</span></div>
           <div class="glyph-row"><span class="g">⊥<i>n</i></span><span class="m">relative: n × 512 s after confirmation</span></div>
+          <div class="glyph-row"><span class="g">(<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare</span></div>
         </div>
       </div>
 
@@ -679,8 +680,12 @@ async function resolveCitations(pending, gen) {
       cite.classList.remove('resolving');
       cite.title = `${txid}:${vout}`;
       // The amount of the referenced output -- what this input spends -- sits
-      // under the reference.
-      if (amtEl && outputs && outputs[vout]) amtEl.textContent = groupDigits(String(outputs[vout].value));
+      // under the reference, in parentheses: the mark for value flowing IN,
+      // where an output's amount (value flowing out) stands bare.
+      if (amtEl && outputs && outputs[vout]) {
+        amtEl.textContent = `(${groupDigits(String(outputs[vout].value))})`;
+        amtEl.title = 'the amount this input spends, in satoshis';
+      }
     } catch (e) {
       if (gen !== renderGen) return;
       citeBody.textContent = `${txid.slice(0, 8)}… .${vout}`;
