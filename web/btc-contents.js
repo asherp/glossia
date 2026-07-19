@@ -19,16 +19,20 @@ export const NOTABLE = [
   { title: 'SegWit activation', id: '481824', label: 'block', note: 'Block 481,824 · Aug 24, 2017 — fixed malleability; increased capacity.' },
   { title: '500K block milestone', id: '500000', label: 'block', note: 'Block 500,000 · Dec 18, 2017 — reached during the 2017 bull run.' },
   { title: 'Third halving', id: '630000', label: 'block', note: 'Block 630,000 · May 11, 2020 — reward 12.5 → 6.25 BTC.' },
-  { title: 'Biblical message block', id: '666666', label: 'block', note: 'Block 666,666 · Jan 18, 2021 — Romans 12:21 embedded via vanity addresses.' },
+  { title: 'Block 666,666', id: '666666', label: 'block', note: 'Block 666,666 · Jan 18, 2021 — a memorable vanity block number.' },
   { title: 'Taproot activation', id: '709632', label: 'block', note: 'Block 709,632 · Nov 14, 2021 — Schnorr signatures and smart contracts.' },
   { title: 'First Ordinals inscription', id: '767430', label: 'block', note: 'Block 767,430 · Dec 14, 2022 — inscription #0 by Casey Rodarmor.' },
   { title: 'Largest block (at the time)', id: '774628', label: 'block', note: 'Block 774,628 · Feb 1, 2023 — 3.96 MB Taproot Wizard inscription.' },
   { title: 'Fourth halving', id: '840000', label: 'block', note: 'Block 840,000 · Apr 20, 2024 — reward 6.25 → 3.125 BTC; Runes launched.' },
 ];
 
-// Using block-number milestones for now. Transaction-level entries (payment-type
-// firsts, a Lightning force-close revealing an HTLC) are deferred until their
-// exact txids can be confirmed against the chain.
+// Using block-number milestones for now. Transaction-level entries are deferred
+// until we include txids. Confirmed ones to add:
+//   - Romans 12:21 "overcome evil with good", embedded via vanity addresses --
+//     tx 057954bb28527ff9c7701c6fd2b7f770163718ded09745da56cc95e7606afe99
+// And still to confirm against the chain:
+//   - Payment-type firsts (P2PKH, P2SH, P2WPKH/P2WSH, P2TR, OP_RETURN)
+//   - A Lightning force-close revealing an HTLC on-chain
 
 // A deep link into the book for a contents id. A bare height opens as ?block=;
 // a 64-hex value (block hash or txid) opens as ?txid=, which the book resolves
