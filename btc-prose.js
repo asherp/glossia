@@ -17,26 +17,53 @@
 // margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
-import { findAsciiStrings, tokenizeScript } from './btc-tx.js';
+import { findAsciiStrings, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
+import { volumeBookChapter } from './btc-citation.js';
+
+const ROMAN = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+function toRoman(n) {
+  let out = '';
+  for (const [v, s] of ROMAN) while (n >= v) { out += s; n -= v; }
+  return out || '0';
+}
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
-// (nSequence), sharing ■/⊥ for the block/time distinction:
-//   Transaction (nLockTime):  □ none · ■n absolute block height · ⊥n absolute unix time
+// (nSequence), sharing ■ (block) / Τ (temporal) for the block/time distinction:
+//   Transaction (nLockTime):  □ none · ■n absolute block height · Τn absolute unix time
 //   Input (nSequence):        ○ final · † replaceable (opt-in RBF) ·
-//                             ■n relative block delay · ⊥n relative time delay
+//                             ■n relative block delay · Τn relative time delay
 // The square reads as the whole document, the circle as one input. A coinbase's
 // null prevout is flagged with isNullPrevout so the renderer can mark it (∅);
 // other prevouts are carried as references and resolved to a citation
 // downstream, not encoded here.
 const LOCKTIME_THRESHOLD = 500000000;   // nLockTime below this is a block height, at/above a unix timestamp
 
-// nLockTime -> { mark, title }: □ (none), ■n (absolute block), ⊥n (absolute time).
+// A relative time delay (n × 512 s) -> an exact physical duration: 512 s
+// decomposes cleanly into d h m s (144 units = 73 728 s = 20h28m48s), so
+// the physical form loses nothing against the wire value.
+function durationFrom512s(n) {
+  let s = n * 512;
+  const parts = [];
+  const d = Math.floor(s / 86400); if (d) parts.push(d + 'd'); s %= 86400;
+  const h = Math.floor(s / 3600); if (h) parts.push(h + 'h'); s %= 3600;
+  const m = Math.floor(s / 60); if (m) parts.push(m + 'm'); s %= 60;
+  if (s || !parts.length) parts.push(s + 's');
+  return parts.join('');
+}
+
+// nLockTime -> { mark, title }: □ (none), ■ + citation (absolute block --
+// the block is a chapter of the book, so it's cited as volume book chapter
+// rather than a bare height), Τ + UTC date (absolute time -- rendered
+// physically, the raw unix value in the hover).
 function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
-  if (locktime < LOCKTIME_THRESHOLD) return { mark: `■${locktime}`, title: `locktime: not before block ${locktime}` };
+  if (locktime < LOCKTIME_THRESHOLD) {
+    const { volume, book, chapter } = volumeBookChapter(locktime);
+    return { mark: `■ ${toRoman(volume)} ${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
+  }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
-  return { mark: `⊥${locktime}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
+  return { mark: `Τ${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
 }
 
 // nSequence -> { rbf, mark, kind, title }. BIP68 relative locktime is enabled
@@ -49,13 +76,75 @@ function locktimeInfo(locktime) {
 function sequenceInfo(seq) {
   if ((seq & 0x80000000) === 0) {
     const n = seq & 0x0000ffff;
+    // A relative block delay counts chapters, so it reads in Roman numerals
+    // (■CXLIV = 144 blocks); a time delay is physical time, so it reads as
+    // an exact duration (Τ20h28m48s), the wire units kept in the hover.
     return (seq & 0x00400000)
-      ? { rbf: true, mark: `⊥${n}`, kind: 'time', title: `replaceable; relative locktime ${n} × 512 s after the input's confirmation` }
-      : { rbf: true, mark: `■${n}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
+      ? { rbf: true, mark: `Τ${durationFrom512s(n)}`, kind: 'time', title: `replaceable; relative locktime ${durationFrom512s(n)} (${n} × 512 s) after the input's confirmation` }
+      : { rbf: true, mark: `■${toRoman(n)}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
   if (seq === 0xfffffffe) return { rbf: false, mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
   return { rbf: true, mark: '', kind: 'rbf', title: 'replaceable — signals opt-in RBF' };
+}
+
+const SUBSCRIPT_DIGITS = '₀₁₂₃₄₅₆₇₈₉';
+const toSubscript = (n) => String(n).split('').map((d) => SUBSCRIPT_DIGITS[+d]).join('');
+const SUPERSCRIPT_DIGITS = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+const toSuperscript = (n) => String(n).split('').map((d) => SUPERSCRIPT_DIGITS[+d]).join('');
+
+// nBits (a compact difficulty target) -> { sym, title }. The target is
+// rendered as the thing it is -- the ceiling a mined hash must dip under --
+// and β's subscript is that demand in its physical unit: the number of
+// leading zero BITS a valid hash must open with. Genesis (difficulty 1) is
+// β₃₂, and the subscript climbs as difficulty rises -- each +1 is a
+// doubling of the work. The mantissa is deliberately not shown: βₙ is a
+// summary mark, and the exact compact nBits, the full 256-bit target and
+// the difficulty ratio all ride in the hover title. A target looser than
+// the genesis baseline (never on mainnet) falls back to the raw compact
+// hex.
+function bitsInfo(bits) {
+  const targetHex = bitsToTargetHex(bits);
+  const difficulty = bitsToDifficulty(bits);
+  const diffStr = difficulty.toLocaleString(undefined, { maximumFractionDigits: difficulty < 1000 ? 2 : 0 });
+  const compact = bits.toString(16).padStart(8, '0');
+  const zeros = targetHex.length - targetHex.replace(/^0+/, '').length;
+  const baseTitle = (extra) => `nBits ${compact} — a valid block hash must read below ${targetHex}${extra} — difficulty ${diffStr} (relative to the genesis block)`;
+  if (zeros < 8) return { sym: compact, title: baseTitle('') };
+  // Zero bits inside the first significant hex digit: 1 -> 3, 2-3 -> 2, 4-7 -> 1, 8-f -> 0.
+  const first = parseInt(targetHex[zeros], 16);
+  const lz = zeros * 4 + (first >= 8 ? 0 : first >= 4 ? 1 : first >= 2 ? 2 : 3);
+  return { sym: `β${toSubscript(lz)}`, title: baseTitle(` (${lz} leading zero bits)`) };
+}
+
+// A block header's nTime -> { mark, title }: the mark is the human date --
+// the interpreted, legible form -- since unlike nonce there's nothing more
+// "raw" a reader would want at a glance; the title carries the literal unix
+// value for verification against the wire bytes.
+function timestampInfo(timestamp) {
+  const date = new Date(timestamp * 1000).toISOString().slice(0, 16).replace('T', ' ');
+  return { mark: `${date} UTC`, title: `unix ${timestamp}` };
+}
+
+// A parsed block header (btc-tx.js's parseBlockHeader) -> its rendered
+// fields. version, timestamp, bits and nonce are small structural numbers --
+// never entropy -- so they're rendered literally/decoded rather than
+// Glossia-encoded, mirroring how composeTransactionFields treats a
+// transaction's version and locktime. The nonce in particular gets no
+// further decoding: it's already exactly what it looks like, the number a
+// miner incremented in the search for a hash below the bits target. The
+// previous-block hash and merkle root are genuinely opaque 32-byte hashes --
+// callers Glossia-encode those themselves (as bitcoin-book.html already does
+// for the block/txid hashes), not here.
+export function composeBlockHeaderFields(header) {
+  const time = timestampInfo(header.timestamp);
+  const bits = bitsInfo(header.bits);
+  return {
+    version: String(header.version),
+    timestamp: time.mark, timestampTitle: time.title,
+    bits: bits.sym, bitsTitle: bits.title,
+    nonce: String(header.nonce),
+  };
 }
 
 // A decimal integer string with a middle-dot every three digits (an output
@@ -82,34 +171,63 @@ function escapeHtml(s) {
 // legible ASCII) -- exactly what carried the whole script before opcodes had
 // their own marks.
 
-// Opcode byte -> Glossia glyph, for the opcodes we've defined so far.
+// Opcode byte -> Glossia glyph. Every defined opcode has one; families share
+// a base glyph, with the house subscript convention distinguishing variants
+// (⧉₂ = 2DUP, °₄ = NOP4, ∇₊ = CHECKSIGADD). Disabled opcodes keep their
+// natural symbol like any other -- a script is notation whether or not the
+// network would still execute it.
 const OPCODE_SYMBOLS = {
-  0x00: '⓪',                                                  // OP_0
-  0x4f: '⊖',                                                  // OP_1NEGATE
-  0x51: '①', 0x52: '②', 0x53: '③', 0x54: '④', 0x55: '⑤',      // OP_1 …
+  // constants
+  0x00: '⓪', 0x4f: '⊖',
+  0x51: '①', 0x52: '②', 0x53: '③', 0x54: '④', 0x55: '⑤',
   0x56: '⑥', 0x57: '⑦', 0x58: '⑧', 0x59: '⑨', 0x5a: '⑩',
-  0x5b: '⑪', 0x5c: '⑫', 0x5d: '⑬', 0x5e: '⑭', 0x5f: '⑮', 0x60: '⑯',   // … OP_16
-  0x63: '⟨', 0x67: '│', 0x68: '⟩',                            // OP_IF / OP_ELSE / OP_ENDIF
-  0x69: '✓',                                                  // OP_VERIFY
-  0x6a: '¶',                                                  // OP_RETURN
-  0x75: '⌄', 0x76: '⧉',                                       // OP_DROP / OP_DUP
-  0x87: '=', 0x88: '≡',                                       // OP_EQUAL / OP_EQUALVERIFY
-  0xa6: 'ρ', 0xa7: 'σ', 0xa8: 'Σ', 0xa9: '⌖', 0xaa: '⌘',      // RIPEMD160 / SHA1 / SHA256 / HASH160 / HASH256
-  0xac: '∇', 0xad: '▼', 0xae: '◇', 0xaf: '◆',                 // CHECKSIG(VERIFY) / CHECKMULTISIG(VERIFY)
-  0xb1: 'τ', 0xb2: 'Δ',                                       // CLTV (absolute) / CSV (relative)
+  0x5b: '⑪', 0x5c: '⑫', 0x5d: '⑬', 0x5e: '⑭', 0x5f: '⑮', 0x60: '⑯',
+  // flow control
+  0x61: '°', 0x63: '⟨', 0x64: '¬⟨', 0x67: '│', 0x68: '⟩', 0x69: '✓', 0x6a: '¶',
+  // stack choreography (arrows), the alt-stack shelf pair, and depth/size
+  0x6b: '⇥', 0x6c: '⇤',
+  0x6d: '⌄₂', 0x6e: '⧉₂', 0x6f: '⧉₃', 0x70: '⇗₂', 0x71: '↻₂', 0x72: '⇄₂',
+  0x73: '⧉?', 0x74: '↕', 0x75: '⌄', 0x76: '⧉', 0x77: '⌦', 0x78: '⇗',
+  0x79: '⇡', 0x7a: '⥀', 0x7b: '↻', 0x7c: '⇄', 0x7d: '⇘',
+  // splice
+  0x7e: '⧺', 0x7f: '⊂', 0x80: '↤', 0x81: '↦', 0x82: 'ℓ',
+  // bitwise, and byte equality
+  0x83: '∼', 0x84: '∩', 0x85: '∪', 0x86: '⊻', 0x87: '=', 0x88: '≡',
+  // arithmetic and comparison
+  0x8b: '+₁', 0x8c: '−₁', 0x8d: '×₂', 0x8e: '÷₂', 0x8f: '∓', 0x90: '|·|',
+  0x91: '¬', 0x92: '≠₀',
+  0x93: '+', 0x94: '−', 0x95: '×', 0x96: '÷', 0x97: '%', 0x98: '«', 0x99: '»',
+  0x9a: '∧', 0x9b: '∨', 0x9c: '≐', 0x9d: '≑', 0x9e: '≠',
+  0x9f: '<', 0xa0: '>', 0xa1: '≤', 0xa2: '≥', 0xa3: '⊓', 0xa4: '⊔', 0xa5: '∈',
+  // crypto
+  0xa6: 'ρ', 0xa7: 'σ', 0xa8: 'Σ', 0xa9: '⌖', 0xaa: '⌘', 0xab: '‖',
+  0xac: '∇', 0xad: '▼', 0xae: '◇', 0xaf: '◆', 0xba: '∇₊',
+  // timelocks
+  0xb1: 'τ', 0xb2: 'Δ',
+  // no-ops
+  0xb0: '°₁', 0xb3: '°₄', 0xb4: '°₅', 0xb5: '°₆', 0xb6: '°₇',
+  0xb7: '°₈', 0xb8: '°₉', 0xb9: '°₁₀',
+  // reserved / invalid
+  0x50: '⊘', 0x62: '⊘ᵛ', 0x65: '⊘⟨', 0x66: '⊘¬⟨', 0x89: '⊘₁', 0x8a: '⊘₂',
+  0xff: '☒',
 };
 
-// Opcode byte -> Bitcoin Core name, the fallback for opcodes without a glyph.
-// Data-push opcodes (0x01-0x4b, OP_PUSHDATA1/2/4) never reach this table --
-// tokenizeScript surfaces them as their pushed data, not as an opcode.
+// Opcode byte -> Bitcoin Core name: the hover title carried on every glyph,
+// and the display fallback for undefined bytes (shown as OP_UNKNOWN).
 const OPCODE_NAMES = {
-  0x50: 'OP_RESERVED',
-  0x61: 'OP_NOP', 0x62: 'OP_VER', 0x64: 'OP_NOTIF', 0x65: 'OP_VERIF', 0x66: 'OP_VERNOTIF',
+  0x00: 'OP_0', 0x4f: 'OP_1NEGATE', 0x50: 'OP_RESERVED',
+  0x51: 'OP_1', 0x52: 'OP_2', 0x53: 'OP_3', 0x54: 'OP_4', 0x55: 'OP_5',
+  0x56: 'OP_6', 0x57: 'OP_7', 0x58: 'OP_8', 0x59: 'OP_9', 0x5a: 'OP_10',
+  0x5b: 'OP_11', 0x5c: 'OP_12', 0x5d: 'OP_13', 0x5e: 'OP_14', 0x5f: 'OP_15', 0x60: 'OP_16',
+  0x61: 'OP_NOP', 0x62: 'OP_VER', 0x63: 'OP_IF', 0x64: 'OP_NOTIF', 0x65: 'OP_VERIF', 0x66: 'OP_VERNOTIF',
+  0x67: 'OP_ELSE', 0x68: 'OP_ENDIF', 0x69: 'OP_VERIFY', 0x6a: 'OP_RETURN',
   0x6b: 'OP_TOALTSTACK', 0x6c: 'OP_FROMALTSTACK', 0x6d: 'OP_2DROP', 0x6e: 'OP_2DUP', 0x6f: 'OP_3DUP',
   0x70: 'OP_2OVER', 0x71: 'OP_2ROT', 0x72: 'OP_2SWAP', 0x73: 'OP_IFDUP', 0x74: 'OP_DEPTH',
+  0x75: 'OP_DROP', 0x76: 'OP_DUP',
   0x77: 'OP_NIP', 0x78: 'OP_OVER', 0x79: 'OP_PICK', 0x7a: 'OP_ROLL', 0x7b: 'OP_ROT', 0x7c: 'OP_SWAP', 0x7d: 'OP_TUCK',
   0x7e: 'OP_CAT', 0x7f: 'OP_SUBSTR', 0x80: 'OP_LEFT', 0x81: 'OP_RIGHT', 0x82: 'OP_SIZE',
   0x83: 'OP_INVERT', 0x84: 'OP_AND', 0x85: 'OP_OR', 0x86: 'OP_XOR',
+  0x87: 'OP_EQUAL', 0x88: 'OP_EQUALVERIFY',
   0x89: 'OP_RESERVED1', 0x8a: 'OP_RESERVED2',
   0x8b: 'OP_1ADD', 0x8c: 'OP_1SUB', 0x8d: 'OP_2MUL', 0x8e: 'OP_2DIV', 0x8f: 'OP_NEGATE',
   0x90: 'OP_ABS', 0x91: 'OP_NOT', 0x92: 'OP_0NOTEQUAL',
@@ -117,17 +235,40 @@ const OPCODE_NAMES = {
   0x9a: 'OP_BOOLAND', 0x9b: 'OP_BOOLOR', 0x9c: 'OP_NUMEQUAL', 0x9d: 'OP_NUMEQUALVERIFY', 0x9e: 'OP_NUMNOTEQUAL',
   0x9f: 'OP_LESSTHAN', 0xa0: 'OP_GREATERTHAN', 0xa1: 'OP_LESSTHANOREQUAL', 0xa2: 'OP_GREATERTHANOREQUAL',
   0xa3: 'OP_MIN', 0xa4: 'OP_MAX', 0xa5: 'OP_WITHIN',
+  0xa6: 'OP_RIPEMD160', 0xa7: 'OP_SHA1', 0xa8: 'OP_SHA256', 0xa9: 'OP_HASH160', 0xaa: 'OP_HASH256',
   0xab: 'OP_CODESEPARATOR',
-  0xb0: 'OP_NOP1', 0xb3: 'OP_NOP4', 0xb4: 'OP_NOP5', 0xb5: 'OP_NOP6', 0xb6: 'OP_NOP7',
+  0xac: 'OP_CHECKSIG', 0xad: 'OP_CHECKSIGVERIFY', 0xae: 'OP_CHECKMULTISIG', 0xaf: 'OP_CHECKMULTISIGVERIFY',
+  0xb0: 'OP_NOP1', 0xb1: 'OP_CHECKLOCKTIMEVERIFY', 0xb2: 'OP_CHECKSEQUENCEVERIFY',
+  0xb3: 'OP_NOP4', 0xb4: 'OP_NOP5', 0xb5: 'OP_NOP6', 0xb6: 'OP_NOP7',
   0xb7: 'OP_NOP8', 0xb8: 'OP_NOP9', 0xb9: 'OP_NOP10', 0xba: 'OP_CHECKSIGADD',
   0xff: 'OP_INVALIDOPCODE',
 };
 
-// One opcode -> its HTML: a defined glyph (accent-styled), else the OP_* name.
+// One opcode -> its HTML: the glyph (accent-styled, canonical OP_* name as
+// its hover title), or the bare OP_* name for a byte with no glyph. The
+// glyph is escaped -- a few marks (< > ≤-family) are HTML-significant.
 function opToken(code) {
   const sym = OPCODE_SYMBOLS[code];
-  if (sym) return `<span class="op">${sym}</span>`;
-  return `<span class="op-name">${OPCODE_NAMES[code] || 'OP_UNKNOWN'}</span>`;
+  const name = OPCODE_NAMES[code] || 'OP_UNKNOWN';
+  if (sym) return `<span class="op" title="${name}">${escapeHtml(sym)}</span>`;
+  return `<span class="op-name">${name}</span>`;
+}
+
+// A push opcode's mark. A direct push (OP_PUSHBYTES_n) is the quietest
+// instruction in the set, so its mark is the quietest possible: the bare
+// superscript byte count, ⁿ. (Superscripts count bytes; subscripts index an
+// opcode family's variants -- ⧉₂, °₄, β₀.) The arrows are reserved for
+// OP_PUSHDATA1/2/4, whose length rides in a separate prefix -- arrow weight
+// matching prefix width: ↧ⁿ (1-byte), ⇊ⁿ (2-byte), ⤋ⁿ (4-byte). The pushed data itself
+// follows the mark, as prose or an inline quote. (The coinbase preamble's
+// βₙ and ηn marks fold their push opcode in -- the mark alone determines
+// the exact bytes.)
+const PUSH_GLYPHS = { 0: '', 1: '↧', 2: '⇊', 4: '⤋' };
+function pushToken(form, byteLen) {
+  const title = form
+    ? `OP_PUSHDATA${form} — push ${byteLen} bytes, the length in a ${form}-byte prefix`
+    : `OP_PUSHBYTES_${byteLen} — push the next ${byteLen} bytes`;
+  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || ''}${toSuperscript(byteLen)}</span>`;
 }
 
 // ─── DER signature compaction ──────────────────────────────────────────
@@ -183,33 +324,131 @@ function derToCompact(hex) {
 }
 
 // A script (hex) -> its opcode-notation display string. `collect` encodes a
+// ─── the early coinbase mining preamble ────────────────────────────────
+//
+// For the chain's first years, a coinbase scriptSig opened not with
+// arbitrary tag data but with a small mining preamble: a 4-byte push
+// restating the block's compact difficulty target (the header's nBits,
+// byte for byte), then a small-integer push -- the extranonce, the counter
+// a miner rolled once the header's 32-bit nonce was exhausted. Both are
+// numbers, not entropy, so they render as decoded marks (βₙ, ηn) rather
+// than payload words -- which also lets embedded text (the genesis
+// headline) stand as the coinbase's first words instead of trailing runs
+// of bytes-as-prose.
+
+const reverseHexStr = (hex) => (hex.match(/../g) || []).reverse().join('');
+
+// A 4-byte push -> its u32le value, when that value is a plausible compact
+// difficulty target: a byte-length exponent in the range real targets
+// occupy, and a positive nonzero mantissa. The exponent is the push's LAST
+// byte, so printable-ASCII tag data (every byte ≥ 0x20) can never match;
+// nor can a BIP34 height push, whose most-significant byte is far below
+// 0x03 for any realistic height. Fixed-width, so the mark reconstructs the
+// wire bytes exactly.
+function compactBitsFromPush(push) {
+  if (push.length !== 8) return null;
+  const bits = parseInt(reverseHexStr(push), 16);
+  const exponent = bits >>> 24, mantissa = bits & 0x00ffffff;
+  if (exponent < 0x03 || exponent > 0x20 || mantissa === 0 || (mantissa & 0x800000) !== 0) return null;
+  return bits;
+}
+
+// An extranonce push -> its decimal string: up to 8 little-endian bytes,
+// minimally encoded (no most-significant zero byte), so the number alone
+// reconstructs the exact bytes. A non-minimal encoding falls back to prose
+// rather than risk a lossy round trip.
+function extranonceFromPush(push) {
+  if (push.length < 2 || push.length > 16 || push.slice(-2) === '00') return null;
+  return BigInt('0x' + reverseHexStr(push)).toString();
+}
+
+// A decoded mark: glyph + value (when there is one to show), both carrying
+// the same explanatory title.
+const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span>${text ? `<span class="op-num" title="${title}">${text}</span>` : ''}`;
+
+// ─── data type marks ───────────────────────────────────────────────────
+//
+// A pushed datum whose kind is recognizable carries its type mark from the
+// Notation key -- 𝓅 public key, 𝓈 signature, 𝒽 hash, 𝓇 redeem script,
+// 𝓌 witness script, 𝓉 tapscript -- set just before its prose, so a script
+// reads as its pattern (⁶⁵𝓅 ∇) without consulting the key. Classification
+// is display-only annotation: it never changes what gets encoded.
+const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
+
+// Classify a script push -> a type mark, or '' when its kind isn't evident.
+// `compact` is derToCompact's verdict (a canonical DER signature). A 20-byte
+// push in script context is a HASH160; a 32-byte one is a hash -- except
+// directly after ① (a witness-v1 program: Taproot's tweaked output key), or
+// directly before a signature check (an x-only key inside a tapscript).
+// Non-canonical DER (0x30-led, signature-sized) still marks 𝓈.
+const SIG_CHECK_OPS = new Set([0xac, 0xad, 0xba]);
+function scriptDataMark(push, compact, prevOp, nextOp) {
+  const n = push.length / 2;
+  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('𝓈', 'signature');
+  if (isPubkey(push)) return dataMark('𝓅', 'public key');
+  if (n === 32 && prevOp === 0x51) return dataMark('𝓅', 'public key — Taproot tweaked output key');
+  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('𝓅', 'public key — x-only');
+  if (n === 20 || n === 32) return dataMark('𝒽', 'hash');
+  return '';
+}
+
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
-// rendering it as opcodes in turn. Opcode glyphs and OP_* names are the only
-// HTML added here; pushed data is Glossia prose (safe) and quoted ASCII is
-// escaped, so the result is safe to render via innerHTML like before.
-function renderScript(hex, collect, { eligible = false, nested = false } = {}) {
+// rendering it as opcodes in turn; `preamble` (a coinbase) decodes the early
+// mining preamble's leading pushes into β/η marks. Opcode glyphs, OP_* names
+// and the preamble marks are the only HTML added here; pushed data is Glossia
+// prose (safe) and quoted ASCII is escaped, so the result is safe to render
+// via innerHTML like before.
+function renderScript(hex, collect, { eligible = false, nested = false, preamble = false } = {}) {
   const toks = tokenizeScript(hex);
   // A P2SH scriptSig ends with its redeemScript, pushed as data; reveal that
   // final push as opcodes when it parses as a genuine script.
   const redeemIdx = nested ? toks.map((t) => t.push !== undefined).lastIndexOf(true) : -1;
   const parts = [];
+  // The preamble is strictly positional -- the target must open the script,
+  // the extranonce must directly follow it; anything else ends the hunt and
+  // the push falls through to the ordinary treatment.
+  let pre = preamble ? 'target' : 'done';
+  let prevOp = null;   // the opcode preceding a push -- context for its type mark
   toks.forEach((t, i) => {
     if (t.op !== undefined) {
+      pre = 'done';
+      prevOp = t.op;
       parts.push(opToken(t.op));
     } else if (t.push !== undefined) {
-      if (!t.push) return;                                    // empty push -- nothing to show
+      if (pre === 'target') {
+        pre = 'done';
+        const bits = compactBitsFromPush(t.push);
+        if (bits !== null) {
+          const info = bitsInfo(bits);
+          parts.push(markToken(info.sym, '', `the difficulty target this block was mined against — ${info.title}`));
+          pre = 'extranonce';
+          return;
+        }
+      } else if (pre === 'extranonce') {
+        pre = 'done';
+        const n = extranonceFromPush(t.push);
+        if (n !== null) {
+          parts.push(markToken('η', n, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce (η) was exhausted`));
+          return;
+        }
+      }
+      const mark = pushToken(t.pushForm || 0, t.push.length / 2);
+      if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
-        parts.push(renderScript(t.push, collect));            // reveal the redeemScript
+        // reveal the redeemScript, typed 𝓇
+        parts.push(mark + dataMark('𝓇', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
         return;
       }
       if (eligible) {
         const found = findAsciiStrings(t.push);
-        if (found.length) { parts.push(found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
+        if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
       }
-      parts.push(collect(derToCompact(t.push) || t.push));    // a DER signature is stripped to r‖s‖sighash
+      const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
+      parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
     } else {
+      pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
     }
   });
@@ -279,16 +518,25 @@ function witnessScriptIndex(items) {
 
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
 // a data item's hex into Glossia prose; the one script item, if present,
-// becomes opcode notation. Items are separated so each reads as its own stack
-// element.
+// becomes opcode notation, typed 𝓌 (a P2WSH witnessScript) or 𝓉 (a Taproot
+// tapscript, identified by the control block above it). Data items carry
+// their own type marks -- 𝓈 a signature, 𝓅 a key -- and items are separated
+// so each reads as its own stack element.
 export function renderWitness(items, encode) {
   if (!items || !items.length) return '∅';
   const scriptIdx = witnessScriptIndex(items);
+  const isTapscript = scriptIdx >= 0 && scriptIdx + 1 < items.length && isControlBlock(items[scriptIdx + 1]);
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      if (i === scriptIdx) return renderScript(hex, encode);
-      return encode(derToCompact(hex) || hex);                // a DER signature is stripped to r‖s‖sighash
+      if (i === scriptIdx) {
+        return (isTapscript ? dataMark('𝓉', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('𝓌', 'witness script — revealed as opcodes'))
+          + ' ' + renderScript(hex, encode);
+      }
+      const compact = derToCompact(hex);                      // a DER signature is stripped to r‖s‖sighash
+      const dm = (compact || isSignature(hex)) ? dataMark('𝓈', 'signature')
+        : isPubkey(hex) ? dataMark('𝓅', 'public key') : '';
+      return (dm ? dm + ' ' : '') + encode(compact || hex);
     })
     .join('<span class="wit-sep"> · </span>');
 }
@@ -309,15 +557,17 @@ export function composeTransactionFields(parsed, bestOf = 1) {
   const inputs = parsed.vin.map((v) => {
     const isNullPrevout = v.txid === '00'.repeat(32);
     // A coinbase scriptSig is arbitrary miner data -- but the earliest blocks'
-    // are clean push-scripts, so render those in opcode notation (embedded text
-    // like the genesis headline is quoted inline). Messier ones keep the plain
-    // treatment, where a mining-pool tag is surfaced as a quote block
-    // (`scriptAscii`). Every other scriptSig is genuine script (with a P2SH
-    // redeemScript revealed as opcodes via `nested`).
+    // are clean push-scripts, so render those in opcode notation, with the
+    // mining preamble (restated difficulty target + extranonce) decoded to
+    // marks and embedded text like the genesis headline quoted inline.
+    // Messier ones keep the plain treatment, where a mining-pool tag is
+    // surfaced as a quote block (`scriptAscii`). Every other scriptSig is
+    // genuine script (with a P2SH redeemScript revealed as opcodes via
+    // `nested`).
     let script, scriptAscii = null;
     if (isNullPrevout) {
       if (isCleanScript(v.scriptSig)) {
-        script = renderScript(v.scriptSig, collect, { eligible: true });
+        script = renderScript(v.scriptSig, collect, { eligible: true, preamble: true });
       } else {
         const found = findAsciiStrings(v.scriptSig);
         if (found.length) {
