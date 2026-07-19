@@ -8,26 +8,27 @@
 // Extend this with more famous, notable transactions and payment-type firsts.
 
 export const NOTABLE = [
-  { title: 'The Genesis block', id: '0', label: 'block', note: 'Block 0, 3 Jan 2009 — “The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.”' },
-  { title: 'First transaction — Satoshi to Hal Finney', id: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e8f', label: 'transaction', note: 'Block 170, 12 Jan 2009 — the first bitcoin sent between two people, to a Pay-to-PubKey (P2PK) output.' },
-  { title: 'The bitcoin pizza — 10,000 BTC', id: 'a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d', label: 'transaction', note: '22 May 2010 — 10,000 BTC for two pizzas, the first real-world purchase.' },
-  { title: 'The value overflow incident', id: '74638', label: 'block', note: 'Block 74638, 15 Aug 2010 — a bug briefly created 184 billion BTC; fixed by a soft fork.' },
-  { title: 'First bare multisig (P2MS)', id: '60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1', label: 'transaction', note: 'Block 164467, 30 Jan 2012 — the first send to a bare 1-of-2 multisig output.' },
-  { title: 'Peter Todd’s SHA-1 collision bounty', id: '9c08a4d78931342b37fd5f72900fb9983087e6f46c4a097d8a1f52c74e28eaf6', label: 'transaction', note: '23 Feb 2017 — a P2SH bounty payable to anyone who found a SHA-1 collision, claimed days after the first was published.' },
-  { title: 'SegWit activates', id: '481824', label: 'block', note: 'Block 481824, 24 Aug 2017 — the first block under BIP141, enabling native P2WPKH and P2WSH.' },
-  { title: 'First dual-funded Lightning channel', id: '91538cbc4aca767cb77aa0690c2a6e710e095c8eb6d8f73d53a3a29682cb7581', label: 'transaction', note: 'Block 681753, May 2021 — c-lightning opens the first dual-funded mainnet channel; the funding output is a P2WSH 2-of-2.' },
-  { title: 'Taproot activates', id: '709632', label: 'block', note: 'Block 709632, 14 Nov 2021 — the first block under BIP341, enabling P2TR (key- and script-path spends).' },
+  { title: 'Genesis block', id: '0', label: 'block', note: 'Block 0 · Jan 3, 2009 — first block; embedded Times headline.' },
+  { title: 'Block 1 mined', id: '1', label: 'block', note: 'Block 1 · Jan 9, 2009 — first block after genesis (6-day gap).' },
+  { title: 'First peer-to-peer transaction', id: '170', label: 'block', note: 'Block 170 · Jan 12, 2009 — Satoshi sent 10 BTC to Hal Finney.' },
+  { title: 'Bitcoin Pizza Day', id: '57043', label: 'block', note: 'Block 57,043 · May 22, 2010 — 10,000 BTC for two pizzas: first commercial use.' },
+  { title: '100K block milestone', id: '100000', label: 'block', note: 'Block 100,000 · Dec 29, 2010 — network maturity milestone.' },
+  { title: 'First halving', id: '210000', label: 'block', note: 'Block 210,000 · Nov 28, 2012 — reward 50 → 25 BTC.' },
+  { title: 'Second halving', id: '420000', label: 'block', note: 'Block 420,000 · Jul 9, 2016 — reward 25 → 12.5 BTC.' },
+  { title: 'Bitcoin Cash fork', id: '478558', label: 'block', note: 'Block 478,558 · Aug 1, 2017 — last shared BTC/BCH block.' },
+  { title: 'SegWit activation', id: '481824', label: 'block', note: 'Block 481,824 · Aug 24, 2017 — fixed malleability; increased capacity.' },
+  { title: '500K block milestone', id: '500000', label: 'block', note: 'Block 500,000 · Dec 18, 2017 — reached during the 2017 bull run.' },
+  { title: 'Third halving', id: '630000', label: 'block', note: 'Block 630,000 · May 11, 2020 — reward 12.5 → 6.25 BTC.' },
+  { title: 'Biblical message block', id: '666666', label: 'block', note: 'Block 666,666 · Jan 18, 2021 — Romans 12:21 embedded via vanity addresses.' },
+  { title: 'Taproot activation', id: '709632', label: 'block', note: 'Block 709,632 · Nov 14, 2021 — Schnorr signatures and smart contracts.' },
+  { title: 'First Ordinals inscription', id: '767430', label: 'block', note: 'Block 767,430 · Dec 14, 2022 — inscription #0 by Casey Rodarmor.' },
+  { title: 'Largest block (at the time)', id: '774628', label: 'block', note: 'Block 774,628 · Feb 1, 2023 — 3.96 MB Taproot Wizard inscription.' },
+  { title: 'Fourth halving', id: '840000', label: 'block', note: 'Block 840,000 · Apr 20, 2024 — reward 6.25 → 3.125 BTC; Runes launched.' },
 ];
 
-// Type-firsts still to add (each needs its exact txid confirmed against the
-// chain -- fill in and drop into NOTABLE above, chronologically):
-//   - First P2PKH output (mid-Jan 2009, days after the P2PK above)
-//   - First P2SH output that was later spent (BIP16, ~April 2012)
-//   - First native P2WPKH spend and first P2WSH spend (block 481824+)
-//   - First P2TR key-path spend and first script-path spend (block 709635)
-//   - First standard OP_RETURN data output (after Bitcoin Core 0.9.0, Mar 2014)
-//   - A Lightning force-close revealing an HTLC on-chain (the marquee Lightning
-//     example — showcases the HTLC row in the Notation guide)
+// Using block-number milestones for now. Transaction-level entries (payment-type
+// firsts, a Lightning force-close revealing an HTLC) are deferred until their
+// exact txids can be confirmed against the chain.
 
 // A deep link into the book for a contents id. A bare height opens as ?block=;
 // a 64-hex value (block hash or txid) opens as ?txid=, which the book resolves
