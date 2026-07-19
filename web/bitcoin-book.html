@@ -224,14 +224,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 @media (max-width: 560px) {
   /* Collapse every band into one column: each margin cell becomes a full-width
-     block stacked with the body it annotated, tagged with ← / → to keep the
-     sense. Citations lead their input; amounts follow their output. */
+     block stacked with the body it annotated. Citations lead their input;
+     amounts follow their output -- position alone carries the sense. */
   .tx-flow { grid-template-columns: 1fr; }
   .tx-inputs, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
   .tx-in-cite { text-align: left; margin: 0 0 .2em; }
-  .tx-in-cite::before { content: '← '; }
   .tx-out-value, .tx-locktime { text-align: left; margin: 0 0 .55em; }
-  .tx-out-value::before, .tx-locktime::before { content: '→ '; }
 }
 
 /* A witness-bearing input carries a small superscript index inline; the matching
