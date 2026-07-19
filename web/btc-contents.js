@@ -14,6 +14,7 @@ export const NOTABLE = [
   { title: 'Bitcoin Pizza Day', id: '57043', label: 'block', note: 'Block 57,043 · May 22, 2010 — 10,000 BTC for two pizzas: first commercial use.' },
   { title: '100K block milestone', id: '100000', label: 'block', note: 'Block 100,000 · Dec 29, 2010 — network maturity milestone.' },
   { title: 'First halving', id: '210000', label: 'block', note: 'Block 210,000 · Nov 28, 2012 — reward 50 → 25 BTC.' },
+  { title: 'First coinbase OP_RETURN', id: '246816', label: 'block', note: 'Block 246,816 · Jul 16, 2013 — the first coinbase transaction to carry an OP_RETURN output.' },
   { title: 'Second halving', id: '420000', label: 'block', note: 'Block 420,000 · Jul 9, 2016 — reward 25 → 12.5 BTC.' },
   { title: 'Bitcoin Cash fork', id: '478558', label: 'block', note: 'Block 478,558 · Aug 1, 2017 — last shared BTC/BCH block.' },
   { title: 'SegWit activation', id: '481824', label: 'block', note: 'Block 481,824 · Aug 24, 2017 — fixed malleability; increased capacity.' },
