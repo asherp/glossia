@@ -1,0 +1,103 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Bitcoin Book — Table of Contents</title>
+<meta name="description" content="A table of contents for the Glossia Bitcoin Book: famous transactions and the first occurrence of each payment type, each read as a chapter in grammatically correct prose.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page:#08080a; --card:#0d0d10; --card-bd:#232228; --ink:#e8e4da; --ink-soft:#cfcabf;
+  --accent:#c9a25f; --accent-2:#dcb877; --dim:#8a8794; --meta:#5c5a63; --rule:#1c1b21; --hair:#2a2930;
+  --input-bg:#151519; --input-bd:#2a2930;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { min-height: 100vh; background: var(--page); color: var(--ink); font-family: 'Public Sans', system-ui, sans-serif; line-height: 1.55; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 48px 22px 100px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:40px; }
+.masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+
+.page-head { text-align:center; padding-bottom:30px; margin-bottom:36px; border-bottom:1px solid var(--rule); }
+.page-eyebrow { font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:14px; }
+.page-title { font:500 34px/1.15 'Newsreader',serif; color:var(--ink); margin:0; letter-spacing:-.01em; }
+.page-sub { margin:14px auto 0; max-width:52ch; font:italic 400 15px/1.55 'Newsreader',serif; color:var(--meta); }
+
+.toc-group { font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--meta); margin:34px 0 14px; }
+.toc-group:first-of-type { margin-top:0; }
+
+.toc-entry { display:block; padding:14px 14px; border:1px solid transparent; border-radius:6px; margin:0 -14px; }
+.toc-entry:hover { background:var(--card); border-color:var(--card-bd); text-decoration:none; }
+.toc-entry .toc-head { display:flex; align-items:baseline; gap:12px; }
+.toc-tag { flex:none; font:600 10px/1.4 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+.toc-title { font:500 18px/1.35 'Newsreader',serif; color:var(--ink-soft); }
+.toc-entry:hover .toc-title { color:var(--ink); }
+.toc-note { display:block; margin-top:5px; font:400 13px/1.5 'Public Sans',sans-serif; color:var(--meta); }
+
+.toc-empty { font:400 13px/1.5 'Public Sans',sans-serif; color:var(--meta); font-style:italic; }
+</style>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="title">The Bitcoin Book</span>
+    <span class="home"><a href="./bitcoin-book.html">Read</a> · <a href="./index.html">Glossia</a></span>
+  </div>
+
+  <header class="page-head">
+    <div class="page-eyebrow">Table of Contents</div>
+    <h1 class="page-title">A chain, read as a book</h1>
+    <p class="page-sub">Famous transactions and the first occurrence of each payment type — each block a chapter, each transaction a verse, in grammatically correct prose.</p>
+  </header>
+
+  <div id="toc"></div>
+</div>
+
+<script type="module">
+import { NOTABLE, entryHref } from './btc-contents.js';
+
+const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
+const readBookmarks = () => {
+  try { const v = JSON.parse(localStorage.getItem(BOOKMARKS_KEY)); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+};
+
+function entryEl({ id, title, tag, note }) {
+  const a = document.createElement('a');
+  a.className = 'toc-entry';
+  a.href = entryHref(id);
+  const head = document.createElement('div');
+  head.className = 'toc-head';
+  if (tag) { const t = document.createElement('span'); t.className = 'toc-tag'; t.textContent = tag; head.append(t); }
+  const h = document.createElement('span'); h.className = 'toc-title'; h.textContent = title; head.append(h);
+  a.append(head);
+  if (note) { const n = document.createElement('span'); n.className = 'toc-note'; n.textContent = note; a.append(n); }
+  return a;
+}
+
+function group(label) { const d = document.createElement('div'); d.className = 'toc-group'; d.textContent = label; return d; }
+
+const toc = document.getElementById('toc');
+
+toc.append(group('Notable'));
+for (const e of NOTABLE) toc.append(entryEl({ id: e.id, title: e.title, tag: e.label, note: e.note }));
+
+const bookmarks = readBookmarks();
+toc.append(group('Your bookmarks'));
+if (bookmarks.length) {
+  for (const b of bookmarks) {
+    const short = `${b.hex.slice(0, 10)}…${b.hex.slice(-6)}`;
+    toc.append(entryEl({ id: b.hex, title: b.title || b.prose || short, tag: b.label, note: b.title ? (b.prose || '') : '' }));
+  }
+} else {
+  const p = document.createElement('p');
+  p.className = 'toc-empty';
+  p.textContent = 'None yet — click any hash while reading to copy or bookmark it under a title.';
+  toc.append(p);
+}
+</script>
+</body>
+</html>
