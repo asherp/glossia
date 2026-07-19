@@ -157,8 +157,49 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   box-shadow: 0 14px 34px -18px rgba(0,0,0,.75);
 }
 .hash-copy:hover .hash-tip, .hash-copy:focus-visible .hash-tip { display: block; }
-.hash-tip::after { content: ' — click to copy'; color: var(--meta); }
-.hash-tip.copied::after { content: ' — copied'; color: var(--ok); }
+.hash-tip::after { content: ' — click for menu'; color: var(--meta); }
+
+/* Context menu raised by clicking a hash / txid: copy the hex, or bookmark it. */
+.hash-menu {
+  position: fixed; z-index: 40; min-width: 172px; padding: 6px;
+  background: var(--card); border: 1px solid var(--card-bd); border-radius: 7px;
+  box-shadow: 0 18px 44px -18px rgba(0,0,0,.8);
+}
+.hash-menu-head {
+  padding: 6px 8px 8px; color: var(--dim); font: 600 10.5px/1 'IBM Plex Mono',monospace;
+  letter-spacing: .1em; text-transform: uppercase; border-bottom: 1px solid var(--rule); margin-bottom: 5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px;
+}
+.hash-menu .hash-menu-item {
+  display: block; width: 100%; text-align: left; background: transparent; color: var(--ink-soft);
+  border: none; border-radius: 4px; padding: 8px 9px; cursor: pointer;
+  font: 500 12.5px/1.2 'IBM Plex Mono',monospace; letter-spacing: .02em; text-transform: none;
+}
+.hash-menu .hash-menu-item:hover, .hash-menu .hash-menu-item:focus-visible { background: var(--input-bg); color: var(--ink); outline: none; }
+
+/* Saved bookmarks: a collapsible list in the lookup card, hidden when empty. */
+.bookmarks { margin-top: 16px; }
+.bookmarks > summary {
+  cursor: pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase;
+  color: var(--dim); list-style: none;
+}
+.bookmarks > summary::-webkit-details-marker { display: none; }
+.bookmarks > summary::before { content: '+ '; color: var(--accent); }
+.bookmarks[open] > summary::before { content: '– '; }
+.bookmarks-list { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; }
+.bookmark-item { display: flex; align-items: center; gap: 8px; }
+.bookmarks .bookmark-open {
+  flex: 1; min-width: 0; text-align: left; background: transparent; border: none; cursor: pointer;
+  color: var(--ink-soft); font: 500 12px/1.4 'IBM Plex Mono',monospace; letter-spacing: 0; text-transform: none;
+  padding: 7px 8px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bookmarks .bookmark-open:hover, .bookmarks .bookmark-open:focus-visible { background: var(--input-bg); color: var(--ink); outline: none; }
+.bookmark-open .bm-label { color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: .06em; margin-right: 8px; }
+.bookmarks .bookmark-del {
+  flex: none; background: transparent; color: var(--meta); border: 1px solid transparent; border-radius: 4px;
+  font: 600 12px/1 'IBM Plex Mono',monospace; padding: 6px 9px; cursor: pointer; text-transform: none;
+}
+.bookmarks .bookmark-del:hover { color: var(--error); border-color: var(--input-bd); background: transparent; }
 
 /* Per-verse navigation: Previous / Next flanking the verse title -- the
    transaction's position within its block, rendered as "Verse N". */
@@ -353,6 +394,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <button type="button" id="endpoint-cancel" class="ghost-btn">Cancel</button>
     </div>
     <div id="endpoint-msg" class="endpoint-msg hidden"></div>
+
+    <details id="bookmarks" class="bookmarks hidden">
+      <summary id="bookmarks-summary">Bookmarks</summary>
+      <div id="bookmarks-list" class="bookmarks-list"></div>
+    </details>
   </div>
 
   <article id="chapter" class="hidden">
@@ -608,9 +654,15 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the verse it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the verse that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
-    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it. Bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser and listed under <b>Bookmarks</b> in the lookup card.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
+
+  <div id="hash-menu" class="hash-menu hidden" role="menu">
+    <div id="hash-menu-head" class="hash-menu-head"></div>
+    <button type="button" class="hash-menu-item" data-act="copy" role="menuitem">Copy hex</button>
+    <button type="button" class="hash-menu-item" data-act="bookmark" role="menuitem">Bookmark</button>
+  </div>
 </div>
 
 <script type="module">
@@ -1073,24 +1125,25 @@ async function showCurrentTx() {
   setStatus('');
 }
 
-// Attach a copyable hover tooltip to an element already showing a
+// Attach a hover tooltip + click menu to an element already showing a
 // Glossia-encoded hash as prose: `hex` is the exact raw value that prose
-// encodes. Hovering (or focusing, via keyboard) reveals it in a selectable
-// panel; clicking anywhere on the element copies it to the clipboard.
+// encodes. Hovering (or focusing) reveals it in a selectable panel; clicking
+// (or Enter/Space) opens the hash menu -- copy the hex, or bookmark it. A hash
+// that's a lookup target (a block hash, previous-block hash, or txid) can be
+// bookmarked; a merkle root, which leads nowhere, is copy-only.
 function attachHashCopy(el, hex, label) {
+  const prose = el.textContent;          // the visible prose, captured before the tip is appended
+  const nav = label !== 'merkle root';   // navigable hashes are bookmarkable; a merkle root isn't
   el.classList.add('hash-copy');
   el.tabIndex = 0;
-  el.setAttribute('aria-label', `${label}: ${hex} — click to copy`);
+  el.setAttribute('aria-label', `${label}: ${hex} — click for menu`);
   const tip = document.createElement('span');
   tip.className = 'hash-tip mono';
   tip.textContent = hex;
   el.append(tip);
-  el.addEventListener('click', () => {
-    navigator.clipboard.writeText(hex).then(() => {
-      tip.classList.add('copied');
-      setTimeout(() => tip.classList.remove('copied'), 1400);
-    }).catch(() => {});
-  });
+  const open = (e) => openHashMenu(e, { hex, label, prose, nav }, el);
+  el.addEventListener('click', open);
+  el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
 }
 
 // The block header itself, in wire order, as a small mono line under the
@@ -1622,6 +1675,118 @@ $('endpoint-remove').addEventListener('click', () => {
 });
 
 renderEndpoints();
+
+// ── Hash menu + bookmarks ─────────────────────────────────────────────────
+// Clicking any Glossia-encoded hash opens a small menu (Copy hex / Bookmark).
+// Bookmarks -- navigable hashes the reader wants to return to (block hashes,
+// previous-block hashes, txids) -- persist in localStorage and list in the card.
+const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
+const readBookmarks = () => {
+  try { const v = JSON.parse(localStorage.getItem(BOOKMARKS_KEY)); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+};
+let bookmarks = readBookmarks();
+const isBookmarked = (hex) => bookmarks.some((b) => b.hex === hex);
+const saveBookmarks = () => { try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks)); } catch {} };
+
+function toggleBookmark(entry) {
+  const i = bookmarks.findIndex((b) => b.hex === entry.hex);
+  if (i >= 0) bookmarks.splice(i, 1);
+  else bookmarks.unshift({ hex: entry.hex, label: entry.label, prose: entry.prose }); // newest first
+  saveBookmarks();
+  renderBookmarks();
+  return i < 0; // true if it's now bookmarked
+}
+
+// Open a bookmarked hash: every stored bookmark is a lookup target, so route it
+// through the same lookup the input uses. The loaded chapter refreshes the field.
+function openBookmark(b) {
+  $('block-input').value = b.hex;
+  openLookup(b.hex);
+}
+
+function renderBookmarks() {
+  const box = $('bookmarks');
+  const list = $('bookmarks-list');
+  list.innerHTML = '';
+  box.classList.toggle('hidden', bookmarks.length === 0);
+  $('bookmarks-summary').textContent = `Bookmarks (${bookmarks.length})`;
+  for (const b of bookmarks) {
+    const item = document.createElement('div');
+    item.className = 'bookmark-item';
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'bookmark-open';
+    const short = `${b.hex.slice(0, 10)}…${b.hex.slice(-6)}`;
+    const tag = document.createElement('span');
+    tag.className = 'bm-label';
+    tag.textContent = b.label;
+    open.append(tag, document.createTextNode(b.prose || short));
+    open.title = `open — ${b.hex}`;
+    open.addEventListener('click', () => openBookmark(b));
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'bookmark-del';
+    del.textContent = '✕';
+    del.title = 'remove bookmark';
+    del.addEventListener('click', () => toggleBookmark(b));
+    item.append(open, del);
+    list.append(item);
+  }
+}
+
+const hashMenu = $('hash-menu');
+const menuCopyBtn = hashMenu.querySelector('[data-act="copy"]');
+const menuBmBtn = hashMenu.querySelector('[data-act="bookmark"]');
+let menuEntry = null;
+
+function openHashMenu(ev, entry, anchorEl) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  menuEntry = entry;
+  $('hash-menu-head').textContent = entry.label;
+  menuCopyBtn.textContent = 'Copy hex';
+  menuBmBtn.classList.toggle('hidden', !entry.nav);
+  if (entry.nav) menuBmBtn.textContent = isBookmarked(entry.hex) ? 'Remove bookmark' : 'Bookmark';
+  hashMenu.classList.remove('hidden');
+  // Position at the click; for a keyboard open, anchor under the element. Clamp
+  // to the viewport so the menu is never cut off at an edge.
+  const pad = 8;
+  const r = hashMenu.getBoundingClientRect();
+  let x, y;
+  if (ev.type === 'keydown' && anchorEl) { const a = anchorEl.getBoundingClientRect(); x = a.left; y = a.bottom + 4; }
+  else { x = ev.clientX; y = ev.clientY; }
+  x = Math.min(Math.max(pad, x), window.innerWidth - r.width - pad);
+  y = Math.min(Math.max(pad, y), window.innerHeight - r.height - pad);
+  hashMenu.style.left = `${x}px`;
+  hashMenu.style.top = `${y}px`;
+  menuCopyBtn.focus();
+}
+
+function closeHashMenu() { hashMenu.classList.add('hidden'); menuEntry = null; }
+
+menuCopyBtn.addEventListener('click', () => {
+  if (!menuEntry) return;
+  navigator.clipboard.writeText(menuEntry.hex).then(() => {
+    menuCopyBtn.textContent = 'Copied ✓';
+    setTimeout(closeHashMenu, 650);
+  }).catch(closeHashMenu);
+});
+menuBmBtn.addEventListener('click', () => {
+  if (!menuEntry) return;
+  toggleBookmark(menuEntry);
+  closeHashMenu();
+});
+// Dismiss on an outside press, Escape, scroll, or resize. mousedown (not click)
+// so opening the menu on one hash doesn't immediately close it.
+document.addEventListener('mousedown', (e) => {
+  if (!hashMenu.classList.contains('hidden') && !hashMenu.contains(e.target)) closeHashMenu();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHashMenu(); });
+window.addEventListener('resize', closeHashMenu);
+window.addEventListener('scroll', closeHashMenu, true);
+
+renderBookmarks();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
 // verse; ?block= (with optional ?index=) opens a block; otherwise the input's
