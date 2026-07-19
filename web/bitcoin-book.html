@@ -177,31 +177,37 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .hash-menu .hash-menu-item:hover, .hash-menu .hash-menu-item:focus-visible { background: var(--input-bg); color: var(--ink); outline: none; }
 
-/* Saved bookmarks: a collapsible list in the lookup card, hidden when empty. */
-.bookmarks { margin-top: 16px; }
-.bookmarks > summary {
+/* Table of contents: a collapsible list in the lookup card -- curated notable
+   entries, then the reader's own bookmarks. Always present (the curated set is
+   never empty). */
+.contents { margin-top: 16px; }
+.contents > summary {
   cursor: pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase;
   color: var(--dim); list-style: none;
 }
-.bookmarks > summary::-webkit-details-marker { display: none; }
-.bookmarks > summary::before { content: '+ '; color: var(--accent); }
-.bookmarks[open] > summary::before { content: '– '; }
-.bookmarks-list { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; }
-.bookmark-item { display: flex; align-items: center; gap: 8px; }
-.bookmarks .bookmark-open {
+.contents > summary::-webkit-details-marker { display: none; }
+.contents > summary::before { content: '+ '; color: var(--accent); }
+.contents[open] > summary::before { content: '– '; }
+.contents-list { margin-top: 12px; display: flex; flex-direction: column; gap: 2px; }
+.contents-group {
+  margin: 12px 0 4px; padding: 0 8px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.12em;
+  text-transform:uppercase; color: var(--meta);
+}
+.entry-item { display: flex; align-items: center; gap: 8px; }
+.contents .entry-open {
   flex: 1; min-width: 0; text-align: left; background: transparent; border: none; cursor: pointer;
   color: var(--ink-soft); font: 500 12px/1.4 'IBM Plex Mono',monospace; letter-spacing: 0; text-transform: none;
   padding: 7px 8px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.bookmarks .bookmark-open:hover, .bookmarks .bookmark-open:focus-visible { background: var(--input-bg); color: var(--ink); outline: none; }
-.bookmark-open .bm-label { color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: .06em; margin-right: 8px; }
-.bookmarks .bookmark-del {
+.contents .entry-open:hover, .contents .entry-open:focus-visible { background: var(--input-bg); color: var(--ink); outline: none; }
+.entry-open .bm-label { color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: .06em; margin-right: 8px; }
+.contents .entry-del {
   flex: none; background: transparent; color: var(--meta); border: 1px solid transparent; border-radius: 4px;
   font: 600 12px/1 'IBM Plex Mono',monospace; padding: 6px 9px; cursor: pointer; text-transform: none;
 }
-.bookmarks .bookmark-del:hover { color: var(--error); border-color: var(--input-bd); background: transparent; }
+.contents .entry-del:hover { color: var(--error); border-color: var(--input-bd); background: transparent; }
 /* The bookmark glyph -- a manuscript fleuron -- marking a bookmarked hash
-   inline, and leading each row in the bookmarks list. */
+   inline, and leading each row in the table of contents. */
 .bookmark-flag { color: var(--accent); margin-right: .35em; font-style: normal; }
 .bm-flag { color: var(--accent); margin-right: 8px; flex: none; }
 
@@ -414,9 +420,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     </div>
     <div id="endpoint-msg" class="endpoint-msg hidden"></div>
 
-    <details id="bookmarks" class="bookmarks hidden">
-      <summary id="bookmarks-summary">Bookmarks</summary>
-      <div id="bookmarks-list" class="bookmarks-list"></div>
+    <details id="contents" class="contents">
+      <summary>Contents</summary>
+      <div id="contents-list" class="contents-list"></div>
     </details>
   </div>
 
@@ -673,7 +679,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the verse it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the verse that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
-    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash is marked with a <span style="color:var(--accent)">❦</span>; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and listed under <b>Bookmarks</b> in the lookup card — the beginnings of a table of contents.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash is marked with a <span style="color:var(--accent)">❦</span>; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Contents</b> — the table of contents in the lookup card, which opens with a curated set of notable transactions.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
 
@@ -1720,13 +1726,23 @@ let bookmarks = readBookmarks();
 const isBookmarked = (hex) => bookmarks.some((b) => b.hex === hex);
 const saveBookmarks = () => { try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks)); } catch {} };
 
-// Add (or retitle) a bookmark, then refresh the list and every on-page flag.
+// Curated notable entries that lead the table of contents. Each `id` is passed
+// straight to the lookup, so it may be a block height, a block hash, or a txid.
+// This is the editorial set -- extend it with famous, notable transactions.
+const NOTABLE = [
+  { title: 'The Genesis block', id: '0', label: 'block', note: 'Block 0 — “The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.”' },
+  { title: 'First transaction — Satoshi to Hal Finney', id: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e8f', label: 'transaction', note: 'Block 170, 12 Jan 2009 — the first bitcoin sent between two people.' },
+  { title: 'The bitcoin pizza — 10,000 BTC', id: 'a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d', label: 'transaction', note: '22 May 2010 — 10,000 BTC for two pizzas.' },
+  { title: 'The value overflow incident', id: '74638', label: 'block', note: 'Block 74638, 15 Aug 2010 — a bug briefly created 184 billion BTC.' },
+];
+
+// Add (or retitle) a bookmark, then refresh the contents and every on-page flag.
 function addBookmark(entry, title) {
   const existing = bookmarks.find((b) => b.hex === entry.hex);
   if (existing) existing.title = title;
   else bookmarks.unshift({ hex: entry.hex, label: entry.label, prose: entry.prose, title }); // newest first
   saveBookmarks();
-  renderBookmarks();
+  renderContents();
   syncHashFlags();
 }
 function removeBookmark(hex) {
@@ -1734,7 +1750,7 @@ function removeBookmark(hex) {
   if (i < 0) return;
   bookmarks.splice(i, 1);
   saveBookmarks();
-  renderBookmarks();
+  renderContents();
   syncHashFlags();
 }
 
@@ -1771,43 +1787,62 @@ function suggestTitle(entry) {
   return genesis ? 'Genesis' : `Chapter ${chapter}`;
 }
 
-// Open a bookmarked hash: every stored bookmark is a lookup target, so route it
+// Open a contents entry by its identifier -- a height, block hash, or txid --
 // through the same lookup the input uses. The loaded chapter refreshes the field.
-function openBookmark(b) {
-  $('block-input').value = b.hex;
-  openLookup(b.hex);
+function openEntry(id) {
+  $('block-input').value = id;
+  openLookup(id);
 }
 
-function renderBookmarks() {
-  const box = $('bookmarks');
-  const list = $('bookmarks-list');
-  list.innerHTML = '';
-  box.classList.toggle('hidden', bookmarks.length === 0);
-  $('bookmarks-summary').textContent = `Bookmarks (${bookmarks.length})`;
-  for (const b of bookmarks) {
-    const item = document.createElement('div');
-    item.className = 'bookmark-item';
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.className = 'bookmark-open';
-    const short = `${b.hex.slice(0, 10)}…${b.hex.slice(-6)}`;
-    const flag = document.createElement('span');
-    flag.className = 'bm-flag';
-    flag.textContent = '❦';
-    const tag = document.createElement('span');
-    tag.className = 'bm-label';
-    tag.textContent = b.label;
-    open.append(flag, tag, document.createTextNode(b.title || b.prose || short));
-    open.title = `open — ${b.hex}`;
-    open.addEventListener('click', () => openBookmark(b));
+// One table-of-contents row: a fleuron, an optional type tag, the title. A
+// removable row (a reader's bookmark) also gets an ✕.
+function contentsRow({ id, title, label, onRemove, note }) {
+  const item = document.createElement('div');
+  item.className = 'entry-item';
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.className = 'entry-open';
+  const flag = document.createElement('span');
+  flag.className = 'bm-flag';
+  flag.textContent = '❦';
+  open.append(flag);
+  if (label) { const tag = document.createElement('span'); tag.className = 'bm-label'; tag.textContent = label; open.append(tag); }
+  open.append(document.createTextNode(title));
+  open.title = note || `open — ${id}`;
+  open.addEventListener('click', () => openEntry(id));
+  item.append(open);
+  if (onRemove) {
     const del = document.createElement('button');
     del.type = 'button';
-    del.className = 'bookmark-del';
+    del.className = 'entry-del';
     del.textContent = '✕';
     del.title = 'remove bookmark';
-    del.addEventListener('click', () => removeBookmark(b.hex));
-    item.append(open, del);
-    list.append(item);
+    del.addEventListener('click', onRemove);
+    item.append(del);
+  }
+  return item;
+}
+
+// The table of contents: the curated notable set, then the reader's bookmarks.
+function renderContents() {
+  const list = $('contents-list');
+  list.innerHTML = '';
+  for (const e of NOTABLE) list.append(contentsRow({ id: e.id, title: e.title, label: e.label, note: e.note }));
+  if (bookmarks.length) {
+    const group = document.createElement('div');
+    group.className = 'contents-group';
+    group.textContent = 'Your bookmarks';
+    list.append(group);
+    for (const b of bookmarks) {
+      const short = `${b.hex.slice(0, 10)}…${b.hex.slice(-6)}`;
+      list.append(contentsRow({
+        id: b.hex,
+        title: b.title || b.prose || short,
+        label: b.label,
+        note: `open — ${b.hex}`,
+        onRemove: () => removeBookmark(b.hex),
+      }));
+    }
   }
 }
 
@@ -1891,7 +1926,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHashM
 window.addEventListener('resize', closeHashMenu);
 window.addEventListener('scroll', closeHashMenu, true);
 
-renderBookmarks();
+renderContents();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
 // verse; ?block= (with optional ?index=) opens a block; otherwise the input's
