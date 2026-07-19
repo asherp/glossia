@@ -176,6 +176,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    Empty for an unspent output. */
 .fwd-cite { margin-top: .1em; font: 500 11.5px/1.3 'IBM Plex Mono',monospace; color: var(--dim); }
 .tx-in-script { grid-column: 2; min-width: 0; }
+/* Citations for inputs with no scriptSig (witness spends) + the version note.
+   They share the outputs' row in the left column, so the outputs slide up beside
+   them instead of being pushed below an input band full of empty body cells. The
+   stacked citations top-align with the first output. */
+.tx-margin-cites { grid-column: left; grid-row: 2; align-self: start; }
 .tx-outputs {
   grid-column: body / -1; grid-row: 2;
   display: grid; grid-template-columns: minmax(0,1fr) 7em; grid-template-columns: subgrid;
@@ -235,7 +240,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
      block stacked with the body it annotated. Citations lead their input;
      amounts follow their output -- position alone carries the sense. */
   .tx-flow { grid-template-columns: 1fr; }
-  .tx-inputs, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
+  .tx-inputs, .tx-margin-cites, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
   .tx-in-cite { text-align: left; margin: 0 0 .2em; }
   .tx-out-value, .tx-locktime { text-align: left; margin: 0 0 .55em; }
 }
@@ -1016,6 +1021,12 @@ function renderChapter(para) {
   flow.className = 'tx-flow';
   const inputsEl = document.createElement('div');
   inputsEl.className = 'tx-inputs';
+  // Citations for inputs with nothing in the body to annotate -- a witness spend
+  // has an empty scriptSig -- plus the version note. They can't align to a body
+  // line, so they sit in the left column of the outputs band instead of holding
+  // an input row open; that lets the outputs slide up beside them (see CSS).
+  const marginEl = document.createElement('div');
+  marginEl.className = 'tx-margin-cites';
   const outputsEl = document.createElement('div');
   outputsEl.className = 'tx-outputs';
   let leadUsed = false;
@@ -1078,12 +1089,13 @@ function renderChapter(para) {
 
   const f = para.fields;
   const footnotes = [];
-  // The rare non-default version leads the inputs as its own margin note.
+  // The rare non-default version is a margin note with no body to annotate, so
+  // it joins the empty-scriptSig citations rather than holding an input row open.
   if (f.version !== '1') {
     const cite = document.createElement('div');
     cite.className = 'tx-in-cite tx-version';
     cite.textContent = `v${f.version}`;
-    inputsEl.append(cite, document.createElement('div'));
+    marginEl.append(cite);
   }
   for (const inp of f.inputs) {
     const cite = document.createElement('div');
@@ -1106,11 +1118,18 @@ function renderChapter(para) {
     cite.append(seqSpan(inp), ' ', citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
     if (amtEl) cite.append(amtEl);
-    const scriptCell = document.createElement('div');
-    scriptCell.className = 'tx-in-script';
-    if (inp.scriptAscii) addQuote(scriptCell, inp.scriptAscii);
-    else if (inp.script) addLine(scriptCell, inp.script);
-    inputsEl.append(cite, scriptCell);
+    // A witness spend has an empty scriptSig (no body content). Only an input
+    // that renders a scriptSig gets an aligned [citation | scriptSig] row; the
+    // rest contribute a margin citation that the outputs slide up past.
+    if (inp.scriptAscii || inp.script) {
+      const scriptCell = document.createElement('div');
+      scriptCell.className = 'tx-in-script';
+      if (inp.scriptAscii) addQuote(scriptCell, inp.scriptAscii);
+      else addLine(scriptCell, inp.script);
+      inputsEl.append(cite, scriptCell);
+    } else {
+      marginEl.append(cite);
+    }
   }
   currentFootnotes = footnotes;
   f.outputs.forEach((out, i) => {
@@ -1135,7 +1154,7 @@ function renderChapter(para) {
   lock.textContent = f.locktime;
   lock.title = f.locktimeTitle;
 
-  flow.append(inputsEl, outputsEl, lock);
+  flow.append(inputsEl, marginEl, outputsEl, lock);
   wrap.append(flow);
   body.append(wrap);
   lazyEncode.observe(body);   // encode any deferred OP_RETURN payload as it scrolls into view
