@@ -206,10 +206,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   font: 600 12px/1 'IBM Plex Mono',monospace; padding: 6px 9px; cursor: pointer; text-transform: none;
 }
 .contents .entry-del:hover { color: var(--error); border-color: var(--input-bd); background: transparent; }
-/* The bookmark glyph -- a manuscript fleuron -- marking a bookmarked hash
-   inline, and leading each row in the table of contents. */
-.bookmark-flag { color: var(--accent); margin-right: .35em; font-style: normal; }
-.bm-flag { color: var(--accent); margin-right: 8px; flex: none; }
+/* A bookmark ribbon pinned to the top-right corner of a bookmarked hash's
+   prose. pointer-events:none so it never intercepts the hash's own click. */
+.hash-bookmark { position: absolute; top: -4px; right: -2px; width: 10px; height: 14px; color: var(--accent); line-height: 0; pointer-events: none; }
+.hash-bookmark svg { display: block; width: 100%; height: 100%; }
 
 /* The title-entry form the menu swaps to when bookmarking: the title becomes a
    table-of-contents entry. */
@@ -395,7 +395,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <div class="wrap">
   <div class="masthead">
     <span class="title">The Bitcoin Book</span>
-    <span class="home"><a href="./index.html">Glossia</a></span>
+    <span class="home"><a href="./bitcoin-contents.html">Contents</a> · <a href="./index.html">Glossia</a></span>
   </div>
 
   <div class="card">
@@ -421,7 +421,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <div id="endpoint-msg" class="endpoint-msg hidden"></div>
 
     <details id="contents" class="contents">
-      <summary>Contents</summary>
+      <summary>Bookmarks</summary>
       <div id="contents-list" class="contents-list"></div>
     </details>
   </div>
@@ -683,7 +683,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the verse it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the verse that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
-    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash is marked with a <span style="color:var(--accent)">❦</span>; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Contents</b> — the table of contents in the lookup card, which opens with a curated set of notable transactions.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
 
@@ -708,6 +708,7 @@ import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
 import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
 import { volumeBookChapter, heightOf } from './btc-citation.js';
+import { NOTABLE } from './btc-contents.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1730,31 +1731,8 @@ let bookmarks = readBookmarks();
 const isBookmarked = (hex) => bookmarks.some((b) => b.hex === hex);
 const saveBookmarks = () => { try { localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks)); } catch {} };
 
-// Curated notable entries that lead the table of contents. Each `id` is passed
-// straight to the lookup, so it may be a block height, a block hash, or a txid.
-// This is the editorial set -- extend it with famous, notable transactions and
-// the first occurrence of each payment type. Ordered chronologically (reading
-// order). See the scaffold below for the type-firsts still to add.
-const NOTABLE = [
-  { title: 'The Genesis block', id: '0', label: 'block', note: 'Block 0, 3 Jan 2009 — “The Times 03/Jan/2009 Chancellor on brink of second bailout for banks.”' },
-  { title: 'First transaction — Satoshi to Hal Finney', id: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e8f', label: 'transaction', note: 'Block 170, 12 Jan 2009 — the first bitcoin sent between two people, to a Pay-to-PubKey (P2PK) output.' },
-  { title: 'The bitcoin pizza — 10,000 BTC', id: 'a1075db55d416d3ca199f55b6084e2115b9345e16c5cf302fc80e9d5fbf5d48d', label: 'transaction', note: '22 May 2010 — 10,000 BTC for two pizzas, the first real-world purchase.' },
-  { title: 'The value overflow incident', id: '74638', label: 'block', note: 'Block 74638, 15 Aug 2010 — a bug briefly created 184 billion BTC; fixed by a soft fork.' },
-  { title: 'First bare multisig (P2MS)', id: '60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1', label: 'transaction', note: 'Block 164467, 30 Jan 2012 — the first send to a bare 1-of-2 multisig output.' },
-  { title: 'Peter Todd’s SHA-1 collision bounty', id: '9c08a4d78931342b37fd5f72900fb9983087e6f46c4a097d8a1f52c74e28eaf6', label: 'transaction', note: '23 Feb 2017 — a P2SH bounty payable to anyone who found a SHA-1 collision, claimed days after the first was published.' },
-  { title: 'SegWit activates', id: '481824', label: 'block', note: 'Block 481824, 24 Aug 2017 — the first block under BIP141, enabling native P2WPKH and P2WSH.' },
-  { title: 'First dual-funded Lightning channel', id: '91538cbc4aca767cb77aa0690c2a6e710e095c8eb6d8f73d53a3a29682cb7581', label: 'transaction', note: 'Block 681753, May 2021 — c-lightning opens the first dual-funded mainnet channel; the funding output is a P2WSH 2-of-2.' },
-  { title: 'Taproot activates', id: '709632', label: 'block', note: 'Block 709632, 14 Nov 2021 — the first block under BIP341, enabling P2TR (key- and script-path spends).' },
-];
-// Type-firsts still to add (each needs its exact txid confirmed against the
-// chain -- fill in and drop into NOTABLE above, chronologically):
-//   - First P2PKH output (mid-Jan 2009, days after the P2PK above)
-//   - First P2SH output that was later spent (BIP16, ~April 2012)
-//   - First native P2WPKH spend and first P2WSH spend (block 481824+)
-//   - First P2TR key-path spend and first script-path spend (block 709635)
-//   - First standard OP_RETURN data output (after Bitcoin Core 0.9.0, Mar 2014)
-//   - A Lightning force-close revealing an HTLC on-chain (the marquee Lightning
-//     example — showcases the HTLC row in the Notation guide)
+// The curated entries (NOTABLE) live in btc-contents.js, shared with the
+// table-of-contents page; they lead the Bookmarks list here.
 
 // Add (or retitle) a bookmark, then refresh the contents and every on-page flag.
 function addBookmark(entry, title) {
@@ -1774,17 +1752,19 @@ function removeBookmark(hex) {
   syncHashFlags();
 }
 
-// Show/hide the bookmark glyph on a hash element to match its saved state.
+// Show/hide a bookmark ribbon at the top-right corner of a hash's prose to
+// match its saved state.
 function setHashFlag(el, on) {
-  let flag = el.querySelector(':scope > .bookmark-flag');
-  if (on && !flag) {
-    flag = document.createElement('span');
-    flag.className = 'bookmark-flag';
-    flag.textContent = '❦';
-    flag.title = 'bookmarked';
-    el.insertBefore(flag, el.firstChild);
-  } else if (!on && flag) {
-    flag.remove();
+  let mark = el.querySelector(':scope > .hash-bookmark');
+  if (on && !mark) {
+    mark = document.createElement('span');
+    mark.className = 'hash-bookmark';
+    mark.title = 'bookmarked';
+    mark.setAttribute('aria-hidden', 'true');
+    mark.innerHTML = '<svg viewBox="0 0 12 16"><path fill="currentColor" d="M0 0h12v16l-6-4-6 4z"/></svg>';
+    el.appendChild(mark);
+  } else if (!on && mark) {
+    mark.remove();
   }
 }
 // Re-sync every on-page hash's flag after the bookmark set changes.
@@ -1822,10 +1802,6 @@ function contentsRow({ id, title, label, onRemove, note }) {
   const open = document.createElement('button');
   open.type = 'button';
   open.className = 'entry-open';
-  const flag = document.createElement('span');
-  flag.className = 'bm-flag';
-  flag.textContent = '❦';
-  open.append(flag);
   if (label) { const tag = document.createElement('span'); tag.className = 'bm-label'; tag.textContent = label; open.append(tag); }
   open.append(document.createTextNode(title));
   open.title = note || `open — ${id}`;
