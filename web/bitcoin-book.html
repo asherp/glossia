@@ -895,8 +895,10 @@ async function showCurrentTx() {
 
   const parsed = parseTransaction(hex);
   const verifiedTxid = await computeTxid(parsed.baseHex);
-  const fields = composeTransactionFields(parsed, BEST_OF);
-  // Witnesses aren't encoded here -- they're the heaviest thing to render.
+  // A bulky OP_RETURN data carrier is deferred like a witness push -- its prose
+  // streams in on scroll (see lazyEncode); every other body field is encoded now.
+  const fields = composeTransactionFields(parsed, BEST_OF, lazyEncode.placeholder);
+  // Witnesses aren't encoded here either -- they're the heaviest thing to render.
   // renderChapter marks each witness-bearing input with a footnote reference and
   // lays out the footnotes as placeholders; their prose is encoded lazily, per
   // push, as the reader scrolls to it (see lazyEncode / renderFootnotes).
@@ -1009,6 +1011,7 @@ function renderChapter(para) {
   // -- sits in the left margin, level with its scriptSig. The outputs are a
   // [scriptPubKey | amount] subgrid; the locktime closes on the right.
   const gen = ++renderGen;
+  lazyEncode.reset();   // drop chunks still pending from the previous verse (body + footnotes)
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
   const inputsEl = document.createElement('div');
@@ -1135,6 +1138,7 @@ function renderChapter(para) {
   flow.append(inputsEl, outputsEl, lock);
   wrap.append(flow);
   body.append(wrap);
+  lazyEncode.observe(body);   // encode any deferred OP_RETURN payload as it scrolls into view
   resolveCitations(pendingCites, gen);
   resolveForwardCitations(para.txid, fwdCells, gen);
 
@@ -1160,7 +1164,6 @@ async function renderFootnotes(gen) {
   if (gen !== renderGen) return;
   const el = $('ch-footnotes');
   el.innerHTML = '';
-  lazyEncode.reset();   // drop any chunks still pending from the previous verse
   for (const fn of currentFootnotes) {
     // An all-zero witness (coinbase reserved value, empty stack) shows ∅ instead
     // of a run of zero-words. Every other witness item's prose is emitted as a
