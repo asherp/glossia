@@ -15,6 +15,15 @@
 const ERA_BLOCKS = 210000;
 const DIFFICULTY_BLOCKS = 2016;
 
+// The inverse of volumeBookChapter: the block height at volume V, book B,
+// chapter C (all 1-based). Chapter 1 is a book's first block, so a partial
+// reference like "III 2" (era 3, book 2) resolves here with chapter defaulting
+// to 1. Not clamped to a book's real length -- a chapter past the book's end
+// spills into the following book, exactly as the forward formula implies.
+export function heightOf(volume, book, chapter) {
+  return (volume - 1) * ERA_BLOCKS + (book - 1) * DIFFICULTY_BLOCKS + (chapter - 1);
+}
+
 export function volumeBookChapter(height) {
   const volumeIndex = Math.floor(height / ERA_BLOCKS);
   const eraStart = volumeIndex * ERA_BLOCKS;

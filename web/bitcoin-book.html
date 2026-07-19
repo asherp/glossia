@@ -333,9 +333,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   </div>
 
   <div class="card">
-    <label for="block-input">Block height, hash, or transaction id</label>
+    <label for="block-input">Block height, hash, transaction id, or reference</label>
     <div class="lookup-row">
-      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. 0, a block hash, or a transaction id" autocomplete="off" spellcheck="false">
+      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. III 2, a height, a hash, or a transaction id" autocomplete="off" spellcheck="false">
       <button type="button" id="block-btn">Read chapter</button>
     </div>
     <div id="block-status" class="status-line hidden"></div>
@@ -617,7 +617,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
 import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
-import { volumeBookChapter } from './btc-citation.js';
+import { volumeBookChapter, heightOf } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -875,6 +875,41 @@ function toRoman(n) {
   return out || '0';
 }
 
+// Parse a Roman numeral (a volume) -- the inverse of toRoman. Returns NaN on
+// any non-Roman character so a malformed token is rejected, not misread.
+function fromRoman(s) {
+  const val = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  let total = 0, prev = 0;
+  for (let i = s.length - 1; i >= 0; i--) {
+    const v = val[s[i]];
+    if (!v) return NaN;
+    if (v < prev) total -= v; else { total += v; prev = v; }
+  }
+  return total;
+}
+
+// Parse a scripture-style reference into { height, index }. Volume comes first
+// (Roman); book, chapter and verse are optional and each default to the first:
+//   "III"        -> era 3, book 1, chapter 1, verse 1
+//   "III 2"      -> era 3, book 2, first block   (the requested behaviour)
+//   "III 2 5"    -> chapter 5
+//   "III 2 5 §3" / "III 2 5 3" -> verse 3
+// A trailing ".output" (as citations print, e.g. "III 2 5 §3.1") is accepted
+// and ignored -- it picks an output within the verse, not another verse.
+// Returns null when the string isn't a reference at all.
+function parseReference(input) {
+  const s = input.trim().replace(/\s+/g, ' ');
+  const m = s.match(/^([ivxlcdm]+)(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+§?(\d+)(?:\.\d+)?)?$/i);
+  if (!m) return null;
+  const volume = fromRoman(m[1].toUpperCase());
+  if (!Number.isFinite(volume) || volume < 1) return null;
+  const book = m[2] ? parseInt(m[2], 10) : 1;
+  const chapter = m[3] ? parseInt(m[3], 10) : 1;
+  const verse = m[4] ? parseInt(m[4], 10) : 1;
+  if (book < 1 || chapter < 1 || verse < 1) return null;
+  return { height: heightOf(volume, book, chapter), index: verse - 1 };
+}
+
 // txid -> the spending status of every output at once (Esplora /outspends):
 // [{ spent, txid, vin, status }] in output order. Memoized like citations.
 const outspendsCache = new Map();
@@ -911,7 +946,7 @@ async function resolveForwardCitations(txid, cells, gen) {
         link.href = `?block=${height}&index=${pos}`;
         link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}`;
         link.title = `spent by input ${sp.vin + 1} of ${sp.txid}`;
-        link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, null); });
+        link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, `in-${sp.vin}`); });
         cell.append(link);
       } catch { /* unresolvable spender -- leave the cell empty */ }
     }));
@@ -928,19 +963,23 @@ function renderCitation(citeBody, height, pos, vout) {
   link.href = `?block=${height}&index=${pos}`;
   link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
   link.title = `go to §${pos + 1}.${vout}`;
-  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, vout); });
+  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, `out-${vout}`); });
   citeBody.textContent = '';
   citeBody.append(link);
 }
 
 // Navigate to a referenced verse (the transaction at `index` in the block at
-// `height`) in place, updating the lookup field and URL, then scroll so the
-// referenced output (#vout) -- the one this input spends -- leads the page.
-async function goToVerse(height, index, vout) {
-  $('block-input').value = String(height);
+// `height`) in place, then bring `scrollId` to the top of the page. The two
+// directions mirror each other: following an input's provenance scrolls to the
+// output it spends (out-N), and following an output's forward citation scrolls
+// to the input that spends it (in-N). The lookup field is refreshed by
+// renderChapter, so it isn't set here.
+async function goToVerse(height, index, scrollId) {
   await openLookup(String(height), index);
-  const out = $(`out-${vout}`);
-  if (out) out.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (scrollId) {
+    const el = $(scrollId);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 // Fill each pending citation cell once its reference resolves; skip if the
@@ -1091,6 +1130,11 @@ function renderChapter(para) {
   $('ch-volume').textContent = volume.toLocaleString();
   $('ch-book').textContent = book.toLocaleString();
 
+  // Keep the lookup field showing where we are, in the same reference form the
+  // citations use, so it round-trips: any navigation refreshes it, and pressing
+  // Read chapter on it returns to this very verse.
+  $('block-input').value = `${toRoman(volume)} ${book} ${chapter} §${state.index + 1}`;
+
   // The big title (and hash subtitle) introduce the chapter as a whole, so
   // they only belong on its first transaction. Every later transaction
   // instead folds the chapter number into the Volume/Book eyebrow line --
@@ -1225,9 +1269,11 @@ function renderChapter(para) {
     cite.textContent = `v${f.version}`;
     pendingMargin.push(cite);
   }
+  let inputIndex = 0;
   for (const inp of f.inputs) {
     const cite = document.createElement('div');
     cite.className = 'tx-in-cite';
+    cite.id = `in-${inputIndex++}`;   // an output's forward citation scrolls here so the spending input leads the page
     const citeBody = document.createElement('span');
     citeBody.className = 'cite-body';
     let amtEl = null;
@@ -1379,7 +1425,11 @@ async function openLookup(input, index = 0) {
         state = { ...loc.meta, index: loc.index };
       }
     } else {
-      throw new Error('Enter a block height, a block hash, or a transaction id.');
+      const ref = parseReference(input);
+      if (!ref) throw new Error('Enter a block height, hash, transaction id, or reference (e.g. III 2 5).');
+      setStatus('<span class="spinner"></span>fetching block…');
+      const meta = await loadBlockByHeight(ref.height);
+      state = { ...meta, index: clampIndex(ref.index, meta) };
     }
     await showCurrentTx();
   } catch (e) {
