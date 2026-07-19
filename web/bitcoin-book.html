@@ -707,7 +707,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
 import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
-import { volumeBookChapter, heightOf } from './btc-citation.js';
+import { volumeBookChapter, heightOf, toRoman } from './btc-citation.js';
 import { NOTABLE } from './btc-contents.js';
 
 const $ = (id) => document.getElementById(id);
@@ -959,12 +959,7 @@ function resolveCitation(txid) {
   return citationCache.get(txid);
 }
 
-function toRoman(n) {
-  const map = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
-  let out = '';
-  for (const [v, s] of map) while (n >= v) { out += s; n -= v; }
-  return out || '0';
-}
+// toRoman is imported from btc-citation.js (shared with the contents page).
 
 // Parse a Roman numeral (a volume) -- the inverse of toRoman. Returns NaN on
 // any non-Roman character so a malformed token is rejected, not misread.
