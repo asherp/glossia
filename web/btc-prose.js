@@ -546,7 +546,11 @@ export function renderWitness(items, encode) {
 // words consumed. bitcoin-book.html's margin layout is built from this, each
 // field Glossia-encoded exactly once.
 // `bestOf` forwards to encodeSeedPhrase for cover-word quality (default 1).
-export function composeTransactionFields(parsed, bestOf = 1) {
+// `lazyData`, when supplied, is an alternative encoder (hex -> HTML) used for an
+// OP_RETURN payload only: OP_RETURN is the one body field that can carry a bulky
+// data-carrier blob, so the caller can pass a placeholder emitter to defer its
+// encoding until it scrolls into view, exactly as witness pushes are deferred.
+export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
   const payloadWords = [];
   const collect = (hex) => {
     if (!hex) return '';
@@ -604,7 +608,11 @@ export function composeTransactionFields(parsed, bestOf = 1) {
     // OP_RETURN (¶) payload is `eligible` for inline ASCII quoting, so an
     // embedded message reads verbatim rather than as prose.
     const isOpReturn = o.scriptPubKey.slice(0, 2).toLowerCase() === '6a';
-    return { script: renderScript(o.scriptPubKey, collect, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
+    // A large OP_RETURN payload (a data carrier) is encoded lazily when the
+    // caller supplies `lazyData`; an ASCII payload is still quoted inline by
+    // `eligible` before either encoder is reached, so only opaque bytes defer.
+    const encodeData = (isOpReturn && lazyData) ? lazyData : collect;
+    return { script: renderScript(o.scriptPubKey, encodeData, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
   });
 
   const lock = locktimeInfo(parsed.locktime);
