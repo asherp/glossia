@@ -570,7 +570,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
-    <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet).</p>
+    <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits.</p>
   </details>
 </div>
 
@@ -581,19 +581,31 @@ import { composeTransactionFields, composeBlockHeaderFields, groupDigits, render
 import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
-const ESPLORA = 'https://blockstream.info/api';
+// Esplora-compatible mirrors, tried in order. Both expose the identical REST
+// API (/tx, /block, /block-height, …), so a URL built against one can be
+// replayed against any other by swapping the base. blockstream.info is the
+// primary; mempool.space is the fallback for when the primary rate-limits us.
+const ESPLORA_MIRRORS = [
+  'https://blockstream.info/api',
+  'https://mempool.space/api',
+];
+const ESPLORA = ESPLORA_MIRRORS[0];
 const BEST_OF = 5;
 
 // Every Esplora request goes through this throttle rather than the raw fetch.
 // A single transaction can fan out into dozens of lookups at once (a citation
 // per input, a forward citation per output, footnotes), and the public Esplora
-// instance sheds those bursts with 429/503. Two defenses, in order of
+// instance sheds those bursts with 429/503. Three defenses, in order of
 // importance:
 //   1. a concurrency cap -- at most CONCURRENCY requests in flight, the rest
 //      queued -- which flattens the bursts that trip the limiter in the first
 //      place;
 //   2. exponential backoff with jitter on 429/503, honoring a Retry-After
-//      header when the server sends one, for the times we're throttled anyway.
+//      header when the server sends one, for the times we're throttled anyway;
+//   3. mirror failover -- once a mirror's own retry budget is spent (still
+//      throttled, or a network/CORS failure), the request is replayed against
+//      the next mirror, and that mirror becomes preferred so the rest of the
+//      burst skips the dead one instead of each re-discovering it.
 // Jitter matters: without it, a batch of parallel failures would all retry in
 // lockstep and re-burst. Returns a normal Response, so callers' .ok/.json()/
 // .text() handling is unchanged.
@@ -602,32 +614,63 @@ const esploraFetch = (() => {
   const MAX_RETRIES = 4;
   const RETRYABLE = new Set([429, 503]);
   let active = 0;
+  let preferred = 0; // index into ESPLORA_MIRRORS we currently favor
   const queue = [];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const pump = () => { while (active < CONCURRENCY && queue.length) queue.shift()(); };
+
+  // Rewrite a URL built against any known mirror onto `base`. A URL that
+  // doesn't match a mirror (shouldn't happen) is left untouched.
+  const onMirror = (url, base) => {
+    for (const m of ESPLORA_MIRRORS) {
+      if (url.startsWith(m)) return base + url.slice(m.length);
+    }
+    return url;
+  };
 
   return (url, opts) => new Promise((resolve, reject) => {
     queue.push(async () => {
       active++;
       try {
-        for (let attempt = 0; ; attempt++) {
-          let res;
-          try {
-            res = await fetch(url, opts);
-          } catch (e) {
-            // Network-level failure (offline, DNS, CORS). Retry a few times
-            // with the same backoff before surfacing it.
-            if (attempt >= MAX_RETRIES) { reject(e); return; }
-            await sleep((2 ** attempt) * 500 + Math.random() * 250);
-            continue;
+        // Visit each mirror once, starting from the one that last served us.
+        const order = ESPLORA_MIRRORS.map((_, i) => (preferred + i) % ESPLORA_MIRRORS.length);
+        let lastErr = null;
+        for (let mi = 0; mi < order.length; mi++) {
+          const idx = order[mi];
+          const target = onMirror(url, ESPLORA_MIRRORS[idx]);
+          const lastMirror = mi === order.length - 1;
+          for (let attempt = 0; ; attempt++) {
+            let res;
+            try {
+              res = await fetch(target, opts);
+            } catch (e) {
+              // Network-level failure (offline, DNS, CORS). Retry a few times
+              // with backoff, then fall through to the next mirror.
+              lastErr = e;
+              if (attempt >= MAX_RETRIES) break;
+              await sleep((2 ** attempt) * 500 + Math.random() * 250);
+              continue;
+            }
+            if (!RETRYABLE.has(res.status) || attempt >= MAX_RETRIES) {
+              // A definitive answer (ok, 404, …) ends the search. A still-
+              // throttled response with a mirror left in reserve falls through
+              // to try it; on the last mirror we surface it as-is.
+              if (RETRYABLE.has(res.status) && !lastMirror) break;
+              preferred = idx; // this mirror is serving us -- stick with it
+              resolve(res);
+              return;
+            }
+            const retryAfter = Number(res.headers.get('Retry-After'));
+            const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+              ? retryAfter * 1000
+              : (2 ** attempt) * 500 + Math.random() * 250;
+            await sleep(backoff);
           }
-          if (!RETRYABLE.has(res.status) || attempt >= MAX_RETRIES) { resolve(res); return; }
-          const retryAfter = Number(res.headers.get('Retry-After'));
-          const backoff = Number.isFinite(retryAfter) && retryAfter > 0
-            ? retryAfter * 1000
-            : (2 ** attempt) * 500 + Math.random() * 250;
-          await sleep(backoff);
+          // This mirror is exhausted; prefer the next one for queued requests.
+          preferred = (idx + 1) % ESPLORA_MIRRORS.length;
         }
+        // Every mirror failed with a network-level error.
+        reject(lastErr || new Error('All Esplora mirrors failed'));
       } finally {
         active--;
         pump();
