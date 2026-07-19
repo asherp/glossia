@@ -87,6 +87,31 @@ button:hover:not(:disabled) { background: var(--accent-2); }
 button:disabled { opacity: .4; cursor: not-allowed; }
 .hint { margin-top: 10px; font-size: 12.5px; color: var(--meta); }
 
+/* ── data-source picker: choose the Esplora-compatible endpoint, add custom ── */
+.endpoint-row { display:flex; align-items:center; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.inline-label { font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+.endpoint-select {
+  flex:1; min-width:170px; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:4px;
+  color:var(--ink-soft); font:400 12.5px/1.4 'IBM Plex Mono',monospace; padding:8px 10px; cursor:pointer;
+}
+.endpoint-select:focus { outline:none; border-color:var(--accent); }
+.ghost-btn {
+  background:transparent; color:var(--dim); border:1px solid var(--input-bd);
+  font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; text-transform:uppercase;
+  padding:8px 12px; border-radius:4px; cursor:pointer; transition:border-color .15s ease, color .15s ease;
+}
+.ghost-btn:hover:not(:disabled) { color:var(--ink); border-color:var(--accent); background:transparent; }
+.ghost-btn:disabled { opacity:.35; cursor:not-allowed; }
+.endpoint-add-row { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+.endpoint-add-row input {
+  flex:1; min-width:140px; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:4px;
+  color:var(--ink); font:400 13px/1.4 'IBM Plex Mono',monospace; padding:9px 11px;
+}
+.endpoint-add-row input:focus { outline:none; border-color:var(--accent); }
+.endpoint-add-row #endpoint-label { flex:0 0 32%; }
+.endpoint-msg { margin-top:10px; font:500 12px/1.4 'IBM Plex Mono',monospace; color:var(--meta); }
+.endpoint-msg.err { color:var(--error); }
+
 .about { margin-top: 16px; }
 .about summary {
   cursor: pointer; font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase;
@@ -314,6 +339,20 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <button type="button" id="block-btn">Read chapter</button>
     </div>
     <div id="block-status" class="status-line hidden"></div>
+
+    <div class="endpoint-row">
+      <span class="inline-label">Data source</span>
+      <select id="endpoint-select" class="endpoint-select" aria-label="Data source endpoint"></select>
+      <button type="button" id="endpoint-add" class="ghost-btn">+ Add</button>
+      <button type="button" id="endpoint-remove" class="ghost-btn" disabled>Remove</button>
+    </div>
+    <div id="endpoint-add-row" class="endpoint-add-row hidden">
+      <input type="text" id="endpoint-label" class="mono" placeholder="Label (optional)" autocomplete="off" spellcheck="false">
+      <input type="text" id="endpoint-url" class="mono" placeholder="https://your-node/api" autocomplete="off" spellcheck="false">
+      <button type="button" id="endpoint-save">Save</button>
+      <button type="button" id="endpoint-cancel" class="ghost-btn">Cancel</button>
+    </div>
+    <div id="endpoint-msg" class="endpoint-msg hidden"></div>
   </div>
 
   <article id="chapter" class="hidden">
@@ -570,7 +609,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes, and clicking it copies that hex to the clipboard.</p>
-    <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits.</p>
+    <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
 </div>
 
@@ -581,16 +620,51 @@ import { composeTransactionFields, composeBlockHeaderFields, groupDigits, render
 import { volumeBookChapter } from './btc-citation.js';
 
 const $ = (id) => document.getElementById(id);
-// Esplora-compatible mirrors, tried in order. Both expose the identical REST
-// API (/tx, /block, /block-height, …), so a URL built against one can be
-// replayed against any other by swapping the base. blockstream.info is the
-// primary; mempool.space is the fallback for when the primary rate-limits us.
-const ESPLORA_MIRRORS = [
-  'https://blockstream.info/api',
-  'https://mempool.space/api',
+
+// ── Data sources: Esplora-compatible endpoints ───────────────────────────
+// Two built-in public mirrors, plus any custom endpoints the reader adds (a
+// self-hosted Esplora/Electrs node, another public mirror). All expose the
+// identical REST API (/tx, /block, /block-height, …), so a URL built against
+// one can be replayed against any other by swapping the base -- which is what
+// esploraFetch does when a mirror rate-limits. Custom endpoints and the
+// current selection persist in localStorage.
+const BUILTIN_MIRRORS = [
+  { label: 'Blockstream', url: 'https://blockstream.info/api' },
+  { label: 'mempool.space', url: 'https://mempool.space/api' },
 ];
-const ESPLORA = ESPLORA_MIRRORS[0];
+const ENDPOINTS_KEY = 'glossia-btc-endpoints'; // custom endpoints: [{label,url}]
+const SELECTED_KEY = 'glossia-btc-endpoint';   // selected endpoint url
+
+const readCustomMirrors = () => {
+  try {
+    const v = JSON.parse(localStorage.getItem(ENDPOINTS_KEY));
+    return Array.isArray(v) ? v.filter((m) => m && typeof m.url === 'string') : [];
+  } catch { return []; }
+};
+
+let customMirrors = readCustomMirrors();
+const allMirrors = () => [...BUILTIN_MIRRORS, ...customMirrors];
+
+// The live list of endpoint URLs the fetch layer tries, built-ins first. It is
+// mutated IN PLACE (never reassigned) so esploraFetch's closure always sees the
+// current set as custom endpoints are added or removed.
+const ESPLORA_MIRRORS = allMirrors().map((m) => m.url);
+const ESPLORA = BUILTIN_MIRRORS[0].url; // stable base callers build URLs against
+let preferred = 0;                      // index into ESPLORA_MIRRORS to try first
 const BEST_OF = 5;
+
+// Rebuild ESPLORA_MIRRORS in place from the built-ins + current customs.
+function syncMirrors() {
+  ESPLORA_MIRRORS.length = 0;
+  for (const m of allMirrors()) ESPLORA_MIRRORS.push(m.url);
+}
+
+// Restore the reader's saved endpoint choice, if it's still in the list.
+(() => {
+  const saved = localStorage.getItem(SELECTED_KEY);
+  const i = saved ? ESPLORA_MIRRORS.indexOf(saved) : -1;
+  if (i >= 0) preferred = i;
+})();
 
 // Every Esplora request goes through this throttle rather than the raw fetch.
 // A single transaction can fan out into dozens of lookups at once (a citation
@@ -614,7 +688,6 @@ const esploraFetch = (() => {
   const MAX_RETRIES = 4;
   const RETRYABLE = new Set([429, 503]);
   let active = 0;
-  let preferred = 0; // index into ESPLORA_MIRRORS we currently favor
   const queue = [];
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const pump = () => { while (active < CONCURRENCY && queue.length) queue.shift()(); };
@@ -1407,6 +1480,98 @@ $('block-btn').addEventListener('click', () => openLookup($('block-input').value
 $('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLookup($('block-input').value, 0); });
 $('page-prev').addEventListener('click', () => requestStep(-1));
 $('page-next').addEventListener('click', () => requestStep(1));
+
+// ── Data-source picker ────────────────────────────────────────────────────
+const endpointSel = $('endpoint-select');
+const hostOf = (url) => { try { return new URL(url).host; } catch { return url; } };
+
+let endpointMsgTimer = null;
+function setEndpointMsg(text, isErr) {
+  const el = $('endpoint-msg');
+  el.textContent = text || '';
+  el.classList.toggle('hidden', !text);
+  el.classList.toggle('err', !!isErr);
+  if (endpointMsgTimer) { clearTimeout(endpointMsgTimer); endpointMsgTimer = null; }
+  if (text && !isErr) endpointMsgTimer = setTimeout(() => el.classList.add('hidden'), 2600);
+}
+
+function persistCustomMirrors() {
+  try { localStorage.setItem(ENDPOINTS_KEY, JSON.stringify(customMirrors)); } catch {}
+}
+
+// Repaint the dropdown from the current mirror list and selection.
+function renderEndpoints() {
+  const current = ESPLORA_MIRRORS[preferred];
+  endpointSel.innerHTML = '';
+  for (const m of allMirrors()) {
+    const opt = document.createElement('option');
+    opt.value = m.url;
+    opt.textContent = `${m.label} — ${hostOf(m.url)}`;
+    endpointSel.append(opt);
+  }
+  endpointSel.value = current;
+  // "Remove" only applies to a custom (non-built-in) selection.
+  $('endpoint-remove').disabled = !customMirrors.some((m) => m.url === current);
+}
+
+// Make `url` the preferred source. `reload` re-runs the current lookup so the
+// change takes effect immediately (e.g. retrying a load that just rate-limited).
+function selectEndpoint(url, { reload = true } = {}) {
+  syncMirrors();
+  const i = ESPLORA_MIRRORS.indexOf(url);
+  if (i < 0) return;
+  preferred = i;
+  try { localStorage.setItem(SELECTED_KEY, url); } catch {}
+  renderEndpoints();
+  setEndpointMsg(`Data source: ${hostOf(url)}`);
+  // Reload the current chapter/verse from state (not the input box, which Next/
+  // Prev navigation doesn't update) so the new source takes effect at once.
+  if (reload && state) openLookup(String(state.height), state.index);
+}
+
+function closeAddForm() {
+  $('endpoint-add-row').classList.add('hidden');
+  $('endpoint-label').value = '';
+  $('endpoint-url').value = '';
+  setEndpointMsg('');
+}
+
+function saveCustomEndpoint() {
+  let url = $('endpoint-url').value.trim();
+  let label = $('endpoint-label').value.trim();
+  if (!url) { setEndpointMsg('Enter an endpoint URL.', true); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  try { new URL(url); } catch { setEndpointMsg('That doesn’t look like a valid URL.', true); return; }
+  url = url.replace(/\/+$/, ''); // strip trailing slash so onMirror prefixes match
+  if (allMirrors().some((m) => m.url === url)) { selectEndpoint(url); closeAddForm(); return; }
+  customMirrors.push({ label: label || hostOf(url), url });
+  persistCustomMirrors();
+  syncMirrors();
+  closeAddForm();
+  selectEndpoint(url);
+}
+
+endpointSel.addEventListener('change', () => selectEndpoint(endpointSel.value));
+$('endpoint-add').addEventListener('click', () => {
+  const row = $('endpoint-add-row');
+  row.classList.toggle('hidden');
+  if (!row.classList.contains('hidden')) $('endpoint-url').focus();
+});
+$('endpoint-cancel').addEventListener('click', closeAddForm);
+$('endpoint-save').addEventListener('click', saveCustomEndpoint);
+$('endpoint-url').addEventListener('keydown', (e) => { if (e.key === 'Enter') saveCustomEndpoint(); });
+$('endpoint-label').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('endpoint-url').focus(); });
+$('endpoint-remove').addEventListener('click', () => {
+  const current = ESPLORA_MIRRORS[preferred];
+  const idx = customMirrors.findIndex((m) => m.url === current);
+  if (idx < 0) return;
+  customMirrors.splice(idx, 1);
+  persistCustomMirrors();
+  syncMirrors();
+  selectEndpoint(BUILTIN_MIRRORS[0].url); // fall back to the primary built-in
+});
+
+renderEndpoints();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
 // verse; ?block= (with optional ?index=) opens a block; otherwise the input's
