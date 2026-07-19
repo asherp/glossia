@@ -1234,14 +1234,17 @@ function renderChapter(para) {
   // instead folds the chapter number into the Volume/Book eyebrow line --
   // "Volume 1 · Book 100 · Chapter 333" -- a running head, not a heading.
   const onFirstTx = state.index === 0;
-  // Volume 1, Book 1, Chapter 1 is block 0 -- the Genesis block -- so it
-  // earns its own title rather than just being "Chapter 1". Set both the
-  // big title and the inline running-head form unconditionally (not just
-  // whichever is visible) so neither goes stale while hidden.
-  $('ch-title').textContent = (volume === 1 && book === 1 && chapter === 1) ? 'Genesis' : `Chapter ${chapter.toLocaleString()}`;
-  // Running-head chapter number (every verse past the first): a bare numeral,
-  // no thousands comma -- it reads as a locator, not a quantity.
-  $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · Chapter ${chapter}`;
+  // A block that's a curated entry (Genesis, a halving, an activation, ...)
+  // earns its event name as the chapter title rather than a bare "Chapter N".
+  // Genesis keeps its short "Genesis" form. Set both the big title and the
+  // inline running-head form unconditionally (not just whichever is visible)
+  // so neither goes stale while hidden.
+  const isGenesis = volume === 1 && book === 1 && chapter === 1;
+  const eventTitle = NOTABLE.find((e) => e.id === String(state.height))?.title;
+  $('ch-title').textContent = isGenesis ? 'Genesis' : (eventTitle || `Chapter ${chapter.toLocaleString()}`);
+  // Running head (every verse past the first): the event name for a notable
+  // block, otherwise the bare chapter numeral -- a locator, not a quantity.
+  $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · ${eventTitle || `Chapter ${chapter}`}`;
   $('ch-title').classList.toggle('hidden', !onFirstTx);
   $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
