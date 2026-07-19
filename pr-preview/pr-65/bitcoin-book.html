@@ -482,6 +482,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq none">∅</span>
             <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
             <span class="seq">∅ · <span class="ph">𝓈</span> · <span class="ph">𝓈</span> · <span class="ph">𝓌</span></span>
+          <span class="pname">Lightning HTLC</span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
+            <span class="seq"><span class="ph">𝓈</span> · <span class="ph">𝒽</span> · <span class="ph">𝓌</span></span>
           <span class="pname">P2TR key</span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
@@ -496,7 +500,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq none">—</span>
         </div>
         </div>
-        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push superscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ²⁰ a HASH160 of a key, ³² a SHA-256 of a script. A script hidden behind a hash — 𝓇, 𝓌, 𝓉 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">𝒽</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">⟩ ∇</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
+        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push superscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ²⁰ a HASH160 of a key, ³² a SHA-256 of a script. A script hidden behind a hash — 𝓇, 𝓌, 𝓉 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">𝒽</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">⟩ ∇</span>. That hash-timelock is what a <b>Lightning</b> channel writes on-chain when it force-closes: the channel's funding output is a P2WSH 2-of-2 <span class="op" style="font-style:normal">◇</span>, and each in-flight payment is the Lightning HTLC row above — a P2WSH whose witnessScript <span class="ph">𝓌</span> is that hash-timelock, spent either by revealing the preimage <span class="ph">𝒽</span> or by waiting out the timelock <span class="op" style="font-style:normal">τ</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
       </div>
 
       <div class="notation-group">
@@ -1739,6 +1743,7 @@ const NOTABLE = [
   { title: 'First bare multisig (P2MS)', id: '60a20bd93aa49ab4b28d514ec10b06e1829ce6818ec06cd3aabd013ebcdc4bb1', label: 'transaction', note: 'Block 164467, 30 Jan 2012 — the first send to a bare 1-of-2 multisig output.' },
   { title: 'Peter Todd’s SHA-1 collision bounty', id: '9c08a4d78931342b37fd5f72900fb9983087e6f46c4a097d8a1f52c74e28eaf6', label: 'transaction', note: '23 Feb 2017 — a P2SH bounty payable to anyone who found a SHA-1 collision, claimed days after the first was published.' },
   { title: 'SegWit activates', id: '481824', label: 'block', note: 'Block 481824, 24 Aug 2017 — the first block under BIP141, enabling native P2WPKH and P2WSH.' },
+  { title: 'First dual-funded Lightning channel', id: '91538cbc4aca767cb77aa0690c2a6e710e095c8eb6d8f73d53a3a29682cb7581', label: 'transaction', note: 'Block 681753, May 2021 — c-lightning opens the first dual-funded mainnet channel; the funding output is a P2WSH 2-of-2.' },
   { title: 'Taproot activates', id: '709632', label: 'block', note: 'Block 709632, 14 Nov 2021 — the first block under BIP341, enabling P2TR (key- and script-path spends).' },
 ];
 // Type-firsts still to add (each needs its exact txid confirmed against the
@@ -1748,6 +1753,8 @@ const NOTABLE = [
 //   - First native P2WPKH spend and first P2WSH spend (block 481824+)
 //   - First P2TR key-path spend and first script-path spend (block 709635)
 //   - First standard OP_RETURN data output (after Bitcoin Core 0.9.0, Mar 2014)
+//   - A Lightning force-close revealing an HTLC on-chain (the marquee Lightning
+//     example — showcases the HTLC row in the Notation guide)
 
 // Add (or retitle) a bookmark, then refresh the contents and every on-page flag.
 function addBookmark(entry, title) {
