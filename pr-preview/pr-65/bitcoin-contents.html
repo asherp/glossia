@@ -35,6 +35,7 @@ a:hover { text-decoration: underline; }
 .toc-entry .toc-head { display:flex; align-items:baseline; gap:12px; }
 .toc-tag { flex:none; font:600 10px/1.4 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
 .toc-title { font:500 18px/1.35 'Newsreader',serif; color:var(--ink-soft); }
+.toc-ref { margin-left:auto; flex:none; font:600 12px/1.4 'IBM Plex Mono',monospace; letter-spacing:.08em; color:var(--accent); white-space:nowrap; }
 .toc-entry:hover .toc-title { color:var(--ink); }
 .toc-note { display:block; margin-top:5px; font:400 13px/1.5 'Public Sans',sans-serif; color:var(--meta); }
 
@@ -58,12 +59,19 @@ a:hover { text-decoration: underline; }
 
 <script type="module">
 import { NOTABLE, entryHref } from './btc-contents.js';
+import { reference } from './btc-citation.js';
 
 const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
 const readBookmarks = () => {
   try { const v = JSON.parse(localStorage.getItem(BOOKMARKS_KEY)); return Array.isArray(v) ? v : []; }
   catch { return []; }
 };
+
+// The volume·book·chapter reference for a contents id, when it's a block
+// height (a bare number). A hash/txid has no offline height, so it gets none.
+function refFor(id) {
+  return /^[0-9]+$/.test(id) ? reference(Number(id)) : '';
+}
 
 function entryEl({ id, title, tag, note }) {
   const a = document.createElement('a');
@@ -73,6 +81,8 @@ function entryEl({ id, title, tag, note }) {
   head.className = 'toc-head';
   if (tag) { const t = document.createElement('span'); t.className = 'toc-tag'; t.textContent = tag; head.append(t); }
   const h = document.createElement('span'); h.className = 'toc-title'; h.textContent = title; head.append(h);
+  const ref = refFor(id);
+  if (ref) { const r = document.createElement('span'); r.className = 'toc-ref'; r.textContent = ref; r.title = 'volume · book · chapter'; head.append(r); }
   a.append(head);
   if (note) { const n = document.createElement('span'); n.className = 'toc-note'; n.textContent = note; a.append(n); }
   return a;

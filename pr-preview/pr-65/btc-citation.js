@@ -38,3 +38,18 @@ export function volumeBookChapter(height) {
     chapterCount: bookLength,
   };
 }
+
+// A volume number as a Roman numeral (the book cites volumes in Roman).
+export function toRoman(n) {
+  const map = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+  let out = '';
+  for (const [v, s] of map) while (n >= v) { out += s; n -= v; }
+  return out || '0';
+}
+
+// The scripture-style reference for a block height: Roman volume, then book and
+// chapter (e.g. "III 2 5"). A transaction adds a §verse to this.
+export function reference(height) {
+  const { volume, book, chapter } = volumeBookChapter(height);
+  return `${toRoman(volume)} ${book} ${chapter}`;
+}
