@@ -18,6 +18,14 @@
 
 import { encodeSeedPhrase } from './glossia-msg.js';
 import { findAsciiStrings, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
+import { volumeBookChapter } from './btc-citation.js';
+
+const ROMAN = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+function toRoman(n) {
+  let out = '';
+  for (const [v, s] of ROMAN) while (n >= v) { out += s; n -= v; }
+  return out || '0';
+}
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
@@ -31,10 +39,15 @@ import { findAsciiStrings, tokenizeScript, bitsToTargetHex, bitsToDifficulty } f
 // downstream, not encoded here.
 const LOCKTIME_THRESHOLD = 500000000;   // nLockTime below this is a block height, at/above a unix timestamp
 
-// nLockTime -> { mark, title }: □ (none), ■n (absolute block), ⊥n (absolute time).
+// nLockTime -> { mark, title }: □ (none), ■ + citation (absolute block --
+// the block is a chapter of the book, so it's cited as volume book chapter
+// rather than a bare height), ⊥n (absolute time).
 function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
-  if (locktime < LOCKTIME_THRESHOLD) return { mark: `■${locktime}`, title: `locktime: not before block ${locktime}` };
+  if (locktime < LOCKTIME_THRESHOLD) {
+    const { volume, book, chapter } = volumeBookChapter(locktime);
+    return { mark: `■ ${toRoman(volume)} ${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
+  }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
   return { mark: `⊥${locktime}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
 }
@@ -49,9 +62,11 @@ function locktimeInfo(locktime) {
 function sequenceInfo(seq) {
   if ((seq & 0x80000000) === 0) {
     const n = seq & 0x0000ffff;
+    // A relative block delay counts chapters, so it reads in Roman numerals
+    // (■CXLIV = 144 blocks); a time delay is physical time and stays decimal.
     return (seq & 0x00400000)
       ? { rbf: true, mark: `⊥${n}`, kind: 'time', title: `replaceable; relative locktime ${n} × 512 s after the input's confirmation` }
-      : { rbf: true, mark: `■${n}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
+      : { rbf: true, mark: `■${toRoman(n)}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
   if (seq === 0xfffffffe) return { rbf: false, mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
