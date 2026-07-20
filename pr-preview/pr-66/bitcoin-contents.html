@@ -1,0 +1,174 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Bitcoin Book — Table of Contents</title>
+<meta name="description" content="A table of contents for the Glossia Bitcoin Book: famous transactions and the first occurrence of each payment type, each read as a chapter in grammatically correct prose.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page:#08080a; --card:#0d0d10; --card-bd:#232228; --ink:#e8e4da; --ink-soft:#cfcabf;
+  --accent:#c9a25f; --accent-2:#dcb877; --dim:#8a8794; --meta:#5c5a63; --rule:#1c1b21; --hair:#2a2930;
+  --input-bg:#151519; --input-bd:#2a2930;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { min-height: 100vh; background: var(--page); color: var(--ink); font-family: 'Public Sans', system-ui, sans-serif; line-height: 1.55; }
+.wrap { max-width: 720px; margin: 0 auto; padding: 48px 22px 100px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:40px; }
+.masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+
+.page-head { text-align:center; padding-bottom:30px; margin-bottom:36px; border-bottom:1px solid var(--rule); }
+.page-eyebrow { font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); }
+
+/* The contents nest by the book's own citation scheme: a Volume part header,
+   then a Book sub-header whenever consecutive entries share one, so each row
+   need only cite the portion of its reference that its heading hasn't already
+   named -- a chapter under its book, or a book·chapter under its volume. */
+.toc-vol { margin:36px 0 4px; padding-top:15px; border-top:1px solid var(--rule);
+  font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); }
+.toc-vol:first-child { margin-top:8px; padding-top:0; border-top:none; }
+.toc-book { margin:15px 0 1px; padding-left:16px;
+  font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--meta); }
+
+/* A contents row: title on the left, its remaining reference on the right; the
+   whole row navigates into the book, the manuscript's own citation form. */
+.toc-entry { display:flex; align-items:baseline; gap:16px; padding:9px 2px 9px 16px; border-bottom:1px solid var(--hair); text-decoration:none; }
+.toc-entry.under-book { padding-left:32px; }
+.toc-title { flex:1; min-width:0; font:500 17px/1.35 'Newsreader',serif; color:var(--ink-soft); }
+.toc-ref { flex:none; min-width:84px; text-align:right; font:600 13px/1.4 'IBM Plex Mono',monospace; letter-spacing:.06em; color:var(--accent); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.toc-entry:hover .toc-title { color:var(--ink); }
+.toc-entry:hover .toc-ref, .toc-entry:focus-visible .toc-ref { text-decoration:underline; color:var(--accent-2); }
+.toc-entry:focus-visible { outline:none; }
+</style>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <span class="title">The Bitcoin Book</span>
+    <span class="home"><a href="./bitcoin-book.html">Read</a> · <a href="./index.html">Glossia</a></span>
+  </div>
+
+  <header class="page-head">
+    <div class="page-eyebrow">Table of Contents</div>
+  </header>
+
+  <div id="toc"></div>
+</div>
+
+<script type="module">
+import { NOTABLE, isBlockId, entryHref } from './btc-contents.js';
+import { volumeBookChapter, toRoman } from './btc-citation.js';
+
+const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
+const readBookmarks = () => {
+  try { const v = JSON.parse(localStorage.getItem(BOOKMARKS_KEY)); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+};
+const shortHex = (hex) => `${hex.slice(0, 10)}…${hex.slice(-6)}`;
+
+// The genesis coinbase places offline -- block 0, first transaction -- so the
+// book opens at I 1 1 §1 without waiting on the network.
+const GENESIS_COINBASE = '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b';
+
+// Every entry is cited by its reference, never its raw id. A block's placement
+// is known offline from its height; a transaction's is resolved the same way the
+// reader resolves a citation -- a /tx/<txid>/merkle-proof gives the confirming
+// block height and the transaction's index (its §verse). Tried across the same
+// public mirrors the book uses.
+const ESPLORA_MIRRORS = ['https://blockstream.info/api', 'https://mempool.space/api'];
+const placeOf = (height, pos) => { const p = volumeBookChapter(height); return { ...p, verse: pos == null ? null : pos + 1 }; };
+async function resolvePlacement(id) {
+  if (isBlockId(id)) return placeOf(Number(id), null);
+  if (id === GENESIS_COINBASE) return placeOf(0, 0);
+  for (const base of ESPLORA_MIRRORS) {
+    try {
+      const res = await fetch(`${base}/tx/${id}/merkle-proof`);
+      if (!res.ok) continue;
+      const mp = await res.json();
+      return placeOf(mp.block_height, mp.pos);
+    } catch { /* try the next mirror */ }
+  }
+  return null;
+}
+
+// The tail of an entry's citation -- the part its heading hasn't already named.
+// Under a Book heading only the chapter (and a transaction's §verse) remains;
+// directly under a Volume, the book leads it. Spaced like the book's own
+// citations (e.g. "29 596", "1 §1").
+function tailRef({ book, chapter, verse }, underBook) {
+  let s = (underBook ? [chapter] : [book, chapter]).join(' ');
+  if (verse != null) s += ` §${verse}`;
+  return s;
+}
+
+// One contents row: the title on the left, its remaining reference on the right;
+// the whole row is a link that navigates into the book.
+function entryEl(entry, underBook) {
+  const row = document.createElement('a');
+  row.className = 'toc-entry' + (underBook ? ' under-book' : '');
+  row.href = entryHref(entry.id);
+  const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = entry.title;
+  const r = document.createElement('span'); r.className = 'toc-ref'; r.textContent = tailRef(entry.place, underBook);
+  row.append(t, r);
+  return row;
+}
+function head(cls, label) { const d = document.createElement('div'); d.className = cls; d.textContent = label; return d; }
+
+// Render the placed entries as a nested contents: a Volume part header, then a
+// Book sub-header wherever two or more consecutive entries share one, so each
+// row need only cite the portion of its reference its headings haven't named.
+// Entries arrive in reading order (ascending height), so anything sharing a
+// volume or book is already contiguous.
+const toc = document.getElementById('toc');
+function render(entries) {
+  toc.replaceChildren();
+  for (let i = 0; i < entries.length;) {
+    const vol = entries[i].place.volume;
+    let jv = i + 1; while (jv < entries.length && entries[jv].place.volume === vol) jv++;
+    toc.append(head('toc-vol', `Volume ${toRoman(vol)}`));
+    for (let k = i; k < jv;) {
+      const bk = entries[k].place.book;
+      let jb = k + 1; while (jb < jv && entries[jb].place.book === bk) jb++;
+      if (jb - k >= 2) {
+        toc.append(head('toc-book', `Book ${bk}`));
+        for (let m = k; m < jb; m++) toc.append(entryEl(entries[m], true));
+      } else {
+        toc.append(entryEl(entries[k], false));
+      }
+      k = jb;
+    }
+    i = jv;
+  }
+  const bookmarks = readBookmarks();
+  if (bookmarks.length) {
+    toc.append(head('toc-vol', 'Your bookmarks'));
+    for (const b of bookmarks) {
+      const row = document.createElement('a');
+      row.className = 'toc-entry';
+      row.href = entryHref(b.hex);
+      const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = b.title || b.prose || shortHex(b.hex);
+      row.append(t);
+      toc.append(row);
+    }
+  }
+}
+
+// Block placements are offline, so render them at once; transaction citations
+// stream in as each resolves, slotting into their volume and book in order. An
+// entry that never resolves simply stays out of the contents (its raw id is
+// never written).
+const placements = new Map();
+const placed = () => NOTABLE.filter((e) => placements.get(e.id)).map((e) => ({ ...e, place: placements.get(e.id) }));
+for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), null));
+render(placed());
+await Promise.all(NOTABLE.filter((e) => !placements.has(e.id)).map(async (e) => {
+  placements.set(e.id, await resolvePlacement(e.id));
+  render(placed());
+}));
+</script>
+</body>
+</html>
