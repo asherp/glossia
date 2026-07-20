@@ -48,7 +48,7 @@ export function toRoman(n) {
 }
 
 // The scripture-style reference for a block height: Roman volume, then book and
-// chapter (e.g. "III 2 5"). A transaction adds a §verse to this.
+// chapter (e.g. "III 2 5"). A transaction adds a §section to this.
 export function reference(height) {
   const { volume, book, chapter } = volumeBookChapter(height);
   return `${toRoman(volume)} ${book} ${chapter}`;

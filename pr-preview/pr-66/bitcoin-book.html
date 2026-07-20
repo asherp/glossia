@@ -226,13 +226,13 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .hash-menu-title .hash-title-row .ghost { background: transparent; color: var(--dim); border: 1px solid var(--input-bd); }
 .hash-menu-title .hash-title-row .ghost:hover { background: transparent; color: var(--ink); border-color: var(--accent); }
 
-/* Per-verse navigation: Previous / Next flanking the verse title -- the
-   transaction's position within its block, rendered as "Verse N". */
-.verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
-.verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
-/* The transaction's own txid, rendered as Glossia prose beneath the verse title
+/* Per-section navigation: Previous / Next flanking the section title -- the
+   transaction's position within its block, rendered as "Section N". */
+.section-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
+.section-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
+/* The transaction's own txid, rendered as Glossia prose beneath the section title
    (as the block hash is beneath the chapter title). */
-.verse-hash { margin: 13px auto 0; max-width: 46ch; font: italic 400 14px/1.55 'Newsreader',serif; color: var(--meta); }
+.section-hash { margin: 13px auto 0; max-width: 46ch; font: italic 400 14px/1.55 'Newsreader',serif; color: var(--meta); }
 
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 
@@ -245,7 +245,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    laid out in horizontal bands, each part aligned with the body it annotates:
      .tx-inputs   a subgrid (row 1, left + body): every input is a [citation |
                   scriptSig] pair, so an input's provenance sits on its own line.
-                  The citation is the referenced output's volume·book·chapter·verse
+                  The citation is the referenced output's volume·book·chapter·section
                   plus its output index (a coinbase shows ∅).
      .tx-outputs  a subgrid (row 2, body + right): every output is a [scriptPubKey
                   | amount] pair, so an amount sits on the line of its output.
@@ -263,11 +263,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-in-cite.resolving { color: var(--meta); }
 .tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
 .tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
-.cite-verse-link { color: inherit; text-decoration: none; }
-.cite-verse-link:hover { color: var(--accent); text-decoration: underline; }
+.cite-section-link { color: inherit; text-decoration: none; }
+.cite-section-link:hover { color: var(--accent); text-decoration: underline; }
 /* The amount of the output this input spends, under its reference. */
 .cite-amount { margin-top: .1em; font: italic 400 12px/1.3 'Newsreader',serif; color: var(--meta); }
-/* An output's forward citation -- the verse that later spent it -- under its
+/* An output's forward citation -- the section that later spent it -- under its
    amount in the right margin, mirroring the left margin's provenance cites.
    Empty for an unspent output. */
 .fwd-cite { margin-top: .1em; font: 500 11.5px/1.3 'IBM Plex Mono',monospace; color: var(--dim); }
@@ -430,12 +430,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
       <div class="chapter-frontispiece" id="ch-frontispiece"></div>
-      <nav class="verse-nav">
+      <nav class="section-nav">
         <button type="button" id="page-prev">← Previous</button>
-        <h2 class="verse-title" id="verse-title"></h2>
+        <h2 class="section-title" id="section-title"></h2>
         <button type="button" id="page-next">Next →</button>
       </nav>
-      <div class="verse-hash" id="verse-hash"></div>
+      <div class="section-hash" id="section-hash"></div>
     </header>
 
     <div class="chapter-body" id="ch-paragraphs"></div>
@@ -655,7 +655,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">■ <i>v b c</i></span><span class="m">not before the cited chapter (volume book chapter)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>t</i></span><span class="m">not before a UTC date</span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
-          <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">verse — the transaction's position</span></div>
+          <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">section — the transaction's position</span></div>
         </div>
       </div>
     </div>
@@ -663,9 +663,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
   <details class="about">
     <summary>About</summary>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the verse it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the verse that later consumed it — beneath its amount. An unspent output has none.</p>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the section it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the section that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
-    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
+    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and section hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
@@ -874,7 +874,7 @@ const lazyEncode = (() => {
     // A push's prose, deferred: hex rides in a data attribute (hex is [0-9a-f],
     // safe unquoted) and the ⋯ gives the span a layout box so the observer fires.
     placeholder: (hex) => hex ? `<span class="glossia-lazy" data-hex="${hex}">⋯</span>` : '',
-    // Drop pending chunks from a previous verse (their nodes are already detached).
+    // Drop pending chunks from a previous section (their nodes are already detached).
     reset: () => { if (io) io.disconnect(); },
     // Start watching every placeholder under `root`; encode all now if the
     // browser has no IntersectionObserver.
@@ -915,7 +915,7 @@ let currentFootnotes = [];
 let footnotesLoaded = false;
 
 // Each input's prevout is shown as a citation to the output it spends -- the
-// referenced transaction's volume·book·chapter·verse. Resolving one needs a
+// referenced transaction's volume·book·chapter·section. Resolving one needs a
 // lookup (its block height + position in that block), so results are memoized
 // by txid and `renderGen` lets a citation that resolves after the reader has
 // paged away drop its stale DOM update.
@@ -923,7 +923,7 @@ const citationCache = new Map();   // txid -> Promise<{ height, pos, outputs }>
 let renderGen = 0;
 
 // txid -> { height, pos, outputs } for the referenced transaction: the merkle
-// proof gives its confirming height and index within that block (the verse),
+// proof gives its confirming height and index within that block (the section),
 // while /tx gives its outputs (so a spent output's amount can be shown under
 // the reference). Fetched together, memoized by txid.
 function resolveCitation(txid) {
@@ -958,13 +958,13 @@ function fromRoman(s) {
 }
 
 // Parse a scripture-style reference into { height, index }. Volume comes first
-// (Roman); book, chapter and verse are optional and each default to the first:
-//   "III"        -> era 3, book 1, chapter 1, verse 1
+// (Roman); book, chapter and section are optional and each default to the first:
+//   "III"        -> era 3, book 1, chapter 1, section 1
 //   "III 2"      -> era 3, book 2, first block   (the requested behaviour)
 //   "III 2 5"    -> chapter 5
-//   "III 2 5 §3" / "III 2 5 3" -> verse 3
+//   "III 2 5 §3" / "III 2 5 3" -> section 3
 // A trailing ".output" (as citations print, e.g. "III 2 5 §3.1") is accepted
-// and ignored -- it picks an output within the verse, not another verse.
+// and ignored -- it picks an output within the section, not another section.
 // Returns null when the string isn't a reference at all.
 function parseReference(input) {
   const s = input.trim().replace(/\s+/g, ' ');
@@ -974,9 +974,9 @@ function parseReference(input) {
   if (!Number.isFinite(volume) || volume < 1) return null;
   const book = m[2] ? parseInt(m[2], 10) : 1;
   const chapter = m[3] ? parseInt(m[3], 10) : 1;
-  const verse = m[4] ? parseInt(m[4], 10) : 1;
-  if (book < 1 || chapter < 1 || verse < 1) return null;
-  return { height: heightOf(volume, book, chapter), index: verse - 1 };
+  const section = m[4] ? parseInt(m[4], 10) : 1;
+  if (book < 1 || chapter < 1 || section < 1) return null;
+  return { height: heightOf(volume, book, chapter), index: section - 1 };
 }
 
 // txid -> the spending status of every output at once (Esplora /outspends):
@@ -993,7 +993,7 @@ function loadOutspends(txid) {
   return outspendsCache.get(txid);
 }
 
-// Fill each output's forward-citation cell with the verse that spent it --
+// Fill each output's forward-citation cell with the section that spent it --
 // the mirror of the input margin's provenance cites: the left margin says
 // where value came from, the right margin says where it went next. One
 // outspends call covers every output; each confirmed spender then resolves
@@ -1011,11 +1011,11 @@ async function resolveForwardCitations(txid, cells, gen) {
         if (gen !== renderGen) return;
         const { volume, book, chapter } = volumeBookChapter(height);
         const link = document.createElement('a');
-        link.className = 'cite-verse-link';
+        link.className = 'cite-section-link';
         link.href = `?block=${height}&index=${pos}`;
         link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}`;
         link.title = `spent by input ${sp.vin + 1} of ${sp.txid}`;
-        link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, `in-${sp.vin}`); });
+        link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `in-${sp.vin}`); });
         cell.append(link);
       } catch { /* unresolvable spender -- leave the cell empty */ }
     }));
@@ -1023,27 +1023,28 @@ async function resolveForwardCitations(txid, cells, gen) {
 }
 
 // Populate a citation cell with the scripture-style reference "volume(Roman)
-// book chapter §verse.output-index" (e.g. "XII 37 184 §17.2"), the whole of
-// which links to that verse.
+// book chapter §section.verse" -- the section is the transaction, the verse its
+// output index (e.g. "XII 37 184 §17.2"), the whole of which links to that
+// section.
 function renderCitation(citeBody, height, pos, vout) {
   const { volume, book, chapter } = volumeBookChapter(height);
   const link = document.createElement('a');
-  link.className = 'cite-verse-link';
+  link.className = 'cite-section-link';
   link.href = `?block=${height}&index=${pos}`;
   link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
   link.title = `go to §${pos + 1}.${vout}`;
-  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, `out-${vout}`); });
+  link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `out-${vout}`); });
   citeBody.textContent = '';
   citeBody.append(link);
 }
 
-// Navigate to a referenced verse (the transaction at `index` in the block at
+// Navigate to a referenced section (the transaction at `index` in the block at
 // `height`) in place, then bring `scrollId` to the top of the page. The two
 // directions mirror each other: following an input's provenance scrolls to the
 // output it spends (out-N), and following an output's forward citation scrolls
 // to the input that spends it (in-N). The lookup field is refreshed by
 // renderChapter, so it isn't set here.
-async function goToVerse(height, index, scrollId) {
+async function goToSection(height, index, scrollId) {
   await openLookup(String(height), index);
   if (scrollId) {
     const el = $(scrollId);
@@ -1052,7 +1053,7 @@ async function goToVerse(height, index, scrollId) {
 }
 
 // Fill each pending citation cell once its reference resolves; skip if the
-// reader has since paged to another verse (gen no longer current).
+// reader has since paged to another section (gen no longer current).
 async function resolveCitations(pending, gen) {
   await Promise.all(pending.map(async ({ citeBody, cite, amtEl, txid, vout }) => {
     try {
@@ -1080,7 +1081,7 @@ async function resolveCitations(pending, gen) {
 
 // A block's ordered txid list, memoized by block hash. It's the heaviest part
 // of a block's metadata -- every transaction hash -- so it's fetched on its own
-// and only when needed: opening one transaction by id doesn't need it (its verse
+// and only when needed: opening one transaction by id doesn't need it (its section
 // comes from the merkle proof), only stepping through the block does.
 const txidsCache = new Map();
 function fetchTxids(hash) {
@@ -1100,8 +1101,8 @@ async function ensureTxids(st) {
 }
 
 // `withTxids: false` leaves the (heavy) txid list unfetched -- used when opening
-// a single transaction, whose verse index comes from its merkle proof instead.
-// The block's transaction count still comes from its info (tx_count), so verse
+// a single transaction, whose section index comes from its merkle proof instead.
+// The block's transaction count still comes from its info (tx_count), so section
 // bounds and Next work without the list.
 async function loadBlockMeta(hash, { withTxids = true } = {}) {
   const [[blockRes, headerRes], txids] = await Promise.all([
@@ -1126,7 +1127,7 @@ async function loadBlockByHeight(height) {
 }
 
 // A txid -> the block that confirmed it, plus the transaction's index within
-// that block (its verse). The verse comes from the merkle proof's position, so
+// that block (its section). The section comes from the merkle proof's position, so
 // opening one transaction never downloads the whole block's txid list -- that's
 // deferred (ensureTxids) until the reader steps Prev/Next. This is what makes
 // navigation by reference fast regardless of how large the block is.
@@ -1137,7 +1138,7 @@ async function loadBlockByTxid(txid) {
   ]);
   if (!txRes.ok) throw new Error(txRes.status === 404 ? `No transaction ${txid.slice(0, 8)}…` : `Esplora returned ${txRes.status}.`);
   const tx = await txRes.json();
-  if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no verse yet.');
+  if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no section yet.');
   const hash = tx.status.block_hash;
   if (mpRes.ok) {
     const meta = await loadBlockMeta(hash, { withTxids: false });
@@ -1203,7 +1204,7 @@ function attachHashCopy(el, hex, label) {
 // The block header itself, in wire order, as a small mono line under the
 // chapter hash: version, previous-block hash, merkle root, timestamp,
 // difficulty target, nonce. The two hashes are Glossia-encoded here (like
-// the chapter/verse hash above); the rest come pre-decoded from
+// the chapter/section hash above); the rest come pre-decoded from
 // composeBlockHeaderFields. Genesis has no previous block, shown as ∅.
 function renderFrontispiece(header) {
   const el = $('ch-frontispiece');
@@ -1239,7 +1240,7 @@ function renderChapter(para) {
 
   // Keep the lookup field showing where we are, in the same reference form the
   // citations use, so it round-trips: any navigation refreshes it, and pressing
-  // Read chapter on it returns to this very verse.
+  // Read chapter on it returns to this very section.
   $('block-input').value = `${toRoman(volume)} ${book} ${chapter} §${state.index + 1}`;
 
   // The big title (and hash subtitle) introduce the chapter as a whole, so
@@ -1255,7 +1256,7 @@ function renderChapter(para) {
   const isGenesis = volume === 1 && book === 1 && chapter === 1;
   const eventTitle = NOTABLE.find((e) => e.id === String(state.height))?.title;
   $('ch-title').textContent = isGenesis ? 'Genesis' : (eventTitle || `Chapter ${chapter.toLocaleString()}`);
-  // Running head (every verse past the first): the event name for a notable
+  // Running head (every section past the first): the event name for a notable
   // block, otherwise the bare chapter numeral -- a locator, not a quantity.
   $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · ${eventTitle || `Chapter ${chapter}`}`;
   $('ch-title').classList.toggle('hidden', !onFirstTx);
@@ -1266,12 +1267,12 @@ function renderChapter(para) {
   $('ch-frontispiece').classList.toggle('hidden', !onFirstTx);
   if (onFirstTx) renderFrontispiece(state.header);
 
-  // This verse's own txid, encoded as prose beneath the verse title. Reversed
+  // This section's own txid, encoded as prose beneath the section title. Reversed
   // to internal byte order first (like the block hash) so it carries the txid's
   // actual bytes; every byte kept, since a txid has no droppable leading zeros.
   const { prose: txidProse } = encodeSeedPhrase(reverseHex(para.txid), 'english', BEST_OF);
-  $('verse-hash').textContent = txidProse;
-  attachHashCopy($('verse-hash'), para.txid, 'transaction id');
+  $('section-hash').textContent = txidProse;
+  attachHashCopy($('section-hash'), para.txid, 'transaction id');
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
@@ -1281,17 +1282,17 @@ function renderChapter(para) {
 
   // The transaction's position within its block titles the section ("§ 3").
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
-  const verseTitle = $('verse-title');
-  verseTitle.textContent = `§ ${para.num}`;
-  verseTitle.title = titleAttr;
+  const sectionTitle = $('section-title');
+  sectionTitle.textContent = `§ ${para.num}`;
+  sectionTitle.title = titleAttr;
 
   // The transaction is laid out in horizontal bands (see .tx-flow CSS). The
   // inputs are a [citation | scriptSig] subgrid: each input's provenance -- the
-  // volume·book·chapter·verse of the output it spends, plus that output's index
+  // volume·book·chapter·section of the output it spends, plus that output's index
   // -- sits in the left margin, level with its scriptSig. The outputs are a
   // [scriptPubKey | amount] subgrid; the locktime closes on the right.
   const gen = ++renderGen;
-  lazyEncode.reset();   // drop chunks still pending from the previous verse (body + footnotes)
+  lazyEncode.reset();   // drop chunks still pending from the previous section (body + footnotes)
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
   const inputsEl = document.createElement('div');
@@ -1433,7 +1434,7 @@ function renderChapter(para) {
     const valueCell = document.createElement('div');
     valueCell.className = 'tx-note tx-out-value';
     valueCell.textContent = out.value;
-    // Forward citation placeholder: filled with the verse that later spent
+    // Forward citation placeholder: filled with the section that later spent
     // this output, once the outspends resolve. An unspent output keeps it
     // empty -- still-live value has no forward reference.
     const fwd = document.createElement('div');
@@ -1467,7 +1468,7 @@ function renderChapter(para) {
 
 // Encode every witness-bearing input's witness into a numbered footnote and
 // reveal the footnotes section. Done once per transaction, and skipped if the
-// reader has paged to another verse before the (heavy) encoding finishes.
+// reader has paged to another section before the (heavy) encoding finishes.
 async function renderFootnotes(gen) {
   if (footnotesLoaded || !currentFootnotes.length) return;
   if (!ready) await init().catch(() => {});
@@ -1513,7 +1514,7 @@ const clampIndex = (i, meta) => Math.min(Math.max(0, i || 0), meta.txCount - 1);
 // Load whatever the reader gave us: a block height, a block hash, or a
 // transaction id. A 64-hex value is either a block hash or a txid -- they're
 // indistinguishable by shape -- so it's tried as a block first and, failing
-// that, as a txid, which jumps straight to that transaction's verse.
+// that, as a txid, which jumps straight to that transaction's section.
 async function openLookup(input, index = 0) {
   input = (input || '').trim();
   $('chapter').classList.add('hidden');
@@ -1692,7 +1693,7 @@ function selectEndpoint(url, { reload = true } = {}) {
   try { localStorage.setItem(SELECTED_KEY, url); } catch {}
   renderEndpoints();
   setEndpointMsg(`Data source: ${hostOf(url)}`);
-  // Reload the current chapter/verse from state (not the input box, which Next/
+  // Reload the current chapter/section from state (not the input box, which Next/
   // Prev navigation doesn't update) so the new source takes effect at once.
   if (reload && state) openLookup(String(state.height), state.index);
 }
@@ -1970,7 +1971,7 @@ window.addEventListener('scroll', closeHashMenu, true);
 renderContents();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
-// verse; ?block= (with optional ?index=) opens a block; otherwise the input's
+// section; ?block= (with optional ?index=) opens a block; otherwise the input's
 // default value.
 const params = new URLSearchParams(location.search);
 const txidParam = params.get('txid');

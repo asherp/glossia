@@ -78,10 +78,10 @@ const GENESIS_COINBASE = '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b
 // Every entry is cited by its reference, never its raw id. A block's placement
 // is known offline from its height; a transaction's is resolved the same way the
 // reader resolves a citation -- a /tx/<txid>/merkle-proof gives the confirming
-// block height and the transaction's index (its §verse). Tried across the same
+// block height and the transaction's index (its §section). Tried across the same
 // public mirrors the book uses.
 const ESPLORA_MIRRORS = ['https://blockstream.info/api', 'https://mempool.space/api'];
-const placeOf = (height, pos) => { const p = volumeBookChapter(height); return { ...p, verse: pos == null ? null : pos + 1 }; };
+const placeOf = (height, pos) => { const p = volumeBookChapter(height); return { ...p, section: pos == null ? null : pos + 1 }; };
 async function resolvePlacement(id) {
   if (isBlockId(id)) return placeOf(Number(id), null);
   if (id === GENESIS_COINBASE) return placeOf(0, 0);
@@ -97,12 +97,12 @@ async function resolvePlacement(id) {
 }
 
 // The tail of an entry's citation -- the part its heading hasn't already named.
-// Under a Book heading only the chapter (and a transaction's §verse) remains;
+// Under a Book heading only the chapter (and a transaction's §section) remains;
 // directly under a Volume, the book leads it. Spaced like the book's own
 // citations (e.g. "29 596", "1 §1").
-function tailRef({ book, chapter, verse }, underBook) {
+function tailRef({ book, chapter, section }, underBook) {
   let s = (underBook ? [chapter] : [book, chapter]).join(' ');
-  if (verse != null) s += ` §${verse}`;
+  if (section != null) s += ` §${section}`;
   return s;
 }
 
