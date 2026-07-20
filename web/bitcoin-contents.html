@@ -30,10 +30,10 @@ a:hover { text-decoration: underline; }
 /* A contents row: title (and date) on the left, a clickable reference on the
    right that navigates into the book -- the manuscript's own citation form,
    not a button. */
-.toc-entry { display:flex; align-items:baseline; gap:12px; padding:11px 2px; border-bottom:1px solid var(--hair); }
+.toc-entry { display:flex; align-items:baseline; gap:16px; padding:11px 2px; border-bottom:1px solid var(--hair); }
 .toc-title { flex:1; min-width:0; font:500 17px/1.4 'Newsreader',serif; color:var(--ink-soft); }
-.toc-date { flex:none; font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--meta); letter-spacing:.02em; }
-.toc-ref { flex:none; font:600 13px/1.4 'IBM Plex Mono',monospace; letter-spacing:.08em; color:var(--accent); white-space:nowrap; text-decoration:none; }
+.toc-date { flex:none; width:92px; text-align:right; font:400 12px/1.4 'IBM Plex Mono',monospace; color:var(--meta); letter-spacing:.02em; font-variant-numeric:tabular-nums; }
+.toc-ref { flex:none; min-width:104px; text-align:right; font:600 13px/1.4 'IBM Plex Mono',monospace; letter-spacing:.08em; color:var(--accent); white-space:nowrap; text-decoration:none; font-variant-numeric:tabular-nums; }
 .toc-ref:hover, .toc-ref:focus-visible, .toc-entry:hover .toc-ref { text-decoration:underline; color:var(--accent-2); outline:none; }
 .toc-ref.resolving { color:var(--meta); }
 </style>
@@ -93,7 +93,7 @@ function entryEl({ title, date, id }) {
   row.className = 'toc-entry';
   const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = title;
   row.append(t);
-  if (date) { const d = document.createElement('span'); d.className = 'toc-date'; d.textContent = date; row.append(d); }
+  const d = document.createElement('span'); d.className = 'toc-date'; d.textContent = date || ''; row.append(d);
   const link = document.createElement('a');
   link.className = 'toc-ref';
   link.href = entryHref(id);

@@ -361,7 +361,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .notation summary::before { content: '+ '; color: var(--accent); }
 .notation[open] summary::before { content: '– '; }
 .notation-body { margin-top: 14px; }
-.notation-lede { margin: 0 0 22px; font-size: 12.5px; line-height: 1.5; color: var(--meta); }
 .notation-group { margin: 0 0 22px; }
 .notation-group > h4 {
   margin: 0 0 11px; font: 600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em;
@@ -377,7 +376,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .glyph-row .g i { font-style: normal; opacity: .5; font-size: .82em; }
 .glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
 .glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
-.notation-note { margin: 9px 0 0; font-size: 12px; font-style: italic; color: var(--meta); }
 /* Common script patterns: one row per payment type, its marks split across
    where they live on the wire -- input (scriptSig), output (scriptPubKey),
    witness. Wide, so it scrolls in its own container on narrow screens. */
@@ -450,11 +448,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <details class="notation">
     <summary>Notation</summary>
     <div class="notation-body">
-      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Every defined opcode has a glyph, push instructions included; pushed data — keys, hashes, signatures — is rendered as prose after its push mark. Hovering any glyph names its opcode.</p>
-
       <div class="notation-group">
         <h4>Common script patterns</h4>
-        <p class="notation-note">A payment's kind is legible in its marks — one row per type, split across where its pieces live on the wire. The output column is the lock; the input and witness columns are the spend that opens it.</p>
         <div class="pattern-scroll">
         <div class="pattern-table">
           <span class="phead"></span><span class="phead">Input</span><span class="phead">Output</span><span class="phead">Witness</span>
@@ -500,7 +495,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq none">—</span>
         </div>
         </div>
-        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push superscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ²⁰ a HASH160 of a key, ³² a SHA-256 of a script. A script hidden behind a hash — 𝓇, 𝓌, 𝓉 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">𝒽</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">⟩ ∇</span>. That hash-timelock is what a <b>Lightning</b> channel writes on-chain when it force-closes: the channel's funding output is a P2WSH 2-of-2 <span class="op" style="font-style:normal">◇</span>, and each in-flight payment is the Lightning HTLC row above — a P2WSH whose witnessScript <span class="ph">𝓌</span> is that hash-timelock, spent either by revealing the preimage <span class="ph">𝒽</span> or by waiting out the timelock <span class="op" style="font-style:normal">τ</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
       </div>
 
       <div class="notation-group">
@@ -509,7 +503,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">²⁰</span><span class="m"><b>push</b> — the bare superscript is the byte count (²⁰ pushes twenty)</span></div>
           <div class="glyph-row"><span class="g">↧<i>n</i> ⇊<i>n</i> ⤋<i>n</i></span><span class="m">extended push — length in a 1 / 2 / 4-byte prefix</span></div>
         </div>
-        <p class="notation-note">The pushed bytes follow the mark, as prose or an inline quote; arrow weight matches prefix width. The coinbase preamble's β<i>n</i> and η<i>n</i> fold their push in — the mark alone determines the exact bytes.</p>
       </div>
 
       <div class="notation-group">
@@ -521,7 +514,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">◆</span><span class="m">check m-of-n, <b>else fail</b></span></div>
           <div class="glyph-row"><span class="g">∇₊</span><span class="m">check a signature, <b>tallying</b> (tapscript multisig)</span></div>
         </div>
-        <p class="notation-note">A triangle is one signer, a diamond is many; a filled shape must hold or the script fails.</p>
       </div>
 
       <div class="notation-group">
@@ -533,7 +525,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">σ</span><span class="m">SHA-1</span></div>
           <div class="glyph-row"><span class="g">ρ</span><span class="m">RIPEMD-160</span></div>
         </div>
-        <p class="notation-note">Lower-case Greek is a 160-bit digest, upper-case a 256-bit one. ⌖ points to where value is sent; ⌘ marks what names a transaction.</p>
       </div>
 
       <div class="notation-group">
@@ -542,7 +533,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">τ</span><span class="m"><b>absolute</b> — not before a fixed time or block</span></div>
           <div class="glyph-row"><span class="g">Δ</span><span class="m"><b>relative</b> — a delay after this coin confirmed</span></div>
         </div>
-        <p class="notation-note">τ is a fixed point in time; Δ is an interval measured from the moment the coin was received.</p>
       </div>
 
       <div class="notation-group">
@@ -560,7 +550,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b> — a valid hash opens with n zero bits</span></div>
           <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
         </div>
-        <p class="notation-note">β's subscript is the target's demand in leading zero bits — β₃₂ at genesis (difficulty 1), climbing as difficulty rises; each +1 doubles the work. The exact target rides in β's hover. The chain's earliest coinbases open with this preamble — the miner's restatement of the header's target, then the counter it rolled once the header's 32-bit nonce ran out — decoded to marks so any embedded words (the genesis headline) lead the text.</p>
       </div>
 
       <div class="notation-group">
@@ -571,7 +560,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b>, as in the preamble</span></div>
           <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
         </div>
-        <p class="notation-note">The chapter head runs the header's fields in wire order: version, the previous chapter's hash as prose (∅ for genesis), the merkle root as prose, the timestamp, β, η. The header's η and the coinbase preamble's extranonce together are the miner's full search space.</p>
       </div>
 
       <div class="notation-group">
@@ -590,7 +578,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">↕</span><span class="m"><b>depth</b> of the stack</span></div>
           <div class="glyph-row"><span class="g">⇥ ⇤</span><span class="m"><b>shelve / retrieve</b> via the alt stack</span></div>
         </div>
-        <p class="notation-note">A subscript doubles or triples the choreography: ⧉₂ ⧉₃ duplicate pairs and triples, ⌄₂ drops a pair, ⇄₂ ↻₂ ⇗₂ work on pairs.</p>
       </div>
 
       <div class="notation-group">
@@ -609,7 +596,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">« »</span><span class="m">shift left · right</span></div>
           <div class="glyph-row"><span class="g">= ≡</span><span class="m">bytes equal? · equal, <b>else fail</b></span></div>
         </div>
-        <p class="notation-note">= compares raw bytes; ≐ compares as numbers. The doubled form is the else-fail variant, as everywhere in this notation.</p>
       </div>
 
       <div class="notation-group">
@@ -621,7 +607,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">∼ ∩ ∪ ⊻</span><span class="m">bitwise invert · and · or · xor</span></div>
           <div class="glyph-row"><span class="g">ℓ</span><span class="m"><b>length</b> of the top item</span></div>
         </div>
-        <p class="notation-note">The splice and bitwise family (and × ÷ % « » above) has been disabled since 2010 — but a script is notation whether or not the network would still run it.</p>
       </div>
 
       <div class="notation-group">
@@ -649,7 +634,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">𝓌</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
           <div class="glyph-row"><span class="g">𝓉</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
         </div>
-        <p class="notation-note">Type marks naming what a push carries. On the page they sit between the push count and the prose (⁶⁵𝓅 …), wherever the kind is recognizable from the bytes and their context; a push that could be anything stays unmarked.</p>
       </div>
 
       <div class="notation-group">
@@ -673,7 +657,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
           <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">verse — the transaction's position</span></div>
         </div>
-        <p class="notation-note">■ marks block-height and Τ marks time, in both places; a square reads as the whole transaction, a circle as one input. An absolute height is a place in the book, so it is cited; a relative block delay is a count of chapters, so it is a Roman numeral. Time renders physically: an absolute lock as its UTC date, a relative one as a duration.</p>
       </div>
     </div>
   </details>
