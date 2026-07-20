@@ -13,6 +13,7 @@ export const NOTABLE = [
   { title: 'First peer-to-peer transaction', id: '170', note: 'Block 170 · Jan 12, 2009 — Satoshi sent 10 BTC to Hal Finney.' },
   { title: 'Bitcoin Pizza Day', id: '57043', note: 'Block 57,043 · May 22, 2010 — 10,000 BTC for two pizzas: first commercial use.' },
   { title: '100K block milestone', id: '100000', note: 'Block 100,000 · Dec 29, 2010 — network maturity milestone.' },
+  { title: 'Luke Dashjr’s Bible verses', id: '139690', note: 'Block 139,690 · Aug 5, 2011 — Luke Dashjr begins inscribing prayers and Bible verses in Eligius-pool coinbase messages (first, the Latin Divine Praises).' },
   { title: 'First halving', id: '210000', note: 'Block 210,000 · Nov 28, 2012 — reward 50 → 25 BTC.' },
   { title: 'First coinbase OP_RETURN', id: '246816', note: 'Block 246,816 · Jul 16, 2013 — the first coinbase transaction to carry an OP_RETURN output.' },
   { title: 'Second halving', id: '420000', note: 'Block 420,000 · Jul 9, 2016 — reward 25 → 12.5 BTC.' },
