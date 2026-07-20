@@ -308,9 +308,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    operational opcodes -- it frames the data that follows rather than acting
    on the stack, so it shouldn't compete with the prose it introduces. */
 .op-push { color: var(--meta); }
-/* A data type mark (𝓅 𝓈 𝒽 𝓇 𝓌 𝓉): names what the prose after it carries.
+/* A data type mark (p s h r w t): names what the prose after it carries.
    Dim like the push count it rides with -- annotation, not instruction. */
-.dt { color: var(--dim); font-style: normal; }
+/* Data marks (p s h r w t) in live prose: bold, since a confirmed
+   transaction's data is on chain. In the pattern table the same letters go
+   plain where a spend introduces them at validation (see .seq.exec .ph). */
+.dt { color: var(--dim); font-style: normal; font-weight: 700; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
@@ -376,6 +379,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .glyph-row .g i { font-style: normal; opacity: .5; font-size: .82em; }
 .glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
 .glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
+.notation-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: var(--meta); }
 /* Common script patterns: one row per payment type, read as a state
    transition -- the unspent output at rest (UTXO), the script a node runs then
    discards (validator), and the same output once spent (STXO). Wide, so it
@@ -465,49 +469,49 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="pattern-table">
           <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span>
           <span class="pname">P2PK</span>
-            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">𝓅</span> <span class="op">∇</span></span>
-            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph chain">𝓅</span> <span class="op">∇</span></span>
-            <span class="seq"><span class="ph">𝓈</span></span>
+            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">p</span> <span class="op">∇</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph chain">p</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="ph">s</span></span>
           <span class="pname">P2PKH</span>
-            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
-            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
-            <span class="seq"><span class="ph">𝓈</span> <span class="ph">𝓅</span></span>
+            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph">p</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="ph">s</span> <span class="ph">p</span></span>
           <span class="pname">Multisig</span>
-            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
-            <span class="seq exec"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="op">◇</span></span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span></span>
+            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq exec"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span></span>
           <span class="pname">P2SH</span>
-            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
-            <span class="seq exec"><span class="ph">𝓇</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">(𝓇)</span></span>
-            <span class="seq"><span class="op">(𝓇)</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
+            <span class="seq exec"><span class="ph">r</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(r)</span></span>
+            <span class="seq"><span class="op">(r)</span></span>
           <span class="pname">P2SH · 2-of-3</span>
-            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
-            <span class="seq exec"><span class="op">②</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="op">②</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
+            <span class="seq exec"><span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span> <span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span></span>
           <span class="pname">P2WPKH</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span></span>
-            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
-            <span class="seq">∅ · <span class="ph">𝓈</span> <span class="ph">𝓅</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph">p</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq">∅ · <span class="ph">s</span> <span class="ph">p</span></span>
           <span class="pname">P2WSH</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
-            <span class="seq exec"><span class="ph">𝓌</span> <span class="op">Σ</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">(𝓌)</span></span>
-            <span class="seq">∅ · <span class="op">(𝓌)</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(w)</span></span>
+            <span class="seq">∅ · <span class="op">(w)</span></span>
           <span class="pname">Lightning HTLC</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
-            <span class="seq exec"><span class="ph">𝓌</span> <span class="op">Σ</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">(</span><span class="op">Σ</span><span class="op">≡</span> <span class="op">∇</span><span class="op">)</span></span>
-            <span class="seq">∅ · <span class="ph">𝓈</span> <span class="ph">𝒽</span> <span class="ph">𝓌</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">Σ</span><span class="op">≡</span> <span class="op">∇</span><span class="op">)</span></span>
+            <span class="seq">∅ · <span class="ph">s</span> <span class="ph">h</span> <span class="ph">w</span></span>
           <span class="pname">P2TR key</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
-            <span class="seq exec"><span class="ph">𝓈</span> <span class="op">∇</span></span>
-            <span class="seq">∅ · <span class="ph">𝓈</span></span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="op">∇</span></span>
+            <span class="seq">∅ · <span class="ph">s</span></span>
           <span class="pname">P2TR script</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
-            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓉</span> <span class="op">(𝓉)</span></span>
-            <span class="seq">∅ · <span class="op">(𝓉)</span></span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph">t</span> <span class="op">(t)</span></span>
+            <span class="seq">∅ · <span class="op">(t)</span></span>
           <span class="pname">Data</span>
             <span class="seq none">—</span>
             <span class="seq none">—</span>
-            <span class="seq"><span class="op">¶</span> <span class="op op-push">ⁿ</span><span class="ph">…</span></span>
+            <span class="seq"><span class="op">¶</span> <span class="op op-push">ⁿ</span></span>
         </div>
         </div>
       </div>
@@ -629,7 +633,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">⟨ │ ⟩</span><span class="m">if … else … end</span></div>
           <div class="glyph-row"><span class="g">¬⟨</span><span class="m"><b>if not</b></span></div>
-          <div class="glyph-row"><span class="g">( )</span><span class="m"><b>run</b> the revealed script (𝓇 𝓌 𝓉)</span></div>
+          <div class="glyph-row"><span class="g">( )</span><span class="m"><b>run</b> the revealed script (r w t)</span></div>
           <div class="glyph-row"><span class="g">✓</span><span class="m">assert true</span></div>
           <div class="glyph-row"><span class="g">¶</span><span class="m"><b>data output</b> — provably unspendable</span></div>
           <div class="glyph-row"><span class="g">° °<i>n</i></span><span class="m"><b>no-op</b> · numbered no-ops</span></div>
@@ -643,13 +647,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="notation-group">
         <h4>Data</h4>
         <div class="glyph-grid">
-          <div class="glyph-row"><span class="g">𝓅</span><span class="m"><b>public key</b></span></div>
-          <div class="glyph-row"><span class="g">𝓈</span><span class="m"><b>signature</b></span></div>
-          <div class="glyph-row"><span class="g">𝒽</span><span class="m"><b>hash</b></span></div>
-          <div class="glyph-row"><span class="g">𝓇</span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
-          <div class="glyph-row"><span class="g">𝓌</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
-          <div class="glyph-row"><span class="g">𝓉</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
+          <div class="glyph-row"><span class="g"><b>p</b></span><span class="m"><b>public key</b></span></div>
+          <div class="glyph-row"><span class="g"><b>s</b></span><span class="m"><b>signature</b></span></div>
+          <div class="glyph-row"><span class="g"><b>h</b></span><span class="m"><b>hash</b></span></div>
+          <div class="glyph-row"><span class="g"><b>r</b></span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
+          <div class="glyph-row"><span class="g"><b>w</b></span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
+          <div class="glyph-row"><span class="g"><b>t</b></span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
         </div>
+        <p class="notation-note"><b>Bold</b> where the datum is on chain — a lock, or what a spend writes; <b>plain</b> where a spend introduces it at validation.</p>
       </div>
 
       <div class="notation-group">
