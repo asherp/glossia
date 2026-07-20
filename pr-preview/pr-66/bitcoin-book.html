@@ -377,20 +377,20 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
 .glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
 /* Common script patterns: one row per payment type, read as a state
-   transition -- the lock at rest (initial state), the script a node runs then
-   discards (executed), and what the spend leaves on chain (written). Wide, so
-   it scrolls in its own container on narrow screens. */
+   transition -- the unspent output at rest (UTXO), the script a node runs then
+   discards (validator), and the same output once spent (STXO). Wide, so it
+   scrolls in its own container on narrow screens. */
 .pattern-scroll { overflow-x: auto; }
 .pattern-table { display: grid; grid-template-columns: repeat(4, max-content); gap: 9px 22px; align-items: baseline; }
 .pattern-table .phead, .pattern-table .pname { font: 600 10px/1.5 'IBM Plex Mono',monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--meta); white-space: nowrap; }
 .pattern-table .phead { color: var(--accent); }
 .pattern-table .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); white-space: nowrap; }
 .pattern-table .none { color: var(--meta); }
-/* Gold and bold mark what the chain keeps: the lock (initial state), the
-   authorization once written, and any datum read from a confirmed output -- a
-   committed hash. White, regular weight marks the ephemeral: the operations a
-   node runs, plus the transaction's own data, which stays unverified until a
-   block puts it on chain (where it turns gold). Bold carries the split into a
+/* Gold and bold mark what the chain keeps: the UTXO's lock, the STXO's
+   authorization, and any datum read from a confirmed output -- a committed
+   hash. White, regular weight marks the ephemeral validator: the operations it
+   runs, plus the transaction's own data, which stays unverified until a block
+   puts it on chain (where it turns gold). Bold carries the split into a
    black-and-white print. */
 .pattern-table .op { font-weight: 700; }
 .pattern-table .op-push { font-weight: 400; }
@@ -463,7 +463,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Common script patterns</h4>
         <div class="pattern-scroll">
         <div class="pattern-table">
-          <span class="phead"></span><span class="phead">Initial state</span><span class="phead">Node executes</span><span class="phead">Written</span>
+          <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span>
           <span class="pname">P2PK</span>
             <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">𝓅</span> <span class="op">∇</span></span>
             <span class="seq exec"><span class="ph">𝓈</span> <span class="ph chain">𝓅</span> <span class="op">∇</span></span>
