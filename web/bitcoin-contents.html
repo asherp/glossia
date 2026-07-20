@@ -41,6 +41,7 @@ a:hover { text-decoration: underline; }
 .toc-entry.under-book { padding-left:32px; }
 .toc-title { flex:1; min-width:0; font:500 17px/1.35 'Newsreader',serif; color:var(--ink-soft); }
 .toc-ref { flex:none; min-width:84px; text-align:right; font:600 13px/1.4 'IBM Plex Mono',monospace; letter-spacing:.06em; color:var(--accent); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.toc-ref.none { color:var(--meta); font-weight:400; }
 .toc-entry:hover .toc-title { color:var(--ink); }
 .toc-entry:hover .toc-ref, .toc-entry:focus-visible .toc-ref { text-decoration:underline; color:var(--accent-2); }
 .toc-entry:focus-visible { outline:none; }
@@ -106,13 +107,16 @@ function tailRef({ book, chapter, verse }, underBook) {
 }
 
 // One contents row: the title on the left, its remaining reference on the right;
-// the whole row is a link that navigates into the book.
+// the whole row is a link that navigates into the book. An entry whose citation
+// never resolved carries a dash in place of a reference.
 function entryEl(entry, underBook) {
   const row = document.createElement('a');
   row.className = 'toc-entry' + (underBook ? ' under-book' : '');
   row.href = entryHref(entry.id);
   const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = entry.title;
-  const r = document.createElement('span'); r.className = 'toc-ref'; r.textContent = tailRef(entry.place, underBook);
+  const r = document.createElement('span'); r.className = 'toc-ref';
+  if (entry.place) r.textContent = tailRef(entry.place, underBook);
+  else { r.textContent = '—'; r.classList.add('none'); }
   row.append(t, r);
   return row;
 }
@@ -124,8 +128,9 @@ function head(cls, label) { const d = document.createElement('div'); d.className
 // Entries arrive in reading order (ascending height), so anything sharing a
 // volume or book is already contiguous.
 const toc = document.getElementById('toc');
-function render(entries) {
+function render() {
   toc.replaceChildren();
+  const entries = placed();
   for (let i = 0; i < entries.length;) {
     const vol = entries[i].place.volume;
     let jv = i + 1; while (jv < entries.length && entries[jv].place.volume === vol) jv++;
@@ -143,6 +148,13 @@ function render(entries) {
     }
     i = jv;
   }
+  // Entries whose citation could not be resolved fall to the end under a dash,
+  // still linked so the book can resolve and open them on the next attempt.
+  const stranded = unresolved();
+  if (stranded.length) {
+    toc.append(head('toc-vol', 'Unresolved'));
+    for (const e of stranded) toc.append(entryEl(e, false));
+  }
   const bookmarks = readBookmarks();
   if (bookmarks.length) {
     toc.append(head('toc-vol', 'Your bookmarks'));
@@ -159,15 +171,16 @@ function render(entries) {
 
 // Block placements are offline, so render them at once; transaction citations
 // stream in as each resolves, slotting into their volume and book in order. An
-// entry that never resolves simply stays out of the contents (its raw id is
-// never written).
+// entry whose lookup fails (placement null) drops to an "Unresolved" tail
+// rather than printing its raw id.
 const placements = new Map();
 const placed = () => NOTABLE.filter((e) => placements.get(e.id)).map((e) => ({ ...e, place: placements.get(e.id) }));
+const unresolved = () => NOTABLE.filter((e) => placements.has(e.id) && !placements.get(e.id));
 for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), null));
-render(placed());
+render();
 await Promise.all(NOTABLE.filter((e) => !placements.has(e.id)).map(async (e) => {
   placements.set(e.id, await resolvePlacement(e.id));
-  render(placed());
+  render();
 }));
 </script>
 </body>
