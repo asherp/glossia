@@ -607,7 +607,7 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
     }
     const seq = sequenceInfo(v.sequence);
     // The prevout is carried as a reference (txid + output index), not encoded:
-    // the book resolves it to a volume/book/chapter/verse citation for the left
+    // the book resolves it to a volume/book/chapter/section citation for the left
     // margin. A coinbase has none. Raw per-input witness bytes (segwit only) ride
     // along so each input's witness can become its own footnote.
     return {

@@ -7,7 +7,7 @@
 // reference, never its raw id: a block's is known offline (volume·book·chapter
 // from its height); a transaction's is resolved the same way the reader resolves
 // a citation -- a /tx/<txid>/merkle-proof lookup gives its block height and
-// index, yielding volume·book·chapter·§verse. Ordered chronologically (reading
+// index, yielding volume·book·chapter·§section. Ordered chronologically (reading
 // order).
 
 import { reference } from './btc-citation.js';
@@ -47,7 +47,7 @@ export function blockRef(id) {
 }
 
 // Format a resolved citation -- a block height and the transaction's index
-// within it -- as a full volume·book·chapter·§verse reference.
+// within it -- as a full volume·book·chapter·§section reference.
 export function refFromProof(height, pos) {
   return reference(height) + (pos != null ? ` §${pos + 1}` : '');
 }
