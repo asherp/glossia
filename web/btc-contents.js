@@ -19,6 +19,7 @@ export const NOTABLE = [
   { title: 'Bitcoin Pizza Day', id: '57043' },
   { title: '100K block milestone', id: '100000' },
   { title: 'Luke Dashjr’s Bible verses', id: '139690' },
+  { title: 'First P2SH spend', id: 'e5779b9e78f9650debc2893fd9636d827b26b4ddfa6a8172fe8708c924f5c39d' },
   { title: 'First halving', id: '210000' },
   { title: 'First coinbase OP_RETURN', id: '246816' },
   { title: 'Second halving', id: '420000' },
@@ -35,8 +36,8 @@ export const NOTABLE = [
 ];
 
 // More transaction-level entries still to confirm against the chain before
-// adding: payment-type firsts (P2PKH, P2SH, P2WPKH/P2WSH, P2TR key/script,
-// OP_RETURN spend) and a Lightning force-close revealing an HTLC.
+// adding: payment-type firsts (P2PKH, P2WPKH/P2WSH, P2TR key/script, OP_RETURN
+// spend) and a Lightning force-close revealing an HTLC.
 
 export const isBlockId = (id) => /^[0-9]+$/.test(id);
 
