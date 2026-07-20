@@ -393,11 +393,12 @@ function scriptDataMark(push, compact, prevOp, nextOp) {
 }
 
 // A data push whose bytes are ALL printable ASCII (e.g. an Ordinals inscription's
-// content type or a text body) -> its decoded string, else null. Requiring the
-// WHOLE push to be printable -- not merely a run within it -- keeps keys, hashes
-// and signatures (dense binary) from ever being mistaken for text, so this is
-// safe to apply to any script, not just an OP_RETURN payload.
-const ASCII_PUSH_MIN = 5;
+// "ord" tag, its content type or a text body) -> its decoded string, else null.
+// Requiring the WHOLE push to be printable -- not merely a run within it -- keeps
+// keys, hashes and signatures (dense binary, and all ≥ 20 bytes) from ever being
+// mistaken for text, so this is safe to apply to any script, not just an OP_RETURN
+// payload. The floor is 3 so a short protocol tag like Ordinals' "ord" is caught.
+const ASCII_PUSH_MIN = 3;
 function asciiPush(hex) {
   if (!hex || hex.length / 2 < ASCII_PUSH_MIN) return null;
   let out = '';
