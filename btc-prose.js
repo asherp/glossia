@@ -392,6 +392,23 @@ function scriptDataMark(push, compact, prevOp, nextOp) {
   return '';
 }
 
+// A data push whose bytes are ALL printable ASCII (e.g. an Ordinals inscription's
+// content type or a text body) -> its decoded string, else null. Requiring the
+// WHOLE push to be printable -- not merely a run within it -- keeps keys, hashes
+// and signatures (dense binary) from ever being mistaken for text, so this is
+// safe to apply to any script, not just an OP_RETURN payload.
+const ASCII_PUSH_MIN = 5;
+function asciiPush(hex) {
+  if (!hex || hex.length / 2 < ASCII_PUSH_MIN) return null;
+  let out = '';
+  for (let i = 0; i < hex.length; i += 2) {
+    const b = parseInt(hex.slice(i, i + 2), 16);
+    if (b < 0x20 || b > 0x7e) return null;
+    out += String.fromCharCode(b);
+  }
+  return out;
+}
+
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
@@ -445,6 +462,10 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         const found = findAsciiStrings(t.push);
         if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
       }
+      // A wholly-ASCII push (an inscription's content type, a text body, an
+      // embedded message) reads as its own quoted text rather than cover prose.
+      const text = asciiPush(t.push);
+      if (text !== null) { parts.push(mark, `“${escapeHtml(text)}”`); return; }
       const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
       parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
     } else {
