@@ -386,8 +386,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .pattern-table .phead { color: var(--accent); }
 .pattern-table .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); white-space: nowrap; }
 .pattern-table .none { color: var(--meta); }
-.pattern-table .to { color: var(--meta); font-size: .8em; padding: 0 .15em; }
-.ph { color: var(--dim); font-style: italic; }
+/* Gold marks anything read from or written to the chain -- the lock, the
+   authorization, and the data (keys, sigs, hashes, scripts) that flows through
+   a spend. White marks the ephemeral execution: the operations a node applies
+   in the middle column and the ⇒ ✓ it reduces to, none of which is ever stored.
+   So chain data stays gold even while it threads through the white run. */
+.pattern-table .ph { color: var(--accent); font-style: normal; }
+.pattern-table .seq.exec .op { color: var(--ink); }
+.pattern-table .to { color: var(--ink); font-size: .8em; padding: 0 .15em; }
 .notation-note { margin: 11px 0 0; font-size: 12px; line-height: 1.5; color: var(--meta); }
 @media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
@@ -458,39 +464,39 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <span class="phead"></span><span class="phead">Initial state</span><span class="phead">Node executes</span><span class="phead">Written</span>
           <span class="pname">P2PK</span>
             <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">𝓅</span> <span class="op">∇</span></span>
-            <span class="seq"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq"><span class="ph">𝓈</span></span>
           <span class="pname">P2PKH</span>
             <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
-            <span class="seq"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq"><span class="ph">𝓈</span> <span class="ph">𝓅</span></span>
           <span class="pname">Multisig</span>
             <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="op">◇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="op">◇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span></span>
           <span class="pname">P2SH</span>
             <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
-            <span class="seq"><span class="ph">𝓇</span> <span class="op">⌖</span> <span class="ph">𝒽</span> <span class="op">=</span> <span class="op">◇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓇</span> <span class="op">⌖</span> <span class="ph">𝒽</span> <span class="op">=</span> <span class="op">◇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="ph">𝓇</span></span>
           <span class="pname">P2WPKH</span>
             <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span></span>
-            <span class="seq"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq">∅ · <span class="ph">𝓈</span> <span class="ph">𝓅</span></span>
           <span class="pname">P2WSH</span>
             <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
-            <span class="seq"><span class="ph">𝓌</span> <span class="op">Σ</span> <span class="ph">𝒽</span> <span class="op">=</span> <span class="op">◇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓌</span> <span class="op">Σ</span> <span class="ph">𝒽</span> <span class="op">=</span> <span class="op">◇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq">∅ · ∅ <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="ph">𝓌</span></span>
           <span class="pname">Lightning HTLC</span>
             <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
-            <span class="seq"><span class="ph">𝓌</span> <span class="op">Σ</span> <span class="ph">𝒽</span> <span class="op">=</span> <span class="op">Σ</span><span class="op">≡</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓌</span> <span class="op">Σ</span> <span class="ph">𝒽</span> <span class="op">=</span> <span class="op">Σ</span><span class="op">≡</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq">∅ · <span class="ph">𝓈</span> <span class="ph">𝒽</span> <span class="ph">𝓌</span></span>
           <span class="pname">P2TR key</span>
             <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
-            <span class="seq"><span class="ph">𝓈</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓈</span> <span class="op">∇</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq">∅ · <span class="ph">𝓈</span></span>
           <span class="pname">P2TR script</span>
             <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
-            <span class="seq"><span class="ph">𝓈</span> <span class="ph">𝓉</span> <span class="to">⇒</span> <span class="op">✓</span></span>
+            <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓉</span> <span class="to">⇒</span> <span class="op">✓</span></span>
             <span class="seq">∅ · <span class="ph">𝓈</span> <span class="ph">𝓉</span> <span class="ph">…</span></span>
           <span class="pname">Data</span>
             <span class="seq none">—</span>
