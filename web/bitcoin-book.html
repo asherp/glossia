@@ -313,7 +313,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* Data marks (p s h r w t) in live prose: bold, since a confirmed
    transaction's data is on chain. In the pattern table the same letters go
    plain where a spend introduces them at validation (see .seq.exec .ph). */
-.dt { color: var(--dim); font-style: normal; font-weight: 700; }
+.dt { color: var(--accent); font-style: normal; font-weight: 700; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
@@ -379,6 +379,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .glyph-row .g i { font-style: normal; opacity: .5; font-size: .82em; }
 .glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
 .glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
+/* Data-type letters (p s h r w t) glow gold in the key, as they do on chain. */
+.glyph-row .g b { color: var(--accent); }
 .notation-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: var(--meta); }
 /* Common script patterns: one row per payment type, read as a state
    transition -- the unspent output at rest (UTXO), the script a node runs then
