@@ -193,17 +193,17 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   margin: 12px 0 4px; padding: 0 8px; font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.12em;
   text-transform:uppercase; color: var(--meta);
 }
-.entry-item { display: flex; align-items: center; gap: 8px; }
-.contents .entry-open {
-  flex: 1; min-width: 0; text-align: left; background: transparent; border: none; cursor: pointer;
-  color: var(--ink-soft); font: 500 12px/1.4 'IBM Plex Mono',monospace; letter-spacing: 0; text-transform: none;
-  padding: 7px 8px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.contents .entry-open:hover, .contents .entry-open:focus-visible { background: var(--input-bg); color: var(--ink); outline: none; }
-.entry-open .bm-label { color: var(--dim); text-transform: uppercase; font-size: 10px; letter-spacing: .06em; margin-right: 8px; }
+/* A contents row: title on the left, a clickable reference on the right (the
+   manuscript's citation form), and -- for a bookmark -- a remove ✕. */
+.entry-item { display: flex; align-items: baseline; gap: 10px; padding: 4px 2px; }
+.entry-title { flex: 1; min-width: 0; font: 500 13px/1.4 'Newsreader', serif; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.entry-date { flex: none; font: 400 10.5px/1.4 'IBM Plex Mono',monospace; color: var(--meta); }
+.entry-ref { flex: none; font: 600 11.5px/1.4 'IBM Plex Mono',monospace; letter-spacing: .06em; color: var(--accent); white-space: nowrap; }
+.entry-ref:hover, .entry-ref:focus-visible { color: var(--accent-2); text-decoration: underline; outline: none; }
+.entry-ref.resolving { color: var(--meta); }
 .contents .entry-del {
   flex: none; background: transparent; color: var(--meta); border: 1px solid transparent; border-radius: 4px;
-  font: 600 12px/1 'IBM Plex Mono',monospace; padding: 6px 9px; cursor: pointer; text-transform: none;
+  font: 600 11px/1 'IBM Plex Mono',monospace; padding: 4px 7px; cursor: pointer; text-transform: none;
 }
 .contents .entry-del:hover { color: var(--error); border-color: var(--input-bd); background: transparent; }
 /* A bookmark ribbon pinned to the top-right corner of a bookmarked hash's
@@ -707,8 +707,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
 import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
-import { volumeBookChapter, heightOf, toRoman } from './btc-citation.js';
-import { NOTABLE } from './btc-contents.js';
+import { volumeBookChapter, heightOf, toRoman, reference } from './btc-citation.js';
+import { NOTABLE, isBlockId, refFromProof, entryHref } from './btc-contents.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1792,19 +1792,42 @@ function openEntry(id) {
   openLookup(id);
 }
 
-// One table-of-contents row: a fleuron, an optional type tag, the title. A
+// The clickable reference for a row -- the manuscript's own citation form. A
+// block's is known offline; a transaction's is resolved by the same citation
+// lookup the reader uses (resolveCitation → merkle-proof), streaming in when
+// ready. A bare bookmark (which may be a block hash, not a txid) just links
+// its short hash. Clicking navigates in place, like a citation.
+function contentsRef(id, { resolve = true } = {}) {
+  const ref = document.createElement('a');
+  ref.className = 'entry-ref';
+  ref.href = entryHref(id);
+  ref.addEventListener('click', (e) => { e.preventDefault(); openEntry(id); });
+  if (isBlockId(id)) {
+    ref.textContent = reference(Number(id));
+  } else if (resolve) {
+    ref.textContent = '⋯';
+    ref.classList.add('resolving');
+    resolveCitation(id)
+      .then(({ height, pos }) => { ref.textContent = refFromProof(height, pos); ref.classList.remove('resolving'); })
+      .catch(() => { ref.textContent = `${id.slice(0, 8)}…`; ref.classList.remove('resolving'); });
+  } else {
+    ref.textContent = `${id.slice(0, 8)}…`;
+  }
+  return ref;
+}
+
+// One table-of-contents row: the title, then its clickable reference. A
 // removable row (a reader's bookmark) also gets an ✕.
-function contentsRow({ id, title, label, onRemove, note }) {
+function contentsRow({ id, title, date, onRemove }) {
   const item = document.createElement('div');
   item.className = 'entry-item';
-  const open = document.createElement('button');
-  open.type = 'button';
-  open.className = 'entry-open';
-  if (label) { const tag = document.createElement('span'); tag.className = 'bm-label'; tag.textContent = label; open.append(tag); }
-  open.append(document.createTextNode(title));
-  open.title = note || `open — ${id}`;
-  open.addEventListener('click', () => openEntry(id));
-  item.append(open);
+  const t = document.createElement('span');
+  t.className = 'entry-title';
+  t.textContent = title;
+  item.append(t);
+  if (date) { const d = document.createElement('span'); d.className = 'entry-date'; d.textContent = date; item.append(d); }
+  // A curated transaction resolves its reference; a bookmark just links its hash.
+  item.append(contentsRef(id, { resolve: !onRemove }));
   if (onRemove) {
     const del = document.createElement('button');
     del.type = 'button';
@@ -1821,7 +1844,7 @@ function contentsRow({ id, title, label, onRemove, note }) {
 function renderContents() {
   const list = $('contents-list');
   list.innerHTML = '';
-  for (const e of NOTABLE) list.append(contentsRow({ id: e.id, title: e.title, label: e.label, note: e.note }));
+  for (const e of NOTABLE) list.append(contentsRow({ id: e.id, title: e.title, date: e.date }));
   if (bookmarks.length) {
     const group = document.createElement('div');
     group.className = 'contents-group';
@@ -1832,8 +1855,6 @@ function renderContents() {
       list.append(contentsRow({
         id: b.hex,
         title: b.title || b.prose || short,
-        label: b.label,
-        note: `open — ${b.hex}`,
         onRemove: () => removeBookmark(b.hex),
       }));
     }
