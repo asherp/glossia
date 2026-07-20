@@ -476,10 +476,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq exec"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="op">◇</span></span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span></span>
+          <span class="pname">P2SH</span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
+            <span class="seq exec"><span class="ph">𝓇</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">(𝓇)</span></span>
+            <span class="seq"><span class="ph">…</span> <span class="ph">𝓇</span></span>
           <span class="pname">P2SH · 2-of-3</span>
             <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
-            <span class="seq exec"><span class="ph">𝓇</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">◇</span></span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="ph">𝓇</span></span>
+            <span class="seq exec"><span class="ph">𝓇</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">𝓈</span> <span class="ph">𝓈</span> <span class="op">②</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
           <span class="pname">P2WPKH</span>
             <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span></span>
             <span class="seq exec"><span class="ph">𝓈</span> <span class="ph">𝓅</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
@@ -625,6 +629,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">⟨ │ ⟩</span><span class="m">if … else … end</span></div>
           <div class="glyph-row"><span class="g">¬⟨</span><span class="m"><b>if not</b></span></div>
+          <div class="glyph-row"><span class="g">( )</span><span class="m"><b>run</b> the revealed script (𝓇 𝓌 𝓉)</span></div>
           <div class="glyph-row"><span class="g">✓</span><span class="m">assert true</span></div>
           <div class="glyph-row"><span class="g">¶</span><span class="m"><b>data output</b> — provably unspendable</span></div>
           <div class="glyph-row"><span class="g">° °<i>n</i></span><span class="m"><b>no-op</b> · numbered no-ops</span></div>
