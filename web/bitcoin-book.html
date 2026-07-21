@@ -302,10 +302,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    we haven't given a glyph falls back to Bitcoin Core's OP_* name in small mono. */
 .op { color: var(--accent); font-style: normal; }
 .op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
-/* A decoded value riding a mark (the coinbase preamble's βtarget and
-   ηextranonce): mono like an OP_ name, but a size up -- it's a number to
-   read, not a fallback label. */
-.op-num { font: 500 .72em/1 'IBM Plex Mono',monospace; color: var(--dim); font-style: normal; vertical-align: .1em; white-space: nowrap; margin-left: .08em; }
 /* A push opcode's mark (↧ₙ and the OP_PUSHDATA variants): quieter than the
    operational opcodes -- it frames the data that follows rather than acting
    on the stack, so it shouldn't compete with the prose it introduces. */
@@ -614,7 +610,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Coinbase — the mining preamble</h4>
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b> — a valid hash opens with n zero bits</span></div>
-          <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
+          <div class="glyph-row"><span class="g">η<sub><i>n</i></sub></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
         </div>
       </div>
 
