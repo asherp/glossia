@@ -329,6 +329,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   border-left: 2px solid var(--accent); border-radius: 1px;
   font: italic 400 17.5px/1.6 'Newsreader',serif; color: var(--ink-soft);
 }
+/* A tab inside a quoted embedded message (see quoteText in btc-prose.js): a
+   fixed-width gap, so column-aligned text keeps its spacing instead of
+   collapsing to a single space. */
+.tab { display: inline-block; width: 4ch; }
 .tx-line.tx-body-lead::first-letter {
   font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
   font-weight: 500; color: var(--accent);
