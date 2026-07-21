@@ -76,12 +76,13 @@ function locktimeInfo(locktime) {
 function sequenceInfo(seq) {
   if ((seq & 0x80000000) === 0) {
     const n = seq & 0x0000ffff;
-    // A relative block delay counts chapters, so it reads in Roman numerals
-    // (■CXLIV = 144 blocks); a time delay is physical time, so it reads as
-    // an exact duration (Τ20h28m48s), the wire units kept in the hover.
+    // A relative block delay counts chapters, so it reads as a decimal count
+    // (■144 = 144 blocks) -- chapters are numbered in decimal, only volumes in
+    // Roman; a time delay is physical time, so it reads as an exact duration
+    // (Τ20h28m48s), the wire units kept in the hover.
     return (seq & 0x00400000)
       ? { rbf: true, mark: `Τ${durationFrom512s(n)}`, kind: 'time', title: `replaceable; relative locktime ${durationFrom512s(n)} (${n} × 512 s) after the input's confirmation` }
-      : { rbf: true, mark: `■${toRoman(n)}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
+      : { rbf: true, mark: `■${n}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
   if (seq === 0xfffffffe) return { rbf: false, mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
@@ -369,9 +370,9 @@ const markToken = (glyph, text, title) => `<span class="op" title="${title}">${g
 // ─── data type marks ───────────────────────────────────────────────────
 //
 // A pushed datum whose kind is recognizable carries its type mark from the
-// Notation key -- 𝓅 public key, 𝓈 signature, 𝒽 hash, 𝓇 redeem script,
-// 𝓌 witness script, 𝓉 tapscript -- set just before its prose, so a script
-// reads as its pattern (⁶⁵𝓅 ∇) without consulting the key. Classification
+// Notation key -- p public key, s signature, h hash, r redeem script,
+// w witness script, t tapscript -- set just before its prose, so a script
+// reads as its pattern (⁶⁵p ∇) without consulting the key. Classification
 // is display-only annotation: it never changes what gets encoded.
 const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
 
@@ -380,24 +381,25 @@ const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span
 // push in script context is a HASH160; a 32-byte one is a hash -- except
 // directly after ① (a witness-v1 program: Taproot's tweaked output key), or
 // directly before a signature check (an x-only key inside a tapscript).
-// Non-canonical DER (0x30-led, signature-sized) still marks 𝓈.
+// Non-canonical DER (0x30-led, signature-sized) still marks s.
 const SIG_CHECK_OPS = new Set([0xac, 0xad, 0xba]);
 function scriptDataMark(push, compact, prevOp, nextOp) {
   const n = push.length / 2;
-  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('𝓈', 'signature');
-  if (isPubkey(push)) return dataMark('𝓅', 'public key');
-  if (n === 32 && prevOp === 0x51) return dataMark('𝓅', 'public key — Taproot tweaked output key');
-  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('𝓅', 'public key — x-only');
-  if (n === 20 || n === 32) return dataMark('𝒽', 'hash');
+  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('s', 'signature');
+  if (isPubkey(push)) return dataMark('p', 'public key');
+  if (n === 32 && prevOp === 0x51) return dataMark('p', 'public key — Taproot tweaked output key');
+  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('p', 'public key — x-only');
+  if (n === 20 || n === 32) return dataMark('h', 'hash');
   return '';
 }
 
 // A data push whose bytes are ALL printable ASCII (e.g. an Ordinals inscription's
-// content type or a text body) -> its decoded string, else null. Requiring the
-// WHOLE push to be printable -- not merely a run within it -- keeps keys, hashes
-// and signatures (dense binary) from ever being mistaken for text, so this is
-// safe to apply to any script, not just an OP_RETURN payload.
-const ASCII_PUSH_MIN = 5;
+// "ord" tag, its content type or a text body) -> its decoded string, else null.
+// Requiring the WHOLE push to be printable -- not merely a run within it -- keeps
+// keys, hashes and signatures (dense binary, and all ≥ 20 bytes) from ever being
+// mistaken for text, so this is safe to apply to any script, not just an OP_RETURN
+// payload. The floor is 3 so a short protocol tag like Ordinals' "ord" is caught.
+const ASCII_PUSH_MIN = 3;
 function asciiPush(hex) {
   if (!hex || hex.length / 2 < ASCII_PUSH_MIN) return null;
   let out = '';
@@ -407,6 +409,38 @@ function asciiPush(hex) {
     out += String.fromCharCode(b);
   }
   return out;
+}
+
+// A short data push (1-4 bytes) minimally encoding a number -> its decimal, else
+// null. An Ordinals field tag (content type = 1, body = 0) is a small number
+// pushed as data, not an OP_N, so it would otherwise fall through to cover prose
+// -- a single byte becoming an absurd little sentence. Minimal (no trailing zero
+// byte), so the decimal alone reconstructs the wire bytes. Keys, hashes and
+// signatures are all ≥ 20 bytes, well past this window.
+function numberPush(hex) {
+  const n = hex.length / 2;
+  if (n < 1 || n > 4 || hex.slice(-2) === '00') return null;
+  return BigInt('0x' + reverseHexStr(hex)).toString();
+}
+
+// The little-endian value a short push encodes (1-5 bytes, per CScriptNum), for
+// reading a CLTV/CSV threshold; null if it isn't a plausible script number. The
+// operands are positive, so unsigned LE reads them exactly (a sign byte is 0x00).
+function scriptNumValue(hex) {
+  const n = hex.length / 2;
+  if (n < 1 || n > 5) return null;
+  return Number(BigInt('0x' + reverseHexStr(hex)));
+}
+
+// A CSV (OP_CHECKSEQUENCEVERIFY) operand -> its relative-timelock mark in the
+// same ■(block, a count of chapters) / Τ(time, a duration) grammar an input's
+// nSequence uses; null when the disable bit is set (not a relative timelock).
+function csvMark(value) {
+  if (value & 0x80000000) return null;
+  const n = value & 0xffff;
+  return (value & 0x00400000)
+    ? { mark: `Τ${durationFrom512s(n)}`, title: `relative locktime — at least ${durationFrom512s(n)} (${n} × 512 s) after this coin was confirmed` }
+    : { mark: `■${n}`, title: `relative locktime — at least ${n} block${n === 1 ? '' : 's'} after this coin was confirmed` };
 }
 
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
@@ -454,9 +488,19 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       const mark = pushToken(t.pushForm || 0, t.push.length / 2);
       if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
-        // reveal the redeemScript, typed 𝓇
-        parts.push(mark + dataMark('𝓇', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
+        // reveal the redeemScript, typed r
+        parts.push(mark + dataMark('r', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
         return;
+      }
+      // A push directly before OP_CLTV (τ) or OP_CSV (Δ) is a timelock threshold,
+      // not opaque data: decode it to the same ■(block)/Τ(time) mark the margin
+      // gives an nLockTime (absolute) or nSequence (relative), so a script's
+      // timelock reads in the book's own grammar rather than a bare number.
+      const nextOp = toks[i + 1]?.op;
+      if (nextOp === 0xb1 || nextOp === 0xb2) {
+        const v = scriptNumValue(t.push);
+        const info = v === null ? null : (nextOp === 0xb1 ? locktimeInfo(v) : csvMark(v));
+        if (info && info.mark) { parts.push(`<span class="op" title="${escapeHtml(info.title)}">${info.mark}</span>`); return; }
       }
       if (eligible) {
         const found = findAsciiStrings(t.push);
@@ -466,6 +510,10 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       // embedded message) reads as its own quoted text rather than cover prose.
       const text = asciiPush(t.push);
       if (text !== null) { parts.push(mark, `“${escapeHtml(text)}”`); return; }
+      // A short number pushed as data (an Ordinals field tag, a script number)
+      // reads as its literal digits, like the book's other structural numbers.
+      const num = numberPush(t.push);
+      if (num !== null) { parts.push(`<span class="op" title="pushed number — ${num}">${num}</span>`); return; }
       const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
       parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
     } else {
@@ -522,41 +570,46 @@ function looksLikeScript(h) {
   return toks.some((t) => t.op !== undefined && SCRIPT_SIGNAL.has(t.op));
 }
 
-// Which witness item (if any) is the script to render as opcodes: a Taproot
-// tapscript (sitting just below its control block) or a P2WSH witnessScript
-// (the last item). Returns -1 when the witness is all data -- P2WPKH, a
-// key-path spend, a bare signature.
-function witnessScriptIndex(items) {
+// Which witness items are scripts to render as opcodes. A witness can carry more
+// than one -- a Taproot tapscript sits just below a control block (and a witness
+// may reveal several), a P2WSH witnessScript is the last item -- so return the
+// full set, not a single index. An item counts as a script if it either sits
+// directly below a control block, or parses cleanly as one on its own (a clean
+// opcode stream with a signature check or timelock). Control blocks, signatures
+// and keys are never scripts, so they are excluded. Empty for an all-data
+// witness -- P2WPKH, a key-path spend, a bare signature.
+function witnessScriptIndices(items) {
+  const idxs = new Set();
   const n = items.length;
-  if (n === 0) return -1;
+  if (n === 0) return idxs;
   let last = n - 1;
   if (n >= 2 && witFirst(items[last]) === 0x50) last -= 1;    // strip an optional annex
-  if (last >= 1 && isControlBlock(items[last])) return last - 1;
-  const tail = items[n - 1];
-  if (isPubkey(tail) || isSignature(tail)) return -1;
-  return looksLikeScript(tail) ? n - 1 : -1;
+  for (let i = 0; i <= last; i++) {
+    if (i + 1 <= last && isControlBlock(items[i + 1])) { idxs.add(i); continue; }  // a tapscript, below its control block
+    if (!isControlBlock(items[i]) && looksLikeScript(items[i])) idxs.add(i);       // a witnessScript, or a reveal
+  }
+  return idxs;
 }
 
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
-// a data item's hex into Glossia prose; the one script item, if present,
-// becomes opcode notation, typed 𝓌 (a P2WSH witnessScript) or 𝓉 (a Taproot
-// tapscript, identified by the control block above it). Data items carry
-// their own type marks -- 𝓈 a signature, 𝓅 a key -- and items are separated
-// so each reads as its own stack element.
+// a data item's hex into Glossia prose; every script item becomes opcode
+// notation, typed w (a P2WSH witnessScript) or t (a Taproot tapscript, identified
+// by the control block above it). Data items carry their own type marks -- s a
+// signature, p a key -- and items are separated so each reads as its own element.
 export function renderWitness(items, encode) {
   if (!items || !items.length) return '∅';
-  const scriptIdx = witnessScriptIndex(items);
-  const isTapscript = scriptIdx >= 0 && scriptIdx + 1 < items.length && isControlBlock(items[scriptIdx + 1]);
+  const scriptIdxs = witnessScriptIndices(items);
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      if (i === scriptIdx) {
-        return (isTapscript ? dataMark('𝓉', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('𝓌', 'witness script — revealed as opcodes'))
+      if (scriptIdxs.has(i)) {
+        const isTapscript = i + 1 < items.length && isControlBlock(items[i + 1]);
+        return (isTapscript ? dataMark('t', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('w', 'witness script — revealed as opcodes'))
           + ' ' + renderScript(hex, encode);
       }
       const compact = derToCompact(hex);                      // a DER signature is stripped to r‖s‖sighash
-      const dm = (compact || isSignature(hex)) ? dataMark('𝓈', 'signature')
-        : isPubkey(hex) ? dataMark('𝓅', 'public key') : '';
+      const dm = (compact || isSignature(hex)) ? dataMark('s', 'signature')
+        : isPubkey(hex) ? dataMark('p', 'public key') : '';
       return (dm ? dm + ' ' : '') + encode(compact || hex);
     })
     .join('<span class="wit-sep"> · </span>');
@@ -607,7 +660,7 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
     }
     const seq = sequenceInfo(v.sequence);
     // The prevout is carried as a reference (txid + output index), not encoded:
-    // the book resolves it to a volume/book/chapter/verse citation for the left
+    // the book resolves it to a volume/book/chapter/section citation for the left
     // margin. A coinbase has none. Raw per-input witness bytes (segwit only) ride
     // along so each input's witness can become its own footnote.
     return {

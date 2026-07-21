@@ -226,13 +226,13 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .hash-menu-title .hash-title-row .ghost { background: transparent; color: var(--dim); border: 1px solid var(--input-bd); }
 .hash-menu-title .hash-title-row .ghost:hover { background: transparent; color: var(--ink); border-color: var(--accent); }
 
-/* Per-verse navigation: Previous / Next flanking the verse title -- the
-   transaction's position within its block, rendered as "Verse N". */
-.verse-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
-.verse-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
-/* The transaction's own txid, rendered as Glossia prose beneath the verse title
+/* Per-section navigation: Previous / Next flanking the section title -- the
+   transaction's position within its block, rendered as "Section N". */
+.section-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
+.section-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
+/* The transaction's own txid, rendered as Glossia prose beneath the section title
    (as the block hash is beneath the chapter title). */
-.verse-hash { margin: 13px auto 0; max-width: 46ch; font: italic 400 14px/1.55 'Newsreader',serif; color: var(--meta); }
+.section-hash { margin: 13px auto 0; max-width: 46ch; font: italic 400 14px/1.55 'Newsreader',serif; color: var(--meta); }
 
 .chapter-body { font-family: 'Newsreader', serif; font-size: 19px; line-height: 1.75; color: var(--ink-soft); font-variant-numeric: oldstyle-nums; }
 
@@ -245,7 +245,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    laid out in horizontal bands, each part aligned with the body it annotates:
      .tx-inputs   a subgrid (row 1, left + body): every input is a [citation |
                   scriptSig] pair, so an input's provenance sits on its own line.
-                  The citation is the referenced output's volume·book·chapter·verse
+                  The citation is the referenced output's volume·book·chapter·section
                   plus its output index (a coinbase shows ∅).
      .tx-outputs  a subgrid (row 2, body + right): every output is a [scriptPubKey
                   | amount] pair, so an amount sits on the line of its output.
@@ -263,11 +263,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-in-cite.resolving { color: var(--meta); }
 .tx-in-cite.cite-unresolved { color: var(--meta); font-style: italic; }
 .tx-in-cite.tx-version { color: var(--meta); letter-spacing: .03em; }
-.cite-verse-link { color: inherit; text-decoration: none; }
-.cite-verse-link:hover { color: var(--accent); text-decoration: underline; }
+.cite-section-link { color: inherit; text-decoration: none; }
+.cite-section-link:hover { color: var(--accent); text-decoration: underline; }
 /* The amount of the output this input spends, under its reference. */
 .cite-amount { margin-top: .1em; font: italic 400 12px/1.3 'Newsreader',serif; color: var(--meta); }
-/* An output's forward citation -- the verse that later spent it -- under its
+/* An output's forward citation -- the section that later spent it -- under its
    amount in the right margin, mirroring the left margin's provenance cites.
    Empty for an unspent output. */
 .fwd-cite { margin-top: .1em; font: 500 11.5px/1.3 'IBM Plex Mono',monospace; color: var(--dim); }
@@ -308,9 +308,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    operational opcodes -- it frames the data that follows rather than acting
    on the stack, so it shouldn't compete with the prose it introduces. */
 .op-push { color: var(--meta); }
-/* A data type mark (𝓅 𝓈 𝒽 𝓇 𝓌 𝓉): names what the prose after it carries.
+/* A data type mark (p s h r w t): names what the prose after it carries.
    Dim like the push count it rides with -- annotation, not instruction. */
-.dt { color: var(--dim); font-style: normal; }
+/* Data marks (p s h r w t) in live prose: bold, since a confirmed
+   transaction's data is on chain. In the pattern table the same letters go
+   plain where a spend introduces them at validation (see .seq.exec .ph). */
+.dt { color: var(--accent); font-style: normal; font-weight: 700; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
@@ -361,7 +364,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .notation summary::before { content: '+ '; color: var(--accent); }
 .notation[open] summary::before { content: '– '; }
 .notation-body { margin-top: 14px; }
-.notation-lede { margin: 0 0 22px; font-size: 12.5px; line-height: 1.5; color: var(--meta); }
 .notation-group { margin: 0 0 22px; }
 .notation-group > h4 {
   margin: 0 0 11px; font: 600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.18em;
@@ -377,17 +379,33 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .glyph-row .g i { font-style: normal; opacity: .5; font-size: .82em; }
 .glyph-row .m { font: 400 13px/1.45 'Public Sans', sans-serif; color: var(--dim); }
 .glyph-row .m b { color: var(--ink-soft); font-weight: 500; }
-.notation-note { margin: 9px 0 0; font-size: 12px; font-style: italic; color: var(--meta); }
-/* Common script patterns: one row per payment type, its marks split across
-   where they live on the wire -- input (scriptSig), output (scriptPubKey),
-   witness. Wide, so it scrolls in its own container on narrow screens. */
+/* Data-type letters (p s h r w t) glow gold in the key, as they do on chain. */
+.glyph-row .g b { color: var(--accent); }
+.notation-note { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: var(--meta); }
+/* Common script patterns: one row per payment type, read as a state
+   transition -- the unspent output at rest (UTXO), the script a node runs then
+   discards (validator), and the spend that consumes it, split across where it
+   lives on the wire: the input's scriptSig (STXO) and its witness (Witness).
+   Legacy types write the STXO and leave the witness empty; segwit types empty
+   the scriptSig (∅) and write the witness. Wide, so it scrolls in its own
+   container on narrow screens. */
 .pattern-scroll { overflow-x: auto; }
-.pattern-table { display: grid; grid-template-columns: repeat(4, max-content); gap: 9px 22px; align-items: baseline; }
+.pattern-table { display: grid; grid-template-columns: repeat(5, max-content); gap: 9px 22px; align-items: baseline; }
 .pattern-table .phead, .pattern-table .pname { font: 600 10px/1.5 'IBM Plex Mono',monospace; letter-spacing: .06em; text-transform: uppercase; color: var(--meta); white-space: nowrap; }
 .pattern-table .phead { color: var(--accent); }
 .pattern-table .seq { font: 400 16px/1.5 'Newsreader', system-ui, 'Segoe UI Symbol', serif; color: var(--ink-soft); white-space: nowrap; }
 .pattern-table .none { color: var(--meta); }
-.ph { color: var(--dim); font-style: italic; }
+/* Gold and bold mark what the chain keeps: the UTXO's lock, the STXO's
+   authorization, and any datum read from a confirmed output -- a committed
+   hash. White, regular weight marks the ephemeral validator: the operations it
+   runs, plus the transaction's own data, which stays unverified until a block
+   puts it on chain (where it turns gold). Bold carries the split into a
+   black-and-white print. */
+.pattern-table .op { font-weight: 700; }
+.pattern-table .op-push { font-weight: 400; }
+.pattern-table .ph { color: var(--accent); font-style: normal; font-weight: 700; }
+.pattern-table .seq.exec .op, .pattern-table .seq.exec .ph { color: var(--ink); font-weight: 400; }
+.pattern-table .seq.exec .ph.chain { color: var(--accent); font-weight: 700; }
 @media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -432,12 +450,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
       <div class="chapter-frontispiece" id="ch-frontispiece"></div>
-      <nav class="verse-nav">
+      <nav class="section-nav">
         <button type="button" id="page-prev">← Previous</button>
-        <h2 class="verse-title" id="verse-title"></h2>
+        <h2 class="section-title" id="section-title"></h2>
         <button type="button" id="page-next">Next →</button>
       </nav>
-      <div class="verse-hash" id="verse-hash"></div>
+      <div class="section-hash" id="section-hash"></div>
     </header>
 
     <div class="chapter-body" id="ch-paragraphs"></div>
@@ -450,57 +468,68 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <details class="notation">
     <summary>Notation</summary>
     <div class="notation-body">
-      <p class="notation-lede">A key to the sigla used in the manuscript: the glyphs that notate a Bitcoin <b>script's opcodes</b>, and the <b>marks</b> drawn in each transaction's margins. Every defined opcode has a glyph, push instructions included; pushed data — keys, hashes, signatures — is rendered as prose after its push mark. Hovering any glyph names its opcode.</p>
-
       <div class="notation-group">
         <h4>Common script patterns</h4>
-        <p class="notation-note">A payment's kind is legible in its marks — one row per type, split across where its pieces live on the wire. The output column is the lock; the input and witness columns are the spend that opens it.</p>
         <div class="pattern-scroll">
         <div class="pattern-table">
-          <span class="phead"></span><span class="phead">Input</span><span class="phead">Output</span><span class="phead">Witness</span>
+          <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
           <span class="pname">P2PK</span>
-            <span class="seq"><span class="op op-push">⁷¹</span><span class="ph">𝓈</span></span>
-            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">𝓅</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">p</span> <span class="op">∇</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph chain">p</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="ph">s</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2PKH</span>
-            <span class="seq"><span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">³³</span><span class="ph">𝓅</span></span>
-            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph">p</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="ph">s</span> <span class="ph">p</span></span>
             <span class="seq none">—</span>
           <span class="pname">Multisig</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span></span>
-            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op op-push">³³</span><span class="ph">𝓅</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq exec"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2SH</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">⁷¹</span><span class="ph">𝓈</span> <span class="op op-push">ⁿ</span><span class="ph">𝓇</span></span>
-            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span> <span class="op">=</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
+            <span class="seq exec"><span class="ph">r</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(r)</span></span>
+            <span class="seq"><span class="op">(r)</span></span>
+            <span class="seq none">—</span>
+          <span class="pname">P2SH · 2-of-3</span>
+            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
+            <span class="seq exec"><span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span> <span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2WPKH</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph">p</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">𝒽</span></span>
-            <span class="seq"><span class="ph">𝓈</span> · <span class="ph">𝓅</span></span>
+            <span class="seq"><span class="ph">s</span> <span class="ph">p</span></span>
           <span class="pname">P2WSH</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(w)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
-            <span class="seq">∅ · <span class="ph">𝓈</span> · <span class="ph">𝓈</span> · <span class="ph">𝓌</span></span>
+            <span class="seq"><span class="op">(w)</span></span>
           <span class="pname">Lightning HTLC</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">Σ</span><span class="op">≡</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">𝒽</span></span>
-            <span class="seq"><span class="ph">𝓈</span> · <span class="ph">𝒽</span> · <span class="ph">𝓌</span></span>
+            <span class="seq"><span class="ph">s</span> <span class="ph">h</span> <span class="ph">w</span></span>
           <span class="pname">P2TR key</span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="op">∇</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
-            <span class="seq"><span class="ph">𝓈</span></span>
+            <span class="seq"><span class="ph">s</span></span>
           <span class="pname">P2TR script</span>
+            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
+            <span class="seq exec"><span class="ph">s</span> <span class="ph">t</span> <span class="op">(t)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">𝓅</span></span>
-            <span class="seq"><span class="ph">𝓈</span> · <span class="ph">𝓉</span> · <span class="ph">…</span></span>
+            <span class="seq"><span class="op">(t)</span></span>
           <span class="pname">Data</span>
+            <span class="seq"><span class="op">¶</span> <span class="op op-push">ⁿ</span></span>
             <span class="seq none">—</span>
-            <span class="seq"><span class="op">¶</span> <span class="op op-push">ⁿ</span><span class="ph">…</span></span>
+            <span class="seq none">—</span>
             <span class="seq none">—</span>
         </div>
         </div>
-        <p class="notation-note">Read the proof's migration down the table: legacy types carry it in the input, segwit types leave the input empty (∅) and move it to the witness. The push superscripts are the patterns' fingerprints — P2WPKH and P2WSH share the witness-v0 mark <span class="op" style="font-style:normal">⓪</span> and differ only in the hashed length, ²⁰ a HASH160 of a key, ³² a SHA-256 of a script. A script hidden behind a hash — 𝓇, 𝓌, 𝓉 — is revealed in the same notation when spent: an m-of-n <span class="op" style="font-style:normal">◇</span>, or an HTLC <span class="op" style="font-style:normal">⟨ Σ</span> <span class="ph">𝒽</span> <span class="op" style="font-style:normal">≡</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">│</span> <span class="ph">n</span> <span class="op" style="font-style:normal">τ ⌄</span> <span class="ph">𝓅</span> <span class="op" style="font-style:normal">⟩ ∇</span>. That hash-timelock is what a <b>Lightning</b> channel writes on-chain when it force-closes: the channel's funding output is a P2WSH 2-of-2 <span class="op" style="font-style:normal">◇</span>, and each in-flight payment is the Lightning HTLC row above — a P2WSH whose witnessScript <span class="ph">𝓌</span> is that hash-timelock, spent either by revealing the preimage <span class="ph">𝒽</span> or by waiting out the timelock <span class="op" style="font-style:normal">τ</span>. In witness cells, · separates stack items and ∅ is an empty item (the multisig dummy) — a witness is a stack, not a script, so ⓪ the opcode never appears there; in the P2SH spend's input, which IS script, the dummy is the real ⓪ byte. The Data output is provably unspendable, so it has no spend at all.</p>
       </div>
 
       <div class="notation-group">
@@ -509,7 +538,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">²⁰</span><span class="m"><b>push</b> — the bare superscript is the byte count (²⁰ pushes twenty)</span></div>
           <div class="glyph-row"><span class="g">↧<i>n</i> ⇊<i>n</i> ⤋<i>n</i></span><span class="m">extended push — length in a 1 / 2 / 4-byte prefix</span></div>
         </div>
-        <p class="notation-note">The pushed bytes follow the mark, as prose or an inline quote; arrow weight matches prefix width. The coinbase preamble's β<i>n</i> and η<i>n</i> fold their push in — the mark alone determines the exact bytes.</p>
       </div>
 
       <div class="notation-group">
@@ -521,7 +549,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">◆</span><span class="m">check m-of-n, <b>else fail</b></span></div>
           <div class="glyph-row"><span class="g">∇₊</span><span class="m">check a signature, <b>tallying</b> (tapscript multisig)</span></div>
         </div>
-        <p class="notation-note">A triangle is one signer, a diamond is many; a filled shape must hold or the script fails.</p>
       </div>
 
       <div class="notation-group">
@@ -533,7 +560,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">σ</span><span class="m">SHA-1</span></div>
           <div class="glyph-row"><span class="g">ρ</span><span class="m">RIPEMD-160</span></div>
         </div>
-        <p class="notation-note">Lower-case Greek is a 160-bit digest, upper-case a 256-bit one. ⌖ points to where value is sent; ⌘ marks what names a transaction.</p>
       </div>
 
       <div class="notation-group">
@@ -542,7 +568,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">τ</span><span class="m"><b>absolute</b> — not before a fixed time or block</span></div>
           <div class="glyph-row"><span class="g">Δ</span><span class="m"><b>relative</b> — a delay after this coin confirmed</span></div>
         </div>
-        <p class="notation-note">τ is a fixed point in time; Δ is an interval measured from the moment the coin was received.</p>
       </div>
 
       <div class="notation-group">
@@ -560,7 +585,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b> — a valid hash opens with n zero bits</span></div>
           <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
         </div>
-        <p class="notation-note">β's subscript is the target's demand in leading zero bits — β₃₂ at genesis (difficulty 1), climbing as difficulty rises; each +1 doubles the work. The exact target rides in β's hover. The chain's earliest coinbases open with this preamble — the miner's restatement of the header's target, then the counter it rolled once the header's 32-bit nonce ran out — decoded to marks so any embedded words (the genesis headline) lead the text.</p>
       </div>
 
       <div class="notation-group">
@@ -571,7 +595,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b>, as in the preamble</span></div>
           <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
         </div>
-        <p class="notation-note">The chapter head runs the header's fields in wire order: version, the previous chapter's hash as prose (∅ for genesis), the merkle root as prose, the timestamp, β, η. The header's η and the coinbase preamble's extranonce together are the miner's full search space.</p>
       </div>
 
       <div class="notation-group">
@@ -590,7 +613,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">↕</span><span class="m"><b>depth</b> of the stack</span></div>
           <div class="glyph-row"><span class="g">⇥ ⇤</span><span class="m"><b>shelve / retrieve</b> via the alt stack</span></div>
         </div>
-        <p class="notation-note">A subscript doubles or triples the choreography: ⧉₂ ⧉₃ duplicate pairs and triples, ⌄₂ drops a pair, ⇄₂ ↻₂ ⇗₂ work on pairs.</p>
       </div>
 
       <div class="notation-group">
@@ -609,7 +631,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">« »</span><span class="m">shift left · right</span></div>
           <div class="glyph-row"><span class="g">= ≡</span><span class="m">bytes equal? · equal, <b>else fail</b></span></div>
         </div>
-        <p class="notation-note">= compares raw bytes; ≐ compares as numbers. The doubled form is the else-fail variant, as everywhere in this notation.</p>
       </div>
 
       <div class="notation-group">
@@ -621,7 +642,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">∼ ∩ ∪ ⊻</span><span class="m">bitwise invert · and · or · xor</span></div>
           <div class="glyph-row"><span class="g">ℓ</span><span class="m"><b>length</b> of the top item</span></div>
         </div>
-        <p class="notation-note">The splice and bitwise family (and × ÷ % « » above) has been disabled since 2010 — but a script is notation whether or not the network would still run it.</p>
       </div>
 
       <div class="notation-group">
@@ -629,6 +649,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">⟨ │ ⟩</span><span class="m">if … else … end</span></div>
           <div class="glyph-row"><span class="g">¬⟨</span><span class="m"><b>if not</b></span></div>
+          <div class="glyph-row"><span class="g">( )</span><span class="m"><b>run</b> the revealed script (r w t)</span></div>
           <div class="glyph-row"><span class="g">✓</span><span class="m">assert true</span></div>
           <div class="glyph-row"><span class="g">¶</span><span class="m"><b>data output</b> — provably unspendable</span></div>
           <div class="glyph-row"><span class="g">° °<i>n</i></span><span class="m"><b>no-op</b> · numbered no-ops</span></div>
@@ -642,14 +663,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="notation-group">
         <h4>Data</h4>
         <div class="glyph-grid">
-          <div class="glyph-row"><span class="g">𝓅</span><span class="m"><b>public key</b></span></div>
-          <div class="glyph-row"><span class="g">𝓈</span><span class="m"><b>signature</b></span></div>
-          <div class="glyph-row"><span class="g">𝒽</span><span class="m"><b>hash</b></span></div>
-          <div class="glyph-row"><span class="g">𝓇</span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
-          <div class="glyph-row"><span class="g">𝓌</span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
-          <div class="glyph-row"><span class="g">𝓉</span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
+          <div class="glyph-row"><span class="g"><b>p</b></span><span class="m"><b>public key</b></span></div>
+          <div class="glyph-row"><span class="g"><b>s</b></span><span class="m"><b>signature</b></span></div>
+          <div class="glyph-row"><span class="g"><b>h</b></span><span class="m"><b>hash</b></span></div>
+          <div class="glyph-row"><span class="g"><b>r</b></span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
+          <div class="glyph-row"><span class="g"><b>w</b></span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
+          <div class="glyph-row"><span class="g"><b>t</b></span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
         </div>
-        <p class="notation-note">Type marks naming what a push carries. On the page they sit between the push count and the prose (⁶⁵𝓅 …), wherever the kind is recognizable from the bytes and their context; a push that could be anything stays unmarked.</p>
+        <p class="notation-note"><b>Bold</b> where the datum is on chain — a lock, or what a spend writes; <b>plain</b> where a spend introduces it at validation.</p>
       </div>
 
       <div class="notation-group">
@@ -658,7 +679,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">●</span><span class="m"><b>final</b></span></div>
           <div class="glyph-row"><span class="g">○</span><span class="m">respects the locktime</span></div>
           <div class="glyph-row"><span class="g">†</span><span class="m"><b>replaceable</b> (opt-in RBF)</span></div>
-          <div class="glyph-row"><span class="g">■<i>N</i></span><span class="m">relative: N blocks after confirmation (Roman — a count of chapters)</span></div>
+          <div class="glyph-row"><span class="g">■<i>N</i></span><span class="m">relative: N blocks after confirmation (a count of chapters)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>Δt</i></span><span class="m">relative: a duration after confirmation (d h m s)</span></div>
           <div class="glyph-row"><span class="g">(<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare</span></div>
         </div>
@@ -671,18 +692,17 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">■ <i>v b c</i></span><span class="m">not before the cited chapter (volume book chapter)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>t</i></span><span class="m">not before a UTC date</span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
-          <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">verse — the transaction's position</span></div>
+          <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">section — the transaction's position</span></div>
         </div>
-        <p class="notation-note">■ marks block-height and Τ marks time, in both places; a square reads as the whole transaction, a circle as one input. An absolute height is a place in the book, so it is cited; a relative block delay is a count of chapters, so it is a Roman numeral. Time renders physically: an absolute lock as its UTC date, a relative one as a duration.</p>
       </div>
     </div>
   </details>
 
   <details class="about">
     <summary>About</summary>
-    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the verse it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the verse that later consumed it — beneath its amount. An unspent output has none.</p>
+    <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the section it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the section that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
-    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and verse hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
+    <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and section hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
     <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
@@ -891,7 +911,7 @@ const lazyEncode = (() => {
     // A push's prose, deferred: hex rides in a data attribute (hex is [0-9a-f],
     // safe unquoted) and the ⋯ gives the span a layout box so the observer fires.
     placeholder: (hex) => hex ? `<span class="glossia-lazy" data-hex="${hex}">⋯</span>` : '',
-    // Drop pending chunks from a previous verse (their nodes are already detached).
+    // Drop pending chunks from a previous section (their nodes are already detached).
     reset: () => { if (io) io.disconnect(); },
     // Start watching every placeholder under `root`; encode all now if the
     // browser has no IntersectionObserver.
@@ -932,7 +952,7 @@ let currentFootnotes = [];
 let footnotesLoaded = false;
 
 // Each input's prevout is shown as a citation to the output it spends -- the
-// referenced transaction's volume·book·chapter·verse. Resolving one needs a
+// referenced transaction's volume·book·chapter·section. Resolving one needs a
 // lookup (its block height + position in that block), so results are memoized
 // by txid and `renderGen` lets a citation that resolves after the reader has
 // paged away drop its stale DOM update.
@@ -940,7 +960,7 @@ const citationCache = new Map();   // txid -> Promise<{ height, pos, outputs }>
 let renderGen = 0;
 
 // txid -> { height, pos, outputs } for the referenced transaction: the merkle
-// proof gives its confirming height and index within that block (the verse),
+// proof gives its confirming height and index within that block (the section),
 // while /tx gives its outputs (so a spent output's amount can be shown under
 // the reference). Fetched together, memoized by txid.
 function resolveCitation(txid) {
@@ -975,13 +995,13 @@ function fromRoman(s) {
 }
 
 // Parse a scripture-style reference into { height, index }. Volume comes first
-// (Roman); book, chapter and verse are optional and each default to the first:
-//   "III"        -> era 3, book 1, chapter 1, verse 1
+// (Roman); book, chapter and section are optional and each default to the first:
+//   "III"        -> era 3, book 1, chapter 1, section 1
 //   "III 2"      -> era 3, book 2, first block   (the requested behaviour)
 //   "III 2 5"    -> chapter 5
-//   "III 2 5 §3" / "III 2 5 3" -> verse 3
+//   "III 2 5 §3" / "III 2 5 3" -> section 3
 // A trailing ".output" (as citations print, e.g. "III 2 5 §3.1") is accepted
-// and ignored -- it picks an output within the verse, not another verse.
+// and ignored -- it picks an output within the section, not another section.
 // Returns null when the string isn't a reference at all.
 function parseReference(input) {
   const s = input.trim().replace(/\s+/g, ' ');
@@ -991,9 +1011,9 @@ function parseReference(input) {
   if (!Number.isFinite(volume) || volume < 1) return null;
   const book = m[2] ? parseInt(m[2], 10) : 1;
   const chapter = m[3] ? parseInt(m[3], 10) : 1;
-  const verse = m[4] ? parseInt(m[4], 10) : 1;
-  if (book < 1 || chapter < 1 || verse < 1) return null;
-  return { height: heightOf(volume, book, chapter), index: verse - 1 };
+  const section = m[4] ? parseInt(m[4], 10) : 1;
+  if (book < 1 || chapter < 1 || section < 1) return null;
+  return { height: heightOf(volume, book, chapter), index: section - 1 };
 }
 
 // txid -> the spending status of every output at once (Esplora /outspends):
@@ -1010,7 +1030,7 @@ function loadOutspends(txid) {
   return outspendsCache.get(txid);
 }
 
-// Fill each output's forward-citation cell with the verse that spent it --
+// Fill each output's forward-citation cell with the section that spent it --
 // the mirror of the input margin's provenance cites: the left margin says
 // where value came from, the right margin says where it went next. One
 // outspends call covers every output; each confirmed spender then resolves
@@ -1028,11 +1048,11 @@ async function resolveForwardCitations(txid, cells, gen) {
         if (gen !== renderGen) return;
         const { volume, book, chapter } = volumeBookChapter(height);
         const link = document.createElement('a');
-        link.className = 'cite-verse-link';
+        link.className = 'cite-section-link';
         link.href = `?block=${height}&index=${pos}`;
         link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}`;
         link.title = `spent by input ${sp.vin + 1} of ${sp.txid}`;
-        link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, `in-${sp.vin}`); });
+        link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `in-${sp.vin}`); });
         cell.append(link);
       } catch { /* unresolvable spender -- leave the cell empty */ }
     }));
@@ -1040,27 +1060,28 @@ async function resolveForwardCitations(txid, cells, gen) {
 }
 
 // Populate a citation cell with the scripture-style reference "volume(Roman)
-// book chapter §verse.output-index" (e.g. "XII 37 184 §17.2"), the whole of
-// which links to that verse.
+// book chapter §section.verse" -- the section is the transaction, the verse its
+// output index (e.g. "XII 37 184 §17.2"), the whole of which links to that
+// section.
 function renderCitation(citeBody, height, pos, vout) {
   const { volume, book, chapter } = volumeBookChapter(height);
   const link = document.createElement('a');
-  link.className = 'cite-verse-link';
+  link.className = 'cite-section-link';
   link.href = `?block=${height}&index=${pos}`;
   link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
   link.title = `go to §${pos + 1}.${vout}`;
-  link.addEventListener('click', (e) => { e.preventDefault(); goToVerse(height, pos, `out-${vout}`); });
+  link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `out-${vout}`); });
   citeBody.textContent = '';
   citeBody.append(link);
 }
 
-// Navigate to a referenced verse (the transaction at `index` in the block at
+// Navigate to a referenced section (the transaction at `index` in the block at
 // `height`) in place, then bring `scrollId` to the top of the page. The two
 // directions mirror each other: following an input's provenance scrolls to the
 // output it spends (out-N), and following an output's forward citation scrolls
 // to the input that spends it (in-N). The lookup field is refreshed by
 // renderChapter, so it isn't set here.
-async function goToVerse(height, index, scrollId) {
+async function goToSection(height, index, scrollId) {
   await openLookup(String(height), index);
   if (scrollId) {
     const el = $(scrollId);
@@ -1069,7 +1090,7 @@ async function goToVerse(height, index, scrollId) {
 }
 
 // Fill each pending citation cell once its reference resolves; skip if the
-// reader has since paged to another verse (gen no longer current).
+// reader has since paged to another section (gen no longer current).
 async function resolveCitations(pending, gen) {
   await Promise.all(pending.map(async ({ citeBody, cite, amtEl, txid, vout }) => {
     try {
@@ -1097,7 +1118,7 @@ async function resolveCitations(pending, gen) {
 
 // A block's ordered txid list, memoized by block hash. It's the heaviest part
 // of a block's metadata -- every transaction hash -- so it's fetched on its own
-// and only when needed: opening one transaction by id doesn't need it (its verse
+// and only when needed: opening one transaction by id doesn't need it (its section
 // comes from the merkle proof), only stepping through the block does.
 const txidsCache = new Map();
 function fetchTxids(hash) {
@@ -1117,8 +1138,8 @@ async function ensureTxids(st) {
 }
 
 // `withTxids: false` leaves the (heavy) txid list unfetched -- used when opening
-// a single transaction, whose verse index comes from its merkle proof instead.
-// The block's transaction count still comes from its info (tx_count), so verse
+// a single transaction, whose section index comes from its merkle proof instead.
+// The block's transaction count still comes from its info (tx_count), so section
 // bounds and Next work without the list.
 async function loadBlockMeta(hash, { withTxids = true } = {}) {
   const [[blockRes, headerRes], txids] = await Promise.all([
@@ -1143,7 +1164,7 @@ async function loadBlockByHeight(height) {
 }
 
 // A txid -> the block that confirmed it, plus the transaction's index within
-// that block (its verse). The verse comes from the merkle proof's position, so
+// that block (its section). The section comes from the merkle proof's position, so
 // opening one transaction never downloads the whole block's txid list -- that's
 // deferred (ensureTxids) until the reader steps Prev/Next. This is what makes
 // navigation by reference fast regardless of how large the block is.
@@ -1154,7 +1175,7 @@ async function loadBlockByTxid(txid) {
   ]);
   if (!txRes.ok) throw new Error(txRes.status === 404 ? `No transaction ${txid.slice(0, 8)}…` : `Esplora returned ${txRes.status}.`);
   const tx = await txRes.json();
-  if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no verse yet.');
+  if (!tx.status || !tx.status.confirmed) throw new Error('That transaction is unconfirmed — it has no section yet.');
   const hash = tx.status.block_hash;
   if (mpRes.ok) {
     const meta = await loadBlockMeta(hash, { withTxids: false });
@@ -1220,7 +1241,7 @@ function attachHashCopy(el, hex, label) {
 // The block header itself, in wire order, as a small mono line under the
 // chapter hash: version, previous-block hash, merkle root, timestamp,
 // difficulty target, nonce. The two hashes are Glossia-encoded here (like
-// the chapter/verse hash above); the rest come pre-decoded from
+// the chapter/section hash above); the rest come pre-decoded from
 // composeBlockHeaderFields. Genesis has no previous block, shown as ∅.
 function renderFrontispiece(header) {
   const el = $('ch-frontispiece');
@@ -1256,7 +1277,7 @@ function renderChapter(para) {
 
   // Keep the lookup field showing where we are, in the same reference form the
   // citations use, so it round-trips: any navigation refreshes it, and pressing
-  // Read chapter on it returns to this very verse.
+  // Read chapter on it returns to this very section.
   $('block-input').value = `${toRoman(volume)} ${book} ${chapter} §${state.index + 1}`;
 
   // The big title (and hash subtitle) introduce the chapter as a whole, so
@@ -1272,7 +1293,7 @@ function renderChapter(para) {
   const isGenesis = volume === 1 && book === 1 && chapter === 1;
   const eventTitle = NOTABLE.find((e) => e.id === String(state.height))?.title;
   $('ch-title').textContent = isGenesis ? 'Genesis' : (eventTitle || `Chapter ${chapter.toLocaleString()}`);
-  // Running head (every verse past the first): the event name for a notable
+  // Running head (every section past the first): the event name for a notable
   // block, otherwise the bare chapter numeral -- a locator, not a quantity.
   $('ch-chapter-inline').textContent = onFirstTx ? '' : ` · ${eventTitle || `Chapter ${chapter}`}`;
   $('ch-title').classList.toggle('hidden', !onFirstTx);
@@ -1283,12 +1304,12 @@ function renderChapter(para) {
   $('ch-frontispiece').classList.toggle('hidden', !onFirstTx);
   if (onFirstTx) renderFrontispiece(state.header);
 
-  // This verse's own txid, encoded as prose beneath the verse title. Reversed
+  // This section's own txid, encoded as prose beneath the section title. Reversed
   // to internal byte order first (like the block hash) so it carries the txid's
   // actual bytes; every byte kept, since a txid has no droppable leading zeros.
   const { prose: txidProse } = encodeSeedPhrase(reverseHex(para.txid), 'english', BEST_OF);
-  $('verse-hash').textContent = txidProse;
-  attachHashCopy($('verse-hash'), para.txid, 'transaction id');
+  $('section-hash').textContent = txidProse;
+  attachHashCopy($('section-hash'), para.txid, 'transaction id');
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
@@ -1298,17 +1319,17 @@ function renderChapter(para) {
 
   // The transaction's position within its block titles the section ("§ 3").
   const titleAttr = `txid ${para.txid}${para.verified ? '' : ' — could not be independently verified'}`;
-  const verseTitle = $('verse-title');
-  verseTitle.textContent = `§ ${para.num}`;
-  verseTitle.title = titleAttr;
+  const sectionTitle = $('section-title');
+  sectionTitle.textContent = `§ ${para.num}`;
+  sectionTitle.title = titleAttr;
 
   // The transaction is laid out in horizontal bands (see .tx-flow CSS). The
   // inputs are a [citation | scriptSig] subgrid: each input's provenance -- the
-  // volume·book·chapter·verse of the output it spends, plus that output's index
+  // volume·book·chapter·section of the output it spends, plus that output's index
   // -- sits in the left margin, level with its scriptSig. The outputs are a
   // [scriptPubKey | amount] subgrid; the locktime closes on the right.
   const gen = ++renderGen;
-  lazyEncode.reset();   // drop chunks still pending from the previous verse (body + footnotes)
+  lazyEncode.reset();   // drop chunks still pending from the previous section (body + footnotes)
   const flow = document.createElement('div');
   flow.className = 'tx-flow';
   const inputsEl = document.createElement('div');
@@ -1450,7 +1471,7 @@ function renderChapter(para) {
     const valueCell = document.createElement('div');
     valueCell.className = 'tx-note tx-out-value';
     valueCell.textContent = out.value;
-    // Forward citation placeholder: filled with the verse that later spent
+    // Forward citation placeholder: filled with the section that later spent
     // this output, once the outspends resolve. An unspent output keeps it
     // empty -- still-live value has no forward reference.
     const fwd = document.createElement('div');
@@ -1484,7 +1505,7 @@ function renderChapter(para) {
 
 // Encode every witness-bearing input's witness into a numbered footnote and
 // reveal the footnotes section. Done once per transaction, and skipped if the
-// reader has paged to another verse before the (heavy) encoding finishes.
+// reader has paged to another section before the (heavy) encoding finishes.
 async function renderFootnotes(gen) {
   if (footnotesLoaded || !currentFootnotes.length) return;
   if (!ready) await init().catch(() => {});
@@ -1530,7 +1551,7 @@ const clampIndex = (i, meta) => Math.min(Math.max(0, i || 0), meta.txCount - 1);
 // Load whatever the reader gave us: a block height, a block hash, or a
 // transaction id. A 64-hex value is either a block hash or a txid -- they're
 // indistinguishable by shape -- so it's tried as a block first and, failing
-// that, as a txid, which jumps straight to that transaction's verse.
+// that, as a txid, which jumps straight to that transaction's section.
 async function openLookup(input, index = 0) {
   input = (input || '').trim();
   $('chapter').classList.add('hidden');
@@ -1709,7 +1730,7 @@ function selectEndpoint(url, { reload = true } = {}) {
   try { localStorage.setItem(SELECTED_KEY, url); } catch {}
   renderEndpoints();
   setEndpointMsg(`Data source: ${hostOf(url)}`);
-  // Reload the current chapter/verse from state (not the input box, which Next/
+  // Reload the current chapter/section from state (not the input box, which Next/
   // Prev navigation doesn't update) so the new source takes effect at once.
   if (reload && state) openLookup(String(state.height), state.index);
 }
@@ -1987,7 +2008,7 @@ window.addEventListener('scroll', closeHashMenu, true);
 renderContents();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
-// verse; ?block= (with optional ?index=) opens a block; otherwise the input's
+// section; ?block= (with optional ?index=) opens a block; otherwise the input's
 // default value.
 const params = new URLSearchParams(location.search);
 const txidParam = params.get('txid');
