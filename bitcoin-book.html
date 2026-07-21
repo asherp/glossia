@@ -5,18 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glossia Bitcoin Book — a block, read as a chapter</title>
 <meta name="description" content="A Bitcoin block rendered as a chapter: each transaction a paragraph, its witness data footnotes, in grammatically correct Glossia prose.">
-<link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
-<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/beta-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/beta-icon-16.png">
+<link rel="icon" href="./icons/beta-icon.svg" type="image/svg+xml">
 
-<!-- PWA: installable, offline-capable app shell -->
-<link rel="manifest" href="./manifest.webmanifest">
+<!-- PWA: installable, offline-capable app shell. Its own manifest + gold-β icon
+     give the Bitcoin book a distinct installable identity that opens to the book. -->
+<link rel="manifest" href="./bitcoin-book.webmanifest">
 <meta name="theme-color" content="#08080a">
-<link rel="apple-touch-icon" href="./icons/glossia-icon-180.png">
+<link rel="apple-touch-icon" href="./icons/beta-icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Glossia">
+<meta name="apple-mobile-web-app-title" content="Bitcoin Book">
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -64,6 +65,7 @@ a:hover { text-decoration: underline; }
 
 .masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
 .masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .title .beta { color:var(--accent); text-transform:none; font-family:'Newsreader','Source Serif 4',Georgia,serif; font-weight:600; font-size:1.12em; }
 .masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
 .masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
 
@@ -412,7 +414,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <body>
 <div class="wrap">
   <div class="masthead">
-    <span class="title">The Bitcoin Book</span>
+    <span class="title">The <span class="beta">β</span>itcoin <span class="beta">β</span>ook</span>
     <span class="home"><a href="./bitcoin-contents.html">Contents</a> · <a href="./index.html">Glossia</a></span>
   </div>
 
@@ -484,9 +486,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq"><span class="ph">s</span> <span class="ph">p</span></span>
             <span class="seq none">—</span>
           <span class="pname">Multisig</span>
-            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op op-push">³³</span><span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span></span>
-            <span class="seq exec"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span> <span class="op">◇</span></span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span></span>
+            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">p<sub>1</sub></span> <span class="op op-push">³³</span><span class="ph">p<sub>2</sub></span> <span class="op op-push">³³</span><span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq exec"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span> <span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span></span>
             <span class="seq none">—</span>
           <span class="pname">P2SH</span>
             <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
@@ -495,8 +497,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq none">—</span>
           <span class="pname">P2SH · 2-of-3</span>
             <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
-            <span class="seq exec"><span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">s</span> <span class="ph">s</span> <span class="op">②</span> <span class="ph">p</span> <span class="ph">p</span> <span class="ph">p</span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq exec"><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span> <span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2WPKH</span>
             <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">h</span></span>
@@ -508,11 +510,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(w)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="op">(w)</span></span>
-          <span class="pname">Lightning HTLC</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
-            <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">Σ</span><span class="op">≡</span> <span class="op">∇</span><span class="op">)</span></span>
-            <span class="seq none">∅</span>
-            <span class="seq"><span class="ph">s</span> <span class="ph">h</span> <span class="ph">w</span></span>
           <span class="pname">P2TR key</span>
             <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
             <span class="seq exec"><span class="ph">s</span> <span class="op">∇</span></span>
@@ -520,14 +517,48 @@ button:disabled { opacity: .4; cursor: not-allowed; }
             <span class="seq"><span class="ph">s</span></span>
           <span class="pname">P2TR script</span>
             <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
-            <span class="seq exec"><span class="ph">s</span> <span class="ph">t</span> <span class="op">(t)</span></span>
+            <span class="seq exec"><span class="ph">t</span> <span class="op">⋔</span> <span class="ph chain">p</span> <span class="op">=</span> <span class="op">(t)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">(t)</span></span>
+            <span class="seq"><span class="ph">s</span> <span class="ph">t</span> <span class="ph">c</span></span>
           <span class="pname">Data</span>
             <span class="seq"><span class="op">¶</span> <span class="op op-push">ⁿ</span></span>
             <span class="seq none">—</span>
             <span class="seq none">—</span>
             <span class="seq none">—</span>
+        </div>
+        </div>
+      </div>
+
+      <div class="notation-group">
+        <h4>Lightning — commitment &amp; channel scripts</h4>
+        <div class="pattern-scroll">
+        <div class="pattern-table">
+          <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
+          <span class="pname">Channel open · 2-of-2</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span><span class="op">)</span></span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span></span>
+          <span class="pname">Force close · to_local</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
+          <span class="pname">Force close · to_remote</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span><span class="op">)</span></span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="ph">s<sub>2</sub></span></span>
+          <span class="pname">Force close · anchor</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span><span class="op">)</span></span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="ph">s</span> · <span class="op">∅</span></span>
+          <span class="pname">Force close · HTLC</span>
+            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
+            <span class="seq none">∅</span>
+            <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="ph">h</span> <span class="op">①</span> <span class="op">⓪</span> · <span class="ph">s<sub>2</sub></span> <span class="op">⓪</span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
         </div>
         </div>
       </div>
@@ -669,6 +700,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g"><b>r</b></span><span class="m"><b>redeem script</b> (inside P2SH)</span></div>
           <div class="glyph-row"><span class="g"><b>w</b></span><span class="m"><b>witness script</b> (inside P2WSH)</span></div>
           <div class="glyph-row"><span class="g"><b>t</b></span><span class="m"><b>tapscript</b> (a Taproot leaf)</span></div>
+          <div class="glyph-row"><span class="g"><b>c</b></span><span class="m"><b>control block</b> (a Taproot script-path reveal) — leaf version <b>v</b><i>n</i>, parity subscript, then the internal key <b>p</b></span></div>
+          <div class="glyph-row"><span class="g"><b>⋔</b></span><span class="m"><b>merkle proof</b> — the revealed leaf's path in the taptree</span></div>
+          <div class="glyph-row"><span class="g"><b>a</b></span><span class="m"><b>annex</b> (reserved Taproot spend data)</span></div>
         </div>
         <p class="notation-note"><b>Bold</b> where the datum is on chain — a lock, or what a spend writes; <b>plain</b> where a spend introduces it at validation.</p>
       </div>
