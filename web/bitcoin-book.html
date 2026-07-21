@@ -142,24 +142,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-frontispiece { margin: 0 auto 4px; max-width: 46ch; font: 500 11.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-frontispiece .cfx + .cfx::before { content: ' · '; }
 
-/* A copyable hover tooltip for a Glossia-encoded hash (a block hash, a
-   txid, a merkle root): the prose is the visible text; hovering it reveals
-   the exact hex it encodes in a small selectable panel -- unlike a native
-   `title` tooltip, which can't be selected and vanishes before a pointer
-   can reach it -- and clicking anywhere on it copies that hex to the
-   clipboard, since a hex string this long is impractical to select by hand
-   on a touch device. */
+/* A Glossia-encoded hash (a block hash, a txid, a merkle root): the prose is
+   the visible text; clicking anywhere on it opens a menu to copy the exact hex
+   it encodes or bookmark it. The raw hex itself is never shown -- copying it is
+   more reliable than selecting a string this long by hand on a touch device. */
 .hash-copy { position: relative; cursor: pointer; }
-.hash-tip {
-  display: none; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
-  width: max-content; max-width: min(90vw, 30em); margin-top: 0; padding: 7px 11px 6px;
-  background: var(--card); border: 1px solid var(--card-bd); border-radius: 5px;
-  font: 400 11.5px/1.4 'IBM Plex Mono', monospace; font-style: normal; letter-spacing: 0;
-  color: var(--ink-soft); word-break: break-all; user-select: all; z-index: 5;
-  box-shadow: 0 14px 34px -18px rgba(0,0,0,.75);
-}
-.hash-copy:hover .hash-tip, .hash-copy:focus-visible .hash-tip { display: block; }
-.hash-tip::after { content: ' — click for menu'; color: var(--meta); }
 
 /* Context menu raised by clicking a hash / txid: copy the hex, or bookmark it. */
 .hash-menu {
@@ -737,7 +724,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the section it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the section that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and section hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
-    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — hovers (or, on touch, taps) into a small selectable panel carrying the exact hex it encodes. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — is read as prose; the raw hex it encodes is never shown. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
 
@@ -1257,25 +1244,25 @@ async function showCurrentTx() {
   setStatus('');
 }
 
-// Attach a hover tooltip + click menu to an element already showing a
-// Glossia-encoded hash as prose: `hex` is the exact raw value that prose
-// encodes. Hovering (or focusing) reveals it in a selectable panel; clicking
-// (or Enter/Space) opens the hash menu -- copy the hex, or bookmark it. A hash
-// that's a lookup target (a block hash, previous-block hash, or txid) can be
-// bookmarked; a merkle root, which leads nowhere, is copy-only.
+// Attach a click menu to an element already showing a Glossia-encoded hash as
+// prose: `hex` is the exact raw value that prose encodes. Clicking (or
+// Enter/Space) opens the hash menu -- copy the hex, or bookmark it; the raw hex
+// is never revealed on the page. A hash that's a lookup target (a block hash,
+// previous-block hash, or txid) can be bookmarked; a merkle root, which leads
+// nowhere, is copy-only.
 function attachHashCopy(el, hex, label) {
-  const prose = el.textContent;          // the visible prose, captured before the tip is appended
+  const prose = el.textContent;          // the visible prose for this hash
   const nav = label !== 'merkle root';   // navigable hashes are bookmarkable; a merkle root isn't
   el.classList.add('hash-copy');
   el.tabIndex = 0;
   el.setAttribute('aria-label', `${label}: ${hex} — click for menu`);
-  const tip = document.createElement('span');
-  tip.className = 'hash-tip mono';
-  tip.textContent = hex;
-  el.append(tip);
   el.__hex = nav ? hex : null;             // only navigable hashes are bookmarkable, so only they get a flag
   if (nav) setHashFlag(el, isBookmarked(hex));   // show the bookmark glyph if this hash is already saved
   const open = (e) => openHashMenu(e, { hex, label, prose, nav }, el);
+  // A mouse click on this focusable element would otherwise scroll it into view
+  // (native focus behaviour); that scroll trips the menu's scroll-dismiss and
+  // closes it the instant it opens. Suppress the focus scroll on mousedown.
+  el.addEventListener('mousedown', (e) => e.preventDefault());
   el.addEventListener('click', open);
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
 }
@@ -2001,7 +1988,13 @@ function positionMenu() {
 }
 
 // Toggle between the action list and the title-entry form.
+let menuMode = 'actions';
+// A scroll or resize fired as a side-effect of opening (the browser bringing the
+// just-clicked hash or the menu into view) must not dismiss the menu. Ignore
+// viewport changes until this moment, set a beat after each open.
+let menuSettleUntil = 0;
 function setMenuMode(mode) {
+  menuMode = mode;
   $('hash-menu-actions').classList.toggle('hidden', mode === 'title');
   $('hash-menu-title').classList.toggle('hidden', mode !== 'title');
   positionMenu();
@@ -2021,7 +2014,12 @@ function openHashMenu(ev, entry, anchorEl) {
   if (ev.type === 'keydown' && anchorEl) { const a = anchorEl.getBoundingClientRect(); menuPoint = { x: a.left, y: a.bottom + 4 }; }
   else menuPoint = { x: ev.clientX, y: ev.clientY };
   positionMenu();
-  menuCopyBtn.focus();
+  // Pull focus into the menu only for a keyboard open. On a mouse open, moving
+  // focus to a menu button can scroll it into view (preventScroll isn't honored
+  // everywhere), and that scroll would trip the dismiss below and close the menu
+  // the instant it appeared.
+  if (ev.type === 'keydown') menuCopyBtn.focus({ preventScroll: true });
+  menuSettleUntil = performance.now() + 400;
 }
 
 function closeHashMenu() { hashMenu.classList.add('hidden'); menuEntry = null; }
@@ -2039,7 +2037,7 @@ menuBmBtn.addEventListener('click', () => {
   // Not yet saved: swap to the title form so the reader can name this entry.
   titleInput.value = suggestTitle(menuEntry);
   setMenuMode('title');
-  titleInput.focus();
+  titleInput.focus({ preventScroll: true });
   titleInput.select();
 });
 
@@ -2061,8 +2059,16 @@ document.addEventListener('mousedown', (e) => {
   if (!hashMenu.classList.contains('hidden') && !hashMenu.contains(e.target)) closeHashMenu();
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHashMenu(); });
-window.addEventListener('resize', closeHashMenu);
-window.addEventListener('scroll', closeHashMenu, true);
+// Dismiss on a genuine user scroll or resize -- but never while the title form
+// is up, so a mobile keyboard's viewport resize (or a focus scroll) can't
+// discard a half-typed bookmark title.
+const dismissOnViewportChange = () => {
+  if (menuMode === 'title') return;                  // never nuke a title being typed
+  if (performance.now() < menuSettleUntil) return;   // ignore the open's own scroll
+  closeHashMenu();
+};
+window.addEventListener('resize', dismissOnViewportChange);
+window.addEventListener('scroll', dismissOnViewportChange, true);
 
 renderContents();
 

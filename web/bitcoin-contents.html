@@ -221,7 +221,15 @@ function render() {
 // entry whose lookup fails (placement null) drops to an "Unresolved" tail
 // rather than printing its raw id.
 const placements = new Map();
-const placed = () => NOTABLE.filter((e) => placements.get(e.id)).map((e) => ({ ...e, place: placements.get(e.id) }));
+// Sorted into reading order by resolved citation, not array position: a
+// transaction's height is unknown offline, so it can only take its place once it
+// resolves. This keeps each volume's (and book's) entries contiguous, which the
+// nested render below relies on.
+const placed = () => NOTABLE
+  .filter((e) => placements.get(e.id))
+  .map((e) => ({ ...e, place: placements.get(e.id) }))
+  .sort((a, b) => a.place.volume - b.place.volume || a.place.book - b.place.book
+    || a.place.chapter - b.place.chapter || (a.place.section ?? 0) - (b.place.section ?? 0));
 const unresolved = () => NOTABLE.filter((e) => placements.has(e.id) && !placements.get(e.id));
 for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), e.index ?? null));
 render();
