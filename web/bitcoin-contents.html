@@ -2,18 +2,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>The Bitcoin Book — Table of Contents</title>
 <meta name="description" content="A table of contents for the Glossia Bitcoin Book: famous transactions and the first occurrence of each payment type, each read as a chapter in grammatically correct prose.">
-<link rel="icon" type="image/png" sizes="32x32" href="./icons/glossia-icon-32.png">
-<link rel="icon" type="image/png" sizes="16x16" href="./icons/glossia-icon-16.png">
-<link rel="icon" href="./favicon.svg" type="image/svg+xml">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/beta-icon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="./icons/beta-icon-16.png">
+<link rel="icon" href="./icons/beta-icon.svg" type="image/svg+xml">
 
-<!-- PWA: installable, offline-capable app shell -->
-<link rel="manifest" href="./manifest.webmanifest">
+<!-- PWA: installable, offline-capable app shell. Shares the Bitcoin book's
+     gold-β manifest so both pages install as one "Bitcoin Book" app. -->
+<link rel="manifest" href="./bitcoin-book.webmanifest">
 <meta name="theme-color" content="#08080a">
-<link rel="apple-touch-icon" href="./icons/glossia-icon-180.png">
+<link rel="apple-touch-icon" href="./icons/beta-icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Glossia">
+<meta name="apple-mobile-web-app-title" content="Bitcoin Book">
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -39,6 +40,8 @@ a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 .masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:40px; }
+.masthead .brand { display:inline-flex; align-items:baseline; gap:9px; }
+.masthead .brandmark { font:600 20px/.9 'Newsreader','Source Serif 4',Georgia,serif; color:var(--accent); text-transform:none; }
 .masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
 .masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
 
@@ -69,7 +72,7 @@ a:hover { text-decoration: underline; }
 <body>
 <div class="wrap">
   <div class="masthead">
-    <span class="title">The Bitcoin Book</span>
+    <span class="brand"><span class="brandmark">β</span><span class="title">The Bitcoin Book</span></span>
     <span class="home"><a href="./bitcoin-book.html">Read</a> · <a href="./index.html">Glossia</a></span>
   </div>
 

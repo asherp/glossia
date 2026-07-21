@@ -15,7 +15,7 @@
  * Everything here is scoped to the directory sw.js is served from, so it works
  * unchanged at the site root (glossia.io) and under a per-PR preview subpath.
  */
-const CACHE = 'glossia-shell-v2';
+const CACHE = 'glossia-shell-v3';
 
 // App shell, relative to the SW scope. glossia.js / glossia_bg.wasm are
 // gitignored build artifacts — present after a build/deploy, possibly absent in
@@ -31,6 +31,13 @@ const SHELL = [
   './btc-prose.js',
   './btc-citation.js',
   './btc-contents.js',
+  './bitcoin-book.webmanifest',
+  './icons/beta-icon.svg',
+  './icons/beta-icon-16.png',
+  './icons/beta-icon-32.png',
+  './icons/beta-icon-180.png',
+  './icons/beta-icon-192.png',
+  './icons/beta-icon-512.png',
   './glossia.js',
   './glossia_bg.wasm',
   './glossia-msg.js',
