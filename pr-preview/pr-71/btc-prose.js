@@ -17,7 +17,7 @@
 // margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
-import { findAsciiStrings, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
+import { findTextRuns, readableUtf8Text, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
 import { volumeBookChapter } from './btc-citation.js';
 
 const ROMAN = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
@@ -144,7 +144,11 @@ export function composeBlockHeaderFields(header) {
     version: String(header.version),
     timestamp: time.mark, timestampTitle: time.title,
     bits: bits.sym, bitsTitle: bits.title,
-    nonce: String(header.nonce),
+    // The nonce rides its η mark as a subscript, the same house convention β's
+    // leading-zero count follows -- a mark with its quantity tucked under it,
+    // not a bare inline number. The exact value stays legible in the title.
+    nonce: `η${toSubscript(header.nonce)}`,
+    nonceTitle: `nonce ${header.nonce} — the value the miner incremented while searching for a hash below the difficulty target`,
   };
 }
 
@@ -155,6 +159,18 @@ export function groupDigits(s) {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, '·');
 }
 
+// A satoshi amount -> its value in bitcoin, prefixed with the ₿ sign and exact
+// to the satoshi. English number formatting: the whole-bitcoin part is
+// comma-grouped, and the fraction is always the full eight decimal places, so a
+// column of amounts aligns on the point. 50 BTC reads ₿50.00000000, a lone
+// satoshi ₿0.00000001. BigInt keeps large sat counts exact.
+export function formatBtc(sats) {
+  const s = BigInt(sats);
+  const whole = (s / 100000000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const frac = (s % 100000000n).toString().padStart(8, '0');
+  return `₿${whole}.${frac}`;
+}
+
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
 // Glossia-generated prose it's untrusted content and must be escaped before
@@ -162,6 +178,15 @@ export function groupDigits(s) {
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+
+// A decoded text run, escaped for HTML with its whitespace rendered: a CR, LF or
+// CRLF each become a <br>, and a tab becomes a fixed-width gap, so a multi-line
+// or column-aligned embedded message keeps its shape instead of collapsing to a
+// single line of single spaces. Escapes first, so the only tags are the ones
+// added here.
+const quoteText = (s) => escapeHtml(s)
+  .replace(/\r\n?|\n/g, '<br>')
+  .replace(/\t/g, '<span class="tab"></span>');
 
 // ─── script → opcode notation ──────────────────────────────────────────
 //
@@ -363,16 +388,19 @@ function extranonceFromPush(push) {
   return BigInt('0x' + reverseHexStr(push)).toString();
 }
 
-// A decoded mark: glyph + value (when there is one to show), both carrying
-// the same explanatory title.
-const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span>${text ? `<span class="op-num" title="${title}">${text}</span>` : ''}`;
+// A decoded mark: a glyph carrying an explanatory title. Any quantity the mark
+// summarizes (β's leading-zero count, η's nonce/extranonce) rides the glyph as a
+// subscript, baked in by the caller, so the mark reads as one unit.
+const markToken = (glyph, title) => `<span class="op" title="${title}">${glyph}</span>`;
 
 // ─── data type marks ───────────────────────────────────────────────────
 //
 // A pushed datum whose kind is recognizable carries its type mark from the
 // Notation key -- p public key, s signature, h hash, r redeem script,
-// w witness script, t tapscript -- set just before its prose, so a script
-// reads as its pattern (⁶⁵p ∇) without consulting the key. Classification
+// w witness script, t tapscript -- set just before its prose, with the push's
+// byte count riding on the mark itself as a superscript that follows it, so a
+// script reads as its pattern (p⁶⁵ ∇) without consulting the key. (A bare,
+// untyped push keeps its superscript leading, before the prose.) Classification
 // is display-only annotation: it never changes what gets encoded.
 const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
 
@@ -393,22 +421,17 @@ function scriptDataMark(push, compact, prevOp, nextOp) {
   return '';
 }
 
-// A data push whose bytes are ALL printable ASCII (e.g. an Ordinals inscription's
-// "ord" tag, its content type or a text body) -> its decoded string, else null.
-// Requiring the WHOLE push to be printable -- not merely a run within it -- keeps
-// keys, hashes and signatures (dense binary, and all ≥ 20 bytes) from ever being
-// mistaken for text, so this is safe to apply to any script, not just an OP_RETURN
-// payload. The floor is 3 so a short protocol tag like Ordinals' "ord" is caught.
-const ASCII_PUSH_MIN = 3;
-function asciiPush(hex) {
-  if (!hex || hex.length / 2 < ASCII_PUSH_MIN) return null;
-  let out = '';
-  for (let i = 0; i < hex.length; i += 2) {
-    const b = parseInt(hex.slice(i, i + 2), 16);
-    if (b < 0x20 || b > 0x7e) return null;
-    out += String.fromCharCode(b);
-  }
-  return out;
+// A data push that is valid UTF-8 and wholly human-readable (an Ordinals
+// inscription's "ord" tag, its content type or a text body, an embedded message)
+// -> its decoded string, else null. Non-English text and emoji come through;
+// binary (keys, hashes, sigs, images -- all ≥ 20 bytes and dense) fails UTF-8
+// validation or trips a control byte and stays prose. The floor is 3 so a short
+// protocol tag like Ordinals' "ord" is caught while a 1-2 byte push falls to
+// numberPush; the whole-push requirement lives in readableUtf8Text.
+const TEXT_PUSH_MIN = 3;
+function textPush(hex) {
+  if (!hex || hex.length / 2 < TEXT_PUSH_MIN) return null;
+  return readableUtf8Text(hex);
 }
 
 // A short data push (1-4 bytes) minimally encoding a number -> its decimal, else
@@ -473,7 +496,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         const bits = compactBitsFromPush(t.push);
         if (bits !== null) {
           const info = bitsInfo(bits);
-          parts.push(markToken(info.sym, '', `the difficulty target this block was mined against — ${info.title}`));
+          parts.push(markToken(info.sym, `the difficulty target this block was mined against — ${info.title}`));
           pre = 'extranonce';
           return;
         }
@@ -481,7 +504,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         pre = 'done';
         const n = extranonceFromPush(t.push);
         if (n !== null) {
-          parts.push(markToken('η', n, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce (η) was exhausted`));
+          parts.push(markToken(`η${toSubscript(n)}`, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce (η) was exhausted`));
           return;
         }
       }
@@ -489,7 +512,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
         // reveal the redeemScript, typed r
-        parts.push(mark + dataMark('r', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
+        parts.push(dataMark('r', 'redeem script — revealed as opcodes') + mark, renderScript(t.push, collect));
         return;
       }
       // A push directly before OP_CLTV (τ) or OP_CSV (Δ) is a timelock threshold,
@@ -503,19 +526,23 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         if (info && info.mark) { parts.push(`<span class="op" title="${escapeHtml(info.title)}">${info.mark}</span>`); return; }
       }
       if (eligible) {
-        const found = findAsciiStrings(t.push);
-        if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
+        const found = findTextRuns(t.push, { segment: false });   // t.push is a payload, not a script
+        if (found.length) { parts.push(mark, found.map((s) => `“${quoteText(s)}”`).join(' ')); return; }
       }
-      // A wholly-ASCII push (an inscription's content type, a text body, an
-      // embedded message) reads as its own quoted text rather than cover prose.
-      const text = asciiPush(t.push);
-      if (text !== null) { parts.push(mark, `“${escapeHtml(text)}”`); return; }
+      // A wholly-readable push (an inscription's content type, a text body, an
+      // embedded UTF-8 message) reads as its own quoted text rather than cover prose.
+      const text = textPush(t.push);
+      if (text !== null) { parts.push(mark, `“${quoteText(text)}”`); return; }
       // A short number pushed as data (an Ordinals field tag, a script number)
       // reads as its literal digits, like the book's other structural numbers.
       const num = numberPush(t.push);
       if (num !== null) { parts.push(`<span class="op" title="pushed number — ${num}">${num}</span>`); return; }
       const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
-      parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
+      // A typed push carries its byte-count superscript on the type mark itself
+      // (p⁶⁵), so the datum's kind leads and its length rides after it; a bare
+      // push keeps the superscript leading, before its prose.
+      const dtMark = scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op);
+      parts.push(dtMark ? dtMark + mark : mark, collect(compact || t.push));
     } else {
       pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
@@ -685,10 +712,10 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
       if (isCleanScript(v.scriptSig)) {
         script = renderScript(v.scriptSig, collect, { eligible: true, preamble: true });
       } else {
-        const found = findAsciiStrings(v.scriptSig);
+        const found = findTextRuns(v.scriptSig);
         if (found.length) {
-          scriptAscii = found.map((s) => escapeHtml(s)).join(' ');
-          script = found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+          scriptAscii = found.map((s) => quoteText(s)).join(' ');
+          script = found.map((s) => `“${quoteText(s)}”`).join(' ');
         } else {
           script = collect(v.scriptSig);
         }
@@ -724,7 +751,7 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
     // caller supplies `lazyData`; an ASCII payload is still quoted inline by
     // `eligible` before either encoder is reached, so only opaque bytes defer.
     const encodeData = (isOpReturn && lazyData) ? lazyData : collect;
-    return { script: renderScript(o.scriptPubKey, encodeData, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
+    return { script: renderScript(o.scriptPubKey, encodeData, { eligible: isOpReturn }), scriptAscii: null, value: formatBtc(o.value), valueTitle: `${groupDigits(String(o.value))} satoshis` };
   });
 
   const lock = locktimeInfo(parsed.locktime);

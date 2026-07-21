@@ -186,7 +186,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* ── the chapter itself: a manuscript page, not a utility card ── */
 #chapter { margin-top: 48px; }
 .chapter-head { text-align: center; padding-bottom: 34px; margin-bottom: 34px; border-bottom: 1px solid var(--rule); }
-.chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); margin-bottom: 14px; }
+/* Chapter (block) navigation: prev / next flanking the Volume · Book locator. */
+.chapter-nav { display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom: 14px; }
+.chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); }
+.chapter-step { padding: 7px 15px; font-size: 15px; line-height: 1; }
 .chapter-title { font: 500 37px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 22px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--dim); margin: 0 auto 16px; max-width: 46ch; }
 /* The block header's own fields -- version, previous-block hash, merkle
@@ -272,6 +275,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* Per-section navigation: Previous / Next flanking the section title -- the
    transaction's position within its block, rendered as "Section N". */
 .section-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 22px 0 0; }
+.section-nav button { padding: 14px 20px; }
 .section-title { flex:1; text-align:center; margin:0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
 /* The transaction's own txid, rendered as Glossia prose beneath the section title
    (as the block hash is beneath the chapter title). */
@@ -309,7 +313,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .cite-section-link { color: inherit; text-decoration: none; }
 .cite-section-link:hover { color: var(--accent); text-decoration: underline; }
 /* The amount of the output this input spends, under its reference. */
-.cite-amount { margin-top: .1em; font: italic 400 12px/1.3 'Newsreader',serif; color: var(--meta); }
+.cite-amount { margin-top: .1em; font: italic 400 12px/1.3 'Newsreader',serif; color: var(--meta); font-variant-numeric: tabular-nums; }
 /* An output's forward citation -- the section that later spent it -- under its
    amount in the right margin, mirroring the left margin's provenance cites.
    Empty for an unspent output. */
@@ -327,11 +331,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 }
 .tx-out-script { grid-column: 1; min-width: 0; }
 /* Amounts and the closing locktime right-align to the page edge, like a ledger
-   column, and the amount digits are grouped in threes (see btc-prose.js). */
-.tx-out-value  { grid-column: 2; text-align: right; }
+   column; amounts read in bitcoin (₿) with a fixed eight decimals and tabular
+   figures, so the column aligns on the point (see formatBtc in btc-prose.js). */
+.tx-out-value  { grid-column: 2; text-align: right; font-variant-numeric: tabular-nums; }
 .tx-locktime { grid-column: right; grid-row: 3; text-align: right; font-style: normal; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
-/* The input's sequence mark, shown in the margin just after the reference:
+/* The input's sequence mark, leading the amount line beneath the reference:
    ●/○ final/respects-locktime, † replaceable (a shade warmer), ■n / Τn a
    relative block / time delay. */
 .tx-seq { font-style: normal; color: var(--meta); }
@@ -343,10 +348,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    we haven't given a glyph falls back to Bitcoin Core's OP_* name in small mono. */
 .op { color: var(--accent); font-style: normal; }
 .op-name { font: 600 .62em/1 'IBM Plex Mono',monospace; letter-spacing:.04em; color: var(--dim); font-style: normal; vertical-align: .14em; white-space: nowrap; }
-/* A decoded value riding a mark (the coinbase preamble's βtarget and
-   ηextranonce): mono like an OP_ name, but a size up -- it's a number to
-   read, not a fallback label. */
-.op-num { font: 500 .72em/1 'IBM Plex Mono',monospace; color: var(--dim); font-style: normal; vertical-align: .1em; white-space: nowrap; margin-left: .08em; }
 /* A push opcode's mark (↧ₙ and the OP_PUSHDATA variants): quieter than the
    operational opcodes -- it frames the data that follows rather than acting
    on the stack, so it shouldn't compete with the prose it introduces. */
@@ -373,6 +374,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   border-left: 2px solid var(--accent); border-radius: 1px;
   font: italic 400 17.5px/1.6 'Newsreader',serif; color: var(--ink-soft);
 }
+/* A tab inside a quoted embedded message (see quoteText in btc-prose.js): a
+   fixed-width gap, so column-aligned text keeps its spacing instead of
+   collapsing to a single space. */
+.tab { display: inline-block; width: 4ch; }
 .tx-line.tx-body-lead::first-letter {
   font-size: 3.4em; float: left; line-height: .82; padding: .04em .07em 0 0;
   font-weight: 500; color: var(--accent);
@@ -489,7 +494,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
   <article id="chapter" class="hidden">
     <header class="chapter-head">
-      <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
+      <nav class="chapter-nav">
+        <button type="button" id="chapter-prev" class="chapter-step" aria-label="Previous chapter" title="Previous chapter">←</button>
+        <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
+        <button type="button" id="chapter-next" class="chapter-step" aria-label="Next chapter" title="Next chapter">→</button>
+      </nav>
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
       <div class="chapter-frontispiece" id="ch-frontispiece"></div>
@@ -517,47 +526,47 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="pattern-table">
           <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
           <span class="pname">P2PK</span>
-            <span class="seq"><span class="op op-push">⁶⁵</span><span class="ph">p</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="ph">p</span><span class="op op-push">⁶⁵</span> <span class="op">∇</span></span>
             <span class="seq exec"><span class="ph">s</span> <span class="ph chain">p</span> <span class="op">∇</span></span>
             <span class="seq"><span class="ph">s</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2PKH</span>
-            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
+            <span class="seq"><span class="op">⧉</span> <span class="op">⌖</span> <span class="ph">h</span><span class="op op-push">²⁰</span> <span class="op">≡</span> <span class="op">∇</span></span>
             <span class="seq exec"><span class="ph">s</span> <span class="ph">p</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
             <span class="seq"><span class="ph">s</span> <span class="ph">p</span></span>
             <span class="seq none">—</span>
           <span class="pname">Multisig</span>
-            <span class="seq"><span class="op">②</span> <span class="op op-push">³³</span><span class="ph">p<sub>1</sub></span> <span class="op op-push">³³</span><span class="ph">p<sub>2</sub></span> <span class="op op-push">³³</span><span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span></span>
+            <span class="seq"><span class="op">②</span> <span class="ph">p<sub>1</sub></span><span class="op op-push">³³</span> <span class="ph">p<sub>2</sub></span><span class="op op-push">³³</span> <span class="ph">p<sub>3</sub></span><span class="op op-push">³³</span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq exec"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span> <span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span></span>
             <span class="seq none">—</span>
           <span class="pname">P2SH</span>
-            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="ph">h</span><span class="op op-push">²⁰</span> <span class="op">=</span></span>
             <span class="seq exec"><span class="ph">r</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(r)</span></span>
             <span class="seq"><span class="op">(r)</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2SH · 2-of-3</span>
-            <span class="seq"><span class="op">⌖</span> <span class="op op-push">²⁰</span><span class="ph">h</span> <span class="op">=</span></span>
+            <span class="seq"><span class="op">⌖</span> <span class="ph">h</span><span class="op op-push">²⁰</span> <span class="op">=</span></span>
             <span class="seq exec"><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span><span class="op">)</span></span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span> <span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="ph">p<sub>3</sub></span> <span class="op">③</span> <span class="op">◇</span></span>
             <span class="seq none">—</span>
           <span class="pname">P2WPKH</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">²⁰</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">²⁰</span></span>
             <span class="seq exec"><span class="ph">s</span> <span class="ph">p</span> <span class="op">⧉</span> <span class="op">⌖</span> <span class="ph chain">h</span> <span class="op">≡</span> <span class="op">∇</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s</span> <span class="ph">p</span></span>
           <span class="pname">P2WSH</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">w</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(w)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="op">(w)</span></span>
           <span class="pname">P2TR key</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
+            <span class="seq"><span class="op">①</span> <span class="ph">p</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">s</span> <span class="op">∇</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s</span></span>
           <span class="pname">P2TR script</span>
-            <span class="seq"><span class="op">①</span> <span class="op op-push">³²</span><span class="ph">p</span></span>
+            <span class="seq"><span class="op">①</span> <span class="ph">p</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">t</span> <span class="op">⋔</span> <span class="ph chain">p</span> <span class="op">=</span> <span class="op">(t)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s</span> <span class="ph">t</span> <span class="ph">c</span></span>
@@ -576,27 +585,27 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <div class="pattern-table">
           <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
           <span class="pname">Channel open · 2-of-2</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span></span>
           <span class="pname">Force close · to_local</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
           <span class="pname">Force close · to_remote</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>2</sub></span></span>
           <span class="pname">Force close · anchor</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s</span> · <span class="op">∅</span></span>
           <span class="pname">Force close · HTLC</span>
-            <span class="seq"><span class="op">⓪</span> <span class="op op-push">³²</span><span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="ph">h</span> <span class="op">①</span> <span class="op">⓪</span> · <span class="ph">s<sub>2</sub></span> <span class="op">⓪</span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
@@ -655,7 +664,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Coinbase — the mining preamble</h4>
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b> — a valid hash opens with n zero bits</span></div>
-          <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
+          <div class="glyph-row"><span class="g">η<sub><i>n</i></sub></span><span class="m"><b>extranonce</b> — search space beyond the header's η</span></div>
         </div>
       </div>
 
@@ -665,7 +674,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">v<i>n</i></span><span class="m">block <b>version</b></span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m">no previous block — the genesis chapter</span></div>
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b>, as in the preamble</span></div>
-          <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
+          <div class="glyph-row"><span class="g">η<sub><i>n</i></sub></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
         </div>
       </div>
 
@@ -745,7 +754,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g"><b>⋔</b></span><span class="m"><b>merkle proof</b> — the revealed leaf's path in the taptree</span></div>
           <div class="glyph-row"><span class="g"><b>a</b></span><span class="m"><b>annex</b> (reserved Taproot spend data)</span></div>
         </div>
-        <p class="notation-note"><b>Bold</b> where the datum is on chain — a lock, or what a spend writes; <b>plain</b> where a spend introduces it at validation.</p>
+        <p class="notation-note">A push of known length carries its byte count as a superscript on the mark — <b>h</b>²⁰, <b>p</b>⁶⁵; a bare, untyped push keeps its count leading (²⁰). <b>Bold</b> where the datum is on chain — a lock, or what a spend writes; <b>plain</b> where a spend introduces it at validation.</p>
       </div>
 
       <div class="notation-group">
@@ -756,7 +765,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">†</span><span class="m"><b>replaceable</b> (opt-in RBF)</span></div>
           <div class="glyph-row"><span class="g">■<i>N</i></span><span class="m">relative: N blocks after confirmation (a count of chapters)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>Δt</i></span><span class="m">relative: a duration after confirmation (d h m s)</span></div>
-          <div class="glyph-row"><span class="g">(<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare</span></div>
+          <div class="glyph-row"><span class="g">(₿<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare (₿<i>n</i>, no parentheses)</span></div>
         </div>
       </div>
 
@@ -778,7 +787,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <p class="hint muted">Each transaction's base bytes (version, inputs, outputs, locktime — exactly what a txid hashes) become a paragraph, each input's witness a numbered footnote. Small structural numbers (version, indices, sequence, amounts, locktime) appear as literal digits, and scripts are written in the opcode notation of the Notation key above. The margins carry the citation graph: each input cites the section it spends from (that output's amount in parentheses beneath), and each spent output carries a forward citation — the section that later consumed it — beneath its amount. An unspent output has none.</p>
     <p class="hint muted">Only genuine payload becomes prose. Serialization framing — input/output and witness-item counts, and witness items' length prefixes — is dropped, since it is reconstructable from structure; a script's push opcodes render as superscript byte counts (with ↧/⇊/⤋ arrows when the length rides in a 1/2/4-byte prefix). And a canonical ECDSA signature is stripped from its DER envelope down to just its <em>r</em>, <em>s</em> and sighash flag; a non-canonical, pre-BIP66 signature fails the re-encode check and is kept verbatim, so its bytes still reconstruct exactly. What remains in prose is the genuinely opaque material: prevout references, keys, hashes, and signature scalars.</p>
     <p class="hint muted">A chapter opens with its block header, parsed from the raw 80-byte header (not the API's own decoded fields) and independently re-hashed to confirm it matches the requested block. The previous-block hash and merkle root — genuinely opaque 32-byte hashes — are Glossia-encoded like the chapter and section hashes above them; version, timestamp, the difficulty target and the nonce are small structural numbers, so they're decoded and shown literally, with the raw wire value and its meaning both on hover. The same treatment covers the earliest coinbases' mining preamble: the restated difficulty target and the extranonce decode to β and η marks rather than passing through the wordlist — which lets the genesis headline stand as the first words of the book.</p>
-    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — is read as prose; the raw hex it encodes is never shown. Clicking it opens a menu: copy that hex, or bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes, previous-block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
+    <p class="hint muted">Every Glossia-encoded hash — a block hash, a transaction id, the previous-block hash and merkle root above — is read as prose; the raw hex it encodes is never shown. Clicking it opens a menu: copy that hex, copy the prose, or — for a block hash or transaction id — bookmark it under a title of your choosing. A bookmarked hash flies a small bookmark ribbon at its top-right corner; bookmarks (block hashes and transaction ids — anything you can navigate back to) are kept in this browser, each with its title, and join your <b>Bookmarks</b> in the lookup card, which opens with a curated set of notable transactions. The full <a href="./bitcoin-contents.html">table of contents</a> lists them on their own page.</p>
     <p class="hint muted">Fetched live from the <a href="https://github.com/blockstream/esplora/blob/master/API.md" target="_blank" rel="noopener">Blockstream Esplora API</a> (mainnet), falling back to the compatible <a href="https://mempool.space/docs/api/rest" target="_blank" rel="noopener">mempool.space API</a> when Blockstream rate-limits. Pick the data source — or add your own Esplora/Electrs endpoint — from the <b>Data source</b> menu above; custom endpoints are remembered in this browser.</p>
   </details>
 
@@ -786,6 +795,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <div id="hash-menu-head" class="hash-menu-head"></div>
     <div id="hash-menu-actions">
       <button type="button" class="hash-menu-item" data-act="copy" role="menuitem">Copy hex</button>
+      <button type="button" class="hash-menu-item" data-act="copy-text" role="menuitem">Copy text</button>
       <button type="button" class="hash-menu-item" data-act="bookmark" role="menuitem">Bookmark</button>
     </div>
     <div id="hash-menu-title" class="hash-menu-title hidden">
@@ -801,7 +811,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
-import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
+import { composeTransactionFields, composeBlockHeaderFields, groupDigits, formatBtc, renderWitness } from './btc-prose.js';
 import { volumeBookChapter, heightOf, toRoman, reference } from './btc-citation.js';
 import { NOTABLE, isBlockId, isRelativeBlockId, refFromProof, entryHref } from './btc-contents.js';
 
@@ -1167,19 +1177,20 @@ async function goToSection(height, index, scrollId) {
 // Fill each pending citation cell once its reference resolves; skip if the
 // reader has since paged to another section (gen no longer current).
 async function resolveCitations(pending, gen) {
-  await Promise.all(pending.map(async ({ citeBody, cite, amtEl, txid, vout }) => {
+  await Promise.all(pending.map(async ({ citeBody, cite, amtVal, txid, vout }) => {
     try {
       const { height, pos, outputs } = await resolveCitation(txid);
       if (gen !== renderGen) return;
       renderCitation(citeBody, height, pos, vout);
       cite.classList.remove('resolving');
       cite.title = `${txid}:${vout}`;
-      // The amount of the referenced output -- what this input spends -- sits
-      // under the reference, in parentheses: the mark for value flowing IN,
-      // where an output's amount (value flowing out) stands bare.
-      if (amtEl && outputs && outputs[vout]) {
-        amtEl.textContent = `(${groupDigits(String(outputs[vout].value))})`;
-        amtEl.title = 'the amount this input spends, in satoshis';
+      // The amount of the referenced output -- what this input spends -- sits on
+      // the line beneath the reference, after the sequence mark, in parentheses:
+      // the mark for value flowing IN, where an output's amount (value flowing
+      // out) stands bare.
+      if (amtVal && outputs && outputs[vout]) {
+        amtVal.textContent = `(${formatBtc(outputs[vout].value)})`;
+        amtVal.title = `the amount this input spends: ${groupDigits(String(outputs[vout].value))} satoshis`;
       }
     } catch (e) {
       if (gen !== renderGen) return;
@@ -1306,7 +1317,9 @@ async function showCurrentTx() {
 // nowhere, is copy-only.
 function attachHashCopy(el, hex, label) {
   const prose = el.textContent;          // the visible prose for this hash
-  const nav = label !== 'merkle root';   // navigable hashes are bookmarkable; a merkle root isn't
+  // This chapter's own hashes are bookmarkable; a merkle root leads nowhere, and
+  // the previous-block hash just points back a chapter, so both are copy-only.
+  const nav = label !== 'merkle root' && label !== 'previous block hash';
   el.classList.add('hash-copy');
   el.tabIndex = 0;
   el.setAttribute('aria-label', `${label}: ${hex} — click for menu`);
@@ -1341,7 +1354,7 @@ function renderFrontispiece(header) {
     { text: merkleProse, copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
     { text: hf.bits, title: hf.bitsTitle },
-    { text: `η${hf.nonce}`, title: `nonce ${hf.nonce} — the value the miner incremented while searching for a hash below the difficulty target` },
+    { text: hf.nonce, title: hf.nonceTitle },
   ];
   for (const { text, title, copy } of items) {
     const span = document.createElement('span');
@@ -1453,7 +1466,7 @@ function renderChapter(para) {
     q.innerHTML = html;
     container.append(q);
   };
-  // The input's sequence mark, shown in the margin just after its reference:
+  // The input's sequence mark, leading the amount line beneath its reference:
   // ● final · ○ respects locktime · † replaceable · † ■n / † Τn replaceable with
   // a relative block / time delay. The † is kept a shade warmer than the delay
   // it precedes, so it reads as its own mark.
@@ -1507,22 +1520,29 @@ function renderChapter(para) {
     cite.id = `in-${inputIndex++}`;   // an output's forward citation scrolls here so the spending input leads the page
     const citeBody = document.createElement('span');
     citeBody.className = 'cite-body';
-    let amtEl = null;
     if (inp.isNullPrevout) {
       citeBody.textContent = '∅';   // coinbase: no previous output
     } else {
       citeBody.textContent = '⋯';   // placeholder until the reference resolves
       cite.classList.add('resolving');
-      amtEl = document.createElement('div');   // the spent output's amount, filled on resolve
-      amtEl.className = 'cite-amount';
-      pendingCites.push({ citeBody, cite, amtEl, txid: inp.prevTxid, vout: inp.prevVout });
     }
-    // The input's sequence mark leads, then the reference and -- for a
-    // witness-bearing input -- its footnote superscript, numbered in input order;
-    // the amount of the output it spends sits underneath.
-    cite.append(seqSpan(inp), ' ', citeBody);
+    // The reference leads the citation, then -- for a witness-bearing input --
+    // its footnote superscript (numbered in input order).
+    cite.append(citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
-    if (amtEl) cite.append(amtEl);
+    // A second line sits beneath the reference: the sequence mark leads it, then
+    // the amount of the output this input spends (filled on resolve, into its own
+    // span so the mark survives). A coinbase has no prevout, so its line carries
+    // the sequence mark alone.
+    const amtLine = document.createElement('div');
+    amtLine.className = 'cite-amount';
+    amtLine.append(seqSpan(inp));
+    if (!inp.isNullPrevout) {
+      const amtVal = document.createElement('span');   // the spent output's amount, filled on resolve
+      amtLine.append(' ', amtVal);
+      pendingCites.push({ citeBody, cite, amtVal, txid: inp.prevTxid, vout: inp.prevVout });
+    }
+    cite.append(amtLine);
     // A witness spend has an empty scriptSig (no body content). An input that
     // renders a scriptSig gets an aligned row: its left cell carries any pending
     // witness-input citations that preceded it (in order) stacked above its own,
@@ -1554,6 +1574,7 @@ function renderChapter(para) {
     const valueCell = document.createElement('div');
     valueCell.className = 'tx-note tx-out-value';
     valueCell.textContent = out.value;
+    valueCell.title = out.valueTitle;
     // Forward citation placeholder: filled with the section that later spent
     // this output, once the outspends resolve. An unspent output keeps it
     // empty -- still-live value has no forward reference.
@@ -1584,6 +1605,8 @@ function renderChapter(para) {
 
   $('page-prev').disabled = state.height === 0 && state.index === 0;
   $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txCount - 1;
+  $('chapter-prev').disabled = state.height === 0;                                  // genesis has no earlier chapter
+  $('chapter-next').disabled = tipHeight !== null && state.height >= tipHeight;     // the tip has no later chapter
 }
 
 // Encode every witness-bearing input's witness into a numbered footnote and
@@ -1716,6 +1739,32 @@ async function stepTx(direction) {
   }
 }
 
+// Jump a whole chapter (block) at a time, landing on its first section. Genesis
+// has no earlier chapter and the tip none later; both are guarded by the button
+// disabled state and rechecked here.
+let chapterLoading = false;
+async function goToChapter(direction) {
+  if (!state || chapterLoading) return;
+  const target = state.height + direction;
+  if (target < 0) return;
+  chapterLoading = true;
+  $('chapter-prev').disabled = true;
+  $('chapter-next').disabled = true;
+  setStatus(`<span class="spinner"></span>loading ${direction > 0 ? 'next' : 'previous'} chapter…`);
+  try {
+    const meta = await loadBlockByHeight(target);
+    state = { ...meta, index: 0 };
+    await showCurrentTx();
+  } catch (e) {
+    if (direction > 0) tipHeight = state.height;   // asked past the tip -- remember it
+    setStatus(direction > 0 ? 'No next chapter yet — this is the current chain tip.' : (e.message || 'Failed to load previous chapter.'), 'err');
+    $('chapter-prev').disabled = state.height === 0;
+    $('chapter-next').disabled = direction > 0;
+  } finally {
+    chapterLoading = false;
+  }
+}
+
 // Rapid Next/Previous clicks -- or holding the button -- would otherwise fire
 // one transaction load, and its whole citation/outspend fan-out, per click,
 // with every intermediate load instantly stale. Debounce so a burst collapses
@@ -1778,6 +1827,8 @@ $('block-btn').addEventListener('click', () => openLookup($('block-input').value
 $('block-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') openLookup($('block-input').value, 0); });
 $('page-prev').addEventListener('click', () => requestStep(-1));
 $('page-next').addEventListener('click', () => requestStep(1));
+$('chapter-prev').addEventListener('click', () => goToChapter(-1));
+$('chapter-next').addEventListener('click', () => goToChapter(1));
 
 // ── Data-source picker ────────────────────────────────────────────────────
 const endpointSel = $('endpoint-select');
@@ -1889,14 +1940,12 @@ const saveBookmarks = () => { try { localStorage.setItem(BOOKMARKS_KEY, JSON.str
 // table-of-contents page; they lead the Bookmarks list here.
 
 // The reference a bookmarkable hash points at, taken from the section on screen:
-// a txid is a section within this block; the block hash is this whole chapter;
-// the previous-block hash is the chapter before it. Returns null when it can't be
-// placed (no block loaded, or genesis has no previous block) -- the caller then
+// a txid is a section within this block; the block hash is this whole chapter.
+// Returns null when it can't be placed (no block loaded) -- the caller then
 // declines the bookmark rather than saving one whose citation can't be resolved.
 function entryPlacement(entry) {
   if (!state || !Number.isInteger(state.height)) return null;
   if (entry.label === 'transaction id') return { height: state.height, pos: state.index };
-  if (entry.label === 'previous block hash') return state.height > 0 ? { height: state.height - 1, pos: null } : null;
   return { height: state.height, pos: null };   // a block hash -- this chapter
 }
 
@@ -2049,6 +2098,7 @@ function renderContents() {
 
 const hashMenu = $('hash-menu');
 const menuCopyBtn = hashMenu.querySelector('[data-act="copy"]');
+const menuCopyTextBtn = hashMenu.querySelector('[data-act="copy-text"]');
 const menuBmBtn = hashMenu.querySelector('[data-act="bookmark"]');
 const titleInput = $('hash-title-input');
 let menuEntry = null;
@@ -2082,6 +2132,7 @@ function openHashMenu(ev, entry, anchorEl) {
   menuEntry = entry;
   $('hash-menu-head').textContent = entry.label;
   menuCopyBtn.textContent = 'Copy hex';
+  menuCopyTextBtn.textContent = 'Copy text';
   menuBmBtn.classList.toggle('hidden', !entry.nav);
   if (entry.nav) menuBmBtn.textContent = isBookmarked(entry.hex) ? 'Remove bookmark' : 'Bookmark';
   hashMenu.classList.remove('hidden');
@@ -2104,6 +2155,14 @@ menuCopyBtn.addEventListener('click', () => {
   if (!menuEntry) return;
   navigator.clipboard.writeText(menuEntry.hex).then(() => {
     menuCopyBtn.textContent = 'Copied ✓';
+    setTimeout(closeHashMenu, 650);
+  }).catch(closeHashMenu);
+});
+// Copy the Glossia prose itself (the readable encoding), not the raw hex.
+menuCopyTextBtn.addEventListener('click', () => {
+  if (!menuEntry) return;
+  navigator.clipboard.writeText(menuEntry.prose).then(() => {
+    menuCopyTextBtn.textContent = 'Copied ✓';
     setTimeout(closeHashMenu, 650);
   }).catch(closeHashMenu);
 });
