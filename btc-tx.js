@@ -291,22 +291,54 @@ export async function withAddresses(tx) {
   return { ...tx, vout };
 }
 
-// ─── embedded ASCII text ───────────────────────────────────────────────
+// ─── embedded human-readable text ──────────────────────────────────────
 //
 // scriptSig and scriptPubKey bytes are usually cryptographic material --
 // signatures, pubkeys, hashes -- effectively random. But two spots
 // routinely carry deliberate human-readable text: a coinbase input's
 // scriptSig (mining pool tags like "/ViaBTC/") and OP_RETURN outputs
-// (arbitrary embedded messages). This scans any byte string for runs of
-// printable ASCII, so those can be surfaced instead of run through the
+// (arbitrary embedded messages, often UTF-8). This scans any byte string for
+// runs of readable text, so those can be surfaced instead of run through the
 // wordlist as if they were opaque.
 //
+// "Readable" means valid UTF-8 decoding to printable characters plus tab,
+// newline and carriage return -- so non-English text and emoji come through --
+// while any other C0/C1 control, a DEL, or an invalid UTF-8 byte ends a run
+// (real cryptographic material and image bytes are riddled with those).
+//
 // A minimum run length matters: a single random byte has roughly a 37%
-// chance of falling in the printable range (0x20-0x7E is 95 of 256 values),
-// so short "printable-looking" runs turn up by pure chance in genuine
-// cryptographic material. Requiring several consecutive printable bytes
-// keeps that noise out.
-const ASCII_MIN_RUN = 5;
+// chance of falling in the printable ASCII range (0x20-0x7E is 95 of 256
+// values), so short "printable-looking" runs turn up by pure chance in
+// genuine cryptographic material. Requiring several consecutive readable
+// characters keeps that noise out.
+const TEXT_MIN_RUN = 5;
+
+// A code point we'll surface as text: any printable character, plus tab, newline
+// and carriage return. Excludes the other C0 controls, DEL, and the C1 controls
+// (0x80-0x9F) -- all common in binary, rare in genuine text.
+const isReadableCp = (cp) => cp === 0x09 || cp === 0x0a || cp === 0x0d || (cp >= 0x20 && cp !== 0x7f && !(cp >= 0x80 && cp <= 0x9f));
+
+// Decode one UTF-8 scalar at offset i -> { cp, len }, or null if the bytes there
+// aren't a valid, minimally-encoded UTF-8 sequence. Overlong forms, surrogate
+// halves and out-of-range code points are rejected, so this never accepts binary
+// that a lenient decoder would paper over with U+FFFD.
+function utf8At(bytes, i) {
+  const b0 = bytes[i];
+  if (b0 < 0x80) return { cp: b0, len: 1 };
+  const cont = (j) => i + j < bytes.length && (bytes[i + j] & 0xc0) === 0x80;
+  if (b0 >= 0xc2 && b0 <= 0xdf && cont(1)) {
+    return { cp: ((b0 & 0x1f) << 6) | (bytes[i + 1] & 0x3f), len: 2 };
+  }
+  if (b0 >= 0xe0 && b0 <= 0xef && cont(1) && cont(2)) {
+    const cp = ((b0 & 0x0f) << 12) | ((bytes[i + 1] & 0x3f) << 6) | (bytes[i + 2] & 0x3f);
+    return (cp < 0x800 || (cp >= 0xd800 && cp <= 0xdfff)) ? null : { cp, len: 3 };
+  }
+  if (b0 >= 0xf0 && b0 <= 0xf4 && cont(1) && cont(2) && cont(3)) {
+    const cp = ((b0 & 0x07) << 18) | ((bytes[i + 1] & 0x3f) << 12) | ((bytes[i + 2] & 0x3f) << 6) | (bytes[i + 3] & 0x3f);
+    return (cp < 0x10000 || cp > 0x10ffff) ? null : { cp, len: 4 };
+  }
+  return null;
+}
 
 // Parse a script into its push-data segments, ignoring non-push opcodes
 // (OP_DUP, OP_HASH160, OP_CHECKSIG, the OP_RETURN marker itself, etc.).
@@ -338,23 +370,46 @@ function scriptPushes(bytes) {
   return pushes;
 }
 
-export function findAsciiStrings(hex, minRun = ASCII_MIN_RUN) {
+// The maximal runs of readable UTF-8 text in a byte string, each at least
+// `minRun` characters. An unreadable character or an invalid UTF-8 byte ends the
+// current run. When `segment` is set (a whole scriptSig, e.g. a coinbase), each
+// script push is scanned independently (see scriptPushes) so a push's
+// length-prefix byte never glues onto real text; when it's off (the bytes are
+// already a single push's data, e.g. an OP_RETURN payload), the blob is scanned
+// as-is -- re-parsing raw data as script would mis-split it, since a byte like
+// 0x0a (newline) doubles as a push opcode.
+export function findTextRuns(hex, { minRun = TEXT_MIN_RUN, segment = true } = {}) {
   const bytes = hexToBytes(hex);
-  const segments = scriptPushes(bytes) || [bytes];   // fall back to the raw blob if it isn't clean script
+  const pushes = segment ? scriptPushes(bytes) : null;
+  // Scan each script push, or the raw blob when segmentation is off, the bytes
+  // aren't clean script (null), or a push-less blob yields no segments.
+  const segments = pushes && pushes.length ? pushes : [bytes];
   const found = [];
   for (const seg of segments) {
-    let start = -1;
-    for (let i = 0; i <= seg.length; i++) {
-      const printable = i < seg.length && seg[i] >= 0x20 && seg[i] <= 0x7e;
-      if (printable) {
-        if (start === -1) start = i;
-      } else if (start !== -1) {
-        if (i - start >= minRun) found.push(String.fromCharCode(...seg.subarray(start, i)));
-        start = -1;
-      }
+    let run = '', count = 0;
+    const flush = () => { if (count >= minRun) found.push(run); run = ''; count = 0; };
+    let i = 0;
+    while (i < seg.length) {
+      const d = utf8At(seg, i);
+      if (d && isReadableCp(d.cp)) { run += String.fromCodePoint(d.cp); count++; i += d.len; }
+      else { flush(); i += d ? d.len : 1; }   // skip a readable-but-control char, or one bad byte
     }
+    flush();
   }
   return found;
+}
+
+// A whole byte string that is valid UTF-8 and entirely readable -> its decoded
+// text, else null. Requiring the WHOLE input to pass -- not merely a run within
+// it -- keeps keys, hashes and signatures (dense binary) from being mistaken for
+// text, so it is safe to apply to any push, not just an OP_RETURN payload.
+export function readableUtf8Text(hex) {
+  const bytes = hexToBytes(hex);
+  let str;
+  try { str = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch { return null; }
+  for (const ch of str) if (!isReadableCp(ch.codePointAt(0))) return null;
+  return str;
 }
 
 // ─── script tokenizer ────────────────────────────────────────────────────
