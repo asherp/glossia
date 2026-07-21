@@ -1197,6 +1197,14 @@ async function loadBlockByHeight(height) {
   return loadBlockMeta((await res.text()).trim());
 }
 
+// The chain tip height, as plain text from Esplora. Opens the book at the most
+// recent chapter when the reader arrives without a specific target.
+async function loadTipHeight() {
+  const res = await esploraFetch(`${ESPLORA}/blocks/tip/height`);
+  if (!res.ok) throw new Error(`Esplora returned ${res.status}.`);
+  return (await res.text()).trim();
+}
+
 // A txid -> the block that confirmed it, plus the transaction's index within
 // that block (its section). The section comes from the merkle proof's position, so
 // opening one transaction never downloads the whole block's txid list -- that's
@@ -2042,8 +2050,9 @@ window.addEventListener('scroll', closeHashMenu, true);
 renderContents();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
-// section; ?block= (with optional ?index=) opens a block; otherwise the input's
-// default value.
+// section; ?block= (with optional ?index=) opens a block; otherwise the book
+// opens at the chain tip -- the most recent block -- so the default view is the
+// latest chapter rather than Genesis.
 const params = new URLSearchParams(location.search);
 const txidParam = params.get('txid');
 const blockParam = params.get('block');
@@ -2051,9 +2060,16 @@ const indexParam = parseInt(params.get('index'), 10) || 0;
 if (txidParam) {
   $('block-input').value = txidParam;
   openLookup(txidParam);
+} else if (blockParam) {
+  $('block-input').value = blockParam;
+  openLookup(blockParam, indexParam);
 } else {
-  if (blockParam) $('block-input').value = blockParam;
-  openLookup($('block-input').value, indexParam);
+  // No explicit target: resolve the chain tip and open it. If the tip can't be
+  // fetched (offline), fall back to the input's default value.
+  setStatus('<span class="spinner"></span>fetching latest block…');
+  loadTipHeight()
+    .then((tip) => { $('block-input').value = tip; return openLookup(tip, indexParam); })
+    .catch(() => openLookup($('block-input').value, indexParam));
 }
 </script>
 </body>
