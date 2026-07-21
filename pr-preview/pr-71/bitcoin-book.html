@@ -1888,14 +1888,35 @@ const saveBookmarks = () => { try { localStorage.setItem(BOOKMARKS_KEY, JSON.str
 // The curated entries (NOTABLE) live in btc-contents.js, shared with the
 // table-of-contents page; they lead the Bookmarks list here.
 
+// The reference a bookmarkable hash points at, taken from the section on screen:
+// a txid is a section within this block; the block hash is this whole chapter;
+// the previous-block hash is the chapter before it. Returns null when it can't be
+// placed (no block loaded, or genesis has no previous block) -- the caller then
+// declines the bookmark rather than saving one whose citation can't be resolved.
+function entryPlacement(entry) {
+  if (!state || !Number.isInteger(state.height)) return null;
+  if (entry.label === 'transaction id') return { height: state.height, pos: state.index };
+  if (entry.label === 'previous block hash') return state.height > 0 ? { height: state.height - 1, pos: null } : null;
+  return { height: state.height, pos: null };   // a block hash -- this chapter
+}
+
 // Add (or retitle) a bookmark, then refresh the contents and every on-page flag.
+// A new bookmark is stored with its resolved reference (height + section) so the
+// table of contents can slot it into reading order; returns false (saving
+// nothing) when the reference can't be resolved.
 function addBookmark(entry, title) {
   const existing = bookmarks.find((b) => b.hex === entry.hex);
-  if (existing) existing.title = title;
-  else bookmarks.unshift({ hex: entry.hex, label: entry.label, prose: entry.prose, title }); // newest first
+  if (existing) {
+    existing.title = title;
+  } else {
+    const place = entryPlacement(entry);
+    if (!place) return false;
+    bookmarks.unshift({ hex: entry.hex, label: entry.label, prose: entry.prose, title, height: place.height, pos: place.pos }); // newest first
+  }
   saveBookmarks();
   renderContents();
   syncHashFlags();
+  return true;
 }
 function removeBookmark(hex) {
   const i = bookmarks.findIndex((b) => b.hex === hex);
@@ -1934,10 +1955,11 @@ function syncHashFlags() {
 function suggestTitle(entry) {
   const b = bookmarks.find((x) => x.hex === entry.hex);
   if (b && b.title) return b.title;               // keep an existing title when retitling
-  if (!state) return '';
-  const { volume, book, chapter } = volumeBookChapter(state.height);
+  const place = entryPlacement(entry);
+  if (!place) return '';
+  const { volume, book, chapter } = volumeBookChapter(place.height);
   const genesis = volume === 1 && book === 1 && chapter === 1;
-  if (entry.label === 'transaction id') return `${toRoman(volume)} ${book} ${chapter} §${state.index + 1}`;
+  if (place.pos != null) return `${toRoman(volume)} ${book} ${chapter} §${place.pos + 1}`;
   return genesis ? 'Genesis' : `Chapter ${chapter}`;
 }
 
@@ -2097,8 +2119,11 @@ menuBmBtn.addEventListener('click', () => {
 
 function saveTitle() {
   if (!menuEntry) return;
-  addBookmark(menuEntry, titleInput.value.trim());
+  if (addBookmark(menuEntry, titleInput.value.trim())) { closeHashMenu(); return; }
+  // The reference couldn't be resolved, so nothing was saved -- say so instead
+  // of silently closing on a bookmark that wouldn't appear in the contents.
   closeHashMenu();
+  setStatus('Could not resolve this reference — bookmark not saved.', 'err');
 }
 hashMenu.querySelector('[data-act="title-save"]').addEventListener('click', saveTitle);
 hashMenu.querySelector('[data-act="title-cancel"]').addEventListener('click', () => setMenuMode('actions'));
