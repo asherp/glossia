@@ -410,6 +410,18 @@ function asciiPush(hex) {
   return out;
 }
 
+// A short data push (1-4 bytes) minimally encoding a number -> its decimal, else
+// null. An Ordinals field tag (content type = 1, body = 0) is a small number
+// pushed as data, not an OP_N, so it would otherwise fall through to cover prose
+// -- a single byte becoming an absurd little sentence. Minimal (no trailing zero
+// byte), so the decimal alone reconstructs the wire bytes. Keys, hashes and
+// signatures are all ≥ 20 bytes, well past this window.
+function numberPush(hex) {
+  const n = hex.length / 2;
+  if (n < 1 || n > 4 || hex.slice(-2) === '00') return null;
+  return BigInt('0x' + reverseHexStr(hex)).toString();
+}
+
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
@@ -467,6 +479,10 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       // embedded message) reads as its own quoted text rather than cover prose.
       const text = asciiPush(t.push);
       if (text !== null) { parts.push(mark, `“${escapeHtml(text)}”`); return; }
+      // A short number pushed as data (an Ordinals field tag, a script number)
+      // reads as its literal digits, like the book's other structural numbers.
+      const num = numberPush(t.push);
+      if (num !== null) { parts.push(`<span class="op" title="pushed number — ${num}">${num}</span>`); return; }
       const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
       parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
     } else {
