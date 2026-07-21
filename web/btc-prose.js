@@ -570,35 +570,40 @@ function looksLikeScript(h) {
   return toks.some((t) => t.op !== undefined && SCRIPT_SIGNAL.has(t.op));
 }
 
-// Which witness item (if any) is the script to render as opcodes: a Taproot
-// tapscript (sitting just below its control block) or a P2WSH witnessScript
-// (the last item). Returns -1 when the witness is all data -- P2WPKH, a
-// key-path spend, a bare signature.
-function witnessScriptIndex(items) {
+// Which witness items are scripts to render as opcodes. A witness can carry more
+// than one -- a Taproot tapscript sits just below a control block (and a witness
+// may reveal several), a P2WSH witnessScript is the last item -- so return the
+// full set, not a single index. An item counts as a script if it either sits
+// directly below a control block, or parses cleanly as one on its own (a clean
+// opcode stream with a signature check or timelock). Control blocks, signatures
+// and keys are never scripts, so they are excluded. Empty for an all-data
+// witness -- P2WPKH, a key-path spend, a bare signature.
+function witnessScriptIndices(items) {
+  const idxs = new Set();
   const n = items.length;
-  if (n === 0) return -1;
+  if (n === 0) return idxs;
   let last = n - 1;
   if (n >= 2 && witFirst(items[last]) === 0x50) last -= 1;    // strip an optional annex
-  if (last >= 1 && isControlBlock(items[last])) return last - 1;
-  const tail = items[n - 1];
-  if (isPubkey(tail) || isSignature(tail)) return -1;
-  return looksLikeScript(tail) ? n - 1 : -1;
+  for (let i = 0; i <= last; i++) {
+    if (i + 1 <= last && isControlBlock(items[i + 1])) { idxs.add(i); continue; }  // a tapscript, below its control block
+    if (!isControlBlock(items[i]) && looksLikeScript(items[i])) idxs.add(i);       // a witnessScript, or a reveal
+  }
+  return idxs;
 }
 
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
-// a data item's hex into Glossia prose; the one script item, if present,
-// becomes opcode notation, typed w (a P2WSH witnessScript) or t (a Taproot
-// tapscript, identified by the control block above it). Data items carry
-// their own type marks -- s a signature, p a key -- and items are separated
-// so each reads as its own stack element.
+// a data item's hex into Glossia prose; every script item becomes opcode
+// notation, typed w (a P2WSH witnessScript) or t (a Taproot tapscript, identified
+// by the control block above it). Data items carry their own type marks -- s a
+// signature, p a key -- and items are separated so each reads as its own element.
 export function renderWitness(items, encode) {
   if (!items || !items.length) return '∅';
-  const scriptIdx = witnessScriptIndex(items);
-  const isTapscript = scriptIdx >= 0 && scriptIdx + 1 < items.length && isControlBlock(items[scriptIdx + 1]);
+  const scriptIdxs = witnessScriptIndices(items);
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      if (i === scriptIdx) {
+      if (scriptIdxs.has(i)) {
+        const isTapscript = i + 1 < items.length && isControlBlock(items[i + 1]);
         return (isTapscript ? dataMark('t', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('w', 'witness script — revealed as opcodes'))
           + ' ' + renderScript(hex, encode);
       }
