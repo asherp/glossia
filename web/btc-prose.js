@@ -371,8 +371,10 @@ const markToken = (glyph, text, title) => `<span class="op" title="${title}">${g
 //
 // A pushed datum whose kind is recognizable carries its type mark from the
 // Notation key -- p public key, s signature, h hash, r redeem script,
-// w witness script, t tapscript -- set just before its prose, so a script
-// reads as its pattern (⁶⁵p ∇) without consulting the key. Classification
+// w witness script, t tapscript -- set just before its prose, with the push's
+// byte count riding on the mark itself as a superscript that follows it, so a
+// script reads as its pattern (p⁶⁵ ∇) without consulting the key. (A bare,
+// untyped push keeps its superscript leading, before the prose.) Classification
 // is display-only annotation: it never changes what gets encoded.
 const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
 
@@ -489,7 +491,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
         // reveal the redeemScript, typed r
-        parts.push(mark + dataMark('r', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
+        parts.push(dataMark('r', 'redeem script — revealed as opcodes') + mark, renderScript(t.push, collect));
         return;
       }
       // A push directly before OP_CLTV (τ) or OP_CSV (Δ) is a timelock threshold,
@@ -515,7 +517,11 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       const num = numberPush(t.push);
       if (num !== null) { parts.push(`<span class="op" title="pushed number — ${num}">${num}</span>`); return; }
       const compact = derToCompact(t.push);                   // a DER signature is stripped to r‖s‖sighash
-      parts.push(mark + scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op), collect(compact || t.push));
+      // A typed push carries its byte-count superscript on the type mark itself
+      // (p⁶⁵), so the datum's kind leads and its length rides after it; a bare
+      // push keeps the superscript leading, before its prose.
+      const dtMark = scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op);
+      parts.push(dtMark ? dtMark + mark : mark, collect(compact || t.push));
     } else {
       pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
