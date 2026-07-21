@@ -24,6 +24,48 @@
       navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
     });
   }
+
+  // Reveal an in-page Install button when the browser offers to install this
+  // PWA, and drive the native prompt from it — so installing is discoverable
+  // without hunting through the browser menu. Stays hidden when already
+  // installed (running standalone) or on browsers that don't support prompting.
+  // This script runs in <head>, before #install-btn is parsed, so the
+  // beforeinstallprompt listener is registered eagerly (the event can fire
+  // before DOMContentLoaded) and the button is wired up once the DOM is ready.
+  (function () {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true;
+    if (standalone) return;
+    let deferredPrompt = null;
+    let btn = null;
+    const reflect = () => { if (btn) btn.classList.toggle('show', !!deferredPrompt); };
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      reflect();
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      reflect();
+    });
+    const wire = () => {
+      btn = document.getElementById('install-btn');
+      if (!btn) return;
+      btn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        try { await deferredPrompt.userChoice; } catch (_) {}
+        deferredPrompt = null;
+        reflect();
+      });
+      reflect();
+    };
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', wire);
+    } else {
+      wire();
+    }
+  })();
 </script>
 
 <!-- Social / rich unfurl -->
@@ -68,6 +110,18 @@ a:hover { text-decoration: underline; }
 .masthead .title .beta { color:var(--accent); text-transform:none; font-family:'Newsreader','Source Serif 4',Georgia,serif; font-weight:600; font-size:1.12em; }
 .masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
 .masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
+/* Install-as-app affordance: hidden until the browser fires beforeinstallprompt
+   (Chrome/Edge/Android), so it appears only when the app is actually
+   installable and not already installed. On iOS Safari it stays hidden — that
+   platform installs via Share → Add to Home Screen instead. */
+.install-btn {
+  display:none; margin-right:12px; vertical-align:baseline; background:transparent;
+  border:1px solid var(--accent); color:var(--accent); border-radius:4px; padding:4px 10px;
+  cursor:pointer; font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.08em; text-transform:uppercase;
+  transition:background .15s ease, color .15s ease;
+}
+.install-btn.show { display:inline-block; }
+.install-btn:hover { background:var(--accent); color:var(--btn-ink,#17140c); }
 
 .card {
   background: var(--card); border: 1px solid var(--card-bd); border-radius: 6px;
@@ -415,7 +469,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <div class="wrap">
   <div class="masthead">
     <span class="title">The <span class="beta">β</span>itcoin <span class="beta">β</span>ook</span>
-    <span class="home"><a href="./bitcoin-contents.html">Contents</a> · <a href="./index.html">Glossia</a></span>
+    <span class="home"><button type="button" id="install-btn" class="install-btn" aria-label="Install the Bitcoin Book as an app">Install</button><a href="./bitcoin-contents.html">Contents</a> · <a href="./index.html">Glossia</a></span>
   </div>
 
   <div class="card">
