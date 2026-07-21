@@ -33,6 +33,7 @@ export const NOTABLE = [
   { title: 'First Ordinals inscription', id: '6fb976ab49dcec017f1e201e84395983204ae1a7c2abf7ced0a85d692e442799' },
   { title: 'Largest block (at the time)', id: '774628' },
   { title: 'Fourth halving', id: '840000' },
+  { title: 'Sermon on the Mount', id: 'e53ac3be05bbeb8ea3bbfb7854a4d47eea556daea25f45ad3fe953f375ff7fd8' },
   { title: 'Latest block', id: '-1' },
 ];
 
