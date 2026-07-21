@@ -290,7 +290,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .tx-out-value  { grid-column: 2; text-align: right; }
 .tx-locktime { grid-column: right; grid-row: 3; text-align: right; font-style: normal; }
 .tx-note { font: italic 400 13.5px/1.4 'Newsreader',serif; color: var(--dim); }
-/* The input's sequence mark, shown in the margin just after the reference:
+/* The input's sequence mark, leading the amount line beneath the reference:
    ●/○ final/respects-locktime, † replaceable (a shade warmer), ■n / Τn a
    relative block / time delay. */
 .tx-seq { font-style: normal; color: var(--meta); }
@@ -1122,19 +1122,20 @@ async function goToSection(height, index, scrollId) {
 // Fill each pending citation cell once its reference resolves; skip if the
 // reader has since paged to another section (gen no longer current).
 async function resolveCitations(pending, gen) {
-  await Promise.all(pending.map(async ({ citeBody, cite, amtEl, txid, vout }) => {
+  await Promise.all(pending.map(async ({ citeBody, cite, amtVal, txid, vout }) => {
     try {
       const { height, pos, outputs } = await resolveCitation(txid);
       if (gen !== renderGen) return;
       renderCitation(citeBody, height, pos, vout);
       cite.classList.remove('resolving');
       cite.title = `${txid}:${vout}`;
-      // The amount of the referenced output -- what this input spends -- sits
-      // under the reference, in parentheses: the mark for value flowing IN,
-      // where an output's amount (value flowing out) stands bare.
-      if (amtEl && outputs && outputs[vout]) {
-        amtEl.textContent = `(${groupDigits(String(outputs[vout].value))})`;
-        amtEl.title = 'the amount this input spends, in satoshis';
+      // The amount of the referenced output -- what this input spends -- sits on
+      // the line beneath the reference, after the sequence mark, in parentheses:
+      // the mark for value flowing IN, where an output's amount (value flowing
+      // out) stands bare.
+      if (amtVal && outputs && outputs[vout]) {
+        amtVal.textContent = `(${groupDigits(String(outputs[vout].value))})`;
+        amtVal.title = 'the amount this input spends, in satoshis';
       }
     } catch (e) {
       if (gen !== renderGen) return;
@@ -1400,7 +1401,7 @@ function renderChapter(para) {
     q.innerHTML = html;
     container.append(q);
   };
-  // The input's sequence mark, shown in the margin just after its reference:
+  // The input's sequence mark, leading the amount line beneath its reference:
   // ● final · ○ respects locktime · † replaceable · † ■n / † Τn replaceable with
   // a relative block / time delay. The † is kept a shade warmer than the delay
   // it precedes, so it reads as its own mark.
@@ -1454,24 +1455,29 @@ function renderChapter(para) {
     cite.id = `in-${inputIndex++}`;   // an output's forward citation scrolls here so the spending input leads the page
     const citeBody = document.createElement('span');
     citeBody.className = 'cite-body';
-    let amtEl = null;
     if (inp.isNullPrevout) {
       citeBody.textContent = '∅';   // coinbase: no previous output
     } else {
       citeBody.textContent = '⋯';   // placeholder until the reference resolves
       cite.classList.add('resolving');
-      amtEl = document.createElement('div');   // the spent output's amount, filled on resolve
-      amtEl.className = 'cite-amount';
-      pendingCites.push({ citeBody, cite, amtEl, txid: inp.prevTxid, vout: inp.prevVout });
     }
-    // The reference leads, then -- for a witness-bearing input -- its footnote
-    // superscript (numbered in input order), then the sequence mark, which trails
-    // the prevout on the wire (prevout · scriptSig · sequence); the amount of the
-    // output it spends sits underneath.
+    // The reference leads the citation, then -- for a witness-bearing input --
+    // its footnote superscript (numbered in input order).
     cite.append(citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
-    cite.append(' ', seqSpan(inp));
-    if (amtEl) cite.append(amtEl);
+    // A second line sits beneath the reference: the sequence mark leads it, then
+    // the amount of the output this input spends (filled on resolve, into its own
+    // span so the mark survives). A coinbase has no prevout, so its line carries
+    // the sequence mark alone.
+    const amtLine = document.createElement('div');
+    amtLine.className = 'cite-amount';
+    amtLine.append(seqSpan(inp));
+    if (!inp.isNullPrevout) {
+      const amtVal = document.createElement('span');   // the spent output's amount, filled on resolve
+      amtLine.append(' ', amtVal);
+      pendingCites.push({ citeBody, cite, amtVal, txid: inp.prevTxid, vout: inp.prevVout });
+    }
+    cite.append(amtLine);
     // A witness spend has an empty scriptSig (no body content). An input that
     // renders a scriptSig gets an aligned row: its left cell carries any pending
     // witness-input citations that preceded it (in order) stacked above its own,
