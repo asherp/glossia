@@ -144,7 +144,11 @@ export function composeBlockHeaderFields(header) {
     version: String(header.version),
     timestamp: time.mark, timestampTitle: time.title,
     bits: bits.sym, bitsTitle: bits.title,
-    nonce: String(header.nonce),
+    // The nonce rides its η mark as a subscript, the same house convention β's
+    // leading-zero count follows -- a mark with its quantity tucked under it,
+    // not a bare inline number. The exact value stays legible in the title.
+    nonce: `η${toSubscript(header.nonce)}`,
+    nonceTitle: `nonce ${header.nonce} — the value the miner incremented while searching for a hash below the difficulty target`,
   };
 }
 
