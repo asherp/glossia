@@ -1,5 +1,5 @@
 {
-  "name": "The Bitcoin Book — a block, read as a chapter",
+  "name": "The Bitcoin Book",
   "short_name": "Bitcoin Book",
   "description": "A Bitcoin block rendered as a chapter: each transaction a paragraph, its witness data footnotes, in grammatically correct Glossia prose.",
   "start_url": "./bitcoin-book.html",
