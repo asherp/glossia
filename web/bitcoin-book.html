@@ -1468,11 +1468,13 @@ function renderChapter(para) {
       amtEl.className = 'cite-amount';
       pendingCites.push({ citeBody, cite, amtEl, txid: inp.prevTxid, vout: inp.prevVout });
     }
-    // The input's sequence mark leads, then the reference and -- for a
-    // witness-bearing input -- its footnote superscript, numbered in input order;
-    // the amount of the output it spends sits underneath.
-    cite.append(seqSpan(inp), ' ', citeBody);
+    // The reference leads, then -- for a witness-bearing input -- its footnote
+    // superscript (numbered in input order), then the sequence mark, which trails
+    // the prevout on the wire (prevout · scriptSig · sequence); the amount of the
+    // output it spends sits underneath.
+    cite.append(citeBody);
     if (inp.witnessHex) { footnotes.push({ n: footnotes.length + 1, items: inp.witnessItems, zero: inp.witnessZero }); cite.append(witnessRef(footnotes.length)); }
+    cite.append(' ', seqSpan(inp));
     if (amtEl) cite.append(amtEl);
     // A witness spend has an empty scriptSig (no body content). An input that
     // renders a scriptSig gets an aligned row: its left cell carries any pending
