@@ -17,7 +17,7 @@
 // margin layout.
 
 import { encodeSeedPhrase } from './glossia-msg.js';
-import { findAsciiStrings, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
+import { findTextRuns, readableUtf8Text, tokenizeScript, bitsToTargetHex, bitsToDifficulty } from './btc-tx.js';
 import { volumeBookChapter } from './btc-citation.js';
 
 const ROMAN = [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
@@ -412,22 +412,17 @@ function scriptDataMark(push, compact, prevOp, nextOp) {
   return '';
 }
 
-// A data push whose bytes are ALL printable ASCII (e.g. an Ordinals inscription's
-// "ord" tag, its content type or a text body) -> its decoded string, else null.
-// Requiring the WHOLE push to be printable -- not merely a run within it -- keeps
-// keys, hashes and signatures (dense binary, and all ≥ 20 bytes) from ever being
-// mistaken for text, so this is safe to apply to any script, not just an OP_RETURN
-// payload. The floor is 3 so a short protocol tag like Ordinals' "ord" is caught.
-const ASCII_PUSH_MIN = 3;
-function asciiPush(hex) {
-  if (!hex || hex.length / 2 < ASCII_PUSH_MIN) return null;
-  let out = '';
-  for (let i = 0; i < hex.length; i += 2) {
-    const b = parseInt(hex.slice(i, i + 2), 16);
-    if (b < 0x20 || b > 0x7e) return null;
-    out += String.fromCharCode(b);
-  }
-  return out;
+// A data push that is valid UTF-8 and wholly human-readable (an Ordinals
+// inscription's "ord" tag, its content type or a text body, an embedded message)
+// -> its decoded string, else null. Non-English text and emoji come through;
+// binary (keys, hashes, sigs, images -- all ≥ 20 bytes and dense) fails UTF-8
+// validation or trips a control byte and stays prose. The floor is 3 so a short
+// protocol tag like Ordinals' "ord" is caught while a 1-2 byte push falls to
+// numberPush; the whole-push requirement lives in readableUtf8Text.
+const TEXT_PUSH_MIN = 3;
+function textPush(hex) {
+  if (!hex || hex.length / 2 < TEXT_PUSH_MIN) return null;
+  return readableUtf8Text(hex);
 }
 
 // A short data push (1-4 bytes) minimally encoding a number -> its decimal, else
@@ -522,12 +517,12 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         if (info && info.mark) { parts.push(`<span class="op" title="${escapeHtml(info.title)}">${info.mark}</span>`); return; }
       }
       if (eligible) {
-        const found = findAsciiStrings(t.push);
+        const found = findTextRuns(t.push);
         if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
       }
-      // A wholly-ASCII push (an inscription's content type, a text body, an
-      // embedded message) reads as its own quoted text rather than cover prose.
-      const text = asciiPush(t.push);
+      // A wholly-readable push (an inscription's content type, a text body, an
+      // embedded UTF-8 message) reads as its own quoted text rather than cover prose.
+      const text = textPush(t.push);
       if (text !== null) { parts.push(mark, `“${escapeHtml(text)}”`); return; }
       // A short number pushed as data (an Ordinals field tag, a script number)
       // reads as its literal digits, like the book's other structural numbers.
@@ -708,7 +703,7 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
       if (isCleanScript(v.scriptSig)) {
         script = renderScript(v.scriptSig, collect, { eligible: true, preamble: true });
       } else {
-        const found = findAsciiStrings(v.scriptSig);
+        const found = findTextRuns(v.scriptSig);
         if (found.length) {
           scriptAscii = found.map((s) => escapeHtml(s)).join(' ');
           script = found.map((s) => `“${escapeHtml(s)}”`).join(' ');
