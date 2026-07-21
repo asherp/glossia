@@ -423,6 +423,26 @@ function numberPush(hex) {
   return BigInt('0x' + reverseHexStr(hex)).toString();
 }
 
+// The little-endian value a short push encodes (1-5 bytes, per CScriptNum), for
+// reading a CLTV/CSV threshold; null if it isn't a plausible script number. The
+// operands are positive, so unsigned LE reads them exactly (a sign byte is 0x00).
+function scriptNumValue(hex) {
+  const n = hex.length / 2;
+  if (n < 1 || n > 5) return null;
+  return Number(BigInt('0x' + reverseHexStr(hex)));
+}
+
+// A CSV (OP_CHECKSEQUENCEVERIFY) operand -> its relative-timelock mark in the
+// same ■(block, a count of chapters) / Τ(time, a duration) grammar an input's
+// nSequence uses; null when the disable bit is set (not a relative timelock).
+function csvMark(value) {
+  if (value & 0x80000000) return null;
+  const n = value & 0xffff;
+  return (value & 0x00400000)
+    ? { mark: `Τ${durationFrom512s(n)}`, title: `relative locktime — at least ${durationFrom512s(n)} (${n} × 512 s) after this coin was confirmed` }
+    : { mark: `■${n}`, title: `relative locktime — at least ${n} block${n === 1 ? '' : 's'} after this coin was confirmed` };
+}
+
 // data push to Glossia prose. Options: `eligible` (an OP_RETURN payload, or a
 // coinbase) turns on inline ASCII quoting for legible pushes; `nested` reveals a
 // script pushed as data -- a P2SH redeemScript, always the final push -- by
@@ -471,6 +491,16 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         // reveal the redeemScript, typed r
         parts.push(mark + dataMark('r', 'redeem script — revealed as opcodes'), renderScript(t.push, collect));
         return;
+      }
+      // A push directly before OP_CLTV (τ) or OP_CSV (Δ) is a timelock threshold,
+      // not opaque data: decode it to the same ■(block)/Τ(time) mark the margin
+      // gives an nLockTime (absolute) or nSequence (relative), so a script's
+      // timelock reads in the book's own grammar rather than a bare number.
+      const nextOp = toks[i + 1]?.op;
+      if (nextOp === 0xb1 || nextOp === 0xb2) {
+        const v = scriptNumValue(t.push);
+        const info = v === null ? null : (nextOp === 0xb1 ? locktimeInfo(v) : csvMark(v));
+        if (info && info.mark) { parts.push(`<span class="op" title="${escapeHtml(info.title)}">${info.mark}</span>`); return; }
       }
       if (eligible) {
         const found = findAsciiStrings(t.push);
