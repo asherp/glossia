@@ -29,7 +29,7 @@ export const NOTABLE = [
   { title: 'Third halving', id: '630000' },
   { title: 'Block 666,666', id: '666666' },
   { title: 'Romans 12:21 message', id: '057954bb28527ff9c7701c6fd2b7f770163718ded09745da56cc95e7606afe99' },
-  { title: 'Taproot activation', id: '709632' },
+  { title: 'Taproot activation', id: '777c998695de4b7ecec54c058c73b2cab71184cf1655840935cd9388923dc288' },
   { title: 'First Ordinals inscription', id: '6fb976ab49dcec017f1e201e84395983204ae1a7c2abf7ced0a85d692e442799' },
   { title: 'Largest block (at the time)', id: '774628' },
   { title: 'Fourth halving', id: '840000' },
