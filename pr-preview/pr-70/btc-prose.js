@@ -367,9 +367,10 @@ function extranonceFromPush(push) {
   return BigInt('0x' + reverseHexStr(push)).toString();
 }
 
-// A decoded mark: glyph + value (when there is one to show), both carrying
-// the same explanatory title.
-const markToken = (glyph, text, title) => `<span class="op" title="${title}">${glyph}</span>${text ? `<span class="op-num" title="${title}">${text}</span>` : ''}`;
+// A decoded mark: a glyph carrying an explanatory title. Any quantity the mark
+// summarizes (β's leading-zero count, η's nonce/extranonce) rides the glyph as a
+// subscript, baked in by the caller, so the mark reads as one unit.
+const markToken = (glyph, title) => `<span class="op" title="${title}">${glyph}</span>`;
 
 // ─── data type marks ───────────────────────────────────────────────────
 //
@@ -479,7 +480,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         const bits = compactBitsFromPush(t.push);
         if (bits !== null) {
           const info = bitsInfo(bits);
-          parts.push(markToken(info.sym, '', `the difficulty target this block was mined against — ${info.title}`));
+          parts.push(markToken(info.sym, `the difficulty target this block was mined against — ${info.title}`));
           pre = 'extranonce';
           return;
         }
@@ -487,7 +488,7 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         pre = 'done';
         const n = extranonceFromPush(t.push);
         if (n !== null) {
-          parts.push(markToken('η', n, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce (η) was exhausted`));
+          parts.push(markToken(`η${toSubscript(n)}`, `extranonce ${n} — the counter the miner rolled once the header's 32-bit nonce (η) was exhausted`));
           return;
         }
       }
