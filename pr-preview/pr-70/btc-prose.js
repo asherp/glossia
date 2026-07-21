@@ -179,10 +179,14 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// A decoded text run, escaped for HTML with its line breaks rendered: a CR, LF
-// or CRLF each become a <br>, so a multi-line embedded message keeps its lines
-// instead of collapsing to one. Escapes first, so the only tags are the breaks.
-const quoteText = (s) => escapeHtml(s).replace(/\r\n?|\n/g, '<br>');
+// A decoded text run, escaped for HTML with its whitespace rendered: a CR, LF or
+// CRLF each become a <br>, and a tab becomes a fixed-width gap, so a multi-line
+// or column-aligned embedded message keeps its shape instead of collapsing to a
+// single line of single spaces. Escapes first, so the only tags are the ones
+// added here.
+const quoteText = (s) => escapeHtml(s)
+  .replace(/\r\n?|\n/g, '<br>')
+  .replace(/\t/g, '<span class="tab"></span>');
 
 // ─── script → opcode notation ──────────────────────────────────────────
 //
