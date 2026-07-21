@@ -711,7 +711,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">†</span><span class="m"><b>replaceable</b> (opt-in RBF)</span></div>
           <div class="glyph-row"><span class="g">■<i>N</i></span><span class="m">relative: N blocks after confirmation (a count of chapters)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>Δt</i></span><span class="m">relative: a duration after confirmation (d h m s)</span></div>
-          <div class="glyph-row"><span class="g">(<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare</span></div>
+          <div class="glyph-row"><span class="g">(₿<i>n</i>)</span><span class="m">the <b>amount spent</b> by this input — value flowing in; an output's amount stands bare (₿<i>n</i>, no parentheses)</span></div>
         </div>
       </div>
 
@@ -756,7 +756,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <script type="module">
 import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
-import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
+import { composeTransactionFields, composeBlockHeaderFields, groupDigits, formatBtc, renderWitness } from './btc-prose.js';
 import { volumeBookChapter, heightOf, toRoman, reference } from './btc-citation.js';
 import { NOTABLE, isBlockId, refFromProof, entryHref } from './btc-contents.js';
 
@@ -1134,8 +1134,8 @@ async function resolveCitations(pending, gen) {
       // the mark for value flowing IN, where an output's amount (value flowing
       // out) stands bare.
       if (amtVal && outputs && outputs[vout]) {
-        amtVal.textContent = `(${groupDigits(String(outputs[vout].value))})`;
-        amtVal.title = 'the amount this input spends, in satoshis';
+        amtVal.textContent = `(${formatBtc(outputs[vout].value)})`;
+        amtVal.title = `the amount this input spends: ${groupDigits(String(outputs[vout].value))} satoshis`;
       }
     } catch (e) {
       if (gen !== renderGen) return;
@@ -1509,6 +1509,7 @@ function renderChapter(para) {
     const valueCell = document.createElement('div');
     valueCell.className = 'tx-note tx-out-value';
     valueCell.textContent = out.value;
+    valueCell.title = out.valueTitle;
     // Forward citation placeholder: filled with the section that later spent
     // this output, once the outspends resolve. An unspent output keeps it
     // empty -- still-live value has no forward reference.
