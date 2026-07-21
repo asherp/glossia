@@ -76,12 +76,13 @@ function locktimeInfo(locktime) {
 function sequenceInfo(seq) {
   if ((seq & 0x80000000) === 0) {
     const n = seq & 0x0000ffff;
-    // A relative block delay counts chapters, so it reads in Roman numerals
-    // (■CXLIV = 144 blocks); a time delay is physical time, so it reads as
-    // an exact duration (Τ20h28m48s), the wire units kept in the hover.
+    // A relative block delay counts chapters, so it reads as a decimal count
+    // (■144 = 144 blocks) -- chapters are numbered in decimal, only volumes in
+    // Roman; a time delay is physical time, so it reads as an exact duration
+    // (Τ20h28m48s), the wire units kept in the hover.
     return (seq & 0x00400000)
       ? { rbf: true, mark: `Τ${durationFrom512s(n)}`, kind: 'time', title: `replaceable; relative locktime ${durationFrom512s(n)} (${n} × 512 s) after the input's confirmation` }
-      : { rbf: true, mark: `■${toRoman(n)}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
+      : { rbf: true, mark: `■${n}`, kind: 'block', title: `replaceable; relative locktime ${n} block${n === 1 ? '' : 's'} after the input's confirmation` };
   }
   if (seq === 0xffffffff) return { rbf: false, mark: '●', kind: 'final', title: 'final — disables the transaction locktime for this input' };
   if (seq === 0xfffffffe) return { rbf: false, mark: '○', kind: 'locktime', title: 'not replaceable, but respects the transaction locktime' };
