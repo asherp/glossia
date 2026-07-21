@@ -83,7 +83,7 @@ a:hover { text-decoration: underline; }
 </div>
 
 <script type="module">
-import { NOTABLE, isBlockId, entryHref } from './btc-contents.js';
+import { NOTABLE, isBlockId, isRelativeBlockId, entryHref } from './btc-contents.js';
 import { volumeBookChapter, toRoman } from './btc-citation.js';
 
 const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
@@ -104,8 +104,33 @@ const GENESIS_COINBASE = '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b
 // public mirrors the book uses.
 const ESPLORA_MIRRORS = ['https://blockstream.info/api', 'https://mempool.space/api'];
 const placeOf = (height, pos) => { const p = volumeBookChapter(height); return { ...p, section: pos == null ? null : pos + 1 }; };
-async function resolvePlacement(id) {
-  if (isBlockId(id)) return placeOf(Number(id), null);
+
+// The chain tip height, fetched once and reused across relative entries.
+let tipHeightPromise = null;
+function tipHeight() {
+  if (!tipHeightPromise) tipHeightPromise = (async () => {
+    for (const base of ESPLORA_MIRRORS) {
+      try {
+        const res = await fetch(`${base}/blocks/tip/height`);
+        if (res.ok) return Number((await res.text()).trim());
+      } catch { /* try the next mirror */ }
+    }
+    return null;
+  })();
+  return tipHeightPromise;
+}
+
+// An entry's placement. A block entry places from its height (with an optional
+// transaction index as its §section); a negative id counts back from the chain
+// tip; a transaction id resolves the same way a reader resolves a citation.
+async function resolvePlacement({ id, index }) {
+  if (isBlockId(id)) return placeOf(Number(id), index ?? null);
+  if (isRelativeBlockId(id)) {
+    const tip = await tipHeight();
+    if (tip == null) return null;
+    const height = tip + Number(id) + 1;
+    return height >= 0 ? placeOf(height, index ?? null) : null;
+  }
   if (id === GENESIS_COINBASE) return placeOf(0, 0);
   for (const base of ESPLORA_MIRRORS) {
     try {
@@ -134,7 +159,7 @@ function tailRef({ book, chapter, section }, underBook) {
 function entryEl(entry, underBook) {
   const row = document.createElement('a');
   row.className = 'toc-entry' + (underBook ? ' under-book' : '');
-  row.href = entryHref(entry.id);
+  row.href = entryHref(entry.id, entry.index);
   const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = entry.title;
   const r = document.createElement('span'); r.className = 'toc-ref';
   if (entry.place) r.textContent = tailRef(entry.place, underBook);
@@ -198,10 +223,10 @@ function render() {
 const placements = new Map();
 const placed = () => NOTABLE.filter((e) => placements.get(e.id)).map((e) => ({ ...e, place: placements.get(e.id) }));
 const unresolved = () => NOTABLE.filter((e) => placements.has(e.id) && !placements.get(e.id));
-for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), null));
+for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), e.index ?? null));
 render();
 await Promise.all(NOTABLE.filter((e) => !placements.has(e.id)).map(async (e) => {
-  placements.set(e.id, await resolvePlacement(e.id));
+  placements.set(e.id, await resolvePlacement(e));
   render();
 }));
 </script>

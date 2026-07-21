@@ -33,13 +33,21 @@ export const NOTABLE = [
   { title: 'First Ordinals inscription', id: '6fb976ab49dcec017f1e201e84395983204ae1a7c2abf7ced0a85d692e442799' },
   { title: 'Largest block (at the time)', id: '774628' },
   { title: 'Fourth halving', id: '840000' },
+  { title: 'Latest block', id: '-1' },
 ];
+
+// A block entry may carry an `index`: the transaction's position within the
+// block (0-based), rendered as its §section and passed to the book as ?index=.
+// e.g. { title: '…', id: '100000', index: 1 } opens block 100000, §2.
 
 // More transaction-level entries still to confirm against the chain before
 // adding: payment-type firsts (P2PKH, P2WPKH/P2WSH, P2TR key/script, OP_RETURN
 // spend) and a Lightning force-close revealing an HTLC.
 
+// A bare non-negative integer is an absolute block height. A negative integer is
+// a height relative to the chain tip (-1 = latest block), resolved online.
 export const isBlockId = (id) => /^[0-9]+$/.test(id);
+export const isRelativeBlockId = (id) => /^-[0-9]+$/.test(id);
 
 // The offline reference for a block id (volume·book·chapter). A transaction id
 // has no offline height, so it returns '' and must be resolved at read time.
@@ -53,9 +61,13 @@ export function refFromProof(height, pos) {
   return reference(height) + (pos != null ? ` §${pos + 1}` : '');
 }
 
-// A deep link into the book for a contents id. A bare height opens as ?block=;
-// a 64-hex value (block hash or txid) opens as ?txid=, which the book resolves
-// as a block first and a transaction second.
-export function entryHref(id) {
-  return isBlockId(id) ? `bitcoin-book.html?block=${id}` : `bitcoin-book.html?txid=${id}`;
+// A deep link into the book for a contents entry. An absolute or relative block
+// id opens as ?block= (with an optional ?index= selecting a transaction within
+// the block); a 64-hex value (block hash or txid) opens as ?txid=, which the
+// book resolves as a block first and a transaction second.
+export function entryHref(id, index) {
+  const isBlock = isBlockId(id) || isRelativeBlockId(id);
+  const q = isBlock ? `block=${id}` : `txid=${id}`;
+  const idx = isBlock && index != null ? `&index=${index}` : '';
+  return `bitcoin-book.html?${q}${idx}`;
 }

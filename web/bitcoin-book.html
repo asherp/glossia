@@ -762,7 +762,7 @@ import { init, encodeSeedPhrase } from './glossia-msg.js';
 import { parseTransaction, computeTxid, parseBlockHeader, computeBlockHash } from './btc-tx.js';
 import { composeTransactionFields, composeBlockHeaderFields, groupDigits, renderWitness } from './btc-prose.js';
 import { volumeBookChapter, heightOf, toRoman, reference } from './btc-citation.js';
-import { NOTABLE, isBlockId, refFromProof, entryHref } from './btc-contents.js';
+import { NOTABLE, isBlockId, isRelativeBlockId, refFromProof, entryHref } from './btc-contents.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1599,9 +1599,18 @@ async function openLookup(input, index = 0) {
   $('chapter').classList.add('hidden');
   $('block-btn').disabled = true;
   try {
-    if (/^\d+$/.test(input)) {
+    if (/^-?\d+$/.test(input)) {
+      let height = input;
+      // A negative height counts back from the chain tip: -1 is the latest
+      // block, -2 the one before it, and so on.
+      if (input.startsWith('-')) {
+        setStatus('<span class="spinner"></span>fetching latest block…');
+        const tip = Number(await loadTipHeight());
+        height = String(tip + Number(input) + 1);
+        if (Number(height) < 0) throw new Error(`Only ${tip + 1} blocks exist; ${input} reaches before Genesis.`);
+      }
       setStatus('<span class="spinner"></span>fetching block…');
-      const meta = await loadBlockByHeight(input);
+      const meta = await loadBlockByHeight(height);
       state = { ...meta, index: clampIndex(index, meta) };
     } else if (/^[0-9a-f]{64}$/i.test(input)) {
       const hex = input.toLowerCase();
@@ -1893,9 +1902,9 @@ function suggestTitle(entry) {
 
 // Open a contents entry by its identifier -- a height, block hash, or txid --
 // through the same lookup the input uses. The loaded chapter refreshes the field.
-function openEntry(id) {
+function openEntry(id, index = 0) {
   $('block-input').value = id;
-  openLookup(id);
+  openLookup(id, index);
 }
 
 // The clickable reference for a row -- the manuscript's own citation form. A
@@ -1903,13 +1912,21 @@ function openEntry(id) {
 // lookup the reader uses (resolveCitation → merkle-proof), streaming in when
 // ready. A bare bookmark (which may be a block hash, not a txid) just links
 // its short hash. Clicking navigates in place, like a citation.
-function contentsRef(id, { resolve = true } = {}) {
+function contentsRef(id, { resolve = true, index } = {}) {
   const ref = document.createElement('a');
   ref.className = 'entry-ref';
-  ref.href = entryHref(id);
-  ref.addEventListener('click', (e) => { e.preventDefault(); openEntry(id); });
+  ref.href = entryHref(id, index);
+  ref.addEventListener('click', (e) => { e.preventDefault(); openEntry(id, index ?? 0); });
   if (isBlockId(id)) {
-    ref.textContent = reference(Number(id));
+    ref.textContent = refFromProof(Number(id), index);
+  } else if (isRelativeBlockId(id)) {
+    // A tip-relative id (e.g. -1 = latest block) has no offline reference; the
+    // tip resolves it to a height, then to the citation form.
+    ref.textContent = '⋯';
+    ref.classList.add('resolving');
+    loadTipHeight()
+      .then((tip) => { ref.textContent = refFromProof(Number(tip) + Number(id) + 1, index); ref.classList.remove('resolving'); })
+      .catch(() => { ref.textContent = 'latest'; ref.classList.remove('resolving'); });
   } else if (resolve) {
     ref.textContent = '⋯';
     ref.classList.add('resolving');
@@ -1924,7 +1941,7 @@ function contentsRef(id, { resolve = true } = {}) {
 
 // One table-of-contents row: the title, then its clickable reference. A
 // removable row (a reader's bookmark) also gets an ✕.
-function contentsRow({ id, title, date, onRemove }) {
+function contentsRow({ id, title, date, index, onRemove }) {
   const item = document.createElement('div');
   item.className = 'entry-item';
   const t = document.createElement('span');
@@ -1933,7 +1950,7 @@ function contentsRow({ id, title, date, onRemove }) {
   item.append(t);
   if (date) { const d = document.createElement('span'); d.className = 'entry-date'; d.textContent = date; item.append(d); }
   // A curated transaction resolves its reference; a bookmark just links its hash.
-  item.append(contentsRef(id, { resolve: !onRemove }));
+  item.append(contentsRef(id, { resolve: !onRemove, index }));
   if (onRemove) {
     const del = document.createElement('button');
     del.type = 'button';
@@ -1950,7 +1967,7 @@ function contentsRow({ id, title, date, onRemove }) {
 function renderContents() {
   const list = $('contents-list');
   list.innerHTML = '';
-  for (const e of NOTABLE) list.append(contentsRow({ id: e.id, title: e.title, date: e.date }));
+  for (const e of NOTABLE) list.append(contentsRow({ id: e.id, title: e.title, date: e.date, index: e.index }));
   if (bookmarks.length) {
     const group = document.createElement('div');
     group.className = 'contents-group';
@@ -2050,9 +2067,9 @@ window.addEventListener('scroll', closeHashMenu, true);
 renderContents();
 
 // Entry points, in priority order: ?txid= jumps straight to a transaction's
-// section; ?block= (with optional ?index=) opens a block; otherwise the book
-// opens at the chain tip -- the most recent block -- so the default view is the
-// latest chapter rather than Genesis.
+// section; ?block= (with optional ?index=) opens a block -- a negative height
+// counts back from the chain tip, so ?block=-1 is the latest block; otherwise
+// the book opens at the chain tip (-1), the latest chapter rather than Genesis.
 const params = new URLSearchParams(location.search);
 const txidParam = params.get('txid');
 const blockParam = params.get('block');
@@ -2064,12 +2081,7 @@ if (txidParam) {
   $('block-input').value = blockParam;
   openLookup(blockParam, indexParam);
 } else {
-  // No explicit target: resolve the chain tip and open it. If the tip can't be
-  // fetched (offline), fall back to the input's default value.
-  setStatus('<span class="spinner"></span>fetching latest block…');
-  loadTipHeight()
-    .then((tip) => { $('block-input').value = tip; return openLookup(tip, indexParam); })
-    .catch(() => openLookup($('block-input').value, indexParam));
+  openLookup('-1', indexParam);
 }
 </script>
 </body>
