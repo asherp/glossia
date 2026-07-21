@@ -624,7 +624,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
           <div class="glyph-row"><span class="g">v<i>n</i></span><span class="m">block <b>version</b></span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m">no previous block — the genesis chapter</span></div>
           <div class="glyph-row"><span class="g">β<i>n</i></span><span class="m">the <b>difficulty target</b>, as in the preamble</span></div>
-          <div class="glyph-row"><span class="g">η<i>n</i></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
+          <div class="glyph-row"><span class="g">η<sub><i>n</i></sub></span><span class="m">the <b>nonce</b> the miner landed on</span></div>
         </div>
       </div>
 
@@ -1292,7 +1292,7 @@ function renderFrontispiece(header) {
     { text: merkleProse, copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
     { text: hf.bits, title: hf.bitsTitle },
-    { text: `η${hf.nonce}`, title: `nonce ${hf.nonce} — the value the miner incremented while searching for a hash below the difficulty target` },
+    { text: hf.nonce, title: hf.nonceTitle },
   ];
   for (const { text, title, copy } of items) {
     const span = document.createElement('span');
