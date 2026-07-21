@@ -570,6 +570,15 @@ function looksLikeScript(h) {
   return toks.some((t) => t.op !== undefined && SCRIPT_SIGNAL.has(t.op));
 }
 
+// A Taproot annex's index in the stack, or -1. Per BIP341 the annex is an
+// optional final item, present only when the stack holds ≥2 items and the last
+// one begins with 0x50. It is passed to validation but is neither script nor
+// signature data, so it reads under its own mark rather than as a script.
+function annexIndex(items) {
+  const n = items.length;
+  return (n >= 2 && witFirst(items[n - 1]) === 0x50) ? n - 1 : -1;
+}
+
 // Which witness items are scripts to render as opcodes. A witness can carry more
 // than one -- a Taproot tapscript sits just below a control block (and a witness
 // may reveal several), a P2WSH witnessScript is the last item -- so return the
@@ -583,7 +592,7 @@ function witnessScriptIndices(items) {
   const n = items.length;
   if (n === 0) return idxs;
   let last = n - 1;
-  if (n >= 2 && witFirst(items[last]) === 0x50) last -= 1;    // strip an optional annex
+  if (annexIndex(items) === last) last -= 1;                  // strip an optional annex
   for (let i = 0; i <= last; i++) {
     if (i + 1 <= last && isControlBlock(items[i + 1])) { idxs.add(i); continue; }  // a tapscript, below its control block
     if (!isControlBlock(items[i]) && looksLikeScript(items[i])) idxs.add(i);       // a witnessScript, or a reveal
@@ -591,28 +600,57 @@ function witnessScriptIndices(items) {
   return idxs;
 }
 
+// The witness-item separator, setting each stack element apart in the footnote.
+const WIT_SEP = '<span class="wit-sep"> · </span>';
+
+// A Taproot control block -> its footnote form, decomposed into its three
+// components. The leading byte splits into its top 7 bits -- the tapleaf version,
+// read as v<n> -- and its low bit, the output-key parity, read as a subscript;
+// the 32-byte internal key reads under a p mark; and the trailing 32-byte sibling
+// hashes -- the merkle path proving the revealed leaf is committed in the taptree
+// -- read under a pitchfork ⋔ as a merkle proof. The three parts are fixed-width
+// (1 byte, then 32, then 32 per sibling), so splitting the one item this way stays
+// exactly reconstructable: the leading byte is (version << 1) | parity. A
+// single-leaf taptree has an empty path, so its control block ends at the key.
+function renderControlBlock(hex, encode) {
+  const b = witFirst(hex);                                    // tapleaf version (top 7 bits) | output-key parity (low bit)
+  const leafVer = b >> 1, parity = b & 1;
+  const ctrlByte = `<span class="op" title="control byte — tapleaf version ${leafVer} (top 7 bits; 0x${b.toString(16).padStart(2, '0')}), output-key parity ${parity}">v${leafVer}${parity ? '₁' : '₀'}</span>`;
+  const parts = [
+    dataMark('c', 'control block — a Taproot script-path reveal') + ' ' + ctrlByte,
+    dataMark('p', 'public key — the Taproot internal key') + ' ' + encode(hex.slice(2, 66)),
+  ];
+  const path = hex.slice(66);                                 // zero or more 32-byte sibling hashes
+  if (path) parts.push(dataMark('⋔', 'merkle proof — the sibling hashes proving the revealed leaf is committed in the taptree') + ' ' + encode(path));
+  return parts.join(' ');
+}
+
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
 // a data item's hex into Glossia prose; every script item becomes opcode
 // notation, typed w (a P2WSH witnessScript) or t (a Taproot tapscript, identified
 // by the control block above it). Data items carry their own type marks -- s a
-// signature, p a key -- and items are separated so each reads as its own element.
+// signature, p a key, c a control block (its merkle proof split off under ⋔), a
+// an annex -- and items are separated so each reads as its own element.
 export function renderWitness(items, encode) {
   if (!items || !items.length) return '∅';
   const scriptIdxs = witnessScriptIndices(items);
+  const annexIdx = annexIndex(items);
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
+      if (i === annexIdx) return dataMark('a', 'annex — reserved Taproot spend data (BIP341)') + ' ' + encode(hex);
       if (scriptIdxs.has(i)) {
         const isTapscript = i + 1 < items.length && isControlBlock(items[i + 1]);
         return (isTapscript ? dataMark('t', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('w', 'witness script — revealed as opcodes'))
           + ' ' + renderScript(hex, encode);
       }
+      if (isControlBlock(hex)) return renderControlBlock(hex, encode);
       const compact = derToCompact(hex);                      // a DER signature is stripped to r‖s‖sighash
       const dm = (compact || isSignature(hex)) ? dataMark('s', 'signature')
         : isPubkey(hex) ? dataMark('p', 'public key') : '';
       return (dm ? dm + ' ' : '') + encode(compact || hex);
     })
-    .join('<span class="wit-sep"> · </span>');
+    .join(WIT_SEP);
 }
 
 // A parsed transaction (btc-tx.js's parseTransaction) -> a structured
