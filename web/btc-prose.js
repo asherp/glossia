@@ -600,25 +600,29 @@ function witnessScriptIndices(items) {
   return idxs;
 }
 
-// The witness-item separator, also used inside a control block to set its two
-// runs -- head and merkle proof -- apart like any other pair of stack elements.
+// The witness-item separator, setting each stack element apart in the footnote.
 const WIT_SEP = '<span class="wit-sep"> · </span>';
 
-// A Taproot control block -> its footnote form. Its 33-byte head (the leaf
-// version + output-key parity byte, then the 32-byte internal key) reads under a
-// c mark; the trailing 32-byte sibling hashes -- the merkle path proving the
+// A Taproot control block -> its footnote form, decomposed into its three
+// components. The leading byte reads as its tapleaf version (v<n>) with the
+// output-key parity as a subscript; the 32-byte internal key reads under a p
+// mark; and the trailing 32-byte sibling hashes -- the merkle path proving the
 // revealed leaf is committed in the taptree -- read under a pitchfork ⋔ as a
-// merkle proof. Head and path are fixed-width (33 bytes, then 32 per sibling),
-// so splitting the one item this way stays exactly reconstructable. A single-leaf
-// taptree has an empty path, so its control block is just the c head.
+// merkle proof. The three parts are fixed-width (1 byte, then 32, then 32 per
+// sibling), so splitting the one item this way stays exactly reconstructable:
+// the version and parity subscript together give back the leading byte. A
+// single-leaf taptree has an empty path, so its control block ends at the key.
 function renderControlBlock(hex, encode) {
-  const head = dataMark('c', 'control block — a Taproot script-path reveal: the leaf version, output-key parity, and the internal key')
-    + ' ' + encode(hex.slice(0, 66));                         // 1-byte leaf|parity + 32-byte internal key
+  const b = witFirst(hex);                                    // tapleaf version | output-key parity
+  const leafVer = b & 0xfe, parity = b & 1;
+  const ctrlByte = `<span class="op" title="control byte — tapleaf version ${leafVer} (0x${b.toString(16).padStart(2, '0')}), output-key parity ${parity}">v${leafVer}${parity ? '₁' : '₀'}</span>`;
+  const parts = [
+    dataMark('c', 'control block — a Taproot script-path reveal') + ' ' + ctrlByte,
+    dataMark('p', 'public key — the Taproot internal key') + ' ' + encode(hex.slice(2, 66)),
+  ];
   const path = hex.slice(66);                                 // zero or more 32-byte sibling hashes
-  if (!path) return head;
-  return head + WIT_SEP
-    + dataMark('⋔', 'merkle proof — the sibling hashes proving the revealed leaf is committed in the taptree')
-    + ' ' + encode(path);
+  if (path) parts.push(dataMark('⋔', 'merkle proof — the sibling hashes proving the revealed leaf is committed in the taptree') + ' ' + encode(path));
+  return parts.join(' ');
 }
 
 // An input's witness stack (hex items) -> its footnote display. `encode` turns
