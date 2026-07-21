@@ -159,6 +159,18 @@ export function groupDigits(s) {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, '·');
 }
 
+// A satoshi amount -> its value in bitcoin, prefixed with the ₿ sign and exact
+// to the satoshi: the whole-bitcoin part is digit-grouped like any other figure
+// in the book, and only the decimal places the amount actually uses are shown
+// (trailing zeros trimmed). ₿ marks the unit, so 50 BTC reads ₿50 and a lone
+// satoshi reads ₿0.00000001. BigInt keeps large sat counts exact.
+export function formatBtc(sats) {
+  const s = BigInt(sats);
+  const whole = groupDigits((s / 100000000n).toString());
+  const frac = (s % 100000000n).toString().padStart(8, '0').replace(/0+$/, '');
+  return `₿${whole}${frac ? `.${frac}` : ''}`;
+}
+
 // Quoted script text comes directly from raw blockchain data -- a miner's
 // coinbase tag, an OP_RETURN message -- not our own wordlist, so unlike the
 // Glossia-generated prose it's untrusted content and must be escaped before
@@ -735,7 +747,7 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
     // caller supplies `lazyData`; an ASCII payload is still quoted inline by
     // `eligible` before either encoder is reached, so only opaque bytes defer.
     const encodeData = (isOpReturn && lazyData) ? lazyData : collect;
-    return { script: renderScript(o.scriptPubKey, encodeData, { eligible: isOpReturn }), scriptAscii: null, value: groupDigits(String(o.value)) };
+    return { script: renderScript(o.scriptPubKey, encodeData, { eligible: isOpReturn }), scriptAscii: null, value: formatBtc(o.value), valueTitle: `${groupDigits(String(o.value))} satoshis` };
   });
 
   const lock = locktimeInfo(parsed.locktime);
