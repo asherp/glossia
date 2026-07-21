@@ -64,9 +64,8 @@ a:hover { text-decoration: underline; }
 .hidden { display: none !important; }
 
 .masthead { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:24px; }
-.masthead .brand { display:inline-flex; align-items:baseline; gap:9px; }
-.masthead .brandmark { font:600 20px/.9 'Newsreader','Source Serif 4',Georgia,serif; color:var(--accent); text-transform:none; }
 .masthead .title { font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.22em; text-transform:uppercase; color:var(--ink); }
+.masthead .title .beta { color:var(--accent); text-transform:none; font-family:'Newsreader','Source Serif 4',Georgia,serif; font-weight:600; font-size:1.12em; }
 .masthead .sub { font:400 13px/1.4 'Public Sans',sans-serif; color:var(--dim); }
 .masthead .home { margin-left:auto; font:500 12px/1 'IBM Plex Mono',monospace; letter-spacing:.04em; }
 
@@ -415,7 +414,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <body>
 <div class="wrap">
   <div class="masthead">
-    <span class="brand"><span class="brandmark">β</span><span class="title">The Bitcoin Book</span></span>
+    <span class="title">The <span class="beta">β</span>itcoin Book</span>
     <span class="home"><a href="./bitcoin-contents.html">Contents</a> · <a href="./index.html">Glossia</a></span>
   </div>
 
