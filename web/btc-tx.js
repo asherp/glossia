@@ -301,10 +301,10 @@ export async function withAddresses(tx) {
 // runs of readable text, so those can be surfaced instead of run through the
 // wordlist as if they were opaque.
 //
-// "Readable" means valid UTF-8 decoding to printable characters plus tab and
-// newline -- so non-English text and emoji come through -- while a C0/C1
-// control, a DEL, or any invalid UTF-8 byte ends a run (real cryptographic
-// material and image bytes are riddled with those).
+// "Readable" means valid UTF-8 decoding to printable characters plus tab,
+// newline and carriage return -- so non-English text and emoji come through --
+// while any other C0/C1 control, a DEL, or an invalid UTF-8 byte ends a run
+// (real cryptographic material and image bytes are riddled with those).
 //
 // A minimum run length matters: a single random byte has roughly a 37%
 // chance of falling in the printable ASCII range (0x20-0x7E is 95 of 256
@@ -313,10 +313,10 @@ export async function withAddresses(tx) {
 // characters keeps that noise out.
 const TEXT_MIN_RUN = 5;
 
-// A code point we'll surface as text: any printable character, plus tab and
-// newline. Excludes the C0 controls (bar tab/newline), DEL, and the C1 controls
+// A code point we'll surface as text: any printable character, plus tab, newline
+// and carriage return. Excludes the other C0 controls, DEL, and the C1 controls
 // (0x80-0x9F) -- all common in binary, rare in genuine text.
-const isReadableCp = (cp) => cp === 0x09 || cp === 0x0a || (cp >= 0x20 && cp !== 0x7f && !(cp >= 0x80 && cp <= 0x9f));
+const isReadableCp = (cp) => cp === 0x09 || cp === 0x0a || cp === 0x0d || (cp >= 0x20 && cp !== 0x7f && !(cp >= 0x80 && cp <= 0x9f));
 
 // Decode one UTF-8 scalar at offset i -> { cp, len }, or null if the bytes there
 // aren't a valid, minimally-encoded UTF-8 sequence. Overlong forms, surrogate
@@ -371,15 +371,18 @@ function scriptPushes(bytes) {
 }
 
 // The maximal runs of readable UTF-8 text in a byte string, each at least
-// `minRun` characters, scanning every script push independently (see
-// scriptPushes) so a push's length-prefix byte never glues onto real text. An
-// unreadable character or an invalid UTF-8 byte ends the current run.
-export function findTextRuns(hex, minRun = TEXT_MIN_RUN) {
+// `minRun` characters. An unreadable character or an invalid UTF-8 byte ends the
+// current run. When `segment` is set (a whole scriptSig, e.g. a coinbase), each
+// script push is scanned independently (see scriptPushes) so a push's
+// length-prefix byte never glues onto real text; when it's off (the bytes are
+// already a single push's data, e.g. an OP_RETURN payload), the blob is scanned
+// as-is -- re-parsing raw data as script would mis-split it, since a byte like
+// 0x0a (newline) doubles as a push opcode.
+export function findTextRuns(hex, { minRun = TEXT_MIN_RUN, segment = true } = {}) {
   const bytes = hexToBytes(hex);
-  const pushes = scriptPushes(bytes);
-  // Scan each script push, or the raw blob when the bytes aren't clean script
-  // (null) or carry no pushes at all (an empty list -- e.g. data that parses as
-  // a run of non-push opcodes, like raw UTF-8), so text is never dropped.
+  const pushes = segment ? scriptPushes(bytes) : null;
+  // Scan each script push, or the raw blob when segmentation is off, the bytes
+  // aren't clean script (null), or a push-less blob yields no segments.
   const segments = pushes && pushes.length ? pushes : [bytes];
   const found = [];
   for (const seg of segments) {

@@ -179,6 +179,11 @@ function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// A decoded text run, escaped for HTML with its line breaks rendered: a CR, LF
+// or CRLF each become a <br>, so a multi-line embedded message keeps its lines
+// instead of collapsing to one. Escapes first, so the only tags are the breaks.
+const quoteText = (s) => escapeHtml(s).replace(/\r\n?|\n/g, '<br>');
+
 // ─── script → opcode notation ──────────────────────────────────────────
 //
 // A scriptSig / scriptPubKey is rendered as its sequence of opcodes and data
@@ -517,13 +522,13 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
         if (info && info.mark) { parts.push(`<span class="op" title="${escapeHtml(info.title)}">${info.mark}</span>`); return; }
       }
       if (eligible) {
-        const found = findTextRuns(t.push);
-        if (found.length) { parts.push(mark, found.map((s) => `“${escapeHtml(s)}”`).join(' ')); return; }
+        const found = findTextRuns(t.push, { segment: false });   // t.push is a payload, not a script
+        if (found.length) { parts.push(mark, found.map((s) => `“${quoteText(s)}”`).join(' ')); return; }
       }
       // A wholly-readable push (an inscription's content type, a text body, an
       // embedded UTF-8 message) reads as its own quoted text rather than cover prose.
       const text = textPush(t.push);
-      if (text !== null) { parts.push(mark, `“${escapeHtml(text)}”`); return; }
+      if (text !== null) { parts.push(mark, `“${quoteText(text)}”`); return; }
       // A short number pushed as data (an Ordinals field tag, a script number)
       // reads as its literal digits, like the book's other structural numbers.
       const num = numberPush(t.push);
@@ -705,8 +710,8 @@ export function composeTransactionFields(parsed, bestOf = 1, lazyData = null) {
       } else {
         const found = findTextRuns(v.scriptSig);
         if (found.length) {
-          scriptAscii = found.map((s) => escapeHtml(s)).join(' ');
-          script = found.map((s) => `“${escapeHtml(s)}”`).join(' ');
+          scriptAscii = found.map((s) => quoteText(s)).join(' ');
+          script = found.map((s) => `“${quoteText(s)}”`).join(' ');
         } else {
           script = collect(v.scriptSig);
         }
