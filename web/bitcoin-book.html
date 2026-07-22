@@ -463,6 +463,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .pattern-table .ph { color: var(--accent); font-style: normal; font-weight: 700; }
 .pattern-table .seq.exec .op, .pattern-table .seq.exec .ph { color: var(--ink); font-weight: 400; }
 .pattern-table .seq.exec .ph.chain { color: var(--accent); font-weight: 700; }
+/* The Lightning table carries two extra columns: what each channel party
+   computes independently, off chain -- keys from its own secret k, signatures,
+   and the same script hash h, reached without a secret crossing the wire.
+   Off-chain work never turns gold, so calc rows render plain throughout. */
+.pattern-table.two-party { grid-template-columns: repeat(7, max-content); }
+.pattern-table .seq.calc .op, .pattern-table .seq.calc .ph { color: var(--ink); font-weight: 400; }
 @media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -591,34 +597,54 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="notation-group">
         <h4>Lightning — commitment &amp; channel scripts</h4>
         <div class="pattern-scroll">
-        <div class="pattern-table">
-          <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
+        <div class="pattern-table two-party">
+          <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span><span class="phead">Party 1</span><span class="phead">Party 2</span>
           <span class="pname">Channel open · 2-of-2</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span></span>
+            <span class="seq calc"><span class="ph">p<sub>1</sub></span> <span class="op">=</span> <span class="ph">k<sub>1</sub></span><span class="op">G</span> · <span class="ph">s<sub>1</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="ph">p<sub>2</sub></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span><span class="op">G</span> · <span class="ph">s<sub>2</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
           <span class="pname">Force close · to_local</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
+            <span class="seq calc"><span class="ph">p<sub>1</sub></span> <span class="op">=</span> <span class="ph">k<sub>1</sub></span><span class="op">G</span> · <span class="ph">p<sub>r</sub></span> · <span class="ph">s<sub>1</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="ph">p<sub>r</sub></span> · <span class="ph">s<sub>r</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
           <span class="pname">Force close · to_remote</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>2</sub></span></span>
+            <span class="seq calc"><span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="ph">p<sub>2</sub></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span><span class="op">G</span> · <span class="ph">s<sub>2</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
           <span class="pname">Force close · anchor</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s</span> · <span class="op">∅</span></span>
+            <span class="seq calc"><span class="ph">p</span> <span class="op">=</span> <span class="ph">k</span><span class="op">G</span> · <span class="ph">s</span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span> · <span class="op">∅</span></span>
           <span class="pname">Force close · HTLC</span>
             <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
             <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="ph">h</span> <span class="op">①</span> <span class="op">⓪</span> · <span class="ph">s<sub>2</sub></span> <span class="op">⓪</span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
+            <span class="seq calc"><span class="ph">p<sub>1</sub></span> <span class="op">=</span> <span class="ph">k<sub>1</sub></span><span class="op">G</span> · <span class="ph">p<sub>r</sub></span> · <span class="ph">s<sub>1</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="ph">p<sub>2</sub></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span><span class="op">G</span> · <span class="ph">p<sub>r</sub></span> · <span class="ph">s<sub>2</sub></span> · <span class="ph">s<sub>r</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
         </div>
+        </div>
+        <p class="notation-note">The last two columns are off chain: what each party computes independently, from its own secret <b>k</b> and the other side's public points. Both sides assemble the same script and reach the same <b>h</b> — the channel agrees without a secret ever crossing the wire. Party 1 is the side whose force close this is; <b>s</b><sub>r</sub> sits in party 2's column because only the wronged side can arm it (see <i>Secrets &amp; the generator</i>).</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Secrets &amp; the generator</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g"><b>k</b></span><span class="m"><b>private key</b> — the secret scalar behind a public key; never on chain</span></div>
+          <div class="glyph-row"><span class="g">G</span><span class="m">the <b>generator</b> — the fixed curve point every key descends from: <b>p</b> = <b>k</b>G</span></div>
+          <div class="glyph-row"><span class="g"><b>p</b><sub>r</sub></span><span class="m"><b>revocation key</b> — p<sub>r</sub> = p<sub>2</sub>Σ(p<sub>2</sub>⧺p<sub>1</sub>) + p<sub>1</sub>Σ(p<sub>1</sub>⧺p<sub>2</sub>): either party computes the point from public keys alone. The matching secret, k<sub>r</sub> = k<sub>2</sub>Σ(p<sub>2</sub>⧺p<sub>1</sub>) + k<sub>1</sub>Σ(p<sub>1</sub>⧺p<sub>2</sub>), needs a half from each side — it exists only after party 1 surrenders k<sub>1</sub> by revoking the state, which is what puts <b>s</b><sub>r</sub> in party 2's hands</span></div>
         </div>
       </div>
 
