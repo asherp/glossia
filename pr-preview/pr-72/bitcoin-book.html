@@ -141,9 +141,18 @@ button {
 button:hover:not(:disabled) { background: var(--accent-2); }
 button:disabled { opacity: .4; cursor: not-allowed; }
 
+/* ── Settings popover (top-right): holds the data-source picker ── */
+.settings-menu { position:relative; }
+.settings-panel {
+  position:absolute; z-index:45; top:calc(100% + 10px); right:0; text-align:left;
+  width:min(340px, 86vw); padding:15px 16px 16px;
+  background:var(--card); border:1px solid var(--card-bd); border-radius:8px;
+  box-shadow:0 16px 40px -10px rgba(0,0,0,.75);
+}
+.settings-title { font:600 11px/1 'IBM Plex Mono',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin-bottom:11px; }
+
 /* ── data-source picker: choose the Esplora-compatible endpoint, add custom ── */
-.endpoint-row { display:flex; align-items:center; gap:10px; margin-top:16px; flex-wrap:wrap; }
-.inline-label { font:500 11px/1 'IBM Plex Mono',monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); }
+.endpoint-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .endpoint-select {
   flex:1; min-width:170px; background:var(--input-bg); border:1px solid var(--input-bd); border-radius:4px;
   color:var(--ink-soft); font:400 12.5px/1.4 'IBM Plex Mono',monospace; padding:8px 10px; cursor:pointer;
@@ -495,7 +504,21 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 <div class="wrap">
   <div class="masthead">
     <span class="title">The <span class="beta">β</span>itcoin <span class="beta">β</span>ook</span>
-    <span class="home"><button type="button" id="install-btn" class="install-btn" aria-label="Install the Bitcoin Book as an app">Install</button><a href="./bitcoin-contents.html">Contents</a> · <a href="./index.html">Glossia</a></span>
+    <span class="home"><button type="button" id="install-btn" class="install-btn" aria-label="Install the Bitcoin Book as an app">Install</button><a href="./bitcoin-contents.html">Contents</a> · <span class="settings-menu"><a href="#" id="settings-link" role="button" aria-haspopup="dialog" aria-expanded="false">Settings</a><div id="settings-panel" class="settings-panel hidden" role="dialog" aria-label="Settings">
+      <div class="settings-title">Data source</div>
+      <div class="endpoint-row">
+        <select id="endpoint-select" class="endpoint-select" aria-label="Data source endpoint"></select>
+        <button type="button" id="endpoint-add" class="ghost-btn">+ Add</button>
+        <button type="button" id="endpoint-remove" class="ghost-btn" disabled>Remove</button>
+      </div>
+      <div id="endpoint-add-row" class="endpoint-add-row hidden">
+        <input type="text" id="endpoint-label" class="mono" placeholder="Label (optional)" autocomplete="off" spellcheck="false">
+        <input type="text" id="endpoint-url" class="mono" placeholder="https://your-node/api" autocomplete="off" spellcheck="false">
+        <button type="button" id="endpoint-save">Save</button>
+        <button type="button" id="endpoint-cancel" class="ghost-btn">Cancel</button>
+      </div>
+      <div id="endpoint-msg" class="endpoint-msg hidden"></div>
+    </div></span></span>
   </div>
 
   <div class="card">
@@ -505,20 +528,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <button type="button" id="block-btn">Read</button>
     </div>
     <div id="block-status" class="status-line hidden"></div>
-
-    <div class="endpoint-row">
-      <span class="inline-label">Data source</span>
-      <select id="endpoint-select" class="endpoint-select" aria-label="Data source endpoint"></select>
-      <button type="button" id="endpoint-add" class="ghost-btn">+ Add</button>
-      <button type="button" id="endpoint-remove" class="ghost-btn" disabled>Remove</button>
-    </div>
-    <div id="endpoint-add-row" class="endpoint-add-row hidden">
-      <input type="text" id="endpoint-label" class="mono" placeholder="Label (optional)" autocomplete="off" spellcheck="false">
-      <input type="text" id="endpoint-url" class="mono" placeholder="https://your-node/api" autocomplete="off" spellcheck="false">
-      <button type="button" id="endpoint-save">Save</button>
-      <button type="button" id="endpoint-cancel" class="ghost-btn">Cancel</button>
-    </div>
-    <div id="endpoint-msg" class="endpoint-msg hidden"></div>
 
     <details id="contents" class="contents">
       <summary>Bookmarks</summary>
@@ -2160,6 +2169,29 @@ $('endpoint-remove').addEventListener('click', () => {
 });
 
 renderEndpoints();
+
+// ── Settings popover ──────────────────────────────────────────────────────
+// The masthead "Settings" link toggles a small popover holding the data-source
+// picker; it dismisses on an outside click or Escape.
+const settingsLink = $('settings-link');
+const settingsPanel = $('settings-panel');
+function closeSettings() {
+  settingsPanel.classList.add('hidden');
+  settingsLink.setAttribute('aria-expanded', 'false');
+  closeAddForm();   // collapse the add-endpoint form when the popover closes
+}
+settingsLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  const nowHidden = settingsPanel.classList.toggle('hidden');
+  settingsLink.setAttribute('aria-expanded', nowHidden ? 'false' : 'true');
+  if (nowHidden) closeAddForm();
+});
+document.addEventListener('click', (e) => {
+  if (settingsPanel.classList.contains('hidden')) return;
+  if (settingsPanel.contains(e.target) || settingsLink.contains(e.target)) return;
+  closeSettings();
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !settingsPanel.classList.contains('hidden')) closeSettings(); });
 
 // ── Hash menu + bookmarks ─────────────────────────────────────────────────
 // Clicking any Glossia-encoded hash opens a small menu (Copy hex / Bookmark).
