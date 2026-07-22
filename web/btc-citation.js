@@ -48,10 +48,11 @@ export function toRoman(n) {
 }
 
 // The scripture-style reference for a block height: Roman volume, the book
-// marked with β, then the chapter (e.g. "III β2 5"). β is the book's own sigil
-// because a book is a difficulty-adjustment window and β is the difficulty mark
-// (the header's βₙ target). A transaction adds a §section to this.
+// marked with β, the chapter with ■ (e.g. "III β2 ■5"). Each level below the
+// volume carries the sigil of what it is: β is the difficulty mark, and a book
+// is a difficulty-adjustment window; ■ is the block mark (the timelock glyph),
+// and a chapter is a block. A transaction adds a §section to this.
 export function reference(height) {
   const { volume, book, chapter } = volumeBookChapter(height);
-  return `${toRoman(volume)} β${book} ${chapter}`;
+  return `${toRoman(volume)} β${book} ■${chapter}`;
 }
