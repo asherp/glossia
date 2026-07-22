@@ -121,6 +121,10 @@ a:hover { text-decoration: underline; }
 .toc-entry:hover .toc-title { color:var(--ink); }
 .toc-entry:hover .toc-ref, .toc-entry:focus-visible .toc-ref { text-decoration:underline; color:var(--accent-2); }
 .toc-entry:focus-visible { outline:none; }
+/* A reader's own bookmark, sitting inline in reading order, wears the same
+   ribbon it flies in the book. */
+.toc-bm { display:inline-block; width:9px; height:12px; margin-right:8px; color:var(--accent); vertical-align:baseline; }
+.toc-bm svg { display:block; width:100%; height:100%; }
 </style>
 <body>
 <div class="wrap">
@@ -137,7 +141,7 @@ a:hover { text-decoration: underline; }
 </div>
 
 <script type="module">
-import { NOTABLE, isBlockId, entryHref } from './btc-contents.js';
+import { NOTABLE, isBlockId, isRelativeBlockId, entryHref } from './btc-contents.js';
 import { volumeBookChapter, toRoman } from './btc-citation.js';
 
 const BOOKMARKS_KEY = 'glossia-btc-bookmarks';
@@ -158,8 +162,33 @@ const GENESIS_COINBASE = '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b
 // public mirrors the book uses.
 const ESPLORA_MIRRORS = ['https://blockstream.info/api', 'https://mempool.space/api'];
 const placeOf = (height, pos) => { const p = volumeBookChapter(height); return { ...p, section: pos == null ? null : pos + 1 }; };
-async function resolvePlacement(id) {
-  if (isBlockId(id)) return placeOf(Number(id), null);
+
+// The chain tip height, fetched once and reused across relative entries.
+let tipHeightPromise = null;
+function tipHeight() {
+  if (!tipHeightPromise) tipHeightPromise = (async () => {
+    for (const base of ESPLORA_MIRRORS) {
+      try {
+        const res = await fetch(`${base}/blocks/tip/height`);
+        if (res.ok) return Number((await res.text()).trim());
+      } catch { /* try the next mirror */ }
+    }
+    return null;
+  })();
+  return tipHeightPromise;
+}
+
+// An entry's placement. A block entry places from its height (with an optional
+// transaction index as its §section); a negative id counts back from the chain
+// tip; a transaction id resolves the same way a reader resolves a citation.
+async function resolvePlacement({ id, index }) {
+  if (isBlockId(id)) return placeOf(Number(id), index ?? null);
+  if (isRelativeBlockId(id)) {
+    const tip = await tipHeight();
+    if (tip == null) return null;
+    const height = tip + Number(id) + 1;
+    return height >= 0 ? placeOf(height, index ?? null) : null;
+  }
   if (id === GENESIS_COINBASE) return placeOf(0, 0);
   for (const base of ESPLORA_MIRRORS) {
     try {
@@ -167,6 +196,27 @@ async function resolvePlacement(id) {
       if (!res.ok) continue;
       const mp = await res.json();
       return placeOf(mp.block_height, mp.pos);
+    } catch { /* try the next mirror */ }
+  }
+  return null;
+}
+
+// A bookmark's placement. Newer bookmarks carry their resolved reference
+// (height + section), so they place offline. Older ones store only the hex,
+// which may be a block hash or a txid -- try a block lookup first (its height is
+// the chapter), then a txid's merkle proof (height + section), like the book.
+async function resolveBookmark(b) {
+  if (Number.isInteger(b.height)) return placeOf(b.height, b.pos ?? null);
+  for (const base of ESPLORA_MIRRORS) {
+    try {
+      const res = await fetch(`${base}/block/${b.hex}`);
+      if (res.ok) return placeOf((await res.json()).height, null);
+    } catch { /* try the next mirror */ }
+  }
+  for (const base of ESPLORA_MIRRORS) {
+    try {
+      const res = await fetch(`${base}/tx/${b.hex}/merkle-proof`);
+      if (res.ok) { const mp = await res.json(); return placeOf(mp.block_height, mp.pos); }
     } catch { /* try the next mirror */ }
   }
   return null;
@@ -187,9 +237,17 @@ function tailRef({ book, chapter, section }, underBook) {
 // never resolved carries a dash in place of a reference.
 function entryEl(entry, underBook) {
   const row = document.createElement('a');
-  row.className = 'toc-entry' + (underBook ? ' under-book' : '');
-  row.href = entryHref(entry.id);
-  const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = entry.title;
+  row.className = 'toc-entry' + (underBook ? ' under-book' : '') + (entry.bookmark ? ' is-bookmark' : '');
+  row.href = entryHref(entry.id, entry.index);
+  const t = document.createElement('span'); t.className = 'toc-title';
+  // A reader's own bookmark flies the same ribbon it wears in the book, so it's
+  // distinguishable from a curated entry even though it sits in reading order.
+  if (entry.bookmark) {
+    const bm = document.createElement('span'); bm.className = 'toc-bm'; bm.setAttribute('aria-label', 'your bookmark');
+    bm.innerHTML = '<svg viewBox="0 0 12 16"><path fill="currentColor" d="M0 0h12v16l-6-4-6 4z"/></svg>';
+    t.append(bm);
+  }
+  t.append(document.createTextNode(entry.title));
   const r = document.createElement('span'); r.className = 'toc-ref';
   if (entry.place) r.textContent = tailRef(entry.place, underBook);
   else { r.textContent = '—'; r.classList.add('none'); }
@@ -231,33 +289,56 @@ function render() {
     toc.append(head('toc-vol', 'Unresolved'));
     for (const e of stranded) toc.append(entryEl(e, false));
   }
-  const bookmarks = readBookmarks();
-  if (bookmarks.length) {
-    toc.append(head('toc-vol', 'Your bookmarks'));
-    for (const b of bookmarks) {
-      const row = document.createElement('a');
-      row.className = 'toc-entry';
-      row.href = entryHref(b.hex);
-      const t = document.createElement('span'); t.className = 'toc-title'; t.textContent = b.title || b.prose || shortHex(b.hex);
-      row.append(t);
-      toc.append(row);
-    }
-  }
 }
 
 // Block placements are offline, so render them at once; transaction citations
 // stream in as each resolves, slotting into their volume and book in order. An
 // entry whose lookup fails (placement null) drops to an "Unresolved" tail
 // rather than printing its raw id.
-const placements = new Map();
-const placed = () => NOTABLE.filter((e) => placements.get(e.id)).map((e) => ({ ...e, place: placements.get(e.id) }));
-const unresolved = () => NOTABLE.filter((e) => placements.has(e.id) && !placements.get(e.id));
-for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), null));
+const placements = new Map();          // NOTABLE id -> place | null (once attempted)
+const bmPlacements = new Map();        // bookmark hex -> place | null (once attempted)
+
+// A reader's bookmarks join the curated set in one list. A bookmark that is
+// already a curated entry is dropped (the curated title wins) so it isn't listed
+// twice.
+const NOTABLE_IDS = new Set(NOTABLE.map((e) => e.id));
+const bookmarks = readBookmarks().filter((b) => !NOTABLE_IDS.has(b.hex));
+
+// Every entry -- curated or bookmarked -- carrying whatever placement has
+// resolved so far. A bookmark reuses its stored title and flies the book's ribbon.
+const entries = () => [
+  ...NOTABLE.map((e) => ({ ...e, place: placements.get(e.id), tried: placements.has(e.id) })),
+  ...bookmarks.map((b) => ({
+    id: b.hex, index: b.pos ?? undefined, title: b.title || b.prose || shortHex(b.hex),
+    bookmark: true, place: bmPlacements.get(b.hex), tried: bmPlacements.has(b.hex),
+  })),
+];
+
+// Placed entries, sorted into reading order by resolved citation (not array
+// position): a transaction's or bookmark's height is unknown offline, so it can
+// only take its place once it resolves. This keeps each volume's (and book's)
+// entries contiguous, which the nested render relies on.
+const placed = () => entries()
+  .filter((e) => e.place)
+  .sort((a, b) => a.place.volume - b.place.volume || a.place.book - b.place.book
+    || a.place.chapter - b.place.chapter || (a.place.section ?? 0) - (b.place.section ?? 0));
+const unresolved = () => entries().filter((e) => e.tried && !e.place);
+
+// Block placements (curated, and bookmarks that stored their reference) are
+// offline, so render at once; everything else streams in as its lookup resolves.
+for (const e of NOTABLE) if (isBlockId(e.id)) placements.set(e.id, placeOf(Number(e.id), e.index ?? null));
+for (const b of bookmarks) if (Number.isInteger(b.height)) bmPlacements.set(b.hex, placeOf(b.height, b.pos ?? null));
 render();
-await Promise.all(NOTABLE.filter((e) => !placements.has(e.id)).map(async (e) => {
-  placements.set(e.id, await resolvePlacement(e.id));
-  render();
-}));
+await Promise.all([
+  ...NOTABLE.filter((e) => !placements.has(e.id)).map(async (e) => {
+    placements.set(e.id, await resolvePlacement(e));
+    render();
+  }),
+  ...bookmarks.filter((b) => !bmPlacements.has(b.hex)).map(async (b) => {
+    bmPlacements.set(b.hex, await resolveBookmark(b));
+    render();
+  }),
+]);
 </script>
 </body>
 </html>
