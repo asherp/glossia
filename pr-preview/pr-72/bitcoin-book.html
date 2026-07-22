@@ -366,11 +366,13 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    transaction's data is on chain. In the pattern table the same letters go
    plain where a spend introduces them at validation (see .seq.exec .ph). */
 .dt { color: var(--accent); font-style: normal; font-weight: 700; }
-/* The current block hash's h mark: unlike the other header hashes, the block's
-   own hash is not recorded on chain until the next block cites it, so it drops
-   the on-chain bold gold for the book's plain, neutral not-yet-committed style
-   (cf. the pattern table's validation-side .seq.exec .ph marks). */
-.dt-uncommitted { color: var(--ink); font-style: normal; font-weight: 400; }
+/* A derived hash identity -- the block's own hash, a transaction's own txid --
+   is computed from data, not a stored on-chain field like the previous-block
+   hash or merkle root (and the block hash isn't itself recorded on chain until
+   the next block cites it). So its h mark drops the on-chain bold gold for the
+   book's plain, neutral not-yet-committed style (cf. the pattern table's
+   validation-side .seq.exec .ph marks). */
+.dt-derived { color: var(--ink); font-style: normal; font-weight: 400; }
 /* A witness footnote is a stack of items; a thin middot separates each, and an
    empty stack item shows as ∅. */
 .wit-sep, .wit-empty { color: var(--meta); font-style: normal; }
@@ -1538,9 +1540,9 @@ function renderChapter(para) {
   $('ch-title').classList.toggle('hidden', !onFirstTx);
   $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
-  // The block's own hash isn't on chain until the next block cites it, so its h
-  // mark is the neutral not-yet-committed style, not the on-chain bold gold.
-  fillMarkedHash($('ch-hash-short'), 'h', 'dt-uncommitted', state.hash, 'block hash', hashProse);
+  // The block's own hash is a derived identity, not a stored on-chain field, so
+  // its h mark is the neutral derived style, not the on-chain bold gold.
+  fillMarkedHash($('ch-hash-short'), 'h', 'dt-derived', state.hash, 'block hash', hashProse);
   $('ch-frontispiece').classList.toggle('hidden', !onFirstTx);
   if (onFirstTx) renderFrontispiece(state.header);
 
@@ -1548,7 +1550,9 @@ function renderChapter(para) {
   // to internal byte order first (like the block hash) so it carries the txid's
   // actual bytes; every byte kept, since a txid has no droppable leading zeros.
   const { prose: txidProse } = encodeSeedPhrase(reverseHex(para.txid), 'english', BEST_OF);
-  fillMarkedHash($('section-hash'), 'h', 'dt', para.txid, 'transaction id', txidProse);
+  // A txid is a derived identity too (like the block hash), so its h mark takes
+  // the same neutral derived style rather than the on-chain bold gold.
+  fillMarkedHash($('section-hash'), 'h', 'dt-derived', para.txid, 'transaction id', txidProse);
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
