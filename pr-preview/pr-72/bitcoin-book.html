@@ -1390,17 +1390,31 @@ async function loadBlockByTxid(txid) {
 
 // A confirmed transaction's raw hex is immutable -- the txid is its hash -- so
 // it's memoized. Re-opening a section, or stepping back to one, re-parses from
-// cache instead of re-fetching the (potentially large) hex.
-const txHexCache = new Map();   // txid -> Promise<hex>
+// cache instead of re-fetching the (potentially large) hex. Unlike the block
+// core (small, kept unbounded), a single tx hex can run to kilobytes -- an
+// inscription witness, megabytes -- so this cache is bounded by a small LRU: the
+// least-recently-viewed entries fall out once the cap is reached, which is fine
+// since navigation only ever needs a handful at once. A Map keeps insertion
+// order, so re-inserting on a hit marks it most-recently-used and the oldest key
+// is always first.
+const TX_HEX_CACHE_MAX = 64;
+const txHexCache = new Map();   // txid -> Promise<hex>, ordered least- to most-recently-used
 function loadTxHex(txid) {
-  if (!txHexCache.has(txid)) {
-    txHexCache.set(txid, (async () => {
-      const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
-      if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
-      return (await r.text()).trim();
-    })().catch((e) => { txHexCache.delete(txid); throw e; }));
+  const cached = txHexCache.get(txid);
+  if (cached) {
+    txHexCache.delete(txid);
+    txHexCache.set(txid, cached);   // move to the most-recently-used end
+    return cached;
   }
-  return txHexCache.get(txid);
+  const p = (async () => {
+    const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
+    if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
+    return (await r.text()).trim();
+  })().catch((e) => { txHexCache.delete(txid); throw e; });
+  txHexCache.set(txid, p);
+  // Evict least-recently-used entries past the cap (Map iterates oldest-first).
+  while (txHexCache.size > TX_HEX_CACHE_MAX) txHexCache.delete(txHexCache.keys().next().value);
+  return p;
 }
 
 async function showCurrentTx() {
