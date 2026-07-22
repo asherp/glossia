@@ -186,12 +186,21 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* Chapter (block) navigation: prev / next flanking the Volume · Book locator. */
 .chapter-nav { display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom: 14px; }
 .chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); }
-/* Nav-button labels are references (Roman volume, β book, chapter, §section),
-   already cased -- so they opt out of the buttons' default uppercasing, which
-   would turn the book's lowercase β into a Latin-looking capital Β. Snug padding
-   so the button hugs its reference; nowrap so a two-part label like "β59 ■2016"
-   stays on one line instead of stacking. */
-.chapter-step { padding: 5px 9px; font-size: 14px; line-height: 1.15; text-transform: none; white-space: nowrap; }
+/* Chapter/section navigation reads as chevron-flanked references, not boxed
+   buttons: a left chevron leads a Previous reference, a right chevron trails a
+   Next one. Plain accent text (labels are already cased -- text-transform:none
+   keeps the book's lowercase β from becoming a Latin-looking capital Β); nowrap
+   so a two-part label like "β59 ■2016" stays on one line. */
+.chapter-step, .section-nav button {
+  background: transparent; border: none; border-radius: 0; padding: 2px 2px;
+  color: var(--accent); font: 600 14px/1.2 'IBM Plex Mono',monospace;
+  letter-spacing: .04em; text-transform: none; white-space: nowrap; cursor: pointer;
+}
+.chapter-step:hover:not(:disabled), .section-nav button:hover:not(:disabled) {
+  background: transparent; color: var(--accent-2); text-decoration: underline;
+}
+#chapter-prev::before, #page-prev::before { content: '‹\00a0'; }
+#chapter-next::after, #page-next::after { content: '\00a0›'; }
 .chapter-title { font: 500 37px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 22px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--dim); margin: 0 auto 16px; max-width: 46ch; }
 /* The block header's own fields -- version, previous-block hash, merkle
@@ -282,7 +291,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    Previous / Next pushed to opposite edges, each labelled with the section (or
    adjacent chapter) it steps to. A rule separates it from the section above. */
 .section-nav { display:flex; align-items:center; gap:16px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--rule); }
-.section-nav button { padding: 7px 13px; text-transform: none; white-space: nowrap; }
 /* Next hugs the right edge, Previous the left -- and each keeps its side even
    when the other is hidden (an absent neighbour shows no button at all). */
 #page-next { margin-left: auto; }
