@@ -10,21 +10,20 @@ name: Publish to crates.io
 # publishing is deliberately tied to tags rather than every merge to master.
 #
 # ── One-time setup ────────────────────────────────────────────────────────────
-# 1. Claim the crate names with a manual first publish from your machine:
-#        cargo publish -p glossia
-#        cargo publish -p glossia-cli
-#    (A trusted publisher can only be configured for a crate that exists.)
-# 2. On crates.io, for BOTH `glossia` and `glossia-cli`:
-#        Settings → Trusted Publishing → Add
-#        Repository owner: asherp
-#        Repository name:  glossia
-#        Workflow filename: publish.yml
-#    This authorizes this workflow to publish without any stored token.
+# Authentication uses a crates.io API token stored as the CARGO_REGISTRY_TOKEN
+# GitHub Actions secret:
+# 1. On crates.io: Account Settings → API Tokens → New Token, with the
+#    publish-update scope (and publish-new if the crate doesn't exist yet),
+#    ideally scoped to the `glossia` and `glossia-cli` crates.
+# 2. On GitHub: repo Settings → Secrets and variables → Actions →
+#    New repository secret, named CARGO_REGISTRY_TOKEN.
 #
-# ── Prefer an API token instead of OIDC? ──────────────────────────────────────
-# Delete the "Authenticate to crates.io" step below, add your token as the
-# CARGO_REGISTRY_TOKEN GitHub Actions secret, drop the `id-token` permission, and
-# the `cargo publish` steps will use the secret automatically.
+# ── Prefer Trusted Publishing (OIDC, no stored token)? ────────────────────────
+# On crates.io, for BOTH `glossia` and `glossia-cli`, add a trusted publisher
+# (Settings → Trusted Publishing) for asherp/glossia + publish.yml. Then add an
+# `id-token: write` permission below, and replace the secret with a
+# rust-lang/crates-io-auth-action@v1 step whose token output feeds
+# CARGO_REGISTRY_TOKEN.
 
 on:
   push:
@@ -40,8 +39,6 @@ jobs:
     name: Publish
     runs-on: ubuntu-latest
     permissions:
-      # Required for Trusted Publishing (OIDC). Remove if using a token secret.
-      id-token: write
       contents: read
     steps:
       - uses: actions/checkout@v4
@@ -65,19 +62,15 @@ jobs:
             exit 1
           fi
 
-      - name: Authenticate to crates.io
-        uses: rust-lang/crates-io-auth-action@v1
-        id: auth
-
       # The library must publish first; glossia-cli depends on it. `cargo publish`
       # waits for the new version to appear in the index before returning, so the
       # CLI publish that follows can resolve it.
       - name: Publish glossia (library)
         run: cargo publish -p glossia
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
       - name: Publish glossia-cli
         run: cargo publish -p glossia-cli
         env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
