@@ -1801,12 +1801,6 @@ const clampIndex = (i, meta) => Math.min(Math.max(0, i || 0), meta.txCount - 1);
 // that, as a txid, which jumps straight to that transaction's section.
 async function openLookup(input, index = 0) {
   input = (input || '').trim();
-  // Forget any tip remembered from a prior forward step: an explicit lookup is a
-  // fresh start, and the chain tip may have advanced since. Otherwise a stale
-  // tipHeight would keep hiding the Next button after e.g. re-entering -1, even
-  // though a newer block now exists. It re-sets if a forward step runs off the
-  // real tip (see stepTx / goToChapter).
-  tipHeight = null;
   $('chapter').classList.add('hidden');
   $('block-btn').disabled = true;
   try {
@@ -1817,6 +1811,11 @@ async function openLookup(input, index = 0) {
       if (input.startsWith('-')) {
         setStatus('<span class="spinner"></span>fetching latest block…');
         const tip = Number(await loadTipHeight());
+        // We just learned the current tip -- record it so the chapter/section
+        // Next buttons stay hidden when this resolves to the tip itself (-1). A
+        // fresh page load comes through here too, so it no longer shows a dead
+        // Next button at the latest block.
+        tipHeight = tip;
         height = String(tip + Number(input) + 1);
         if (Number(height) < 0) throw new Error(`Only ${tip + 1} blocks exist; ${input} reaches before Genesis.`);
       }
