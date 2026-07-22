@@ -192,9 +192,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-frontispiece { margin: 0 auto 4px; max-width: 46ch; font: 500 11.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-frontispiece .cfx + .cfx::before { content: ' · '; }
 /* The merkle root's ⋔ mark: the clickable handle for its hash menu (copy hex /
-   prose), accented so it reads as the actionable element while the root's prose
-   beside it stays plain. */
-.merkle-mark { color: var(--accent); }
+   prose), bold and accented (like the h data mark) so it reads as the actionable
+   element while the root's prose beside it stays plain. */
+.merkle-mark { color: var(--accent); font-weight: 700; }
 
 /* A Glossia-encoded hash (a block hash, a txid, a merkle root): the prose is
    the visible text; clicking anywhere on it opens a menu to copy the exact hex
@@ -1432,9 +1432,9 @@ async function showCurrentTx() {
 // previous-block hash, or txid) can be bookmarked; a merkle root, which leads
 // nowhere, is copy-only.
 function attachHashCopy(el, hex, label, prose = el.textContent) {
-  // `prose` is the readable form the menu offers to copy. It defaults to the
-  // element's own text, but when the hit target is a separate mark (the merkle
-  // root's ⋔) the prose lives beside it and is passed in explicitly.
+  // `prose` is the readable form the menu offers to copy. The hit target is the
+  // hash's leading mark (h, or ⋔ for a merkle root), so the prose lives beside it
+  // and is passed in explicitly (see fillMarkedHash) rather than read off `el`.
   // This chapter's own hashes are bookmarkable; a merkle root leads nowhere, and
   // the previous-block hash just points back a chapter, so both are copy-only.
   const nav = label !== 'merkle root' && label !== 'previous block hash';
@@ -1452,6 +1452,18 @@ function attachHashCopy(el, hex, label, prose = el.textContent) {
   el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(e); } });
 }
 
+// Render a Glossia-encoded hash into `el` as its bold-gold data mark (h, or ⋔
+// for the merkle root) followed by the plain prose. The mark is the clickable
+// handle for the copy/bookmark menu; the prose itself is never interactive.
+function fillMarkedHash(el, mark, markClass, hex, label, prose) {
+  el.textContent = '';
+  const m = document.createElement('span');
+  m.className = markClass;
+  m.textContent = mark;
+  attachHashCopy(m, hex, label, prose);
+  el.append(m, ' ' + prose);
+}
+
 // The block header itself, in wire order, as a small mono line under the
 // chapter hash: version, previous-block hash, merkle root, timestamp,
 // difficulty target, nonce. The two hashes are Glossia-encoded here (like
@@ -1466,40 +1478,27 @@ function renderFrontispiece(header) {
   // The merkle root isn't proof-of-work-constrained, so unlike a block hash
   // it has no expected run of zero bytes worth trimming.
   const merkleProse = encodeSeedPhrase(reverseHex(header.merkleRoot), 'english', BEST_OF).prose;
+  // Each on-chain hash leads with a bold-gold mark (h for a hash, ⋔ for the
+  // merkle root) that carries the copy menu; the prose beside it is not itself
+  // clickable. The rest of the fields are plain decoded numbers.
   const items = [
     { text: `v${hf.version}`, title: 'block version' },
-    // The previous-block hash is on-chain data, so it leads with the book's
-    // bold-gold h (hash) data mark, like the data marks in the body prose.
-    { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : null, dataMark: isGenesisPrev ? null : 'h', copy: isGenesisPrev ? null : { hex: header.prevBlockHash, label: 'previous block hash' } },
-    // The merkle root is prefixed with ⋔ (the book's merkle mark); that mark is
-    // the clickable handle for the copy menu, so the prose beside it reads plain.
-    { text: merkleProse, mark: '⋔', copy: { hex: header.merkleRoot, label: 'merkle root' } },
+    isGenesisPrev
+      ? { text: prevProse, title: 'no earlier block — this is the genesis block' }
+      : { text: prevProse, mark: 'h', markClass: 'dt', copy: { hex: header.prevBlockHash, label: 'previous block hash' } },
+    { text: merkleProse, mark: '⋔', markClass: 'merkle-mark', copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
     { text: hf.bits, title: hf.bitsTitle },
     { text: hf.nonce, title: hf.nonceTitle },
   ];
-  for (const { text, title, copy, mark, dataMark } of items) {
+  for (const { text, title, copy, mark, markClass } of items) {
     const span = document.createElement('span');
     span.className = 'cfx';
     if (mark && copy) {
-      const m = document.createElement('span');
-      m.className = 'merkle-mark';
-      m.textContent = mark;
-      attachHashCopy(m, copy.hex, copy.label, text);   // the ⋔ mark opens the menu; prose is passed in
-      span.append(m, ' ' + text);                      // prose shown beside it, not itself clickable
+      fillMarkedHash(span, mark, markClass, copy.hex, copy.label, text);
     } else {
-      if (dataMark) {
-        // A bold-gold data-type mark (h/s/…) leads the prose; the whole field
-        // stays the clickable hash target, so the prose to copy is passed in.
-        const d = document.createElement('span');
-        d.className = 'dt';
-        d.textContent = dataMark;
-        span.append(d, ' ' + text);
-      } else {
-        span.textContent = text;
-      }
-      if (copy) attachHashCopy(span, copy.hex, copy.label, dataMark ? text : undefined);
-      else if (title) span.title = title;
+      span.textContent = text;
+      if (title) span.title = title;
     }
     el.append(span);
   }
@@ -1534,8 +1533,7 @@ function renderChapter(para) {
   $('ch-title').classList.toggle('hidden', !onFirstTx);
   $('ch-hash-short').classList.toggle('hidden', !onFirstTx);
   const { prose: hashProse } = encodeSeedPhrase(trimTrailingZeroBytes(reverseHex(state.hash)), 'english', BEST_OF);
-  $('ch-hash-short').textContent = hashProse;
-  attachHashCopy($('ch-hash-short'), state.hash, 'block hash');
+  fillMarkedHash($('ch-hash-short'), 'h', 'dt', state.hash, 'block hash', hashProse);
   $('ch-frontispiece').classList.toggle('hidden', !onFirstTx);
   if (onFirstTx) renderFrontispiece(state.header);
 
@@ -1543,8 +1541,7 @@ function renderChapter(para) {
   // to internal byte order first (like the block hash) so it carries the txid's
   // actual bytes; every byte kept, since a txid has no droppable leading zeros.
   const { prose: txidProse } = encodeSeedPhrase(reverseHex(para.txid), 'english', BEST_OF);
-  $('section-hash').textContent = txidProse;
-  attachHashCopy($('section-hash'), para.txid, 'transaction id');
+  fillMarkedHash($('section-hash'), 'h', 'dt', para.txid, 'transaction id', txidProse);
 
   const body = $('ch-paragraphs');
   body.innerHTML = '';
