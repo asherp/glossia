@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e3c489"></stop>
+      <stop offset=".5" stop-color="#d0aa66"></stop>
+      <stop offset="1" stop-color="#b98f4d"></stop>
+    </linearGradient>
+    <radialGradient id="bg" cx="50%" cy="38%" r="80%">
+      <stop offset="0" stop-color="#17110c"></stop>
+      <stop offset="1" stop-color="#08080a"></stop>
+    </radialGradient>
+  </defs>
+  <rect width="120" height="120" fill="url(#bg)"></rect>
+  <text x="60" y="82" text-anchor="middle" font-family="'Newsreader','Source Serif 4',Georgia,'Times New Roman',serif" font-weight="600" font-size="76" fill="url(#gold)">&#946;</text>
+</svg>
