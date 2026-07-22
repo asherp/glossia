@@ -1257,24 +1257,44 @@ async function ensureTxids(st) {
   return st.txids;
 }
 
+// The immutable core of a block's metadata -- its info and header, everything
+// but the txid list. A block hash permanently determines this content, so it's
+// memoized by hash: revisiting a block (e.g. stepping Next then back) re-fetches
+// nothing. Keyed by hash, not height, so a tip reorg can never serve stale data
+// -- a different block is a different hash. The shared objects are read-only.
+const blockCoreCache = new Map();   // hash -> Promise<{ hash, height, block, txCount, header, headerVerified }>
+function loadBlockCore(hash) {
+  if (!blockCoreCache.has(hash)) {
+    blockCoreCache.set(hash, (async () => {
+      const [blockRes, headerRes] = await Promise.all([
+        esploraFetch(`${ESPLORA}/block/${hash}`),
+        esploraFetch(`${ESPLORA}/block/${hash}/header`),
+      ]);
+      if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
+      if (!headerRes.ok) throw new Error(`Esplora returned ${headerRes.status} fetching the block header.`);
+      const block = await blockRes.json();
+      const headerHex = (await headerRes.text()).trim();
+      // Parsed from the raw 80-byte header, not trusted from the JSON above --
+      // same self-parsed, self-verified stance as a transaction's txid.
+      const header = parseBlockHeader(headerHex);
+      const headerVerified = (await computeBlockHash(headerHex)) === hash;
+      return { hash, height: block.height, block, txCount: block.tx_count, header, headerVerified };
+    })().catch((e) => { blockCoreCache.delete(hash); throw e; }));
+  }
+  return blockCoreCache.get(hash);
+}
+
 // `withTxids: false` leaves the (heavy) txid list unfetched -- used when opening
 // a single transaction, whose section index comes from its merkle proof instead.
 // The block's transaction count still comes from its info (tx_count), so section
-// bounds and Next work without the list.
+// bounds and Next work without the list. Core (info + header) and the txid list
+// are each memoized, so a re-visit re-fetches neither.
 async function loadBlockMeta(hash, { withTxids = true } = {}) {
-  const [[blockRes, headerRes], txids] = await Promise.all([
-    Promise.all([esploraFetch(`${ESPLORA}/block/${hash}`), esploraFetch(`${ESPLORA}/block/${hash}/header`)]),
+  const [core, txids] = await Promise.all([
+    loadBlockCore(hash),
     withTxids ? fetchTxids(hash) : Promise.resolve(null),
   ]);
-  if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
-  if (!headerRes.ok) throw new Error(`Esplora returned ${headerRes.status} fetching the block header.`);
-  const block = await blockRes.json();
-  const headerHex = (await headerRes.text()).trim();
-  // Parsed from the raw 80-byte header, not trusted from the JSON above --
-  // same self-parsed, self-verified stance as a transaction's txid.
-  const header = parseBlockHeader(headerHex);
-  const headerVerified = (await computeBlockHash(headerHex)) === hash;
-  return { hash, height: block.height, block, txids, txCount: block.tx_count, header, headerVerified };
+  return { ...core, txids };
 }
 
 async function loadBlockByHeight(height) {
@@ -1334,14 +1354,27 @@ async function loadBlockByTxid(txid) {
   return { meta, index, txid };
 }
 
+// A confirmed transaction's raw hex is immutable -- the txid is its hash -- so
+// it's memoized. Re-opening a section, or stepping back to one, re-parses from
+// cache instead of re-fetching the (potentially large) hex.
+const txHexCache = new Map();   // txid -> Promise<hex>
+function loadTxHex(txid) {
+  if (!txHexCache.has(txid)) {
+    txHexCache.set(txid, (async () => {
+      const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
+      if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
+      return (await r.text()).trim();
+    })().catch((e) => { txHexCache.delete(txid); throw e; }));
+  }
+  return txHexCache.get(txid);
+}
+
 async function showCurrentTx() {
   setStatus('<span class="spinner"></span>fetching transaction…');
   // The current txid: from the loaded list when we have it, else the single
   // transaction we opened by id (before its block's list is ever fetched).
   const txid = state.txids ? state.txids[state.index] : state.txid;
-  const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
-  if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
-  const hex = (await r.text()).trim();
+  const hex = await loadTxHex(txid);
 
   if (!ready) await init().catch(() => {});
   setStatus('<span class="spinner"></span>encoding as prose…');
