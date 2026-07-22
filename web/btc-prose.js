@@ -159,16 +159,19 @@ export function groupDigits(s) {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, '·');
 }
 
-// A satoshi amount -> its value in bitcoin, prefixed with the ₿ sign and exact
-// to the satoshi. English number formatting: the whole-bitcoin part is
+// A satoshi amount -> its value in bitcoin, with the ₿ sign trailing the figure
+// and exact to the satoshi. English number formatting: the whole-bitcoin part is
 // comma-grouped, and the fraction is always the full eight decimal places, so a
-// column of amounts aligns on the point. 50 BTC reads ₿50.00000000, a lone
-// satoshi ₿0.00000001. BigInt keeps large sat counts exact.
+// right-aligned column of amounts aligns on the point. 50 BTC reads 50.00000000 ₿,
+// a lone satoshi 0.00000001 ₿. An exactly-zero amount (e.g. an OP_RETURN data
+// carrier) reads as a bare 0 rather than a row of zeros. BigInt keeps large sat
+// counts exact.
 export function formatBtc(sats) {
   const s = BigInt(sats);
+  if (s === 0n) return '0';
   const whole = (s / 100000000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const frac = (s % 100000000n).toString().padStart(8, '0');
-  return `₿${whole}.${frac}`;
+  return `${whole}.${frac} ₿`;
 }
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
