@@ -110,6 +110,9 @@ a:hover { text-decoration: underline; }
 .toc-vol:first-child { margin-top:8px; padding-top:0; border-top:none; }
 .toc-book { margin:15px 0 1px; padding-left:16px;
   font:600 10px/1 'IBM Plex Mono',monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--meta); }
+/* β marks a book (a difficulty-adjustment window); kept lowercase inside the
+   uppercased Book heading, where an uppercased β would read as a Latin B. */
+.beta-mark { text-transform:none; }
 
 /* A contents row: title on the left, its remaining reference on the right; the
    whole row navigates into the book, the manuscript's own citation form. */
@@ -224,10 +227,10 @@ async function resolveBookmark(b) {
 
 // The tail of an entry's citation -- the part its heading hasn't already named.
 // Under a Book heading only the chapter (and a transaction's §section) remains;
-// directly under a Volume, the book leads it. Spaced like the book's own
-// citations (e.g. "29 596", "1 §1").
+// directly under a Volume, the β-marked book leads it. Spaced like the book's
+// own citations (e.g. "β29 596", "1 §1").
 function tailRef({ book, chapter, section }, underBook) {
-  let s = (underBook ? [chapter] : [book, chapter]).join(' ');
+  let s = (underBook ? [chapter] : [`β${book}`, chapter]).join(' ');
   if (section != null) s += ` §${section}`;
   return s;
 }
@@ -273,7 +276,9 @@ function render() {
       const bk = entries[k].place.book;
       let jb = k + 1; while (jb < jv && entries[jb].place.book === bk) jb++;
       if (jb - k >= 2) {
-        toc.append(head('toc-book', `Book ${bk}`));
+        const bookHead = head('toc-book', '');
+        bookHead.innerHTML = `Book <span class="beta-mark">β</span>${bk}`;   // β kept lowercase under the heading's uppercasing
+        toc.append(bookHead);
         for (let m = k; m < jb; m++) toc.append(entryEl(entries[m], true));
       } else {
         toc.append(entryEl(entries[k], false));

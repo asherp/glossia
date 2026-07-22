@@ -189,7 +189,13 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* Chapter (block) navigation: prev / next flanking the Volume · Book locator. */
 .chapter-nav { display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom: 14px; }
 .chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); }
-.chapter-step { padding: 12px 16px; font-size: 15px; line-height: 1; }
+/* Nav-button labels are references (Roman volume, β book, chapter, §section),
+   already cased -- so they opt out of the buttons' default uppercasing, which
+   would turn the book's lowercase β into a Latin-looking capital Β. */
+.chapter-step { padding: 12px 16px; font-size: 15px; line-height: 1; text-transform: none; }
+/* β marks a book (a difficulty-adjustment window, echoing the header's βₙ
+   difficulty target). Kept lowercase even inside an uppercased eyebrow/heading. */
+.beta-mark { text-transform: none; }
 .chapter-title { font: 500 37px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 22px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--dim); margin: 0 auto 16px; max-width: 46ch; }
 /* The block header's own fields -- version, previous-block hash, merkle
@@ -276,7 +282,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    Previous / Next pushed to opposite edges, each labelled with the section (or
    adjacent chapter) it steps to. A rule separates it from the section above. */
 .section-nav { display:flex; align-items:center; gap:16px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--rule); }
-.section-nav button { padding: 12px 20px; }
+.section-nav button { padding: 12px 20px; text-transform: none; }
 /* Next hugs the right edge, Previous the left -- and each keeps its side even
    when the other is hidden (an absent neighbour shows no button at all). */
 #page-next { margin-left: auto; }
@@ -483,7 +489,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <div class="card">
     <label for="block-input">Block height, hash, transaction id, or reference</label>
     <div class="lookup-row">
-      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. III 2, a height, a hash, or a transaction id" autocomplete="off" spellcheck="false">
+      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. III β2, a height, a hash, or a transaction id" autocomplete="off" spellcheck="false">
       <button type="button" id="block-btn">Read</button>
     </div>
     <div id="block-status" class="status-line hidden"></div>
@@ -512,7 +518,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <header class="chapter-head">
       <nav class="chapter-nav">
         <button type="button" id="chapter-prev" class="chapter-step hidden" aria-label="Previous chapter" title="Previous chapter"></button>
-        <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
+        <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span class="beta-mark">β</span><span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
         <button type="button" id="chapter-next" class="chapter-step hidden" aria-label="Next chapter" title="Next chapter"></button>
       </nav>
       <h1 class="chapter-title" id="ch-title"></h1>
@@ -792,7 +798,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Margin — the transaction's locktime &amp; other marks</h4>
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">□</span><span class="m">no locktime</span></div>
-          <div class="glyph-row"><span class="g">■ <i>v b c</i></span><span class="m">not before the cited chapter (volume book chapter)</span></div>
+          <div class="glyph-row"><span class="g">■ <i>v</i> β<i>b</i> <i>c</i></span><span class="m">not before the cited chapter (volume, β book, chapter)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>t</i></span><span class="m">not before a UTC date</span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
           <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">section — the transaction's position</span></div>
@@ -1109,7 +1115,8 @@ function fromRoman(s) {
 // Returns null when the string isn't a reference at all.
 function parseReference(input) {
   const s = input.trim().replace(/\s+/g, ' ');
-  const m = s.match(/^([ivxlcdm]+)(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+§?(\d+)(?:\.\d+)?)?$/i);
+  // The book may be written β2 or a bare 2 -- the β sigil is optional on input.
+  const m = s.match(/^([ivxlcdm]+)(?:\s+β?(\d+))?(?:\s+(\d+))?(?:\s+§?(\d+)(?:\.\d+)?)?$/i);
   if (!m) return null;
   const volume = fromRoman(m[1].toUpperCase());
   if (!Number.isFinite(volume) || volume < 1) return null;
@@ -1154,7 +1161,7 @@ async function resolveForwardCitations(txid, cells, gen) {
         const link = document.createElement('a');
         link.className = 'cite-section-link';
         link.href = `?block=${height}&index=${pos}`;
-        link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}`;
+        link.textContent = `${toRoman(volume)} β${book} ${chapter} §${pos + 1}`;
         link.title = `spent by input ${sp.vin + 1} of ${sp.txid}`;
         link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `in-${sp.vin}`); });
         cell.append(link);
@@ -1172,7 +1179,7 @@ function renderCitation(citeBody, height, pos, vout) {
   const link = document.createElement('a');
   link.className = 'cite-section-link';
   link.href = `?block=${height}&index=${pos}`;
-  link.textContent = `${toRoman(volume)} ${book} ${chapter} §${pos + 1}.${vout}`;
+  link.textContent = `${toRoman(volume)} β${book} ${chapter} §${pos + 1}.${vout}`;
   link.title = `go to §${pos + 1}.${vout}`;
   link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `out-${vout}`); });
   citeBody.textContent = '';
@@ -1411,7 +1418,7 @@ function renderChapter(para) {
   // Keep the lookup field showing where we are, in the same reference form the
   // citations use, so it round-trips: any navigation refreshes it, and pressing
   // Read chapter on it returns to this very section.
-  $('block-input').value = `${toRoman(volume)} ${book} ${chapter} §${state.index + 1}`;
+  $('block-input').value = `${toRoman(volume)} β${book} ${chapter} §${state.index + 1}`;
 
   // The big title (and hash subtitle) introduce the chapter as a whole, so
   // they only belong on its first transaction. Every later transaction
@@ -1660,15 +1667,16 @@ function renderChapter(para) {
 // contents abbreviates consecutive entries: show a level (volume, book, chapter)
 // only when it -- or a coarser level -- differs from where the reader is now, so
 // a step within the same chapter reads as a bare "§4", one across a chapter as
-// "5 §1", one across a book as "2 5 §1", one across an era as "II 1 1 §1". A
-// chapter jump (section === null) always ends on the chapter, never a §section.
+// "5 §1", one across a book as "β2 5 §1", one across an era as "II β1 1 §1". The
+// book carries its β sigil (see reference() in btc-citation.js). A chapter jump
+// (section === null) always ends on the chapter, never a §section.
 function minSharedRef(cur, target, section) {
   const dv = target.volume !== cur.volume;
   const db = dv || target.book !== cur.book;
   const dc = db || target.chapter !== cur.chapter;
   const parts = [];
   if (dv) parts.push(toRoman(target.volume));
-  if (db) parts.push(String(target.book));
+  if (db) parts.push(`β${target.book}`);
   if (dc || section == null) parts.push(String(target.chapter));
   if (section != null) parts.push(`§${section}`);
   return parts.join(' ');
@@ -2130,7 +2138,7 @@ function suggestTitle(entry) {
   if (!place) return '';
   const { volume, book, chapter } = volumeBookChapter(place.height);
   const genesis = volume === 1 && book === 1 && chapter === 1;
-  if (place.pos != null) return `${toRoman(volume)} ${book} ${chapter} §${place.pos + 1}`;
+  if (place.pos != null) return `${toRoman(volume)} β${book} ${chapter} §${place.pos + 1}`;
   return genesis ? 'Genesis' : `Chapter ${chapter}`;
 }
 

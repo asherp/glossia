@@ -60,7 +60,7 @@ function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
   if (locktime < LOCKTIME_THRESHOLD) {
     const { volume, book, chapter } = volumeBookChapter(locktime);
-    return { mark: `■ ${toRoman(volume)} ${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
+    return { mark: `■ ${toRoman(volume)} β${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
   }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
   return { mark: `Τ${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
