@@ -16,6 +16,10 @@ export const NOTABLE = [
   { title: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks', id: '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b' },
   { title: 'Hal Finney transaction', id: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16' },
   { title: 'Bitcoin Pizza Day', id: '57043' },
+  // The overflow block/tx were orphaned by the corrective fork; canonical height
+  // 74,638 is the honest re-mined block that excised the ~184.4B-BTC overflow, so
+  // this entry points at the block itself (no §section) -- the supply cap's repair.
+  { title: 'Supply cap bug fix', id: '74638' },
   { title: '100K block milestone', id: '100000' },
   { title: 'Eligius', id: '139690' },
   { title: 'First P2SH spend', id: 'e5779b9e78f9650debc2893fd9636d827b26b4ddfa6a8172fe8708c924f5c39d' },
