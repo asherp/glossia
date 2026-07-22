@@ -191,8 +191,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .chapter-num { font:600 11.5px/1 'IBM Plex Mono',monospace; letter-spacing:.3em; text-transform:uppercase; color: var(--accent); }
 /* Nav-button labels are references (Roman volume, β book, chapter, §section),
    already cased -- so they opt out of the buttons' default uppercasing, which
-   would turn the book's lowercase β into a Latin-looking capital Β. */
-.chapter-step { padding: 12px 16px; font-size: 15px; line-height: 1; text-transform: none; }
+   would turn the book's lowercase β into a Latin-looking capital Β. Snug padding
+   so the button hugs its reference; nowrap so a two-part label like "β59 ■2016"
+   stays on one line instead of stacking. */
+.chapter-step { padding: 5px 9px; font-size: 14px; line-height: 1.15; text-transform: none; white-space: nowrap; }
 .chapter-title { font: 500 37px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 22px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--dim); margin: 0 auto 16px; max-width: 46ch; }
 /* The block header's own fields -- version, previous-block hash, merkle
@@ -279,7 +281,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    Previous / Next pushed to opposite edges, each labelled with the section (or
    adjacent chapter) it steps to. A rule separates it from the section above. */
 .section-nav { display:flex; align-items:center; gap:16px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--rule); }
-.section-nav button { padding: 12px 20px; text-transform: none; }
+.section-nav button { padding: 7px 13px; text-transform: none; white-space: nowrap; }
 /* Next hugs the right edge, Previous the left -- and each keeps its side even
    when the other is hidden (an absent neighbour shows no button at all). */
 #page-next { margin-left: auto; }
@@ -409,6 +411,14 @@ button:disabled { opacity: .4; cursor: not-allowed; }
      initial (line-height .82) overhangs upward, so give the lead line room to
      keep the cap clear of the amount above it. */
   .tx-line.tx-body-lead { padding-top: .8em; }
+  /* At phone widths pin the two references to the edges (space-between) so the
+     Next button can never be pushed off-screen. The buttons keep their hugged
+     size (flex 0 0 auto); the centre locator is sized by the space left between
+     them (flex 1 1 0) and wraps within it, so it can never overflow the row. On
+     wider screens the nav stays centred and compact (see base rule). */
+  .chapter-nav { gap: 9px; justify-content: space-between; }
+  .chapter-step { flex: 0 0 auto; }
+  .chapter-num { letter-spacing: .14em; min-width: 0; flex: 1 1 0; text-align: center; }
 }
 
 /* A witness-bearing input carries a small superscript index inline; the matching
@@ -1791,6 +1801,12 @@ const clampIndex = (i, meta) => Math.min(Math.max(0, i || 0), meta.txCount - 1);
 // that, as a txid, which jumps straight to that transaction's section.
 async function openLookup(input, index = 0) {
   input = (input || '').trim();
+  // Forget any tip remembered from a prior forward step: an explicit lookup is a
+  // fresh start, and the chain tip may have advanced since. Otherwise a stale
+  // tipHeight would keep hiding the Next button after e.g. re-entering -1, even
+  // though a newer block now exists. It re-sets if a forward step runs off the
+  // real tip (see stepTx / goToChapter).
+  tipHeight = null;
   $('chapter').classList.add('hidden');
   $('block-btn').disabled = true;
   try {
