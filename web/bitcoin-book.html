@@ -1629,6 +1629,43 @@ function renderChapter(para) {
   $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txCount - 1;
   $('chapter-prev').disabled = state.height === 0;                                  // genesis has no earlier chapter
   $('chapter-next').disabled = tipHeight !== null && state.height >= tipHeight;     // the tip has no later chapter
+
+  labelNav();
+}
+
+// Label each navigation button with the reference it leads to, so a reader can
+// see where an arrow goes before pressing it. Chapter arrows name the block
+// they jump to ("Chapter N"); section arrows name the transaction they step to
+// ("§ N") -- and where a step runs off the block's edge, they name the adjacent
+// chapter it crosses into instead. Recomputed on every render from the current
+// position; the block-crossing chapter numbers come straight from the height,
+// while a prior chapter's final section count isn't known until it loads, so
+// that one edge names only the chapter.
+function labelNav() {
+  const prevChapter = state.height > 0 ? volumeBookChapter(state.height - 1).chapter : null;
+  const nextChapter = volumeBookChapter(state.height + 1).chapter;
+
+  // Whole-chapter jumps: always to the block one height away.
+  const setBtn = (id, text, label) => {
+    const b = $(id);
+    b.textContent = text;
+    b.title = label;
+    b.setAttribute('aria-label', label);   // else the static aria-label hides the number from screen readers
+  };
+
+  if (prevChapter !== null) setBtn('chapter-prev', `← Ch. ${prevChapter}`, `Previous chapter (Chapter ${prevChapter})`);
+  else setBtn('chapter-prev', '←', 'Previous chapter');
+  setBtn('chapter-next', `Ch. ${nextChapter} →`, `Next chapter (Chapter ${nextChapter})`);
+
+  // Section steps: within the chapter they name the target section; at an edge
+  // they cross into the neighbouring chapter, so they name that chapter instead.
+  const idx = state.index;
+  if (idx > 0) setBtn('page-prev', `← § ${idx}`, `Previous section (§ ${idx})`);                       // target section = current 1-based index minus one
+  else if (state.height > 0) setBtn('page-prev', `← Ch. ${prevChapter}`, `Previous section (end of Chapter ${prevChapter})`);  // crosses to the previous chapter's final section
+  else setBtn('page-prev', '← Previous', 'Previous section');                                          // genesis §1: nothing before it
+
+  if (idx < state.txCount - 1) setBtn('page-next', `§ ${idx + 2} →`, `Next section (§ ${idx + 2})`);   // target section = current 1-based index plus one
+  else setBtn('page-next', `Ch. ${nextChapter} § 1 →`, `Next section (Chapter ${nextChapter}, § 1)`);  // crosses to the next chapter's first section
 }
 
 // Encode every witness-bearing input's witness into a numbered footnote and
