@@ -29,10 +29,12 @@ function toRoman(n) {
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
-// (nSequence), sharing ■ (block) / Τ (temporal) for the block/time distinction:
-//   Transaction (nLockTime):  □ none · ■n absolute block height · Τn absolute unix time
+// (nSequence), sharing ■ (block) / Τ (temporal) for the block/time distinction.
+// ■ is also the chapter sigil in references, so an absolute block-height lock is
+// written as the chapter reference it names rather than a leading ■n:
+//   Transaction (nLockTime):  □ none · v βb ■c absolute block (a chapter) · Τn absolute unix time
 //   Input (nSequence):        ○ final · † replaceable (opt-in RBF) ·
-//                             ■n relative block delay · Τn relative time delay
+//                             ■n relative block delay (a count of chapters) · Τn relative time delay
 // The square reads as the whole document, the circle as one input. A coinbase's
 // null prevout is flagged with isNullPrevout so the renderer can mark it (∅);
 // other prevouts are carried as references and resolved to a citation
@@ -52,15 +54,16 @@ function durationFrom512s(n) {
   return parts.join('');
 }
 
-// nLockTime -> { mark, title }: □ (none), ■ + citation (absolute block --
-// the block is a chapter of the book, so it's cited as volume book chapter
-// rather than a bare height), Τ + UTC date (absolute time -- rendered
-// physically, the raw unix value in the hover).
+// nLockTime -> { mark, title }: □ (none), a chapter reference for an absolute
+// block height (the block is a chapter, cited as volume book ■chapter rather than
+// a bare height -- the chapter's own ■ block-mark carries the "block" sense the
+// leading ■ used to, so no separate operator is needed), Τ + UTC date for an
+// absolute time (rendered physically, the raw unix value in the hover).
 function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
   if (locktime < LOCKTIME_THRESHOLD) {
     const { volume, book, chapter } = volumeBookChapter(locktime);
-    return { mark: `■ ${toRoman(volume)} ${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
+    return { mark: `${toRoman(volume)} β${book} ■${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
   }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
   return { mark: `Τ${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
@@ -159,16 +162,19 @@ export function groupDigits(s) {
   return s.replace(/\B(?=(\d{3})+(?!\d))/g, '·');
 }
 
-// A satoshi amount -> its value in bitcoin, prefixed with the ₿ sign and exact
-// to the satoshi. English number formatting: the whole-bitcoin part is
+// A satoshi amount -> its value in bitcoin, with the ₿ sign trailing the figure
+// and exact to the satoshi. English number formatting: the whole-bitcoin part is
 // comma-grouped, and the fraction is always the full eight decimal places, so a
-// column of amounts aligns on the point. 50 BTC reads ₿50.00000000, a lone
-// satoshi ₿0.00000001. BigInt keeps large sat counts exact.
+// right-aligned column of amounts aligns on the point. 50 BTC reads 50.00000000 ₿,
+// a lone satoshi 0.00000001 ₿. An exactly-zero amount (e.g. an OP_RETURN data
+// carrier) reads as a bare 0 ₿ rather than a row of zeros. BigInt keeps large sat
+// counts exact.
 export function formatBtc(sats) {
   const s = BigInt(sats);
+  if (s === 0n) return '0 ₿';
   const whole = (s / 100000000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const frac = (s % 100000000n).toString().padStart(8, '0');
-  return `₿${whole}.${frac}`;
+  return `${whole}.${frac} ₿`;
 }
 
 // Quoted script text comes directly from raw blockchain data -- a miner's
