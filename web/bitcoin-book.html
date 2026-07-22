@@ -1881,6 +1881,12 @@ async function openLookup(input, index = 0) {
   input = (input || '').trim();
   $('chapter').classList.add('hidden');
   $('block-btn').disabled = true;
+  // Learn the current chain tip on every lookup (in parallel with the block
+  // load) and record it, so the Next controls are exact -- shown below the tip,
+  // hidden at it -- rather than optimistic. A tip fetch that fails resolves to
+  // null and leaves the previous tipHeight untouched; only a -1 lookup, which
+  // needs the tip to resolve a relative height, treats that failure as an error.
+  const tipP = loadTipHeight().then((t) => { tipHeight = Number(t); return tipHeight; }, () => null);
   try {
     if (/^-?\d+$/.test(input)) {
       let height = input;
@@ -1888,12 +1894,8 @@ async function openLookup(input, index = 0) {
       // block, -2 the one before it, and so on.
       if (input.startsWith('-')) {
         setStatus('<span class="spinner"></span>fetching latest block…');
-        const tip = Number(await loadTipHeight());
-        // We just learned the current tip -- record it so the chapter/section
-        // Next buttons stay hidden when this resolves to the tip itself (-1). A
-        // fresh page load comes through here too, so it no longer shows a dead
-        // Next button at the latest block.
-        tipHeight = tip;
+        const tip = await tipP;   // the shared tip fetch (already recorded in tipHeight on success)
+        if (tip === null) throw new Error('Could not reach the chain tip to resolve a relative height.');
         height = String(tip + Number(input) + 1);
         if (Number(height) < 0) throw new Error(`Only ${tip + 1} blocks exist; ${input} reaches before Genesis.`);
       }
@@ -1918,6 +1920,7 @@ async function openLookup(input, index = 0) {
       const meta = await loadBlockByHeight(ref.height);
       state = { ...meta, index: clampIndex(ref.index, meta) };
     }
+    await tipP;   // record the fresh tip before labelNav decides Next visibility
     await showCurrentTx();
   } catch (e) {
     setStatus(e.message || 'Failed to load.', 'err');
