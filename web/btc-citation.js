@@ -47,9 +47,12 @@ export function toRoman(n) {
   return out || '0';
 }
 
-// The scripture-style reference for a block height: Roman volume, then book and
-// chapter (e.g. "III 2 5"). A transaction adds a §section to this.
+// The scripture-style reference for a block height: Roman volume, the book
+// marked with β, the chapter with ■ (e.g. "III β2 ■5"). Each level below the
+// volume carries the sigil of what it is: β is the difficulty mark, and a book
+// is a difficulty-adjustment window; ■ is the block mark (the timelock glyph),
+// and a chapter is a block. A transaction adds a §section to this.
 export function reference(height) {
   const { volume, book, chapter } = volumeBookChapter(height);
-  return `${toRoman(volume)} ${book} ${chapter}`;
+  return `${toRoman(volume)} β${book} ■${chapter}`;
 }
