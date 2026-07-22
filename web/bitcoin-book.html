@@ -208,7 +208,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    chapter hash. A small mono line, like the manuscript's other margin notes;
    each field carries its decoded form in `title` (a tooltip). */
 .chapter-frontispiece { margin: 0 auto 4px; max-width: 46ch; font: 500 11.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
-.chapter-frontispiece .cfx + .cfx::before { content: ' · '; }
+/* The middot separator stays dim even between gold fields. */
+.chapter-frontispiece .cfx + .cfx::before { content: ' · '; color: var(--meta); }
+/* The difficulty target (β) and nonce (η): proof-of-work marks, shown gold. */
+.chapter-frontispiece .cfx-gold { color: var(--accent); }
 /* The merkle root's ⋔ mark: the clickable handle for its hash menu (copy hex /
    prose), bold and accented (like the h data mark) so it reads as the actionable
    element while the root's prose beside it stays plain. */
@@ -1478,12 +1481,14 @@ function renderFrontispiece(header) {
       : { text: prevProse, mark: 'h', markClass: 'dt', copy: { hex: header.prevBlockHash, label: 'previous block hash' } },
     { text: merkleProse, mark: '⋔', markClass: 'merkle-mark', copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
-    { text: hf.bits, title: hf.bitsTitle },
-    { text: hf.nonce, title: hf.nonceTitle },
+    // The difficulty target (β) and nonce (η) are the proof-of-work marks, gold
+    // like their counterparts in the body prose's mining preamble.
+    { text: hf.bits, title: hf.bitsTitle, gold: true },
+    { text: hf.nonce, title: hf.nonceTitle, gold: true },
   ];
-  for (const { text, title, copy, mark, markClass } of items) {
+  for (const { text, title, copy, mark, markClass, gold } of items) {
     const span = document.createElement('span');
-    span.className = 'cfx';
+    span.className = gold ? 'cfx cfx-gold' : 'cfx';
     if (mark && copy) {
       fillMarkedHash(span, mark, markClass, copy.hex, copy.label, text);
     } else {
