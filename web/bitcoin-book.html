@@ -275,8 +275,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 /* Per-section paging, at the foot of the section (after the witness footnotes):
    Previous / Next pushed to opposite edges, each labelled with the section (or
    adjacent chapter) it steps to. A rule separates it from the section above. */
-.section-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--rule); }
+.section-nav { display:flex; align-items:center; gap:16px; margin-top: 44px; padding-top: 24px; border-top: 1px solid var(--rule); }
 .section-nav button { padding: 12px 20px; }
+/* Next hugs the right edge, Previous the left -- and each keeps its side even
+   when the other is hidden (an absent neighbour shows no button at all). */
+#page-next { margin-left: auto; }
 /* The section heading -- the transaction's position within its block, "§ N" --
    centred beneath the chapter frontispiece. */
 .section-title { text-align:center; margin: 22px 0 0; font:600 13px/1 'IBM Plex Mono',monospace; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); }
@@ -508,9 +511,9 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <article id="chapter" class="hidden">
     <header class="chapter-head">
       <nav class="chapter-nav">
-        <button type="button" id="chapter-prev" class="chapter-step" aria-label="Previous chapter" title="Previous chapter">←</button>
+        <button type="button" id="chapter-prev" class="chapter-step hidden" aria-label="Previous chapter" title="Previous chapter"></button>
         <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
-        <button type="button" id="chapter-next" class="chapter-step" aria-label="Next chapter" title="Next chapter">→</button>
+        <button type="button" id="chapter-next" class="chapter-step hidden" aria-label="Next chapter" title="Next chapter"></button>
       </nav>
       <h1 class="chapter-title" id="ch-title"></h1>
       <div class="chapter-hash" id="ch-hash-short"></div>
@@ -528,8 +531,8 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <!-- Section paging sits at the foot of the section, after its witness
          footnotes: read the transaction through, then step to the next. -->
     <nav class="section-nav">
-      <button type="button" id="page-prev">← Previous</button>
-      <button type="button" id="page-next">Next →</button>
+      <button type="button" id="page-prev" class="hidden" aria-label="Previous section" title="Previous section"></button>
+      <button type="button" id="page-next" class="hidden" aria-label="Next section" title="Next section"></button>
     </nav>
   </article>
 
@@ -1265,6 +1268,24 @@ async function loadBlockByHeight(height) {
   return loadBlockMeta((await res.text()).trim());
 }
 
+// A block's transaction count by height, from its info alone (no txid list) and
+// memoized. Used only to label the Previous button when it steps back across a
+// block boundary: the section it lands on is the prior block's last transaction,
+// whose §number is that block's tx count.
+const txCountByHeight = new Map();
+function loadBlockTxCount(height) {
+  if (!txCountByHeight.has(height)) {
+    txCountByHeight.set(height, (async () => {
+      const hres = await esploraFetch(`${ESPLORA}/block-height/${height}`);
+      if (!hres.ok) throw new Error(`Esplora returned ${hres.status}.`);
+      const bres = await esploraFetch(`${ESPLORA}/block/${(await hres.text()).trim()}`);
+      if (!bres.ok) throw new Error(`Esplora returned ${bres.status}.`);
+      return (await bres.json()).tx_count;
+    })().catch((e) => { txCountByHeight.delete(height); throw e; }));
+  }
+  return txCountByHeight.get(height);
+}
+
 // The chain tip height, as plain text from Esplora. Opens the book at the most
 // recent chapter when the reader arrives without a specific target.
 async function loadTipHeight() {
@@ -1632,47 +1653,84 @@ function renderChapter(para) {
   footnotesLoaded = false;
   renderFootnotes(gen);
 
-  $('page-prev').disabled = state.height === 0 && state.index === 0;
-  $('page-next').disabled = tipHeight !== null && state.height >= tipHeight && state.index >= state.txCount - 1;
-  $('chapter-prev').disabled = state.height === 0;                                  // genesis has no earlier chapter
-  $('chapter-next').disabled = tipHeight !== null && state.height >= tipHeight;     // the tip has no later chapter
-
   labelNav();
 }
 
-// Label each navigation button with the reference it leads to, so a reader can
-// see where an arrow goes before pressing it. Chapter arrows name the block
-// they jump to ("Chapter N"); section arrows name the transaction they step to
-// ("§ N") -- and where a step runs off the block's edge, they name the adjacent
-// chapter it crosses into instead. Recomputed on every render from the current
-// position; the block-crossing chapter numbers come straight from the height,
-// while a prior chapter's final section count isn't known until it loads, so
-// that one edge names only the chapter.
-function labelNav() {
-  const prevChapter = state.height > 0 ? volumeBookChapter(state.height - 1).chapter : null;
-  const nextChapter = volumeBookChapter(state.height + 1).chapter;
+// The reference each nav button leads to, abbreviated the way a table of
+// contents abbreviates consecutive entries: show a level (volume, book, chapter)
+// only when it -- or a coarser level -- differs from where the reader is now, so
+// a step within the same chapter reads as a bare "§4", one across a chapter as
+// "5 §1", one across a book as "2 5 §1", one across an era as "II 1 1 §1". A
+// chapter jump (section === null) always ends on the chapter, never a §section.
+function minSharedRef(cur, target, section) {
+  const dv = target.volume !== cur.volume;
+  const db = dv || target.book !== cur.book;
+  const dc = db || target.chapter !== cur.chapter;
+  const parts = [];
+  if (dv) parts.push(toRoman(target.volume));
+  if (db) parts.push(String(target.book));
+  if (dc || section == null) parts.push(String(target.chapter));
+  if (section != null) parts.push(`§${section}`);
+  return parts.join(' ');
+}
 
-  // Whole-chapter jumps: always to the block one height away.
+// Label the chapter/section nav buttons, and hide any that lead nowhere (Genesis
+// has no earlier chapter/section; the chain tip's last section none later). Each
+// label is the minimum shared reference to its destination (see minSharedRef).
+function labelNav() {
+  const cur = volumeBookChapter(state.height);
+  const idx = state.index;
+  const atTip = tipHeight !== null && state.height >= tipHeight;
+  const gen = renderGen;   // a slow previous-count fetch must not overwrite a later section's label
+
   const setBtn = (id, text, label) => {
     const b = $(id);
     b.textContent = text;
     b.title = label;
-    b.setAttribute('aria-label', label);   // else the static aria-label hides the number from screen readers
+    b.setAttribute('aria-label', label);
+  };
+  const showBtn = (id, show) => {
+    const b = $(id);
+    b.classList.toggle('hidden', !show);
+    if (show) b.disabled = false;   // clear any transient load-time disable
   };
 
-  if (prevChapter !== null) setBtn('chapter-prev', `← Ch. ${prevChapter}`, `Previous chapter (Chapter ${prevChapter})`);
-  else setBtn('chapter-prev', '←', 'Previous chapter');
-  setBtn('chapter-next', `Ch. ${nextChapter} →`, `Next chapter (Chapter ${nextChapter})`);
+  // A missing neighbour hides its button rather than greying it out.
+  const hasPrevChapter = state.height > 0;
+  const hasNextChapter = !atTip;
+  const hasPrevSection = !(state.height === 0 && idx === 0);
+  const hasNextSection = !(atTip && idx >= state.txCount - 1);
+  showBtn('chapter-prev', hasPrevChapter);
+  showBtn('chapter-next', hasNextChapter);
+  showBtn('page-prev', hasPrevSection);
+  showBtn('page-next', hasNextSection);
 
-  // Section steps: within the chapter they name the target section; at an edge
-  // they cross into the neighbouring chapter, so they name that chapter instead.
-  const idx = state.index;
-  if (idx > 0) setBtn('page-prev', `← § ${idx}`, `Previous section (§ ${idx})`);                       // target section = current 1-based index minus one
-  else if (state.height > 0) setBtn('page-prev', `← Ch. ${prevChapter}`, `Previous section (end of Chapter ${prevChapter})`);  // crosses to the previous chapter's final section
-  else setBtn('page-prev', '← Previous', 'Previous section');                                          // genesis §1: nothing before it
+  // Chapter navigation -- the reference truncated at the chapter.
+  if (hasPrevChapter) setBtn('chapter-prev', minSharedRef(cur, volumeBookChapter(state.height - 1), null), `Previous chapter (${reference(state.height - 1)})`);
+  if (hasNextChapter) setBtn('chapter-next', minSharedRef(cur, volumeBookChapter(state.height + 1), null), `Next chapter (${reference(state.height + 1)})`);
 
-  if (idx < state.txCount - 1) setBtn('page-next', `§ ${idx + 2} →`, `Next section (§ ${idx + 2})`);   // target section = current 1-based index plus one
-  else setBtn('page-next', `Ch. ${nextChapter} § 1 →`, `Next section (Chapter ${nextChapter}, § 1)`);  // crosses to the next chapter's first section
+  // Section navigation -- the reference down to the §section.
+  if (hasPrevSection) {
+    if (idx > 0) {
+      setBtn('page-prev', minSharedRef(cur, cur, idx), `Previous section (${reference(state.height)} §${idx})`);   // same chapter, target section = current 1-based index minus one
+    } else {
+      // Steps back into the prior block's final section; its §number is that
+      // block's tx count, not known until it loads -- shown as § once resolved.
+      const t = volumeBookChapter(state.height - 1);
+      setBtn('page-prev', minSharedRef(cur, t, '…'), `Previous section (end of ${reference(state.height - 1)})`);
+      loadBlockTxCount(state.height - 1)
+        .then((n) => { if (gen === renderGen) setBtn('page-prev', minSharedRef(cur, t, n), `Previous section (${reference(state.height - 1)} §${n})`); })
+        .catch(() => {});
+    }
+  }
+  if (hasNextSection) {
+    if (idx < state.txCount - 1) {
+      setBtn('page-next', minSharedRef(cur, cur, idx + 2), `Next section (${reference(state.height)} §${idx + 2})`);   // same chapter, target section = current 1-based index plus one
+    } else {
+      const t = volumeBookChapter(state.height + 1);
+      setBtn('page-next', minSharedRef(cur, t, 1), `Next section (${reference(state.height + 1)} §1)`);   // crosses into the next block's first section
+    }
+  }
 }
 
 // Encode every witness-bearing input's witness into a numbered footnote and
@@ -1800,8 +1858,7 @@ async function stepTx(direction) {
   } catch (e) {
     if (direction > 0) tipHeight = state.height;
     setStatus(direction > 0 ? 'No next block yet — this is the current chain tip.' : (e.message || 'Failed to load previous block.'), 'err');
-    $('page-prev').disabled = state.height === 0 && state.index === 0;
-    $('page-next').disabled = direction > 0;
+    labelNav();   // re-show/hide from the (unchanged) position, now that the tip may be known
   }
 }
 
@@ -1824,8 +1881,7 @@ async function goToChapter(direction) {
   } catch (e) {
     if (direction > 0) tipHeight = state.height;   // asked past the tip -- remember it
     setStatus(direction > 0 ? 'No next chapter yet — this is the current chain tip.' : (e.message || 'Failed to load previous chapter.'), 'err');
-    $('chapter-prev').disabled = state.height === 0;
-    $('chapter-next').disabled = direction > 0;
+    labelNav();   // re-show/hide from the (unchanged) position, now that the tip may be known
   } finally {
     chapterLoading = false;
   }
