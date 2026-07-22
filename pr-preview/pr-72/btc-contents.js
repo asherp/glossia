@@ -16,7 +16,6 @@ export const NOTABLE = [
   { title: 'The Times 03/Jan/2009 Chancellor on brink of second bailout for banks', id: '4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b' },
   { title: 'Hal Finney transaction', id: 'f4184fc596403b9d638783cf57adfe4c75c605f6356fbc91338530e9831e9e16' },
   { title: 'Bitcoin Pizza Day', id: '57043' },
-  { title: 'Value overflow incident', id: '74638', index: 1 },   // §2: the tx that minted ~184.4 billion BTC via an output-value overflow
   { title: '100K block milestone', id: '100000' },
   { title: 'Eligius', id: '139690' },
   { title: 'First P2SH spend', id: 'e5779b9e78f9650debc2893fd9636d827b26b4ddfa6a8172fe8708c924f5c39d' },
