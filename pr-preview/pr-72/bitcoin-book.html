@@ -203,6 +203,10 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    each field carries its decoded form in `title` (a tooltip). */
 .chapter-frontispiece { margin: 0 auto 4px; max-width: 46ch; font: 500 11.5px/1.7 'IBM Plex Mono',monospace; color: var(--meta); }
 .chapter-frontispiece .cfx + .cfx::before { content: ' · '; }
+/* The merkle root's ⋔ mark: the clickable handle for its hash menu (copy hex /
+   prose), accented so it reads as the actionable element while the root's prose
+   beside it stays plain. */
+.merkle-mark { color: var(--accent); }
 
 /* A Glossia-encoded hash (a block hash, a txid, a merkle root): the prose is
    the visible text; clicking anywhere on it opens a menu to copy the exact hex
@@ -1448,8 +1452,10 @@ async function showCurrentTx() {
 // is never revealed on the page. A hash that's a lookup target (a block hash,
 // previous-block hash, or txid) can be bookmarked; a merkle root, which leads
 // nowhere, is copy-only.
-function attachHashCopy(el, hex, label) {
-  const prose = el.textContent;          // the visible prose for this hash
+function attachHashCopy(el, hex, label, prose = el.textContent) {
+  // `prose` is the readable form the menu offers to copy. It defaults to the
+  // element's own text, but when the hit target is a separate mark (the merkle
+  // root's ⋔) the prose lives beside it and is passed in explicitly.
   // This chapter's own hashes are bookmarkable; a merkle root leads nowhere, and
   // the previous-block hash just points back a chapter, so both are copy-only.
   const nav = label !== 'merkle root' && label !== 'previous block hash';
@@ -1484,17 +1490,27 @@ function renderFrontispiece(header) {
   const items = [
     { text: `v${hf.version}`, title: 'block version' },
     { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : null, copy: isGenesisPrev ? null : { hex: header.prevBlockHash, label: 'previous block hash' } },
-    { text: merkleProse, copy: { hex: header.merkleRoot, label: 'merkle root' } },
+    // The merkle root is prefixed with ⋔ (the book's merkle mark); that mark is
+    // the clickable handle for the copy menu, so the prose beside it reads plain.
+    { text: merkleProse, mark: '⋔', copy: { hex: header.merkleRoot, label: 'merkle root' } },
     { text: hf.timestamp, title: hf.timestampTitle },
     { text: hf.bits, title: hf.bitsTitle },
     { text: hf.nonce, title: hf.nonceTitle },
   ];
-  for (const { text, title, copy } of items) {
+  for (const { text, title, copy, mark } of items) {
     const span = document.createElement('span');
     span.className = 'cfx';
-    span.textContent = text;
-    if (copy) attachHashCopy(span, copy.hex, copy.label);
-    else if (title) span.title = title;
+    if (mark && copy) {
+      const m = document.createElement('span');
+      m.className = 'merkle-mark';
+      m.textContent = mark;
+      attachHashCopy(m, copy.hex, copy.label, text);   // the ⋔ mark opens the menu; prose is passed in
+      span.append(m, ' ' + text);                      // prose shown beside it, not itself clickable
+    } else {
+      span.textContent = text;
+      if (copy) attachHashCopy(span, copy.hex, copy.label);
+      else if (title) span.title = title;
+    }
     el.append(span);
   }
 }
