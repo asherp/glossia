@@ -280,6 +280,20 @@ function opToken(code) {
   return `<span class="op-name">${name}</span>`;
 }
 
+// A mark's copy payload, carried as data attributes for bitcoin-book.html's
+// delegated copy menu (the same menu a hash gets): data-hex is the exact wire
+// bytes the mark stands for; data-enc is the form the page's prose encodes
+// when that differs (a DER signature compacted to r‖s‖sighash); data-text is
+// a decoded-text alternative (a quoted push's string). Hex is [0-9a-f] and the
+// text is escaped, so the attributes are safe in HTML rendered via innerHTML.
+function copyAttrs(copy) {
+  if (!copy || !copy.hex) return '';
+  let a = ` role="button" tabindex="0" data-hex="${copy.hex}"`;
+  if (copy.enc && copy.enc !== copy.hex) a += ` data-enc="${copy.enc}"`;
+  if (copy.text) a += ` data-text="${escapeHtml(copy.text)}"`;
+  return a;
+}
+
 // A push opcode's mark. A direct push (OP_PUSHBYTES_n) is the quietest
 // instruction in the set, so its mark is the quietest possible: the bare
 // superscript byte count, ⁿ. (Superscripts count bytes; subscripts index an
@@ -288,13 +302,13 @@ function opToken(code) {
 // matching prefix width: ↧ⁿ (1-byte), ⇊ⁿ (2-byte), ⤋ⁿ (4-byte). The pushed data itself
 // follows the mark, as prose or an inline quote. (The coinbase preamble's
 // βₙ and ηn marks fold their push opcode in -- the mark alone determines
-// the exact bytes.)
+// the exact bytes.) With a `copy` payload the mark is click-to-copy.
 const PUSH_GLYPHS = { 0: '', 1: '↧', 2: '⇊', 4: '⤋' };
-function pushToken(form, byteLen) {
+function pushToken(form, byteLen, copy = null) {
   const title = form
     ? `OP_PUSHDATA${form} — push ${byteLen} bytes, the length in a ${form}-byte prefix`
     : `OP_PUSHBYTES_${byteLen} — push the next ${byteLen} bytes`;
-  return `<span class="op op-push" title="${title}">${PUSH_GLYPHS[form] || ''}${toSuperscript(byteLen)}</span>`;
+  return `<span class="op op-push${copy ? ' mark-copy' : ''}" title="${title}"${copyAttrs(copy)}>${PUSH_GLYPHS[form] || ''}${toSuperscript(byteLen)}</span>`;
 }
 
 // ─── DER signature compaction ──────────────────────────────────────────
@@ -401,8 +415,10 @@ const markToken = (glyph, title) => `<span class="op" title="${title}">${glyph}<
 // byte count riding on the mark itself as a superscript that follows it, so a
 // script reads as its pattern (p⁶⁵ ∇) without consulting the key. (A bare,
 // untyped push keeps its superscript leading, before the prose.) Classification
-// is display-only annotation: it never changes what gets encoded.
-const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span>`;
+// is display-only annotation: it never changes what gets encoded. With a
+// `copy` payload the mark is click-to-copy, like the push mark it rides with.
+const dataMark = (sym, title, copy = null) =>
+  `<span class="dt${copy ? ' mark-copy' : ''}" title="${title}"${copyAttrs(copy)}>${sym}</span>`;
 
 // Classify a script push -> a type mark, or '' when its kind isn't evident.
 // `compact` is derToCompact's verdict (a canonical DER signature). A 20-byte
@@ -413,11 +429,12 @@ const dataMark = (sym, title) => `<span class="dt" title="${title}">${sym}</span
 const SIG_CHECK_OPS = new Set([0xac, 0xad, 0xba]);
 function scriptDataMark(push, compact, prevOp, nextOp) {
   const n = push.length / 2;
-  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('s', 'signature');
-  if (isPubkey(push)) return dataMark('p', 'public key');
-  if (n === 32 && prevOp === 0x51) return dataMark('p', 'public key — Taproot tweaked output key');
-  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('p', 'public key — x-only');
-  if (n === 20 || n === 32) return dataMark('h', 'hash');
+  const copy = { hex: push, enc: compact || push };
+  if (compact || (push.slice(0, 2) === '30' && n >= 68 && n <= 73)) return dataMark('s', 'signature', copy);
+  if (isPubkey(push)) return dataMark('p', 'public key', copy);
+  if (n === 32 && prevOp === 0x51) return dataMark('p', 'public key — Taproot tweaked output key', copy);
+  if (n === 32 && SIG_CHECK_OPS.has(nextOp)) return dataMark('p', 'public key — x-only', copy);
+  if (n === 20 || n === 32) return dataMark('h', 'hash', copy);
   return '';
 }
 
@@ -508,11 +525,14 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
           return;
         }
       }
-      const mark = pushToken(t.pushForm || 0, t.push.length / 2);
-      if (!t.push) { parts.push(mark); return; }              // a zero-length extended push -- the mark alone
+      // The byte-count mark carries its push's copy payload -- the wire bytes
+      // always, plus the decoded text or compacted form when the branch below
+      // has one -- so it's built per branch.
+      const mark = (copy) => pushToken(t.pushForm || 0, t.push.length / 2, copy);
+      if (!t.push) { parts.push(mark(null)); return; }        // a zero-length extended push -- the mark alone
       if (i === redeemIdx && looksLikeScript(t.push)) {
         // reveal the redeemScript, typed r
-        parts.push(dataMark('r', 'redeem script — revealed as opcodes') + mark, renderScript(t.push, collect));
+        parts.push(dataMark('r', 'redeem script — revealed as opcodes', { hex: t.push }) + mark({ hex: t.push }), renderScript(t.push, collect));
         return;
       }
       // A push directly before OP_CLTV (τ) or OP_CSV (Δ) is a timelock threshold,
@@ -527,12 +547,12 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       }
       if (eligible) {
         const found = findTextRuns(t.push, { segment: false });   // t.push is a payload, not a script
-        if (found.length) { parts.push(mark, found.map((s) => `“${quoteText(s)}”`).join(' ')); return; }
+        if (found.length) { parts.push(mark({ hex: t.push, text: found.join('\n') }), found.map((s) => `“${quoteText(s)}”`).join(' ')); return; }
       }
       // A wholly-readable push (an inscription's content type, a text body, an
       // embedded UTF-8 message) reads as its own quoted text rather than cover prose.
       const text = textPush(t.push);
-      if (text !== null) { parts.push(mark, `“${quoteText(text)}”`); return; }
+      if (text !== null) { parts.push(mark({ hex: t.push, text }), `“${quoteText(text)}”`); return; }
       // A short number pushed as data (an Ordinals field tag, a script number)
       // reads as its literal digits, like the book's other structural numbers.
       const num = numberPush(t.push);
@@ -542,7 +562,8 @@ function renderScript(hex, collect, { eligible = false, nested = false, preamble
       // (p⁶⁵), so the datum's kind leads and its length rides after it; a bare
       // push keeps the superscript leading, before its prose.
       const dtMark = scriptDataMark(t.push, compact, prevOp, toks[i + 1]?.op);
-      parts.push(dtMark ? dtMark + mark : mark, collect(compact || t.push));
+      const pushMark = mark({ hex: t.push, enc: compact || t.push });
+      parts.push(dtMark ? dtMark + pushMark : pushMark, collect(compact || t.push));
     } else {
       pre = 'done';
       parts.push(collect(t.trunc));                           // malformed tail -- carry it as prose
@@ -644,11 +665,11 @@ function renderControlBlock(hex, encode) {
   const leafVer = b >> 1, parity = b & 1;
   const ctrlByte = `<span class="op" title="control byte — tapleaf version ${leafVer} (top 7 bits; 0x${b.toString(16).padStart(2, '0')}), output-key parity ${parity}">v${leafVer}${parity ? '₁' : '₀'}</span>`;
   const parts = [
-    dataMark('c', 'control block — a Taproot script-path reveal') + ' ' + ctrlByte,
-    dataMark('p', 'public key — the Taproot internal key') + ' ' + encode(hex.slice(2, 66)),
+    dataMark('c', 'control block — a Taproot script-path reveal', { hex }) + ' ' + ctrlByte,
+    dataMark('p', 'public key — the Taproot internal key', { hex: hex.slice(2, 66) }) + ' ' + encode(hex.slice(2, 66)),
   ];
   const path = hex.slice(66);                                 // zero or more 32-byte sibling hashes
-  if (path) parts.push(dataMark('⋔', 'merkle proof — the sibling hashes proving the revealed leaf is committed in the taptree') + ' ' + encode(path));
+  if (path) parts.push(dataMark('⋔', 'merkle proof — the sibling hashes proving the revealed leaf is committed in the taptree', { hex: path }) + ' ' + encode(path));
   return parts.join(' ');
 }
 
@@ -665,16 +686,16 @@ export function renderWitness(items, encode) {
   return items
     .map((hex, i) => {
       if (!hex) return '<span class="wit-empty">∅</span>';    // an empty stack item
-      if (i === annexIdx) return dataMark('a', 'annex — reserved Taproot spend data (BIP341)') + ' ' + encode(hex);
+      if (i === annexIdx) return dataMark('a', 'annex — reserved Taproot spend data (BIP341)', { hex }) + ' ' + encode(hex);
       if (scriptIdxs.has(i)) {
         const isTapscript = i + 1 < items.length && isControlBlock(items[i + 1]);
-        return (isTapscript ? dataMark('t', 'tapscript — a Taproot leaf, revealed as opcodes') : dataMark('w', 'witness script — revealed as opcodes'))
+        return (isTapscript ? dataMark('t', 'tapscript — a Taproot leaf, revealed as opcodes', { hex }) : dataMark('w', 'witness script — revealed as opcodes', { hex }))
           + ' ' + renderScript(hex, encode);
       }
       if (isControlBlock(hex)) return renderControlBlock(hex, encode);
       const compact = derToCompact(hex);                      // a DER signature is stripped to r‖s‖sighash
-      const dm = (compact || isSignature(hex)) ? dataMark('s', 'signature')
-        : isPubkey(hex) ? dataMark('p', 'public key') : '';
+      const dm = (compact || isSignature(hex)) ? dataMark('s', 'signature', { hex, enc: compact || hex })
+        : isPubkey(hex) ? dataMark('p', 'public key', { hex }) : '';
       return (dm ? dm + ' ' : '') + encode(compact || hex);
     })
     .join(WIT_SEP);
