@@ -390,6 +390,11 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   .tx-inputs, .tx-margin-cites, .tx-outputs, .tx-locktime { grid-column: 1; grid-row: auto; display: block; }
   .tx-in-cite { text-align: left; margin: 0 0 .2em; }
   .tx-out-value, .tx-locktime { text-align: left; margin: 0 0 .55em; }
+  /* Stacked into one column, the drop-cap's first body line now sits directly
+     below its input's citation/amount rather than beside it. The floated
+     initial (line-height .82) overhangs upward, so give the lead line room to
+     keep the cap clear of the amount above it. */
+  .tx-line.tx-body-lead { padding-top: .8em; }
 }
 
 /* A witness-bearing input carries a small superscript index inline; the matching
