@@ -483,6 +483,12 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 .pattern-table .ph { color: var(--accent); font-style: normal; font-weight: 700; }
 .pattern-table .seq.exec .op, .pattern-table .seq.exec .ph { color: var(--ink); font-weight: 400; }
 .pattern-table .seq.exec .ph.chain { color: var(--accent); font-weight: 700; }
+/* The Lightning table carries two extra columns: what each channel party
+   computes independently, off chain -- keys from its own secret k, signatures,
+   and the same script hash h, reached without a secret crossing the wire.
+   Off-chain work never turns gold, so calc rows render plain throughout. */
+.pattern-table.two-party { grid-template-columns: repeat(7, max-content); }
+.pattern-table .seq.calc .op, .pattern-table .seq.calc .ph { color: var(--ink); font-weight: 400; }
 @media (max-width: 480px) { .glyph-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -614,34 +620,62 @@ button:disabled { opacity: .4; cursor: not-allowed; }
       <div class="notation-group">
         <h4>Lightning — commitment &amp; channel scripts</h4>
         <div class="pattern-scroll">
-        <div class="pattern-table">
-          <span class="phead"></span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
+        <div class="pattern-table two-party">
+          <span class="phead"></span><span class="phead">Party 1</span><span class="phead">Party 2</span><span class="phead">UTXO</span><span class="phead">Validator</span><span class="phead">STXO</span><span class="phead">Witness</span>
           <span class="pname">Channel open · 2-of-2</span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
+            <span class="seq calc"><span class="ph">p<sub>1</sub></span> <span class="op">=</span> <span class="ph">k<sub>1</sub></span><span class="op">G</span> · <span class="ph">p<sup>0</sup></span> <span class="op">=</span> <span class="ph">k<sup>0</sup></span><span class="op">G</span> · <span class="ph">s<sub>1</sub><sup>f</sup></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="ph">p<sub>2</sub></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span><span class="op">G</span> · <span class="ph">s<sub>2</sub><sup>f</sup></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span></span>
             <span class="seq exec"><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">②</span> <span class="ph">p<sub>1</sub></span> <span class="ph">p<sub>2</sub></span> <span class="op">②</span> <span class="op">◇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub></span> <span class="ph">s<sub>2</sub></span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">s<sub>1</sub><sup>f</sup></span> <span class="ph">s<sub>2</sub><sup>f</sup></span> · <span class="op">⓪</span> <span class="ph">s<sub>1</sub><sup><i>i</i></sup></span> <span class="ph">s<sub>2</sub><sup><i>i</i></sup></span></span>
+          <span class="pname">Channel update</span>
+            <span class="seq calc"><span class="ph">p<sup><i>i</i>+1</sup></span> <span class="op">=</span> <span class="ph">k<sup><i>i</i>+1</sup></span><span class="op">G</span> · <span class="ph">k<sup><i>i</i></sup></span></span>
+            <span class="seq calc"><span class="ph">k<sub>r</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span><span class="op">Σ(</span><span class="ph">p<sub>2</sub></span><span class="op">⧺</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">)</span> <span class="op">+</span> <span class="ph">k<sup><i>i</i></sup></span><span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>2</sub></span><span class="op">)</span> · <span class="ph">s<sub>r</sub><sup><i>i</i></sup></span></span>
+            <span class="seq none">—</span>
+            <span class="seq none">—</span>
+            <span class="seq none">—</span>
+            <span class="seq none">—</span>
           <span class="pname">Force close · to_local</span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
-            <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub></span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
+            <span class="seq calc"><span class="ph">p<sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sup><i>i</i></sup></span><span class="op">G</span> · <span class="ph">k<sub>1</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>1</sub></span> <span class="op">+</span> <span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>1</sub></span><span class="op">)</span> · <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>1</sub><sup><i>i</i></sup></span><span class="op">G</span> · <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> · <span class="ph">s<sub>1</sub><sup><i>i</i></sup></span> · <span class="op">Σ</span> <span class="ph">w<sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">h<sup><i>i</i></sup></span></span>
+            <span class="seq calc"><span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">p<sub>1</sub></span> <span class="op">+</span> <span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>1</sub></span><span class="op">)</span><span class="op">G</span> · <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">p<sub>2</sub></span><span class="op">Σ(</span><span class="ph">p<sub>2</sub></span><span class="op">⧺</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">)</span> <span class="op">+</span> <span class="ph">p<sup><i>i</i></sup></span><span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>2</sub></span><span class="op">)</span> · <span class="op">Σ</span> <span class="ph">w<sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">h<sup><i>i</i></sup></span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h<sup><i>i</i></sup></span></span>
+            <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h<sup><i>i</i></sup></span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> <span class="op">│</span> <span class="op">■</span> <span class="op">Δ</span> <span class="op">⌄</span> <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
+            <span class="seq"><span class="ph">s<sub>1</sub><sup><i>i</i></sup></span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub><sup><i>i</i></sup></span> <span class="op">①</span></span>
           <span class="pname">Force close · to_remote</span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
+            <span class="seq calc"><span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="ph">p<sub>2</sub></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span><span class="op">G</span> · <span class="ph">s<sub>2</sub></span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span></span>
             <span class="seq exec"><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p<sub>2</sub></span> <span class="op">▼</span> <span class="op">①</span> <span class="op">Δ</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s<sub>2</sub></span></span>
           <span class="pname">Force close · anchor</span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
+            <span class="seq calc"><span class="ph">p</span> <span class="op">=</span> <span class="ph">k</span><span class="op">G</span> · <span class="ph">s</span> · <span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span></span>
+            <span class="seq calc"><span class="op">Σ</span> <span class="ph">w</span> <span class="op">=</span> <span class="ph">h</span> · <span class="op">∅</span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span></span>
             <span class="seq exec"><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="ph">p</span> <span class="op">∇</span> <span class="op">⧉?</span> <span class="op">¬⟨</span> <span class="op">⑯</span> <span class="op">Δ</span> <span class="op">⟩</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
             <span class="seq"><span class="ph">s</span> · <span class="op">∅</span></span>
           <span class="pname">Force close · HTLC</span>
-            <span class="seq"><span class="op">⓪</span> <span class="ph">h</span><span class="op op-push">³²</span></span>
-            <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h</span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
+            <span class="seq calc"><span class="ph">k<sub>1</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>1</sub></span> <span class="op">+</span> <span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>1</sub></span><span class="op">)</span> · <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>1</sub><sup><i>i</i></sup></span><span class="op">G</span> · <span class="ph">p<sub>2</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">p<sub>2</sub></span> <span class="op">+</span> <span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>2</sub></span><span class="op">)</span><span class="op">G</span> · <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> · <span class="ph">s<sub>1</sub><sup><i>i</i></sup></span> · <span class="op">Σ</span> <span class="ph">w<sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">h<sup><i>i</i></sup></span></span>
+            <span class="seq calc"><span class="ph">k<sub>2</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>2</sub></span> <span class="op">+</span> <span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>2</sub></span><span class="op">)</span> · <span class="ph">p<sub>2</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">k<sub>2</sub><sup><i>i</i></sup></span><span class="op">G</span> · <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">p<sub>1</sub></span> <span class="op">+</span> <span class="op">Σ(</span><span class="ph">p<sup><i>i</i></sup></span><span class="op">⧺</span><span class="ph">p<sub>1</sub></span><span class="op">)</span><span class="op">G</span> · <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> · <span class="ph">s<sub>2</sub><sup><i>i</i></sup></span> · <span class="op">Σ</span> <span class="ph">w<sup><i>i</i></sup></span> <span class="op">=</span> <span class="ph">h<sup><i>i</i></sup></span></span>
+            <span class="seq"><span class="op">⓪</span> <span class="ph">h<sup><i>i</i></sup></span></span>
+            <span class="seq exec"><span class="op">⟨</span> <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub><sup><i>i</i></sup></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span> <span class="op">Σ</span> <span class="ph chain">h<sup><i>i</i></sup></span> <span class="op">=</span> <span class="op">(</span><span class="op">⟨</span> <span class="ph">p<sub>r</sub><sup><i>i</i></sup></span> <span class="op">│</span> <span class="op">⟨</span> <span class="op">Σ</span> <span class="ph">h</span> <span class="op">≡</span> <span class="ph">p<sub>1</sub><sup><i>i</i></sup></span> <span class="op">│</span> <span class="op">τ</span> <span class="op">⌄</span> <span class="ph">p<sub>2</sub><sup><i>i</i></sup></span> <span class="op">⟩</span> <span class="op">⟩</span> <span class="op">∇</span><span class="op">)</span></span>
             <span class="seq none">∅</span>
-            <span class="seq"><span class="ph">s<sub>1</sub></span> <span class="ph">h</span> <span class="op">①</span> <span class="op">⓪</span> · <span class="ph">s<sub>2</sub></span> <span class="op">⓪</span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub></span> <span class="op">①</span></span>
+            <span class="seq"><span class="ph">s<sub>1</sub><sup><i>i</i></sup></span> <span class="ph">h</span> <span class="op">①</span> <span class="op">⓪</span> · <span class="ph">s<sub>2</sub><sup><i>i</i></sup></span> <span class="op">⓪</span> <span class="op">⓪</span> · <span class="ph">s<sub>r</sub><sup><i>i</i></sup></span> <span class="op">①</span></span>
         </div>
+        </div>
+        <p class="notation-note">The first two columns are off chain: what each party computes for itself — party 1 is the side whose force close this is. Secrets stay in their own column until an update surrenders k<sup><i>i</i></sup> across; everything else a party writes without deriving came from the other column's public points.</p>
+      </div>
+
+      <div class="notation-group">
+        <h4>Secrets &amp; the generator</h4>
+        <div class="glyph-grid">
+          <div class="glyph-row"><span class="g"><b>k</b></span><span class="m"><b>private key</b> — the secret scalar behind a public key; never on chain</span></div>
+          <div class="glyph-row"><span class="g">G</span><span class="m">the <b>generator</b> — the fixed curve point every key descends from: <b>p</b> = <b>k</b>G</span></div>
+          <div class="glyph-row"><span class="g"><b>p</b><sup>0</sup> <b>p</b><sup><i>i</i></sup> <b>p</b><sup>f</sup></span><span class="m"><b>channel state</b> — a superscript scopes a datum to a state of the channel: 0 the initial commitment sealed at funding, <i>i</i> any intermediate update, f the final, closing state. Each state the closing party draws a fresh secret k<sup><i>i</i></sup> and shares only its point p<sup><i>i</i></sup> = k<sup><i>i</i></sup>G; scripts and hashes rebuild per state. Advancing to <i>i</i>+1 revokes state <i>i</i>: k<sup><i>i</i></sup> crosses to the other side — and nothing else</span></div>
+          <div class="glyph-row"><span class="g"><b>p</b><sub>1</sub><sup><i>i</i></sup> <b>p</b><sub>2</sub><sup><i>i</i></sup> <b>p</b><sub>r</sub><sup><i>i</i></sup></span><span class="m"><b>state-scoped keys</b> — party below, state above: each side's base key folded with p<sup><i>i</i></sup>, and the revocation key; the party columns derive them in full, each side by its own route</span></div>
         </div>
       </div>
 
@@ -1257,24 +1291,44 @@ async function ensureTxids(st) {
   return st.txids;
 }
 
+// The immutable core of a block's metadata -- its info and header, everything
+// but the txid list. A block hash permanently determines this content, so it's
+// memoized by hash: revisiting a block (e.g. stepping Next then back) re-fetches
+// nothing. Keyed by hash, not height, so a tip reorg can never serve stale data
+// -- a different block is a different hash. The shared objects are read-only.
+const blockCoreCache = new Map();   // hash -> Promise<{ hash, height, block, txCount, header, headerVerified }>
+function loadBlockCore(hash) {
+  if (!blockCoreCache.has(hash)) {
+    blockCoreCache.set(hash, (async () => {
+      const [blockRes, headerRes] = await Promise.all([
+        esploraFetch(`${ESPLORA}/block/${hash}`),
+        esploraFetch(`${ESPLORA}/block/${hash}/header`),
+      ]);
+      if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
+      if (!headerRes.ok) throw new Error(`Esplora returned ${headerRes.status} fetching the block header.`);
+      const block = await blockRes.json();
+      const headerHex = (await headerRes.text()).trim();
+      // Parsed from the raw 80-byte header, not trusted from the JSON above --
+      // same self-parsed, self-verified stance as a transaction's txid.
+      const header = parseBlockHeader(headerHex);
+      const headerVerified = (await computeBlockHash(headerHex)) === hash;
+      return { hash, height: block.height, block, txCount: block.tx_count, header, headerVerified };
+    })().catch((e) => { blockCoreCache.delete(hash); throw e; }));
+  }
+  return blockCoreCache.get(hash);
+}
+
 // `withTxids: false` leaves the (heavy) txid list unfetched -- used when opening
 // a single transaction, whose section index comes from its merkle proof instead.
 // The block's transaction count still comes from its info (tx_count), so section
-// bounds and Next work without the list.
+// bounds and Next work without the list. Core (info + header) and the txid list
+// are each memoized, so a re-visit re-fetches neither.
 async function loadBlockMeta(hash, { withTxids = true } = {}) {
-  const [[blockRes, headerRes], txids] = await Promise.all([
-    Promise.all([esploraFetch(`${ESPLORA}/block/${hash}`), esploraFetch(`${ESPLORA}/block/${hash}/header`)]),
+  const [core, txids] = await Promise.all([
+    loadBlockCore(hash),
     withTxids ? fetchTxids(hash) : Promise.resolve(null),
   ]);
-  if (!blockRes.ok) throw new Error(`Esplora returned ${blockRes.status} fetching block info.`);
-  if (!headerRes.ok) throw new Error(`Esplora returned ${headerRes.status} fetching the block header.`);
-  const block = await blockRes.json();
-  const headerHex = (await headerRes.text()).trim();
-  // Parsed from the raw 80-byte header, not trusted from the JSON above --
-  // same self-parsed, self-verified stance as a transaction's txid.
-  const header = parseBlockHeader(headerHex);
-  const headerVerified = (await computeBlockHash(headerHex)) === hash;
-  return { hash, height: block.height, block, txids, txCount: block.tx_count, header, headerVerified };
+  return { ...core, txids };
 }
 
 async function loadBlockByHeight(height) {
@@ -1334,14 +1388,27 @@ async function loadBlockByTxid(txid) {
   return { meta, index, txid };
 }
 
+// A confirmed transaction's raw hex is immutable -- the txid is its hash -- so
+// it's memoized. Re-opening a section, or stepping back to one, re-parses from
+// cache instead of re-fetching the (potentially large) hex.
+const txHexCache = new Map();   // txid -> Promise<hex>
+function loadTxHex(txid) {
+  if (!txHexCache.has(txid)) {
+    txHexCache.set(txid, (async () => {
+      const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
+      if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
+      return (await r.text()).trim();
+    })().catch((e) => { txHexCache.delete(txid); throw e; }));
+  }
+  return txHexCache.get(txid);
+}
+
 async function showCurrentTx() {
   setStatus('<span class="spinner"></span>fetching transaction…');
   // The current txid: from the loaded list when we have it, else the single
   // transaction we opened by id (before its block's list is ever fetched).
   const txid = state.txids ? state.txids[state.index] : state.txid;
-  const r = await esploraFetch(`${ESPLORA}/tx/${txid}/hex`);
-  if (!r.ok) throw new Error(`Esplora returned ${r.status} fetching tx ${txid.slice(0, 8)}…`);
-  const hex = (await r.text()).trim();
+  const hex = await loadTxHex(txid);
 
   if (!ready) await init().catch(() => {});
   setStatus('<span class="spinner"></span>encoding as prose…');
