@@ -164,11 +164,11 @@ export function groupDigits(s) {
 // comma-grouped, and the fraction is always the full eight decimal places, so a
 // right-aligned column of amounts aligns on the point. 50 BTC reads 50.00000000 ₿,
 // a lone satoshi 0.00000001 ₿. An exactly-zero amount (e.g. an OP_RETURN data
-// carrier) reads as a bare 0 rather than a row of zeros. BigInt keeps large sat
+// carrier) reads as a bare 0 ₿ rather than a row of zeros. BigInt keeps large sat
 // counts exact.
 export function formatBtc(sats) {
   const s = BigInt(sats);
-  if (s === 0n) return '0';
+  if (s === 0n) return '0 ₿';
   const whole = (s / 100000000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const frac = (s % 100000000n).toString().padStart(8, '0');
   return `${whole}.${frac} ₿`;
