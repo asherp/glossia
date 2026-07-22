@@ -1434,7 +1434,9 @@ function renderFrontispiece(header) {
   const merkleProse = encodeSeedPhrase(reverseHex(header.merkleRoot), 'english', BEST_OF).prose;
   const items = [
     { text: `v${hf.version}`, title: 'block version' },
-    { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : null, copy: isGenesisPrev ? null : { hex: header.prevBlockHash, label: 'previous block hash' } },
+    // The previous-block hash is on-chain data, so it leads with the book's
+    // bold-gold h (hash) data mark, like the data marks in the body prose.
+    { text: prevProse, title: isGenesisPrev ? 'no earlier block — this is the genesis block' : null, dataMark: isGenesisPrev ? null : 'h', copy: isGenesisPrev ? null : { hex: header.prevBlockHash, label: 'previous block hash' } },
     // The merkle root is prefixed with ⋔ (the book's merkle mark); that mark is
     // the clickable handle for the copy menu, so the prose beside it reads plain.
     { text: merkleProse, mark: '⋔', copy: { hex: header.merkleRoot, label: 'merkle root' } },
@@ -1442,7 +1444,7 @@ function renderFrontispiece(header) {
     { text: hf.bits, title: hf.bitsTitle },
     { text: hf.nonce, title: hf.nonceTitle },
   ];
-  for (const { text, title, copy, mark } of items) {
+  for (const { text, title, copy, mark, dataMark } of items) {
     const span = document.createElement('span');
     span.className = 'cfx';
     if (mark && copy) {
@@ -1452,8 +1454,17 @@ function renderFrontispiece(header) {
       attachHashCopy(m, copy.hex, copy.label, text);   // the ⋔ mark opens the menu; prose is passed in
       span.append(m, ' ' + text);                      // prose shown beside it, not itself clickable
     } else {
-      span.textContent = text;
-      if (copy) attachHashCopy(span, copy.hex, copy.label);
+      if (dataMark) {
+        // A bold-gold data-type mark (h/s/…) leads the prose; the whole field
+        // stays the clickable hash target, so the prose to copy is passed in.
+        const d = document.createElement('span');
+        d.className = 'dt';
+        d.textContent = dataMark;
+        span.append(d, ' ' + text);
+      } else {
+        span.textContent = text;
+      }
+      if (copy) attachHashCopy(span, copy.hex, copy.label, dataMark ? text : undefined);
       else if (title) span.title = title;
     }
     el.append(span);
