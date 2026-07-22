@@ -486,7 +486,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
   <div class="card">
     <label for="block-input">Block height, hash, transaction id, or reference</label>
     <div class="lookup-row">
-      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. III β2, a height, a hash, or a transaction id" autocomplete="off" spellcheck="false">
+      <input type="text" id="block-input" class="mono" value="0" placeholder="e.g. III β2 ■5, a height, a hash, or a transaction id" autocomplete="off" spellcheck="false">
       <button type="button" id="block-btn">Read</button>
     </div>
     <div id="block-status" class="status-line hidden"></div>
@@ -795,7 +795,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
         <h4>Margin — the transaction's locktime &amp; other marks</h4>
         <div class="glyph-grid">
           <div class="glyph-row"><span class="g">□</span><span class="m">no locktime</span></div>
-          <div class="glyph-row"><span class="g">■ <i>v</i> β<i>b</i> <i>c</i></span><span class="m">not before the cited chapter (volume, β book, chapter)</span></div>
+          <div class="glyph-row"><span class="g"><i>v</i> β<i>b</i> ■<i>c</i></span><span class="m">not before the cited chapter (volume, β book, ■ chapter)</span></div>
           <div class="glyph-row"><span class="g">Τ<i>t</i></span><span class="m">not before a UTC date</span></div>
           <div class="glyph-row"><span class="g">∅</span><span class="m"><b>empty</b> — a coinbase's absent prevout, a segwit input's zero-byte script, an empty witness item</span></div>
           <div class="glyph-row"><span class="g">§<i>n</i></span><span class="m">section — the transaction's position</span></div>
@@ -1112,8 +1112,9 @@ function fromRoman(s) {
 // Returns null when the string isn't a reference at all.
 function parseReference(input) {
   const s = input.trim().replace(/\s+/g, ' ');
-  // The book may be written β2 or a bare 2 -- the β sigil is optional on input.
-  const m = s.match(/^([ivxlcdm]+)(?:\s+β?(\d+))?(?:\s+(\d+))?(?:\s+§?(\d+)(?:\.\d+)?)?$/i);
+  // The book (β2) and chapter (■5) sigils are optional on input -- a bare
+  // "III 2 5" resolves just as "III β2 ■5" does.
+  const m = s.match(/^([ivxlcdm]+)(?:\s+β?(\d+))?(?:\s+■?(\d+))?(?:\s+§?(\d+)(?:\.\d+)?)?$/i);
   if (!m) return null;
   const volume = fromRoman(m[1].toUpperCase());
   if (!Number.isFinite(volume) || volume < 1) return null;
@@ -1158,7 +1159,7 @@ async function resolveForwardCitations(txid, cells, gen) {
         const link = document.createElement('a');
         link.className = 'cite-section-link';
         link.href = `?block=${height}&index=${pos}`;
-        link.textContent = `${toRoman(volume)} β${book} ${chapter} §${pos + 1}`;
+        link.textContent = `${toRoman(volume)} β${book} ■${chapter} §${pos + 1}`;
         link.title = `spent by input ${sp.vin + 1} of ${sp.txid}`;
         link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `in-${sp.vin}`); });
         cell.append(link);
@@ -1176,7 +1177,7 @@ function renderCitation(citeBody, height, pos, vout) {
   const link = document.createElement('a');
   link.className = 'cite-section-link';
   link.href = `?block=${height}&index=${pos}`;
-  link.textContent = `${toRoman(volume)} β${book} ${chapter} §${pos + 1}.${vout}`;
+  link.textContent = `${toRoman(volume)} β${book} ■${chapter} §${pos + 1}.${vout}`;
   link.title = `go to §${pos + 1}.${vout}`;
   link.addEventListener('click', (e) => { e.preventDefault(); goToSection(height, pos, `out-${vout}`); });
   citeBody.textContent = '';
@@ -1415,7 +1416,7 @@ function renderChapter(para) {
   // Keep the lookup field showing where we are, in the same reference form the
   // citations use, so it round-trips: any navigation refreshes it, and pressing
   // Read chapter on it returns to this very section.
-  $('block-input').value = `${toRoman(volume)} β${book} ${chapter} §${state.index + 1}`;
+  $('block-input').value = `${toRoman(volume)} β${book} ■${chapter} §${state.index + 1}`;
 
   // The big title (and hash subtitle) introduce the chapter as a whole, so
   // they only belong on its first transaction. Every later transaction
@@ -1664,9 +1665,10 @@ function renderChapter(para) {
 // contents abbreviates consecutive entries: show a level (volume, book, chapter)
 // only when it -- or a coarser level -- differs from where the reader is now, so
 // a step within the same chapter reads as a bare "§4", one across a chapter as
-// "5 §1", one across a book as "β2 5 §1", one across an era as "II β1 1 §1". The
-// book carries its β sigil (see reference() in btc-citation.js). A chapter jump
-// (section === null) always ends on the chapter, never a §section.
+// "■5 §1", one across a book as "β2 ■5 §1", one across an era as "II β1 ■1 §1".
+// The book carries its β sigil and the chapter its ■ (see reference() in
+// btc-citation.js). A chapter jump (section === null) always ends on the ■chapter,
+// never a §section.
 function minSharedRef(cur, target, section) {
   const dv = target.volume !== cur.volume;
   const db = dv || target.book !== cur.book;
@@ -1674,7 +1676,7 @@ function minSharedRef(cur, target, section) {
   const parts = [];
   if (dv) parts.push(toRoman(target.volume));
   if (db) parts.push(`β${target.book}`);
-  if (dc || section == null) parts.push(String(target.chapter));
+  if (dc || section == null) parts.push(`■${target.chapter}`);
   if (section != null) parts.push(`§${section}`);
   return parts.join(' ');
 }
@@ -2135,7 +2137,7 @@ function suggestTitle(entry) {
   if (!place) return '';
   const { volume, book, chapter } = volumeBookChapter(place.height);
   const genesis = volume === 1 && book === 1 && chapter === 1;
-  if (place.pos != null) return `${toRoman(volume)} β${book} ${chapter} §${place.pos + 1}`;
+  if (place.pos != null) return `${toRoman(volume)} β${book} ■${chapter} §${place.pos + 1}`;
   return genesis ? 'Genesis' : `Chapter ${chapter}`;
 }
 

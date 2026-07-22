@@ -29,10 +29,12 @@ function toRoman(n) {
 
 // The timelock fields get symbols rather than digit strings, on a small grammar
 // that separates the whole transaction's status (nLockTime) from each input's
-// (nSequence), sharing ■ (block) / Τ (temporal) for the block/time distinction:
-//   Transaction (nLockTime):  □ none · ■n absolute block height · Τn absolute unix time
+// (nSequence), sharing ■ (block) / Τ (temporal) for the block/time distinction.
+// ■ is also the chapter sigil in references, so an absolute block-height lock is
+// written as the chapter reference it names rather than a leading ■n:
+//   Transaction (nLockTime):  □ none · v βb ■c absolute block (a chapter) · Τn absolute unix time
 //   Input (nSequence):        ○ final · † replaceable (opt-in RBF) ·
-//                             ■n relative block delay · Τn relative time delay
+//                             ■n relative block delay (a count of chapters) · Τn relative time delay
 // The square reads as the whole document, the circle as one input. A coinbase's
 // null prevout is flagged with isNullPrevout so the renderer can mark it (∅);
 // other prevouts are carried as references and resolved to a citation
@@ -52,15 +54,16 @@ function durationFrom512s(n) {
   return parts.join('');
 }
 
-// nLockTime -> { mark, title }: □ (none), ■ + citation (absolute block --
-// the block is a chapter of the book, so it's cited as volume book chapter
-// rather than a bare height), Τ + UTC date (absolute time -- rendered
-// physically, the raw unix value in the hover).
+// nLockTime -> { mark, title }: □ (none), a chapter reference for an absolute
+// block height (the block is a chapter, cited as volume book ■chapter rather than
+// a bare height -- the chapter's own ■ block-mark carries the "block" sense the
+// leading ■ used to, so no separate operator is needed), Τ + UTC date for an
+// absolute time (rendered physically, the raw unix value in the hover).
 function locktimeInfo(locktime) {
   if (locktime === 0) return { mark: '□', title: 'no locktime — final with respect to time' };
   if (locktime < LOCKTIME_THRESHOLD) {
     const { volume, book, chapter } = volumeBookChapter(locktime);
-    return { mark: `■ ${toRoman(volume)} β${book} ${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
+    return { mark: `${toRoman(volume)} β${book} ■${chapter}`, title: `locktime: not before block ${locktime} — volume ${volume}, book ${book}, chapter ${chapter}` };
   }
   const date = new Date(locktime * 1000).toISOString().slice(0, 16).replace('T', ' ');
   return { mark: `Τ${date}`, title: `locktime: not before ${date} UTC (unix ${locktime})` };
