@@ -193,9 +193,6 @@ button:disabled { opacity: .4; cursor: not-allowed; }
    already cased -- so they opt out of the buttons' default uppercasing, which
    would turn the book's lowercase β into a Latin-looking capital Β. */
 .chapter-step { padding: 12px 16px; font-size: 15px; line-height: 1; text-transform: none; }
-/* β marks a book (a difficulty-adjustment window, echoing the header's βₙ
-   difficulty target). Kept lowercase even inside an uppercased eyebrow/heading. */
-.beta-mark { text-transform: none; }
 .chapter-title { font: 500 37px/1.2 'Newsreader', serif; color: var(--ink); margin: 0 0 22px; letter-spacing: -.01em; }
 .chapter-hash { font: italic 400 15px/1.5 'Newsreader',serif; color: var(--dim); margin: 0 auto 16px; max-width: 46ch; }
 /* The block header's own fields -- version, previous-block hash, merkle
@@ -518,7 +515,7 @@ button:disabled { opacity: .4; cursor: not-allowed; }
     <header class="chapter-head">
       <nav class="chapter-nav">
         <button type="button" id="chapter-prev" class="chapter-step hidden" aria-label="Previous chapter" title="Previous chapter"></button>
-        <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span class="beta-mark">β</span><span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
+        <div class="chapter-num">Volume <span id="ch-volume"></span> · Book <span id="ch-book"></span><span id="ch-chapter-inline"></span></div>
         <button type="button" id="chapter-next" class="chapter-step hidden" aria-label="Next chapter" title="Next chapter"></button>
       </nav>
       <h1 class="chapter-title" id="ch-title"></h1>
