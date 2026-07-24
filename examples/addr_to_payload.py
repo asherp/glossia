@@ -1,14 +1,9 @@
 #!/usr/bin/env python3
-"""Bitcoin address -> prose-address payload bytes.
+"""Bitcoin address -> (script type, entropy-carrying program bytes).
 
-Payload layout (proposed v1):
-    [0]     version      profile id: grammar + semantics + RNG + cover mode
-    [1]     script_type  1=P2PKH 2=P2SH 3=P2WPKH 4=P2WSH 5=P2TR
-    [2..4]  wordlist_len u16 big-endian, payload wordlist size (allows extension)
-    [4..]   program      the hash160 / witness program (opcodes implied by type)
-
-Storing type+program rather than the full scriptPubKey saves the opcode bytes:
-a P2PKH scriptPubKey is 25 bytes but its hash160 is only 20.
+Emits TSV for prose_address_v2.py. Script opcodes are NOT encoded -- they are
+rendered verbatim as Unicode symbols -- so Glossia carries only the program
+(the hash160 or witness program), 20 or 32 bytes.
 """
 
 B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -77,16 +72,11 @@ ADDRESSES = [
      'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9'),
 ]
 
-VERSION = 1
-WORDLIST_LEN = 2048   # english bip39
-
 for label, addr in ADDRESSES:
     if addr[0] in '13':
         ver, program = b58check_decode(addr)
-        stype = 1 if ver == 0x00 else 2
+        stype = 'P2PKH' if ver == 0x00 else 'P2SH'
     else:
         witver, program = bech32_decode(addr)
-        stype = {0: (3 if len(program) == 20 else 4), 1: 5}[witver]
-    header = bytes([VERSION, stype]) + WORDLIST_LEN.to_bytes(2, 'big')
-    payload = header + program
-    print(f'{label}\t{addr}\t{payload.hex()}\t{len(payload)}')
+        stype = ('P2WPKH' if len(program) == 20 else 'P2WSH') if witver == 0 else 'P2TR'
+    print(f'{label}\t{addr}\t{stype}\t{program.hex()}')
