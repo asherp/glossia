@@ -246,10 +246,7 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
             .collect()
     } else {
         // Standard whitespace-delimited extraction
-        text.split_whitespace()
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-            .filter(|w| payload_tree.contains(w))
-            .collect()
+        codec::payload_tokens(text, |w| payload_tree.contains(w))
     };
 
     if extracted.is_empty() {
@@ -1481,11 +1478,7 @@ fn decode_raw_base_n_inner(text: &str, language: &str, wordlist: &str, expected_
     let payload_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
 
     // 3. Extract payload words (filter out cover/prose words)
-    let extracted: Vec<String> = text
-        .split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-        .filter(|w| payload_set.contains(w))
-        .collect();
+    let extracted: Vec<String> = codec::payload_tokens(text, |w| payload_set.contains(w));
 
     if extracted.is_empty() {
         return Ok(serde_json::json!({

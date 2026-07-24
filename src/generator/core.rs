@@ -893,6 +893,36 @@ pub fn generate_text_best_of(
     length_mode: SentenceLengthMode,
     delimiter: &str,
 ) -> (String, HashSet<String>) {
+    let (text, set, _) = generate_text_best_of_indexed(
+        base_seed, n_candidates, lex, payload, original_payload_set, verbose, mode,
+        language, grammar_dialect, k_min, k_max, length_mode, delimiter,
+    );
+    (text, set)
+}
+
+/// Like [`generate_text_best_of`], but also returns which candidate won — the
+/// offset `k` such that the winning seed was `base_seed + k`.
+///
+/// A verifier that re-derives the base seed (e.g. from a payload checksum) can
+/// only reproduce the rendering if it knows, or can search for, this offset.
+/// Returning it lets an encoder report the counter instead of leaving callers to
+/// rediscover it.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_text_best_of_indexed(
+    base_seed: u64,
+    n_candidates: usize,
+    lex: &Lexicon,
+    payload: &[PayloadTok],
+    original_payload_set: Option<&HashSet<String>>,
+    verbose: bool,
+    mode: GenerationMode,
+    language: &str,
+    grammar_dialect: Option<&str>,
+    k_min: usize,
+    k_max: usize,
+    length_mode: SentenceLengthMode,
+    delimiter: &str,
+) -> (String, HashSet<String>, u64) {
     const DENSITY_TOL: f64 = 0.02;
 
     let gen_one = |seed: u64| {
@@ -906,20 +936,21 @@ pub fn generate_text_best_of(
     let n = n_candidates.max(1);
     let model = lex.semantics();
     if n == 1 || model.is_none() {
-        return gen_one(base_seed);
+        let (text, set) = gen_one(base_seed);
+        return (text, set, 0);
     }
     let model = model.unwrap();
 
     // Generate and score each candidate sequentially. (Candidates are
     // independent and could be parallelized, but the sequence-cache memo makes
     // candidates after the first cheap, so this stays simple for now.)
-    let mut candidates: Vec<(f64, f64, (String, HashSet<String>))> = Vec::with_capacity(n);
+    let mut candidates: Vec<(f64, f64, u64, (String, HashSet<String>))> = Vec::with_capacity(n);
     for k in 0..n {
         let out = gen_one(base_seed.wrapping_add(k as u64));
         let total = out.0.split_whitespace().count().max(1);
         let density = payload.len() as f64 / total as f64;
         let coherence = model.coherence_score(&out.0);
-        candidates.push((density, coherence, out));
+        candidates.push((density, coherence, k as u64, out));
     }
 
     let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
@@ -928,7 +959,7 @@ pub fn generate_text_best_of(
         .filter(|c| c.0 >= max_density - DENSITY_TOL)
         .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
         .expect("at least one candidate generated");
-    best.2
+    (best.3 .0, best.3 .1, best.2)
 }
 
 /// Generate sentences until all payload tokens are embedded.

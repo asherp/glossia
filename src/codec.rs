@@ -108,6 +108,83 @@ pub fn hex_encode(bytes: &[u8]) -> String {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// Decode-side tokenization
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Normalize a received token the way decoding does: strip non-alphanumeric
+/// characters from both ends, then lowercase.
+///
+/// This is Unicode-aware, because `char::is_alphanumeric` follows Unicode
+/// properties. Symbols drawn from *alphanumeric* categories — circled digits
+/// (`①`), Greek letters (`β`), Roman numerals (`Ⅻ`), superscripts — are therefore
+/// NOT stripped. Whitespace-separated they are harmless (nothing matches them in
+/// a payload wordlist), but placed directly against a word with no separating
+/// space they stop the trim before it reaches the word, so `①absorb` normalizes
+/// to `①absorb` and the payload word is silently lost. Decorative markup around
+/// prose must come from non-alphanumeric symbols.
+pub fn normalize_token(word: &str) -> String {
+    word.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase()
+}
+
+/// Harvest payload words from received text: split on whitespace, normalize each
+/// token, and keep the ones `is_payload` accepts.
+///
+/// This is the canonical decode-side tokenizer — the inverse of embedding payload
+/// words in prose. Cover words are dropped simply by failing the predicate, which
+/// is why payload and cover wordlists must stay disjoint.
+pub fn payload_tokens<F: Fn(&str) -> bool>(text: &str, is_payload: F) -> Vec<String> {
+    text.split_whitespace()
+        .map(|w| normalize_token(w))
+        .filter(|w| !w.is_empty() && is_payload(w))
+        .collect()
+}
+
+/// Count whitespace-separated tokens with any alphanumeric content.
+pub fn alnum_token_count(text: &str) -> usize {
+    text.split_whitespace()
+        .filter(|w| !normalize_token(w).is_empty())
+        .count()
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Payload integrity
+// ═══════════════════════════════════════════════════════════════════════
+
+/// CRC-32 (IEEE 802.3, reflected, polynomial 0xEDB88320).
+///
+/// Computed bitwise so the polynomial is visible as the specification rather
+/// than baked into a lookup table. Used to derive a cover seed from a payload,
+/// so that which prose was chosen carries the payload's checksum (see #76).
+/// This detects transcription damage; it is not a cryptographic digest and
+/// resists no adversary.
+pub fn crc32(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &b in data {
+        crc ^= b as u32;
+        for _ in 0..8 {
+            crc = if crc & 1 != 0 { (crc >> 1) ^ 0xEDB8_8320 } else { crc >> 1 };
+        }
+    }
+    !crc
+}
+
+/// splitmix64 finalizer: scatter a small counter across the whole u64 range so
+/// consecutive counter values map to unrelated cover realizations. Mirrors
+/// `mix64` in `web/glossia-msg.js`.
+pub fn mix64(x: u64) -> u64 {
+    let mut z = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// Derive a cover seed from a payload checksum and a fluency counter, so the
+/// choice of cover realization carries the checksum at no length cost.
+pub fn checksum_seed(payload: &[u8], counter: u64) -> u64 {
+    mix64(((crc32(payload) as u64) << 32) | (counter & 0xFFFF_FFFF))
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // Base64 utilities
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -597,6 +674,80 @@ pub fn encode_str_base_n(s: &str, wordlist: &WordlistTree, codec: &str) -> Resul
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    #[test]
+    fn crc32_known_vector() {
+        // The canonical CRC-32/ISO-HDLC check value for "123456789".
+        assert_eq!(crc32(b"123456789"), 0xCBF4_3926);
+        assert_eq!(crc32(b""), 0);
+    }
+
+    #[test]
+    fn crc32_detects_single_bit_flip() {
+        let a = [0x75u8, 0x1e, 0x76, 0xe8];
+        let mut b = a;
+        b[2] ^= 0x01;
+        assert_ne!(crc32(&a), crc32(&b));
+    }
+
+    #[test]
+    fn checksum_seed_varies_with_payload_and_counter() {
+        let p = b"locking script";
+        assert_ne!(checksum_seed(p, 0), checksum_seed(p, 1));
+        assert_ne!(checksum_seed(p, 0), checksum_seed(b"locking scripts", 0));
+        // Deterministic.
+        assert_eq!(checksum_seed(p, 7), checksum_seed(p, 7));
+    }
+
+    #[test]
+    fn normalize_token_strips_and_lowercases() {
+        assert_eq!(normalize_token("Absorb."), "absorb");
+        assert_eq!(normalize_token("\"quote,\""), "quote");
+        assert_eq!(normalize_token("---"), "");
+    }
+
+    #[test]
+    fn normalize_token_strips_non_alphanumeric_symbols_even_when_adjacent() {
+        // Opcode sigils must come from non-alphanumeric Unicode categories.
+        for sym in ["\u{29C9}", "\u{2317}", "\u{225F}", "\u{2713}", "\u{25BD}", "\u{25B3}"] {
+            assert_eq!(normalize_token(&format!("{sym}absorb")), "absorb", "sym {sym}");
+            assert_eq!(normalize_token(sym), "", "sym {sym} alone");
+        }
+    }
+
+    #[test]
+    fn alphanumeric_symbols_swallow_an_adjacent_payload_word() {
+        // Circled digits, Greek letters and Roman numerals are alphanumeric under
+        // Unicode, so the trim stops at them. Separated by a space they are
+        // harmless; touching a word they hide it. This is why the address format
+        // restricts opcode symbols to non-alphanumeric characters.
+        let is_payload = |w: &str| w == "absorb";
+        for sym in ["\u{2460}", "\u{03B2}", "\u{216B}"] {
+            assert_eq!(payload_tokens(&format!("{sym} absorb"), is_payload), vec!["absorb"]);
+            assert!(
+                payload_tokens(&format!("{sym}absorb"), is_payload).is_empty(),
+                "adjacent {sym} should hide the payload word"
+            );
+        }
+    }
+
+    #[test]
+    fn payload_tokens_drops_cover_and_keeps_order() {
+        let payload: std::collections::HashSet<&str> =
+            ["insect", "victory", "ring"].into_iter().collect();
+        assert_eq!(
+            payload_tokens("Insect may see victory to ring.", |w| payload.contains(w)),
+            vec!["insect", "victory", "ring"]
+        );
+    }
+
+    #[test]
+    fn alnum_token_count_ignores_pure_punctuation() {
+        assert_eq!(alnum_token_count("a b c"), 3);
+        assert_eq!(alnum_token_count("\u{25BD} a b"), 2);
+    }
+
     use super::*;
 
     /// Build a toy wordlist of arbitrary size for testing base-N.
