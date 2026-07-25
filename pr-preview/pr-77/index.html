@@ -895,6 +895,11 @@ footer a:hover { text-decoration: underline; }
         .addr-damage-label { font-size: 0.75rem; color: var(--text-dim); }
         .addr-damage-row { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; margin-top: 0.5rem; }
         .addr-glyph { font-family: var(--font-mono); color: var(--accent); }
+        .addr-repair { max-width: 720px; margin: 0.7rem auto 0; text-align: center;
+          font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
+        .addr-repair strong { color: var(--accent); font-family: var(--font-mono); }
+        mark.addr-bad { background: rgba(239,68,68,0.16); color: var(--error);
+          border-bottom: 1px solid rgba(239,68,68,0.5); border-radius: 2px; padding: 0 1px; }
         .addr-cover { color: var(--text-dim); }
         .addr-pay { text-decoration: underline; text-decoration-color: var(--accent); }
         .addr-pay sub { font-size: 0.6em; color: var(--accent); opacity: 0.85; }
@@ -1064,6 +1069,8 @@ footer a:hover { text-decoration: underline; }
             </div>
           </div>
         </div>
+
+        <div class="addr-repair hidden" id="addr-repair"></div>
 
         <div class="addr-damage">
           <span class="addr-damage-label">Now damage it, the way a person would:</span>
@@ -2283,6 +2290,77 @@ function addrRead(artifact, nBytes) {
     : { verdict: 'mismatch', program, match: best };
 }
 
+// Locate damage WITHOUT knowing the original. The re-render is the reference:
+// encode whatever the received text decodes to, and compare.
+//
+// Cover damage leaves the payload intact, so the re-render IS the correct
+// paragraph and a token diff points straight at the damaged words. Payload
+// damage changes the checksum and therefore the whole paragraph, so the diff
+// localizes nothing — only a repair search can, by proposing plausible typo
+// corrections and keeping those that explain the received text.
+function addrDiffAgainstRerender(artifact, program) {
+  const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
+    [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
+  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
+    'english', 'default', 'body', addrSeed(program, 0), ADDR_COUNTER_RANGE));
+  if (r.error) return { bad: new Set(), rendered: [] };
+  const got = r.encoded_text.split(/\s+/).filter(Boolean);
+  const bad = new Set();
+  for (let i = 0; i < Math.max(got.length, recv.length); i++) if (got[i] !== recv[i]) bad.add(i);
+  return { bad, rendered: got, recv };
+}
+
+// Replace a token's word while keeping its capitalization and punctuation, so the
+// only difference is the word itself. Replacing the whole token would drop a
+// trailing period or an initial capital and change more than intended.
+function addrSwapIn(token, replacement) {
+  const m = token.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u);
+  if (!m) return replacement;
+  const core = m[2];
+  const cased = core && core[0] === core[0].toUpperCase() && core[0] !== core[0].toLowerCase()
+    ? replacement[0].toUpperCase() + replacement.slice(1)
+    : replacement;
+  return m[1] + cased + m[3];
+}
+
+// Words one edit away that are also address words — the plausible-typo set.
+function addrEdit1(w) {
+  const out = new Set(), A = 'abcdefghijklmnopqrstuvwxyz';
+  for (let i = 0; i < w.length; i++) {
+    for (const c of A) { const s = w.slice(0, i) + c + w.slice(i + 1); if (s !== w && addrIndex.has(s)) out.add(s); }
+    const d = w.slice(0, i) + w.slice(i + 1); if (addrIndex.has(d)) out.add(d);
+  }
+  for (let i = 0; i <= w.length; i++)
+    for (const c of A) { const s = w.slice(0, i) + c + w.slice(i + 1 - 1); const t = w.slice(0, i) + c + w.slice(i); if (addrIndex.has(t)) out.add(t); }
+  return [...out];
+}
+
+// A correct repair reproduces the ORIGINAL, which differs from what was received
+// at exactly the damaged word — so the test is "differs in at most one token",
+// not "matches". A wrong candidate changes the checksum and mismatches almost
+// everywhere.
+function addrProposeRepairs(artifact, words) {
+  const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
+    [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
+  const hits = [];
+  for (let i = 0; i < words.length; i++) {
+    for (const cand of addrEdit1(words[i])) {
+      const w = words.slice(); w[i] = cand;
+      const prog = addrUnpack(w, addrState ? addrState.program.length : 20);
+      if (!prog) continue;
+      const r = JSON.parse(wasmEncodeWords(JSON.stringify(w), 'english', 'default', 'body',
+        addrSeed(prog, 0), ADDR_COUNTER_RANGE));
+      if (r.error) continue;
+      const got = r.encoded_text.split(/\s+/).filter(Boolean);
+      let miss = 0;
+      for (let k = 0; k < Math.max(got.length, recv.length); k++) if (got[k] !== recv[k]) miss++;
+      if (miss <= 1) hits.push({ index: i, from: words[i], to: cand });
+      if (hits.length > 4) return hits;
+    }
+  }
+  return hits;
+}
+
 function addrSetVerdict(res) {
   const el = document.getElementById('addr-verdict');
   const map = {
@@ -2345,7 +2423,7 @@ function addrDamages() {
   const toks = pros.split(/\s+/);
   const payTok = new Set(places.map(p => p.token_index));
   const coverIdx = toks.map((_, i) => i).filter(i => !payTok.has(i) && toks[i].length > 2);
-  const mid = places[Math.floor(places.length / 2)];
+  const mid = places.find(p => addrEdit1(p.word).length) || places[Math.floor(places.length / 2)];
   return [
     {
       label: 'fumble a connective word',
@@ -2355,7 +2433,15 @@ function addrDamages() {
     {
       label: 'mistype an address word',
       why: 'The dangerous one. A valid substitute still decodes — to a DIFFERENT address. Only the wording catches it.',
-      apply: () => { const t = [...toks]; t[mid.token_index] = addrWords[(addrIndex.get(mid.word) + 977) % addrWords.length]; return t.join(' '); },
+      apply: () => {
+        const t = [...toks];
+        // Prefer a word one edit away — a plausible misreading, and the case the
+        // repair search can recover. Fall back to an arbitrary address word.
+        const near = addrEdit1(mid.word);
+        const sub = near.length ? near[0] : addrWords[(addrIndex.get(mid.word) + 977) % addrWords.length];
+        t[mid.token_index] = addrSwapIn(t[mid.token_index], sub);
+        return t.join(' ');
+      },
     },
     {
       label: 'lose a word',
@@ -2378,7 +2464,10 @@ function addrRenderDamage() {
   const reset = document.createElement('button');
   reset.className = 'btn-sm';
   reset.textContent = '↺ reset';
-  reset.onclick = () => addrUpdate();
+  reset.onclick = () => {
+    document.getElementById('addr-repair').className = 'addr-repair hidden';
+    addrUpdate();
+  };
   row.appendChild(reset);
 }
 
@@ -2392,13 +2481,64 @@ function addrApplyDamage(i) {
   const artifact = lead + damagedProse + trail;
   const box = document.getElementById('addr-output');
   box.classList.remove('empty');
-  box.textContent = artifact;
   const res = addrRead(artifact, addrState.program.length);
   addrSetVerdict(res);
+  addrPaintDamage(box, artifact, res);
   const hint = document.getElementById('addr-hint');
   const got = res.program ? addrHex(res.program) : null;
   hint.textContent = d.why + (got && got !== addrHex(addrState.program)
     ? ` It decodes to ${got.slice(0, 12)}… instead.` : '');
+}
+
+// Show WHERE the text disagrees with its own re-render, and — when the payload
+// itself is wrong — what single correction would explain it. Corrections are
+// surfaced as proposals and never applied: the search is not always unique.
+function addrPaintDamage(box, artifact, res) {
+  const note = document.getElementById('addr-repair');
+  note.textContent = '';
+  note.className = 'addr-repair hidden';
+
+  if (!res.program) {
+    box.textContent = artifact;
+    note.textContent = res.note || 'The text could not be read as an address.';
+    note.className = 'addr-repair';
+    return;
+  }
+
+  const { bad } = addrDiffAgainstRerender(artifact, res.program);
+  const toks = artifact.split(/\s+/).filter(Boolean);
+  let k = -1;
+  box.innerHTML = toks.map(t => {
+    const core = [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('');
+    if (!core.length) return `<span class="addr-cover">${t}</span>`;
+    k++;
+    return bad.has(k) ? `<mark class="addr-bad">${t}</mark>` : t;
+  }).join(' ');
+
+  if (res.verdict === 'unverified') {
+    note.textContent = `${bad.size} word${bad.size === 1 ? '' : 's'} ${bad.size === 1 ? 'disagrees' : 'disagree'} with the re-render — ` +
+      `highlighted above. The address words are intact, so the address itself is still right.`;
+    note.className = 'addr-repair';
+    return;
+  }
+  if (res.verdict === 'mismatch') {
+    const words = addrPack(res.program);
+    const hits = addrProposeRepairs(artifact, words);
+    if (hits.length === 1) {
+      note.innerHTML = `Every word disagrees, because a wrong address word changes the whole ` +
+        `wording — the diff cannot point at it. A repair search can: replacing ` +
+        `<strong>${hits[0].from}</strong> with <strong>${hits[0].to}</strong> explains this text. ` +
+        `Shown as a proposal, not applied.`;
+    } else if (hits.length > 1) {
+      note.innerHTML = `Every word disagrees. The repair search found ${hits.length} corrections ` +
+        `that would explain this text (` + hits.map(h => `${h.from}&rarr;${h.to}`).join(', ') +
+        `), so it cannot be resolved automatically.`;
+    } else {
+      note.textContent = 'Every word disagrees, so an address word is wrong — but no single ' +
+        'plausible typo explains it, so the position cannot be recovered.';
+    }
+    note.className = 'addr-repair';
+  }
 }
 
 function addrToggleRoles() {
