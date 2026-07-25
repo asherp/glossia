@@ -11,10 +11,11 @@ use glossia::generator::data::load_payload_words_for_wordlist;
 use glossia::pipeline::encode_words_into_language_traced;
 use std::collections::HashSet;
 
-/// No counter sweep: verification reproduces a fixed artifact rather than
-/// generating a new one, so the encoder's fluency search would become a cost the
-/// verifier and every repair candidate must repeat.
-const COUNTER_RANGE: u64 = 1;
+/// Fluency budget, locked at 4 — a fixed parameter, not a search. Encoder and
+/// verifier both render best-of-4 from the checksum seed, so one address has one
+/// prose. Chosen where the marginal return falls off: density rises 0.53 -> 0.59
+/// from N=1 to N=4 at 20 bytes, and past N=8 each doubling buys under one word.
+const BEST_OF: u64 = 4;
 /// Opcode glyphs from the Book of Bitcoin notation (btc-prose.js OPCODE_SYMBOLS).
 /// U+24EA and U+2460 are Unicode category No — *alphanumeric* — so they survive
 /// the decoder's token trim. They are safe only because they are declared here.
@@ -85,7 +86,7 @@ impl Codec {
     fn render(&self, program: &[u8], sigil: char) -> (String, Vec<Placement>) {
         let words = self.pack(program);
         let (t, _c, p) = encode_words_into_language_traced(
-            &words, "english", "default", "body", self.seed(program), COUNTER_RANGE as usize,
+            &words, "english", "default", "body", self.seed(program), BEST_OF as usize,
         ).expect("encode");
         (format!("{sigil} {t}"), p)
     }
@@ -103,7 +104,7 @@ impl Codec {
         // Re-render and compare: this is the checksum.
         let mut best = 0.0f64;
         let recv: Vec<&str> = artifact.split_whitespace().skip(1).collect();
-        for c in 0..COUNTER_RANGE {
+        for c in 0..BEST_OF {
             let w = self.pack(&program);
             let mut cc = program.clone();
             cc.extend_from_slice(&[self.bpw as u8, 1u8]);

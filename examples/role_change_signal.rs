@@ -26,7 +26,7 @@ fn render(program: &[u8], header: u32, hb: usize, wl: &[String], bpw: usize) -> 
     let mut checked = program.to_vec();
     checked.extend_from_slice(&[bpw as u8, 1u8]);
     let (t, _c, p) = encode_words_into_language_traced(
-        &words, "english", "default", "body", checksum_seed(&checked, 0), 1).expect("encode");
+        &words, "english", "default", "body", checksum_seed(&checked, 0), 4).expect("encode");
     (t, p)
 }
 

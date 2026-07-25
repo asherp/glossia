@@ -23,7 +23,7 @@ use glossia::pipeline::encode_words_into_language;
 use std::collections::HashSet;
 
 const BPW: usize = 11;
-const COUNTER_RANGE: u64 = 1;
+const BEST_OF: u64 = 4;
 
 fn header_bits(n: usize) -> usize { (n * 8).div_ceil(BPW) * BPW - n * 8 }
 
@@ -58,7 +58,7 @@ fn seed_of(words: &[String], wl: &[String]) -> u64 {
 
 fn render(words: &[String], wl: &[String]) -> String {
     encode_words_into_language(words, "english", "default", "body",
-                               seed_of(words, wl), COUNTER_RANGE as usize)
+                               seed_of(words, wl), BEST_OF as usize)
         .map(|(t, _)| t).unwrap_or_default()
 }
 

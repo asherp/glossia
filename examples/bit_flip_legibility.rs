@@ -16,7 +16,7 @@ use glossia::codec::{checksum_seed, hex_decode};
 use glossia::generator::data::load_payload_words_for_wordlist;
 use glossia::pipeline::encode_words_into_language;
 
-const COUNTER_RANGE: u64 = 1;
+const BEST_OF: u64 = 4;
 
 fn pack(program: &[u8], bits_per_word: usize, header: u32, header_bits: usize) -> Vec<usize> {
     let data_bits = program.len() * 8;
@@ -33,15 +33,14 @@ fn pack(program: &[u8], bits_per_word: usize, header: u32, header_bits: usize) -
         .collect()
 }
 
-/// Render a payload with checksum-seeded cover. No counter sweep — the address
-/// determines its prose exactly.
+/// Render a payload with checksum-seeded cover at the locked best-of-4.
 fn render(program: &[u8], header: u32, header_bits: usize, wl: &[String], bpw: usize) -> (String, Vec<String>) {
     let idx = pack(program, bpw, header, header_bits);
     let words: Vec<String> = idx.iter().map(|&i| wl[i].clone()).collect();
     let mut checked = program.to_vec();
     checked.extend_from_slice(&[bpw as u8, 1u8]);
     let seed = checksum_seed(&checked, 0);
-    let (text, _) = encode_words_into_language(&words, "english", "default", "body", seed, COUNTER_RANGE as usize)
+    let (text, _) = encode_words_into_language(&words, "english", "default", "body", seed, BEST_OF as usize)
         .expect("encode");
     (text, words)
 }
