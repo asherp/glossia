@@ -1430,6 +1430,93 @@ fn prepare_payload(
 /// dialect config, and cover wordlist, then constructing the Lexicon), so it is
 /// factored out of [`generate_prose_for_zone`] and reused across best-of-N
 /// candidates rather than rebuilt per sample.
+/// Like [`encode_words_into_language`], but also reports where each payload word
+/// landed: its POS slot, sentence, token position and inferred subject/object role.
+///
+/// Which slot a word fills is a property of the rendering, not the payload — the
+/// same word can be a subject in one cover realization and an object in another.
+pub fn encode_words_into_language_traced(
+    words: &[String],
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> Result<(String, u64, Vec<crate::generator::core::Placement>), PipelineError> {
+    let (toks, payload_word_set, gen) = prepare_words_encode(words, language, wordlist, dialect)?;
+    let (text, counter) = {
+        let (t, _s, c) = crate::generator::core::generate_text_best_of_indexed(
+            seed, best_of.max(1), &gen.lex, &toks, Some(&payload_word_set), false,
+            gen.mode, language, Some(dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+        );
+        (t, c)
+    };
+    let mut rng = <crate::CoverRng as rand::SeedableRng>::seed_from_u64(seed.wrapping_add(counter));
+    let (_t2, _s2, placements) = crate::generator::core::generate_text_traced(
+        &mut rng, &gen.lex, &toks, Some(&payload_word_set), false, gen.mode, language,
+        Some(dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+    );
+    debug_assert_eq!(_t2, text, "traced re-render must match the selected candidate");
+    Ok((text, counter, placements))
+}
+
+/// Shared setup for the word-driven encode entry points.
+fn prepare_words_encode(
+    words: &[String],
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+) -> Result<(Vec<PayloadTok>, HashSet<String>, ZoneGenerator), PipelineError> {
+    let wordlist = resolve_wordlist_name(language, wordlist);
+    let payload_words = crate::generator::data::load_payload_words_for_wordlist(language, &wordlist)
+        .map_err(PipelineError::EncodeError)?;
+    let payload_word_set: HashSet<String> =
+        payload_words.iter().map(|w| w.to_lowercase()).collect();
+
+    let grammar = Grammar::from_language_dialect(language, dialect)
+        .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
+    let is_cs_grammar = !grammar.dot_is_punctuation();
+    let pos_mapping = if is_cs_grammar {
+        HashMap::new()
+    } else {
+        build_pos_mapping_for_wordlist(language, &wordlist).map_err(PipelineError::EncodeError)?
+    };
+    // Reject words the payload wordlist does not contain. A word with no allowed
+    // POS cannot be placed in any slot, and the generator would simply omit it —
+    // yielding prose that decodes to a different payload than the caller supplied.
+    // Failing loudly here is the difference between a caught mistake and a wrong
+    // address.
+    let unknown: Vec<String> = words
+        .iter()
+        .filter(|w| !payload_word_set.contains(&w.to_lowercase()))
+        .cloned()
+        .collect();
+    if !unknown.is_empty() {
+        return Err(PipelineError::EncodeError(format!(
+            "not payload words in {}/{}: {}",
+            language,
+            wordlist,
+            unknown.join(", ")
+        )));
+    }
+
+    let toks: Vec<PayloadTok> = words
+        .iter()
+        .map(|word| {
+            let allowed = if is_cs_grammar {
+                vec![Pos::N]
+            } else {
+                pos_mapping.get(&word.to_lowercase()).cloned().unwrap_or_default()
+            };
+            PayloadTok::new(word.clone(), &allowed)
+        })
+        .collect();
+    let gen = build_zone_generator(
+        toks.len(), language, dialect, &payload_word_set, false, None, None, None, None,
+    )?;
+    Ok((toks, payload_word_set, gen))
+}
+
 /// Wrap already-chosen payload words in cover prose.
 ///
 /// This is the second stage of encoding on its own, for callers that produced the
@@ -1448,50 +1535,10 @@ pub fn encode_words_into_language(
     seed: u64,
     best_of: usize,
 ) -> Result<(String, u64), PipelineError> {
-    let wordlist = resolve_wordlist_name(language, wordlist);
-    let payload_words = crate::generator::data::load_payload_words_for_wordlist(language, &wordlist)
-        .map_err(PipelineError::EncodeError)?;
-    let payload_word_set: HashSet<String> =
-        payload_words.iter().map(|w| w.to_lowercase()).collect();
-
-    let grammar = Grammar::from_language_dialect(language, dialect)
-        .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
-    let is_cs_grammar = !grammar.dot_is_punctuation();
-    let pos_mapping = if is_cs_grammar {
-        HashMap::new()
-    } else {
-        build_pos_mapping_for_wordlist(language, &wordlist).map_err(PipelineError::EncodeError)?
-    };
-
-    let payload_toks: Vec<PayloadTok> = words
-        .iter()
-        .map(|word| {
-            let allowed = if is_cs_grammar {
-                vec![Pos::N]
-            } else {
-                pos_mapping.get(&word.to_lowercase()).cloned().unwrap_or_default()
-            };
-            PayloadTok::new(word.clone(), &allowed)
-        })
-        .collect();
-
-    let gen = build_zone_generator(
-        payload_toks.len(), language, dialect, &payload_word_set, false, None, None, None, None,
-    )?;
+    let (toks, payload_word_set, gen) = prepare_words_encode(words, language, wordlist, dialect)?;
     let (text, _set, counter) = crate::generator::core::generate_text_best_of_indexed(
-        seed,
-        best_of.max(1),
-        &gen.lex,
-        &payload_toks,
-        Some(&payload_word_set),
-        false,
-        gen.mode,
-        language,
-        Some(dialect),
-        gen.k_min,
-        gen.k_max,
-        gen.length_mode,
-        " ",
+        seed, best_of.max(1), &gen.lex, &toks, Some(&payload_word_set), false,
+        gen.mode, language, Some(dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
     );
     Ok((text, counter))
 }

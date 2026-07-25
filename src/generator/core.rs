@@ -551,13 +551,121 @@ pub fn fill_slots<R: Rng>(
     payload: &[PayloadTok],
     payload_i: &mut usize,
     prev_words: &[&str],
-    _expected_first_pos: Option<Pos>,
+    expected_first_pos: Option<Pos>,
     forced_placements: Option<&HashMap<usize, usize>>,
     payload_only_mode: bool,
     prime_constraint_enabled: bool,
     dot_is_punctuation: bool,
     agreement: Option<&crate::generator::agreement::Agreement>,
 ) -> Vec<String> {
+    fill_slots_traced(
+        rng, lex, slots, refinements, payload, payload_i, prev_words, expected_first_pos,
+        forced_placements, payload_only_mode, prime_constraint_enabled, dot_is_punctuation,
+        agreement,
+    )
+    .0
+}
+
+/// The grammatical role a payload word plays relative to a neighbouring verb.
+///
+/// Inferred from the flat POS sequence with the same rule the semantic layer uses
+/// (`semantics.rs`): the nearest noun to a verb's left is its subject, the nearest
+/// to its right its object, bounded by the sentence. This is an approximation of
+/// syntax, not a parse — the grammar is flat, so there is no tree to consult.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Role {
+    Subject,
+    Object,
+}
+
+/// Where a payload word ended up in the generated prose.
+///
+/// Encoding never changes *which* payload words appear or their order, but it does
+/// choose which grammatical slot each one fills — the same word can land as a
+/// subject in one rendering and an object in another. Callers that want to explain
+/// or verify a rendering need that, and it was previously discarded.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Placement {
+    pub word: String,
+    /// Index into the payload word sequence.
+    pub payload_index: usize,
+    /// The POS slot the generator placed it in.
+    pub pos: Pos,
+    /// Index into the whitespace-split output text.
+    pub token_index: usize,
+    /// Zero-based sentence number.
+    pub sentence: usize,
+    /// Subject/object relative to the governing verb, when one is adjacent.
+    pub role: Option<Role>,
+}
+
+/// Assign subject/object roles over one sentence's trace.
+///
+/// For each verb, the nearest noun to its left becomes the subject and the nearest
+/// to its right the object. Nouns are considered whether they hold payload or
+/// cover words, since a cover noun still occupies the argument position.
+fn infer_roles(trace: &[Option<(Pos, Option<usize>)>]) -> Vec<Option<Role>> {
+    let mut roles = vec![None; trace.len()];
+    let pos_at = |i: usize| trace[i].map(|(p, _)| p);
+    for v in 0..trace.len() {
+        if pos_at(v) != Some(Pos::V) {
+            continue;
+        }
+        // subject: nearest noun left, not crossing another verb
+        for i in (0..v).rev() {
+            match pos_at(i) {
+                Some(Pos::V) => break,
+                Some(Pos::N) | Some(Pos::Pron) => {
+                    if roles[i].is_none() {
+                        roles[i] = Some(Role::Subject);
+                    }
+                    break;
+                }
+                _ => {}
+            }
+        }
+        // object: nearest noun right, not crossing another verb
+        for i in (v + 1)..trace.len() {
+            match pos_at(i) {
+                Some(Pos::V) => break,
+                Some(Pos::N) | Some(Pos::Pron) => {
+                    if roles[i].is_none() {
+                        roles[i] = Some(Role::Object);
+                    }
+                    break;
+                }
+                _ => {}
+            }
+        }
+    }
+    roles
+}
+
+/// Like [`fill_slots`], but also reports what each emitted token is.
+///
+/// The trace is index-aligned with the returned words: entry `i` describes token
+/// `i`. `Some((pos, Some(payload_index)))` is a payload word placed in a `pos`
+/// slot, `Some((pos, None))` a cover word, and `None` a token that fills no slot
+/// (a bare sentence-final period). Alignment is maintained at every push site
+/// rather than reconstructed afterwards, so it holds even in the degenerate case
+/// where a sentence opens with punctuation.
+#[allow(clippy::too_many_arguments)]
+pub fn fill_slots_traced<R: Rng>(
+    rng: &mut R,
+    lex: &Lexicon,
+    slots: &[Pos],
+    refinements: &[Option<String>],
+    payload: &[PayloadTok],
+    payload_i: &mut usize,
+    prev_words: &[&str],
+    _expected_first_pos: Option<Pos>,
+    forced_placements: Option<&HashMap<usize, usize>>,
+    payload_only_mode: bool,
+    prime_constraint_enabled: bool,
+    dot_is_punctuation: bool,
+    agreement: Option<&crate::generator::agreement::Agreement>,
+) -> (Vec<String>, Vec<Option<(Pos, Option<usize>)>>) {
+    let mut trace: Vec<Option<(Pos, Option<usize>)>> = Vec::new();
     let mut out: Vec<String> = Vec::new();
     // Slot / refinement of each emitted token in `out` (Dot slots that only
     // append punctuation are not represented). Used by the agreement post-pass.
@@ -577,6 +685,7 @@ pub fn fill_slots<R: Rng>(
                 last.push('.');
             } else {
                 out.push(".".to_string());
+                trace.push(None);
             }
             gov_verb = None; // clause boundary
             continue;
@@ -622,6 +731,7 @@ pub fn fill_slots<R: Rng>(
                 payload[idx].word, ref_tag, i
             );
             out.push(payload[idx].word.clone());
+            trace.push(Some((slot, Some(idx))));
             emitted_slots.push(slot);
             emitted_refs.push(ref_tag.map(|s| s.to_string()));
             used_payload_indices.insert(idx);
@@ -750,6 +860,7 @@ pub fn fill_slots<R: Rng>(
 
         update_gov_verb(&mut gov_verb, slot, &cover_word);
         out.push(cover_word);
+        trace.push(Some((slot, None)));
         emitted_slots.push(slot);
         emitted_refs.push(ref_tag.map(|s| s.to_string()));
     }
@@ -767,7 +878,8 @@ pub fn fill_slots<R: Rng>(
         ag.apply(&emitted_slots, &emitted_refs, &mut out);
     }
 
-    out
+    debug_assert_eq!(trace.len(), out.len(), "trace must stay aligned with emitted tokens");
+    (out, trace)
 }
 
 /// Compute k candidates based on the length mode.
@@ -995,11 +1107,48 @@ pub fn generate_text_with_original_payload<R: Rng>(
     length_mode: SentenceLengthMode,
     delimiter: &str,
 ) -> (String, HashSet<String>) {
+    let (text, set, _) = generate_text_traced(
+        rng, lex, payload, original_payload_set, verbose, mode, language, grammar_dialect,
+        k_min, k_max, length_mode, delimiter,
+    );
+    (text, set)
+}
+
+/// Like [`generate_text_with_original_payload`], but also reports where each
+/// payload word landed — its POS slot, sentence, token position and inferred
+/// subject/object role.
+///
+/// Placement is a property of the *rendering*, not the payload: the same word in
+/// the same position can be a subject in one cover realization and an object in
+/// another. Reseeding the cover (as checksum-seeded encoding does) therefore
+/// reshuffles roles, which makes role change a coarse, memorable signal that a
+/// payload differs — easier for a reader to check than a word-by-word diff.
+#[allow(clippy::too_many_arguments)]
+pub fn generate_text_traced<R: Rng>(
+    rng: &mut R,
+    lex: &Lexicon,
+    payload: &[PayloadTok],
+    original_payload_set: Option<&HashSet<String>>,
+    verbose: bool,
+    mode: GenerationMode,
+    language: &str,
+    grammar_dialect: Option<&str>,
+    k_min: usize,
+    k_max: usize,
+    length_mode: SentenceLengthMode,
+    delimiter: &str,
+) -> (String, HashSet<String>, Vec<Placement>) {
     // Build payload set for highlighting (returned to caller)
     // Note: In merkle mode, this includes Merkle words too, but we check against original_payload_set
     // for sentence validation.
     let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
-    
+
+    // Where each payload word lands. Accumulated per sentence with a running token
+    // offset so `token_index` refers to the final joined text.
+    let mut placements: Vec<Placement> = Vec::new();
+    let mut token_offset: usize = 0;
+    let mut sentence_no: usize = 0;
+
     // Use original_payload_set for validation if provided, otherwise use payload_set
     let validation_payload_set: HashSet<String> = original_payload_set
         .map(|s| s.clone())
@@ -1010,7 +1159,8 @@ pub fn generate_text_with_original_payload<R: Rng>(
     if matches!(mode, GenerationMode::PayloadOnly) {
         let words: Vec<String> = payload.iter().map(|tok| tok.word.clone()).collect();
         let text = words.join(delimiter);
-        return (text, payload_set);
+        // Payload-only mode fills no grammatical slots, so there is nothing to report.
+        return (text, payload_set, Vec::new());
     }
 
     let mut words: Vec<String> = Vec::new();
@@ -1228,7 +1378,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
             // Convert prev_words_strings to slice for fill_slots
             let prev_words_refs: Vec<&str> = prev_words_strings.iter().map(|s| s.as_str()).collect();
             let payload_only_mode = matches!(mode, GenerationMode::PayloadOnly);
-            let mut sentence_words = fill_slots(
+            let (mut sentence_words, sentence_trace) = fill_slots_traced(
                 rng,
                 lex,
                 &slots,
@@ -1243,6 +1393,25 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 grammar.dot_is_punctuation(),
                 agreement_ref,
             );
+            // Record where each payload word landed in this sentence.
+            {
+                let roles = infer_roles(&sentence_trace);
+                for (j, entry) in sentence_trace.iter().enumerate() {
+                    if let Some((pos, Some(pidx))) = entry {
+                        placements.push(Placement {
+                            word: payload[*pidx].word.clone(),
+                            payload_index: *pidx,
+                            pos: *pos,
+                            token_index: token_offset + j,
+                            sentence: sentence_no,
+                            role: roles[j],
+                        });
+                    }
+                }
+                token_offset += sentence_trace.len();
+                sentence_no += 1;
+            }
+
 
             // Update current_payload_i to reflect what was actually used
             current_payload_i = temp_payload_i.max(max_forced_idx + 1);
@@ -1309,7 +1478,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
         // In merkle mode (when original_payload_set is provided), use segmentation approach
         // Segment the sequence into chunks ending with 1-2 payload words
         if original_payload_set.is_some() {
-            return generate_text_merkle_segmented(
+            let (t, ps, pl) = generate_text_merkle_segmented(
                 rng,
                 lex,
                 payload,
@@ -1323,6 +1492,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
                 &cache,
                 agreement_ref,
             );
+            return (t, ps, pl);
         }
 
         let mut sentence_count = 0;
@@ -1540,7 +1710,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
         let mut temp_payload_i = (max_forced_idx + 1).max(payload_i_before);
 
         let payload_only_mode = matches!(mode, GenerationMode::PayloadOnly);
-        let mut sentence_words = fill_slots(
+        let (mut sentence_words, sentence_trace) = fill_slots_traced(
             rng,
             lex,
             &slots,
@@ -1555,6 +1725,25 @@ pub fn generate_text_with_original_payload<R: Rng>(
             grammar.dot_is_punctuation(),
             agreement_ref,
         );
+        // Record where each payload word landed in this sentence.
+        {
+            let roles = infer_roles(&sentence_trace);
+            for (j, entry) in sentence_trace.iter().enumerate() {
+                if let Some((pos, Some(pidx))) = entry {
+                    placements.push(Placement {
+                        word: payload[*pidx].word.clone(),
+                        payload_index: *pidx,
+                        pos: *pos,
+                        token_index: token_offset + j,
+                        sentence: sentence_no,
+                        role: roles[j],
+                    });
+                }
+            }
+            token_offset += sentence_trace.len();
+            sentence_no += 1;
+        }
+
 
         // Update payload_i to reflect what was actually used
         payload_i = temp_payload_i.max(max_forced_idx + 1);
@@ -1693,7 +1882,7 @@ pub fn generate_text_with_original_payload<R: Rng>(
 
     // Return unhighlighted text (caller can apply highlighting if needed)
     let text = join_words_with_payload_grammar(&words, &payload_set, &grammar);
-    (text, payload_set)
+    (text, payload_set, placements)
 }
 
 /// Generate text using merkle segmentation: segment sequence into chunks ending with 1-2 payload words
@@ -1710,12 +1899,15 @@ fn generate_text_merkle_segmented<R: Rng>(
     prime_constraint_enabled: bool,
     cache: &SequenceCache,
     agreement: Option<&crate::generator::agreement::Agreement>,
-) -> (String, HashSet<String>) {
+) -> (String, HashSet<String>, Vec<Placement>) {
     use super::utils::normalize_token_for_bip39;
 
     let grammar = get_grammar(GenerationMode::Body, language);
     let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
     let mut words: Vec<String> = Vec::new();
+    let mut placements: Vec<Placement> = Vec::new();
+    let mut token_offset: usize = 0;
+    let mut sentence_no: usize = 0;
     let mut segment_start = 0;
     let mut sentence_count = 0;
     // Dynamic limit: at worst 1 payload word per sentence, plus buffer for rejected sentences
@@ -1898,7 +2090,7 @@ fn generate_text_merkle_segmented<R: Rng>(
         
         // Fill slots
         let mut temp_payload_i = payload_i;
-        let mut sentence_words = fill_slots(
+        let (mut sentence_words, sentence_trace) = fill_slots_traced(
             rng,
             lex,
             &slots,
@@ -1942,6 +2134,26 @@ fn generate_text_merkle_segmented<R: Rng>(
                 *first = capitalize(first);
             }
             
+            // Record placements for this sentence. Only accepted sentences count —
+            // rejected ones are regenerated and never reach the output.
+            {
+                let roles = infer_roles(&sentence_trace);
+                for (j, entry) in sentence_trace.iter().enumerate() {
+                    if let Some((pos, Some(pidx))) = entry {
+                        placements.push(Placement {
+                            word: payload[*pidx].word.clone(),
+                            payload_index: *pidx,
+                            pos: *pos,
+                            token_index: token_offset + j,
+                            sentence: sentence_no,
+                            role: roles[j],
+                        });
+                    }
+                }
+                token_offset += sentence_trace.len();
+                sentence_no += 1;
+            }
+
             // Add sentence
             if !words.is_empty() {
                 // Add space between sentences
@@ -1971,7 +2183,7 @@ fn generate_text_merkle_segmented<R: Rng>(
     }
 
     let text = join_words_with_payload_grammar(&words, &payload_set, &grammar);
-    (text, payload_set)
+    (text, payload_set, placements)
 }
 
 #[cfg(test)]
