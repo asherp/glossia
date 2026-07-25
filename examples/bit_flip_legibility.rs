@@ -16,7 +16,7 @@ use glossia::codec::{checksum_seed, hex_decode};
 use glossia::generator::data::load_payload_words_for_wordlist;
 use glossia::pipeline::encode_words_into_language;
 
-const COUNTER_RANGE: u64 = 4;
+const COUNTER_RANGE: u64 = 1;
 
 fn pack(program: &[u8], bits_per_word: usize, header: u32, header_bits: usize) -> Vec<usize> {
     let data_bits = program.len() * 8;
@@ -33,7 +33,8 @@ fn pack(program: &[u8], bits_per_word: usize, header: u32, header_bits: usize) -
         .collect()
 }
 
-/// Render a payload with checksum-seeded cover, sweeping the fluency counter.
+/// Render a payload with checksum-seeded cover. No counter sweep — the address
+/// determines its prose exactly.
 fn render(program: &[u8], header: u32, header_bits: usize, wl: &[String], bpw: usize) -> (String, Vec<String>) {
     let idx = pack(program, bpw, header, header_bits);
     let words: Vec<String> = idx.iter().map(|&i| wl[i].clone()).collect();

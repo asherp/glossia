@@ -11,7 +11,10 @@ use glossia::generator::data::load_payload_words_for_wordlist;
 use glossia::pipeline::encode_words_into_language_traced;
 use std::collections::HashSet;
 
-const COUNTER_RANGE: u64 = 4;
+/// No counter sweep: verification reproduces a fixed artifact rather than
+/// generating a new one, so the encoder's fluency search would become a cost the
+/// verifier and every repair candidate must repeat.
+const COUNTER_RANGE: u64 = 1;
 /// Opcode glyphs from the Book of Bitcoin notation (btc-prose.js OPCODE_SYMBOLS).
 /// U+24EA and U+2460 are Unicode category No — *alphanumeric* — so they survive
 /// the decoder's token trim. They are safe only because they are declared here.

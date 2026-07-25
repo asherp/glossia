@@ -23,7 +23,7 @@ use glossia::pipeline::encode_words_into_language;
 use std::collections::HashSet;
 
 const BPW: usize = 11;
-const COUNTER_RANGE: u64 = 4;
+const COUNTER_RANGE: u64 = 1;
 
 fn header_bits(n: usize) -> usize { (n * 8).div_ceil(BPW) * BPW - n * 8 }
 

@@ -2143,7 +2143,13 @@ const ADDR_MARKUP = new Set(Object.values(ADDR_OPS).map(([g]) => g));
 const addrGlyphs = (type, which) => ((ADDR_SCRIPT[type] || {})[which] || []).map(k => ADDR_OPS[k][0]).join(' ');
 const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_SCRIPT[type] || {}).trail || [])
   .map(k => ADDR_OPS[k][0] + ' ' + ADDR_OPS[k][1]).join('  \u00b7  ');
-const ADDR_COUNTER_RANGE = 4;
+// No counter sweep. The counter existed so the ENCODER could shop for a more
+// fluent rendering among N seeds — but verification does not generate anything,
+// it reproduces a fixed artifact, so every counter the encoder MAY have used is
+// one the verifier MUST try, and a repair search must try per candidate. Fixing
+// it makes encoding deterministic: one render to encode, one to verify, one per
+// repair candidate. Costs ~6% longer prose; saves a 2.4x multiplier everywhere.
+const ADDR_COUNTER_RANGE = 1;
 const ADDR_VERSION = 1;
 const ADDR_PRESETS = [
   { label: 'P2WPKH', addr: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4' },
@@ -2274,17 +2280,16 @@ function addrRead(artifact, nBytes) {
   // (⓪Insect vs ⓪ Insect) is a formatting difference rather than a failed check.
   const proseToks = toks.map(t => [...t].filter(ch => !ADDR_MARKUP.has(ch)).join(''))
                         .filter(t => t.length);
-  let best = 0;
-  for (let c = 0; c < ADDR_COUNTER_RANGE; c++) {
-    const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)), 'english', 'default', 'body', addrSeed(program, 0) + BigInt(c), 1));
-    if (r.error) continue;
-    const got = r.encoded_text.split(/\s+/).filter(Boolean);
-    if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
-    const n = Math.max(got.length, proseToks.length, 1);
-    let same = 0;
-    for (let i = 0; i < Math.min(got.length, proseToks.length); i++) if (got[i] === proseToks[i]) same++;
-    best = Math.max(best, same / n);
-  }
+  // One render. The address determines its prose exactly, so there is nothing to
+  // search over.
+  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)), 'english', 'default', 'body', addrSeed(program, 0), 1));
+  if (r.error) return { verdict: 'unreadable', note: r.error };
+  const got = r.encoded_text.split(/\s+/).filter(Boolean);
+  if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
+  const n = Math.max(got.length, proseToks.length, 1);
+  let same = 0;
+  for (let i = 0; i < Math.min(got.length, proseToks.length); i++) if (got[i] === proseToks[i]) same++;
+  const best = same / n;
   return best > 0.75
     ? { verdict: 'unverified', program, match: best }
     : { verdict: 'mismatch', program, match: best };

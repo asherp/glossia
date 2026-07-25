@@ -1,5 +1,11 @@
 //! Prototype: Bitcoin locking scripts as self-verifying Glossia prose (glossia#76).
 //!
+//! SUPERSEDED — kept for the damage-discrimination measurement it records. This is
+//! the first layout (script-type byte, u16 wordlist length, the grammar's `bitpack`
+//! codec) and it still sweeps a fluency counter. The shipped format instead puts its
+//! header in the bit-packing slack, shows opcodes as Book of Bitcoin glyphs, and
+//! fixes the counter — see `user_journey.rs` and the demo page.
+//!
 //! Payload layout (proposed v1):
 //!     [0]     version      profile id: grammar + semantics + RNG + cover mode
 //!     [1]     script_type  1=P2PKH 2=P2SH 3=P2WPKH 4=P2WSH 5=P2TR
