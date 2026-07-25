@@ -1297,6 +1297,93 @@ fn encode_random_words_inner(
 
 /// Encode raw bytes (hex or base64 input) into base-N payload words.
 ///
+/// The payload wordlist itself, as a JSON array in index order.
+///
+/// Needed by callers that pack their own bits: the index of a word IS its value,
+/// so a format doing its own bit-packing needs the mapping. Returns `{ error }` on
+/// an unknown language/wordlist.
+#[wasm_bindgen]
+pub fn get_payload_words(language: &str, wordlist: &str) -> String {
+    match load_payload_words_for_wordlist(language, wordlist) {
+        Ok(words) => serde_json::to_string(&words).unwrap_or_else(|e| {
+            serde_json::json!({ "error": e.to_string() }).to_string()
+        }),
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+/// Wrap caller-supplied payload words in cover prose, reporting where each landed.
+///
+/// For formats that pack their own bits — a fixed-length address that carries a
+/// header in the bit-packing slack, say — where the byte-oriented entries cannot
+/// express the packing. `words_json` is a JSON array of payload words, embedded in
+/// the order given.
+///
+/// Returns JSON `{ encoded_text, counter, placements: [{ word, payload_index, pos,
+/// token_index, sentence, role }] }`, or `{ error }` if any word is not in the
+/// payload wordlist (which would otherwise be silently dropped).
+#[wasm_bindgen]
+pub fn encode_words(
+    words_json: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> String {
+    let words: Vec<String> = match serde_json::from_str(words_json) {
+        Ok(w) => w,
+        Err(e) => return serde_json::json!({ "error": format!("bad words JSON: {e}") }).to_string(),
+    };
+    match crate::pipeline::encode_words_into_language_traced(
+        &words, language, wordlist, dialect, seed, best_of.max(1),
+    ) {
+        Err(e) => serde_json::json!({ "error": format!("{e:?}") }).to_string(),
+        Ok((text, counter, placements)) => {
+            let ps: Vec<serde_json::Value> = placements
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "word": p.word,
+                        "payload_index": p.payload_index,
+                        "pos": p.pos.to_string(),
+                        "token_index": p.token_index,
+                        "sentence": p.sentence,
+                        "role": match p.role {
+                            Some(crate::generator::core::Role::Subject) => "subject",
+                            Some(crate::generator::core::Role::Object) => "object",
+                            None => "",
+                        },
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "encoded_text": text,
+                "counter": counter,
+                "placements": ps,
+            })
+            .to_string()
+        }
+    }
+}
+
+/// Derive a cover seed from a payload checksum, so the choice of prose carries the
+/// checksum. `hex` is the exact byte string the checksum covers.
+///
+/// Exposed so browsers and the Rust core agree bit-for-bit rather than
+/// reimplementing CRC-32 and splitmix64 in JavaScript.
+#[wasm_bindgen]
+pub fn checksum_seed_for(hex: &str, counter: u64) -> u64 {
+    let bytes = codec::hex_decode(hex).unwrap_or_default();
+    codec::checksum_seed(&bytes, counter)
+}
+
+/// CRC-32 of a hex byte string, for display alongside an artifact.
+#[wasm_bindgen]
+pub fn payload_crc32(hex: &str) -> u32 {
+    codec::crc32(&codec::hex_decode(hex).unwrap_or_default())
+}
+
 /// If `dialect` is empty, returns space-joined bare payload words.
 /// If `dialect` is provided (e.g., "body"), wraps the payload words in prose.
 ///

@@ -879,7 +879,22 @@ footer a:hover { text-decoration: underline; }
         /* Stacked demos (no tabs): encryption first, each visually separated. */
         .demo-section { display: flex; flex-direction: column; }
         #panel-encrypt { order: -1; }
-        #panel-bip39, #panel-apikey { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+        #panel-address { order: 0; }
+        #panel-bip39, #panel-apikey, #panel-address { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+        /* Prose address */
+        .addr-picker { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
+        .addr-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
+        .addr-verdict { margin-left: auto; font-size: 0.7rem; font-family: var(--font-mono);
+          padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+        .addr-verdict.ok   { color: var(--success); border-color: rgba(34,197,94,0.4);  background: rgba(34,197,94,0.1); }
+        .addr-verdict.warn { color: var(--orange);  border-color: rgba(249,115,22,0.4); background: rgba(249,115,22,0.1); }
+        .addr-verdict.bad  { color: var(--error);   border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.1); }
+        .addr-damage { max-width: 720px; margin: 0.9rem auto 0; text-align: center; }
+        .addr-damage-label { font-size: 0.75rem; color: var(--text-dim); }
+        .addr-damage-row { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; margin-top: 0.5rem; }
+        .addr-cover { color: var(--text-dim); }
+        .addr-pay { text-decoration: underline; text-decoration-color: var(--accent); }
+        .addr-pay sub { font-size: 0.6em; color: var(--accent); opacity: 0.85; }
         .enc-password-row { display: flex; align-items: center; justify-content: center;
           gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
         .enc-password-row input { min-width: 260px; }
@@ -1002,6 +1017,75 @@ footer a:hover { text-decoration: underline; }
             bits, recovering the key in whichever format you pick — <strong>ASCII</strong>,
             <strong>hex</strong>, or <strong>base64</strong>. Press <strong>⇄</strong> to switch
             direction; the output format defaults to the one detected when encoding.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ─── Prose Bitcoin address panel ──────────────────────────── -->
+      <div id="panel-address">
+        <div class="section-header">
+          <h3>Bitcoin Address as Prose</h3>
+          <p>A locking script you can read, dictate, and check by eye &mdash; and that tells you when it has been damaged</p>
+        </div>
+
+        <div class="addr-picker" id="addr-picker"></div>
+
+        <div class="panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label">Bitcoin address</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="addr-input" class="io-input"
+                   data-placeholder="Pick an address above, or paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
+            </div>
+            <div class="panel-footer">
+              <span class="addr-meta" id="addr-meta"></span>
+              <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
+          </div>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label">Prose address</span>
+              <span class="addr-verdict" id="addr-verdict"></span>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="addr-output">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <button class="btn-sm" id="addr-roles-btn" onclick="addrToggleRoles()"
+                      title="Show the grammatical role of each address word">Show roles</button>
+              <button class="btn-sm" onclick="addrCopy()">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="addr-damage">
+          <span class="addr-damage-label">Now damage it, the way a person would:</span>
+          <div class="addr-damage-row" id="addr-damage-row"></div>
+        </div>
+
+        <details class="demo-details" id="addr-how">
+          <summary id="addr-hint"></summary>
+          <div class="enc-how-body">
+            <p>The opcodes are shown as symbols (<strong>&#9661;</strong> witness v0,
+            <strong>&#9651;</strong> v1/Taproot, <strong>&#8981;</strong> hash160), so Glossia only
+            encodes the part that carries entropy &mdash; the 20- or 32-byte program. That is
+            <strong>15 words</strong> for a hash160 address and <strong>24</strong> for a 32-byte one.</p>
+            <p>The format's version and wordlist size ride in the <strong>bit-packing slack</strong>
+            and cost nothing: 160 data bits + 5 header bits is exactly 15 words, and 256 + 8 is
+            exactly 24. Wordlist size is stored as its log&#8322;, which fits in 4 bits because
+            payload wordlists are powers of two.</p>
+            <p><strong>The wording is the checksum.</strong> The cover words are chosen by a seed
+            derived from a CRC-32 of the address, so a different address produces a visibly
+            different paragraph. Verification re-renders the address you decoded and compares:
+            only the true bytes reproduce this exact wording. That costs no extra words, because
+            the information rides in <em>which</em> prose was chosen rather than in any word's value.</p>
+            <p>Try the damage buttons. A fumbled connective word still yields the right address but
+            can no longer self-verify. A mistyped <em>address</em> word decodes to a different
+            address &mdash; caught only by the wording. A lost word is caught by the word count,
+            since a fixed-length address has a fixed number of words.</p>
           </div>
         </details>
       </div>
@@ -1200,6 +1284,10 @@ import init, {
   get_default_wordlist as wasmGetDefaultWordlist,
   encode_raw_base_n as wasmEncodeRawBaseN,
   decode_raw_base_n as wasmDecodeRawBaseN,
+  encode_words as wasmEncodeWords,
+  get_payload_words as wasmGetPayloadWords,
+  checksum_seed_for as wasmChecksumSeed,
+  payload_crc32 as wasmPayloadCrc32,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
@@ -1997,6 +2085,324 @@ toggleBtn.addEventListener('click', () => {
 });
 updateToggleIcon();
 
+// ─── Prose Bitcoin address ────────────────────────────────────────────
+// A locking script rendered as prose whose COVER WORDS carry the checksum:
+// the cover seed is derived from a CRC-32 of the address, so a different
+// address yields a visibly different paragraph, and re-rendering what you
+// decoded is the verification step. Opcodes are shown as symbols, so Glossia
+// encodes only the entropy-carrying program (20 or 32 bytes).
+//
+// The bit packing lives here rather than in the codec because the layout is a
+// property of the ADDRESS FORMAT, not of Glossia: the header rides in the
+// bit-packing slack (160+5 = 15 words exactly; 256+8 = 24 words exactly).
+
+const ADDR_SIGILS = { P2PKH: '⧉ ⌗', P2SH: '⌗', P2WPKH: '▽', P2WSH: '▽', P2TR: '△' };
+const ADDR_TRAIL = { P2PKH: '≟ ✓', P2SH: '⩵', P2WPKH: '', P2WSH: '', P2TR: '' };
+const ADDR_COUNTER_RANGE = 4;
+const ADDR_VERSION = 1;
+const ADDR_PRESETS = [
+  { label: 'P2WPKH', addr: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4' },
+  { label: 'P2TR',   addr: 'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9' },
+  { label: 'P2PKH',  addr: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' },
+  { label: 'P2SH',   addr: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' },
+];
+
+let addrWords = null;         // BIP39 wordlist, index order
+let addrIndex = null;         // word -> index
+let addrState = null;         // { program, type, artifact, placements }
+let addrShowRoles = false;
+
+const B58A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const BECH32A = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+async function sha256d(b) {
+  const a = await crypto.subtle.digest('SHA-256', b);
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', a));
+}
+
+async function b58check(s) {
+  let n = 0n;
+  for (const c of s) { const i = B58A.indexOf(c); if (i < 0) throw new Error('bad base58 character'); n = n * 58n + BigInt(i); }
+  const raw = new Uint8Array(25);
+  for (let i = 24; i >= 0; i--) { raw[i] = Number(n & 0xffn); n >>= 8n; }
+  const body = raw.slice(0, 21), chk = raw.slice(21);
+  const d = (await sha256d(body)).slice(0, 4);
+  if (chk.some((v, i) => v !== d[i])) throw new Error('address checksum failed');
+  return { version: body[0], program: body.slice(1) };
+}
+
+function bech32Poly(v) {
+  const G = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const x of v) { const b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ x; for (let i = 0; i < 5; i++) if ((b >> i) & 1) chk ^= G[i]; }
+  return chk >>> 0;
+}
+function bech32Expand(h) { const o = []; for (const c of h) o.push(c.charCodeAt(0) >> 5); o.push(0); for (const c of h) o.push(c.charCodeAt(0) & 31); return o; }
+function convertBits(data, from, to, pad) {
+  let acc = 0, bits = 0; const out = [], maxv = (1 << to) - 1;
+  for (const v of data) { acc = (acc << from) | v; bits += from; while (bits >= to) { bits -= to; out.push((acc >> bits) & maxv); } }
+  if (pad && bits) out.push((acc << (to - bits)) & maxv);
+  return out;
+}
+function bech32Decode(addr) {
+  const i = addr.lastIndexOf('1');
+  if (i < 1) throw new Error('not a bech32 address');
+  const hrp = addr.slice(0, i), dp = addr.slice(i + 1);
+  const data = [...dp].map(c => { const k = BECH32A.indexOf(c); if (k < 0) throw new Error('bad bech32 character'); return k; });
+  const witver = data[0];
+  const want = witver === 0 ? 1 : 0x2bc830a3;
+  if (bech32Poly(bech32Expand(hrp).concat(data)) !== want) throw new Error('address checksum failed');
+  return { witver, program: Uint8Array.from(convertBits(data.slice(1, -6), 5, 8, false)) };
+}
+
+async function addrParse(text) {
+  const s = (text || '').trim();
+  if (!s) throw new Error('');
+  if (s[0] === '1' || s[0] === '3') {
+    const { version, program } = await b58check(s);
+    return { type: version === 0 ? 'P2PKH' : 'P2SH', program };
+  }
+  const { witver, program } = bech32Decode(s.toLowerCase());
+  if (witver === 0) return { type: program.length === 20 ? 'P2WPKH' : 'P2WSH', program };
+  return { type: 'P2TR', program };
+}
+
+// ── bit packing: program bits, then the header, filling the slack exactly ──
+const ADDR_BPW = 11;
+function addrHeaderBits(n) { return Math.ceil(n * 8 / ADDR_BPW) * ADDR_BPW - n * 8; }
+function addrPack(program) {
+  const hb = addrHeaderBits(program.length);
+  const header = (ADDR_BPW << (hb - 4)) | ADDR_VERSION;
+  const db = program.length * 8, n = (db + hb) / ADDR_BPW, out = [];
+  const bit = i => i < db ? (program[i >> 3] >> (7 - (i & 7))) & 1 : (header >> (hb - 1 - (i - db))) & 1;
+  for (let w = 0; w < n; w++) { let v = 0; for (let b = 0; b < ADDR_BPW; b++) v = (v << 1) | bit(w * ADDR_BPW + b); out.push(addrWords[v]); }
+  return out;
+}
+function addrUnpack(words, nBytes) {
+  const hb = addrHeaderBits(nBytes);
+  if (words.length !== (nBytes * 8 + hb) / ADDR_BPW) return null;
+  const bits = [];
+  for (const w of words) { const i = addrIndex.get(w.toLowerCase()); if (i === undefined) return null; for (let b = ADDR_BPW - 1; b >= 0; b--) bits.push((i >> b) & 1); }
+  const prog = new Uint8Array(nBytes);
+  for (let i = 0; i < nBytes; i++) { let v = 0; for (let b = 0; b < 8; b++) v = (v << 1) | bits[i * 8 + b]; prog[i] = v; }
+  return prog;
+}
+const addrHex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+
+// The checksum covers the program plus the header bytes, i.e. exactly the
+// encoded bits. Derived in Rust so browser and core agree bit-for-bit.
+function addrSeed(program, counter) {
+  return wasmChecksumSeed(addrHex(program) + ADDR_BPW.toString(16).padStart(2, '0') + ADDR_VERSION.toString(16).padStart(2, '0'), BigInt(counter));
+}
+
+function addrRender(program, type) {
+  const words = addrPack(program);
+  const r = JSON.parse(wasmEncodeWords(JSON.stringify(words), 'english', 'default', 'body', addrSeed(program, 0), ADDR_COUNTER_RANGE));
+  if (r.error) throw new Error(r.error);
+  const lead = ADDR_SIGILS[type] || '', trail = ADDR_TRAIL[type] || '';
+  return {
+    prose: r.encoded_text,
+    artifact: [lead, r.encoded_text, trail].filter(Boolean).join(' '),
+    placements: r.placements || [],
+    words,
+  };
+}
+
+// Decode + verify. Mirrors the Rust walkthrough: word count first (a fixed-length
+// address has a fixed word count), then re-render and compare.
+function addrRead(artifact, nBytes) {
+  const toks = artifact.split(/\s+/).filter(Boolean);
+  const harvested = toks.map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase())
+                        .filter(w => w && addrIndex.has(w));
+  const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
+  if (harvested.length !== expected)
+    return { verdict: 'unreadable', note: `wrong number of address words (${harvested.length}, expected ${expected})` };
+  const program = addrUnpack(harvested, nBytes);
+  if (!program) return { verdict: 'unreadable', note: 'word not in the address vocabulary' };
+
+  const proseToks = toks.filter(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '') !== '' &&
+                                     !/^[▽△⌗⧉≟✓⩵ ]+$/u.test(t));
+  let best = 0;
+  for (let c = 0; c < ADDR_COUNTER_RANGE; c++) {
+    const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)), 'english', 'default', 'body', addrSeed(program, 0) + BigInt(c), 1));
+    if (r.error) continue;
+    const got = r.encoded_text.split(/\s+/).filter(Boolean);
+    if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
+    const n = Math.max(got.length, proseToks.length, 1);
+    let same = 0;
+    for (let i = 0; i < Math.min(got.length, proseToks.length); i++) if (got[i] === proseToks[i]) same++;
+    best = Math.max(best, same / n);
+  }
+  return best > 0.75
+    ? { verdict: 'unverified', program, match: best }
+    : { verdict: 'mismatch', program, match: best };
+}
+
+function addrSetVerdict(res) {
+  const el = document.getElementById('addr-verdict');
+  const map = {
+    verified:   ['ok',   '✓ verified'],
+    unverified: ['warn', '⚠ readable, not verified'],
+    mismatch:   ['bad',  '✗ wrong address'],
+    unreadable: ['bad',  '✗ unreadable'],
+  };
+  const [cls, label] = map[res.verdict];
+  el.className = 'addr-verdict ' + cls;
+  const pct = res.match !== undefined && res.verdict !== 'verified' ? ` (${Math.round(res.match * 100)}% wording)` : '';
+  el.textContent = label + pct;
+  el.title = res.note || '';
+}
+
+function addrPaint(artifact, placements) {
+  const box = document.getElementById('addr-output');
+  box.classList.remove('empty');
+  if (!addrShowRoles) { box.textContent = artifact; return; }
+  const byTok = new Map(placements.map(p => [p.token_index, p]));
+  const lead = artifact.slice(0, artifact.length - addrState.prose.length);
+  const toks = addrState.prose.split(/\s+/);
+  const html = toks.map((t, i) => {
+    const p = byTok.get(i);
+    if (!p) return `<span class="addr-cover">${t}</span>`;
+    const role = p.role ? `<sub>${p.role === 'subject' ? 'subj' : 'obj'}</sub>` : '';
+    return `<u class="addr-pay">${t}${role}</u>`;
+  }).join(' ');
+  box.innerHTML = `<span class="addr-cover">${lead}</span>${html}`;
+}
+
+async function addrUpdate() {
+  const errEl = document.getElementById('addr-error');
+  const metaEl = document.getElementById('addr-meta');
+  try {
+    const { type, program } = await addrParse(document.getElementById('addr-input').textContent);
+    const r = addrRender(program, type);
+    addrState = { program, type, ...r };
+    errEl.classList.add('hidden');
+    metaEl.textContent = `${type} · ${program.length}-byte program · ${r.words.length} address words · crc32 ${wasmPayloadCrc32(addrHex(program)).toString(16).padStart(8, '0')}`;
+    addrPaint(r.artifact, r.placements);
+    addrSetVerdict(addrRead(r.artifact, program.length));
+    addrRenderDamage();
+  } catch (e) {
+    addrState = null;
+    metaEl.textContent = '';
+    document.getElementById('addr-output').textContent = 'Output will appear here';
+    document.getElementById('addr-output').classList.add('empty');
+    document.getElementById('addr-verdict').textContent = '';
+    if (e.message) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+    else errEl.classList.add('hidden');
+  }
+}
+
+// Damage simulations, each a real transcription failure mode.
+function addrDamages() {
+  if (!addrState) return [];
+  const pros = addrState.prose, places = addrState.placements;
+  const toks = pros.split(/\s+/);
+  const payTok = new Set(places.map(p => p.token_index));
+  const coverIdx = toks.map((_, i) => i).filter(i => !payTok.has(i) && toks[i].length > 2);
+  const mid = places[Math.floor(places.length / 2)];
+  return [
+    {
+      label: 'fumble a connective word',
+      why: 'The address words are untouched, so the address is still right — but the wording no longer matches, so it cannot self-verify.',
+      apply: () => { const t = [...toks]; if (coverIdx.length) t[coverIdx[0]] = t[coverIdx[0]] + 's'; return t.join(' '); },
+    },
+    {
+      label: 'mistype an address word',
+      why: 'The dangerous one. A valid substitute still decodes — to a DIFFERENT address. Only the wording catches it.',
+      apply: () => { const t = [...toks]; t[mid.token_index] = addrWords[(addrIndex.get(mid.word) + 977) % addrWords.length]; return t.join(' '); },
+    },
+    {
+      label: 'lose a word',
+      why: 'A fixed-length address has a fixed word count, so a dropped word is caught before anything is decoded.',
+      apply: () => { const t = [...toks]; t.splice(places[1].token_index, 1); return t.join(' '); },
+    },
+  ];
+}
+
+function addrRenderDamage() {
+  const row = document.getElementById('addr-damage-row');
+  row.innerHTML = '';
+  addrDamages().forEach((d, i) => {
+    const b = document.createElement('button');
+    b.className = 'btn-sm';
+    b.textContent = d.label;
+    b.onclick = () => addrApplyDamage(i);
+    row.appendChild(b);
+  });
+  const reset = document.createElement('button');
+  reset.className = 'btn-sm';
+  reset.textContent = '↺ reset';
+  reset.onclick = () => addrUpdate();
+  row.appendChild(reset);
+}
+
+function addrApplyDamage(i) {
+  if (!addrState) return;
+  const d = addrDamages()[i];
+  const damagedProse = d.apply();
+  const lead = addrState.artifact.slice(0, addrState.artifact.length - addrState.prose.length);
+  const trail = ADDR_TRAIL[addrState.type] ? ' ' + ADDR_TRAIL[addrState.type] : '';
+  const artifact = lead + damagedProse + trail;
+  const box = document.getElementById('addr-output');
+  box.classList.remove('empty');
+  box.textContent = artifact;
+  const res = addrRead(artifact, addrState.program.length);
+  addrSetVerdict(res);
+  const hint = document.getElementById('addr-hint');
+  const got = res.program ? addrHex(res.program) : null;
+  hint.textContent = d.why + (got && got !== addrHex(addrState.program)
+    ? ` It decodes to ${got.slice(0, 12)}… instead.` : '');
+}
+
+function addrToggleRoles() {
+  addrShowRoles = !addrShowRoles;
+  document.getElementById('addr-roles-btn').textContent = addrShowRoles ? 'Hide roles' : 'Show roles';
+  if (addrState) addrPaint(addrState.artifact, addrState.placements);
+}
+
+function addrCopy() {
+  const t = document.getElementById('addr-output').textContent;
+  navigator.clipboard.writeText(t);
+}
+
+function addrInit() {
+  const wl = JSON.parse(wasmGetPayloadWords('english', 'bip39'));
+  if (wl.error) { console.error('address panel:', wl.error); return; }
+  addrWords = wl;
+  addrIndex = new Map(wl.map((w, i) => [w.toLowerCase(), i]));
+
+  const picker = document.getElementById('addr-picker');
+  ADDR_PRESETS.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn' + (i === 0 ? ' active' : '');
+    b.textContent = p.label;
+    b.onclick = () => {
+      picker.querySelectorAll('.lang-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.getElementById('addr-input').textContent = p.addr;
+      addrUpdate();
+      document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+    };
+    picker.appendChild(b);
+  });
+
+  const input = document.getElementById('addr-input');
+  input.addEventListener('input', () => {
+    picker.querySelectorAll('.lang-btn').forEach(x => x.classList.remove('active'));
+    clearTimeout(input._t);
+    input._t = setTimeout(addrUpdate, 250);
+  });
+  input.textContent = ADDR_PRESETS[0].addr;
+  document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+  addrUpdate();
+}
+
+const ADDR_BASE_HINT = 'Opcodes stay as symbols; only the entropy-carrying program is encoded. ' +
+  'The cover words are chosen by a seed derived from the address itself, so the wording IS the checksum.';
+
+window.addrToggleRoles = addrToggleRoles;
+window.addrCopy = addrCopy;
+
 // ─── Startup ─────────────────────────────────────────────────────────
 
 async function startup() {
@@ -2018,6 +2424,9 @@ async function startup() {
     });
     updateChrome();
     generateSeed();
+
+    // Prose Bitcoin address panel
+    try { addrInit(); } catch (e) { console.error('address panel failed to start:', e); }
 
     // API Key panel
     akBuildButtons();
