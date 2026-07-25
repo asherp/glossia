@@ -884,6 +884,19 @@ footer a:hover { text-decoration: underline; }
         /* Prose address */
         .addr-legend { text-align: center; font-family: var(--font-mono); font-size: 0.68rem;
           color: var(--text-dim); margin: -0.4rem 0 0.9rem; }
+        .addr-solo { max-width: 760px; margin: 0 auto; }
+        .addr-solo .panel-footer { display: flex; align-items: center; gap: 0.5rem; }
+        .addr-solo .panel-footer .addr-meta { margin-right: auto; }
+        .addr-raw { max-width: 720px; margin: 1rem auto 0; }
+        .addr-raw > summary { list-style: none; cursor: pointer; color: var(--text-dim);
+          font-size: 0.75rem; text-align: center; }
+        .addr-raw > summary::-webkit-details-marker { display: none; }
+        .addr-raw > summary::after { content: "\25be"; margin-left: 0.3rem; font-size: 0.75em; opacity: 0.7; }
+        .addr-raw[open] > summary::after { display: inline-block; transform: rotate(180deg); }
+        .addr-raw-body { margin-top: 0.6rem; }
+        .addr-raw-body p { font-size: 0.75rem; color: var(--text-dim); text-align: center; margin: 0 0 0.6rem; }
+        .addr-raw-input { border: 1px solid var(--border); border-radius: 6px; min-height: 40px;
+          background: var(--surface); }
         .addr-picker { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
         .addr-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
         .addr-verdict { margin-left: auto; font-size: 0.7rem; font-family: var(--font-mono);
@@ -1062,34 +1075,19 @@ footer a:hover { text-decoration: underline; }
         <div class="addr-picker" id="addr-picker"></div>
         <div class="addr-legend" id="addr-legend"></div>
 
-        <div class="panels">
-          <div class="panel panel-left">
-            <div class="panel-header">
-              <span class="dialect-label">Bitcoin address</span>
-            </div>
-            <div class="panel-body">
-              <div contenteditable="true" spellcheck="false" id="addr-input" class="io-input"
-                   data-placeholder="Pick an address above, or paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
-            </div>
-            <div class="panel-footer">
-              <span class="addr-meta" id="addr-meta"></span>
-              <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
-            </div>
+        <div class="panel addr-solo">
+          <div class="panel-header">
+            <span class="dialect-label">Prose address</span>
+            <span class="addr-verdict" id="addr-verdict"></span>
           </div>
-
-          <div class="panel panel-right">
-            <div class="panel-header">
-              <span class="dialect-label">Prose address</span>
-              <span class="addr-verdict" id="addr-verdict"></span>
-            </div>
-            <div class="panel-body">
-              <div class="output-area empty" id="addr-output">Output will appear here</div>
-            </div>
-            <div class="panel-footer">
-              <button class="btn-sm" id="addr-roles-btn" onclick="addrToggleRoles()"
-                      title="Show the grammatical role of each address word">Show roles</button>
-              <button class="btn-sm" onclick="addrCopy()">Copy</button>
-            </div>
+          <div class="panel-body">
+            <div class="output-area empty" id="addr-output">Output will appear here</div>
+          </div>
+          <div class="panel-footer">
+            <span class="addr-meta" id="addr-meta"></span>
+            <button class="btn-sm" id="addr-roles-btn" onclick="addrToggleRoles()"
+                    title="Show the grammatical role of each address word">Show roles</button>
+            <button class="btn-sm" onclick="addrCopy()">Copy</button>
           </div>
         </div>
 
@@ -1099,6 +1097,17 @@ footer a:hover { text-decoration: underline; }
           <span class="addr-damage-label">Now damage it, the way a person would:</span>
           <div class="addr-damage-row" id="addr-damage-row"></div>
         </div>
+
+        <details class="addr-raw">
+          <summary>Enter or view the same address in base58</summary>
+          <div class="addr-raw-body">
+            <p>Checking the prose never requires this. It is here so you can paste your own
+            address, and so a sceptic can confirm the words really are the script.</p>
+            <div contenteditable="true" spellcheck="false" id="addr-input" class="io-input addr-raw-input"
+                 data-placeholder="Paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
+            <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
+          </div>
+        </details>
 
         <details class="demo-details" id="addr-how">
           <summary id="addr-hint"></summary>
@@ -1340,7 +1349,6 @@ import init, {
   encode_words as wasmEncodeWords,
   get_payload_words as wasmGetPayloadWords,
   checksum_seed_for as wasmChecksumSeed,
-  payload_crc32 as wasmPayloadCrc32,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
@@ -2442,7 +2450,10 @@ async function addrUpdate() {
     const r = addrRender(program, type);
     addrState = { program, type, ...r };
     errEl.classList.add('hidden');
-    metaEl.textContent = `${type} · ${program.length}-byte program · ${r.words.length} address words · crc32 ${wasmPayloadCrc32(addrHex(program)).toString(16).padStart(8, '0')}`;
+    // Structural facts a reader can act on. The checksum and the hash are machine
+    // detail — surfacing them invites checking the prose against them, which is
+    // the habit this format exists to remove.
+    metaEl.textContent = `${type} · ${r.words.length} address words · ${r.prose.split(/\s+/).length} words total`;
     document.getElementById('addr-legend').textContent = addrLegend(type);
     addrPaint(r.artifact, r.placements);
     addrSetVerdict(addrRead(r.artifact, program.length));
@@ -2538,10 +2549,11 @@ function addrApplyDamage(i) {
   const res = addrRead(artifact, addrState.program.length);
   addrSetVerdict(res);
   addrPaintDamage(box, artifact, res);
+  // Say what happened in words. "It decodes to 741e76e8…" would be true and
+  // would also invite exactly the character-comparison this format replaces.
   const hint = document.getElementById('addr-hint');
-  const got = res.program ? addrHex(res.program) : null;
-  hint.textContent = d.why + (got && got !== addrHex(addrState.program)
-    ? ` It decodes to ${got.slice(0, 12)}… instead.` : '');
+  const changed = res.program && addrHex(res.program) !== addrHex(addrState.program);
+  hint.textContent = d.why + (changed ? ' The text now refers to a different address.' : '');
 }
 
 // Show WHERE the text disagrees with its own re-render, and — when the payload
@@ -2664,19 +2676,21 @@ function addrShowPopup(tokenEl, idx) {
   pop.className = 'addr-popup ' + (m.kind === SPELL ? 'spell' : 'grammar');
 
   if (m.kind === SPELL) {
-    // What the text says now, versus what it would say corrected. This is the
-    // decision the user is actually being asked to make.
-    const now = addrRead(addrCurrent.artifact, addrCurrent.nBytes);
-    const after = addrRead(fixed.join(' '), addrCurrent.nBytes);
+    // Deliberately NOT a hex comparison. The claim of this format is that reading
+    // the prose is a valid check in its own right; falling back to "here are two
+    // hashes, compare them" would concede the opposite and hand the user the exact
+    // character-by-character task the words exist to replace. The meaningful
+    // statement is about agreement: as written, the words and the wording describe
+    // different addresses, and only one substitution makes them agree.
     pop.innerHTML =
       `<div class="addr-popup-h">Did you mean <strong>${m.suggest}</strong>?</div>` +
-      `<div class="addr-popup-b">${m.note}</div>` +
-      `<table class="addr-popup-t">` +
-      `<tr><td>as written</td><td>${now.program ? addrHex(now.program).slice(0, 16) + '…' : 'does not decode'}</td></tr>` +
-      `<tr><td>corrected</td><td><strong>${after.program ? addrHex(after.program).slice(0, 16) + '…' : '—'}</strong></td></tr>` +
-      `</table>` +
-      `<div class="addr-popup-warn">This changes the address. Apply only if you agree it is the word that was meant.</div>` +
-      `<div class="addr-popup-actions"><button class="btn-sm" id="addr-pop-apply">Use “${m.suggest}”</button>` +
+      `<div class="addr-popup-b">As written, these words spell a <strong>different address</strong> ` +
+      `&mdash; and the rest of the sentence does not match that address.</div>` +
+      `<div class="addr-popup-b">With <strong>${m.suggest}</strong>, the words and the wording agree, ` +
+      `which is what makes an address readable as correct.</div>` +
+      `<div class="addr-popup-warn">This changes which address the text refers to. Apply only if you ` +
+      `agree it is the word that was meant.</div>` +
+      `<div class="addr-popup-actions"><button class="btn-sm" id="addr-pop-apply">Use &ldquo;${m.suggest}&rdquo;</button>` +
       `<button class="btn-sm" id="addr-pop-close">Keep as written</button></div>`;
   } else {
     pop.innerHTML =
