@@ -177,7 +177,31 @@ fn main() {
     println!("\n  A fixed-length address has a fixed word count, so a dropped address word");
     println!("  is caught before anything is decoded at all.");
 
-    hr("6. TWO ADDRESSES THAT DIFFER BY ONE BIT");
+    hr("6. A CONNECTIVE WORD TURNS INTO AN ADDRESS WORD");
+    // 'son' is connective prose; 'sun' is an address word. One character apart.
+    let inserted = artifact.replacen(" son ", " sun ", 1);
+    println!("\n  'son' misread as 'sun':\n");
+    println!("  {inserted}\n");
+    let (_g, verdict, _) = c.read(&inserted, program.len());
+    println!("  {verdict}");
+    println!("\n  This is the mirror of scenario 5. Nothing was lost — a word was GAINED,");
+    println!("  because a connective word landed in the address vocabulary. The fixed");
+    println!("  word count catches it the same way.");
+
+    hr("7. TWO ERRORS THAT HIDE EACH OTHER");
+    // A dropped address word and a gained one cancel out in the count.
+    let compound = artifact.replacen(" son ", " sun ", 1).replacen("ring", "map", 1);
+    println!("\n  'son' -> 'sun' (gained) and 'ring' -> 'map' (lost), together:\n");
+    println!("  {compound}\n");
+    let (g, verdict, sim) = c.read(&compound, program.len());
+    println!("  {verdict}  (wording match {:.0}%)", sim * 100.0);
+    println!("  decodes to: {}", hex_encode(g.as_deref().unwrap_or(&[])));
+    println!("  is that the right address? {}", g.as_deref() == Some(&program[..]));
+    println!("\n  The word count is back to normal, so counting alone would pass this.");
+    println!("  Only the wording check catches it — which is the reason the address");
+    println!("  determines its own prose rather than being wrapped in arbitrary text.");
+
+    hr("8. TWO ADDRESSES THAT DIFFER BY ONE BIT");
     let mut near = program.clone();
     near[19] ^= 1;
     let (other, _p2) = c.render(&near, '\u{25BD}');
@@ -188,7 +212,7 @@ fn main() {
     println!("  are two different paragraphs — which is why the wording is derived from");
     println!("  the address rather than chosen freely.");
 
-    hr("7. READING IT ALOUD");
+    hr("9. READING IT ALOUD");
     println!("\n  If you dictate this, the listener needs the address words in order:\n");
     println!("  {}\n", places.iter().map(|p| p.word.as_str()).collect::<Vec<_>>().join(" · "));
     println!("  The grammar is what makes that speakable — and the roles are a second");
