@@ -301,7 +301,9 @@ mark {
   height: 48px;
   border-radius: 50%;
   background: var(--surface);
-  border: 2px solid var(--border);
+  /* The neutral border disappeared against a dark surface — a control nobody
+     can find is a control that does not exist. */
+  border: 2px solid var(--accent);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -319,7 +321,19 @@ mark {
   box-shadow: 0 4px 12px rgba(124, 108, 240, 0.3);
   transform: translate(-50%, -50%) scale(1.05);
 }
-.swap-btn svg { width: 20px; height: 20px; fill: currentColor; }
+.swap-btn svg { width: 22px; height: 22px; fill: currentColor; }
+.swap-btn::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 100%;
+  margin-top: 0.4rem;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
 
 /* Buttons */
 button {
@@ -2506,6 +2520,7 @@ function addrApplyMode() {
   document.getElementById('addr-right-label').textContent = enc ? 'Prose address' : 'Bitcoin address';
   document.getElementById('addr-input').dataset.placeholder =
     enc ? 'Paste a bc1… / 1… / 3… address' : 'Paste a prose address';
+  document.getElementById('addr-swap-btn').dataset.label = enc ? 'encode' : 'decode';
   document.getElementById('addr-damage').classList.toggle('hidden', !enc);
   document.getElementById('addr-picker').classList.toggle('hidden', !enc);
   document.getElementById('addr-roles-btn').classList.toggle('hidden', !enc);
