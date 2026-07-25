@@ -12,7 +12,18 @@ use glossia::pipeline::encode_words_into_language_traced;
 use std::collections::HashSet;
 
 const COUNTER_RANGE: u64 = 4;
-const SIGILS: [char; 3] = ['\u{25BD}', '\u{25B3}', '\u{2317}'];
+/// Opcode glyphs from the Book of Bitcoin notation (btc-prose.js OPCODE_SYMBOLS).
+/// U+24EA and U+2460 are Unicode category No — *alphanumeric* — so they survive
+/// the decoder's token trim. They are safe only because they are declared here.
+const SIGILS: [char; 7] = [
+    '\u{29C9}', // ⧉ OP_DUP
+    '\u{2316}', // ⌖ OP_HASH160
+    '\u{2261}', // ≡ OP_EQUALVERIFY
+    '\u{2207}', // ∇ OP_CHECKSIG
+    '=',         // OP_EQUAL
+    '\u{24EA}', // ⓪ OP_0
+    '\u{2460}', // ① OP_1
+];
 
 struct Codec {
     wl: Vec<String>,
@@ -126,13 +137,13 @@ fn main() {
     let c = Codec::new();
     // P2WPKH, bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
     let program = glossia::codec::hex_decode("751e76e8199196d454941c45d1b3a323f1433bd6").unwrap();
-    let (artifact, places) = c.render(&program, '\u{25BD}');
+    let (artifact, places) = c.render(&program, '\u{24EA}');  // OP_0
 
     hr("1. SOMEONE SENDS YOU AN ADDRESS");
     println!("\n  {artifact}\n");
-    println!("  This is a pay-to-witness-public-key-hash address. The ▽ is the opcode;");
-    println!("  the sentences carry the 20-byte program. {} of the words are address", places.len());
-    println!("  data, the rest is connective prose.\n");
+    println!("  This is a pay-to-witness-public-key-hash address. \u{24EA} is OP_0, the");
+    println!("  witness version; the sentences carry the 20-byte program. {} of the", places.len());
+    println!("  words are address data, the rest is connective prose.\n");
     println!("  hash160  {}", hex_encode(&program));
     println!("  checksum {:08x}", crc32(&program));
 
@@ -204,7 +215,7 @@ fn main() {
     hr("8. TWO ADDRESSES THAT DIFFER BY ONE BIT");
     let mut near = program.clone();
     near[19] ^= 1;
-    let (other, _p2) = c.render(&near, '\u{25BD}');
+    let (other, _p2) = c.render(&near, '\u{24EA}');
     println!("\n  yours:  {artifact}\n");
     println!("  theirs: {other}\n");
     println!("  The two hash160s differ in a single bit, and share 14 of 15 address");

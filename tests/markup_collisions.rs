@@ -10,25 +10,52 @@ use glossia::generator::data::{
     all_payload_alphabets, load_payload_words_for_wordlist, markup_collisions, payload_alphabet,
 };
 
-/// The opcode sigils used by the prose address format.
-const SIGILS: [char; 8] = [
-    '\u{29C9}', // ⧉  OP_DUP
-    '\u{2317}', // ⌗  OP_HASH160
-    '\u{225F}', // ≟  OP_EQUALVERIFY
-    '\u{2713}', // ✓  OP_CHECKSIG
-    '\u{2A75}', // ⩵  OP_EQUAL
-    '\u{25BD}', // ▽  witness v0
-    '\u{25B3}', // △  witness v1
-    '\u{03B2}', // β  difficulty mark (letter-like: safe only because declared)
+/// The opcode glyphs the prose address format uses, taken from the Book of
+/// Bitcoin notation (`btc-prose.js` OPCODE_SYMBOLS) rather than invented here.
+///
+/// Two of them are the reason `Markup` exists. U+24EA and U+2460 are Unicode
+/// category `No` — alphanumeric — so `normalize_token` does NOT strip them, and
+/// flush against a payload word they would hide it. They are safe only because
+/// the format declares them.
+const SIGILS: [char; 7] = [
+    '\u{29C9}', // ⧉ OP_DUP
+    '\u{2316}', // ⌖ OP_HASH160
+    '\u{2261}', // ≡ OP_EQUALVERIFY
+    '\u{2207}', // ∇ OP_CHECKSIG
+    '=',         // OP_EQUAL
+    '\u{24EA}', // ⓪ OP_0
+    '\u{2460}', // ① OP_1
 ];
 
 #[test]
-fn address_sigils_collide_with_no_shipped_payload_wordlist() {
+fn sigils_are_valid_markup_for_the_wordlist_the_format_uses() {
+    // The address format encodes against english/bip39, whose alphabet is a-z.
+    // Every glyph must be outside it, or decoding would strip payload content.
+    let wl = load_payload_words_for_wordlist("english", "bip39").expect("wordlist");
+    Markup::new(SIGILS, &wl).expect("BoB notation must validate against bip39");
+}
+
+#[test]
+fn the_notation_is_not_portable_to_every_wordlist() {
+    // Not a defect — a boundary worth pinning. OP_EQUAL is '=', which is a PAYLOAD
+    // character in cs/base64 and cs/ascii7 (the latter uses all 95 printable
+    // ASCII). So this notation is safe for the wordlist this format uses, and is
+    // NOT automatically safe elsewhere. Reusing it against a CS wordlist needs a
+    // different glyph for OP_EQUAL.
     let collisions = markup_collisions(SIGILS);
+    let names: Vec<&str> = collisions.keys().map(|k| k.as_str()).collect();
     assert!(
-        collisions.is_empty(),
-        "prose-address sigils collide with payload wordlists: {collisions:?}"
+        names.iter().any(|n| n.starts_with("cs/")),
+        "expected the ASCII '=' glyph to collide with a cs wordlist, got {names:?}"
     );
+    for (name, chars) in &collisions {
+        assert_eq!(
+            chars,
+            &vec!['='],
+            "{name}: only OP_EQUAL's '=' should collide; a new clash means the \
+             notation or a wordlist changed"
+        );
+    }
 }
 
 #[test]
