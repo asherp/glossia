@@ -898,6 +898,17 @@ footer a:hover { text-decoration: underline; }
         .addr-repair { max-width: 720px; margin: 0.7rem auto 0; text-align: center;
           font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
         .addr-repair strong { color: var(--accent); font-family: var(--font-mono); }
+        .tok-spell { text-decoration: underline wavy var(--error); text-underline-offset: 3px;
+          text-decoration-thickness: 1.5px; cursor: help; }
+        .tok-grammar { text-decoration: underline wavy var(--blue); text-underline-offset: 3px;
+          text-decoration-thickness: 1.5px; cursor: help; }
+        .addr-headline { margin-bottom: 0.4rem; }
+        .addr-suggest { list-style: none; padding: 0; margin: 0.4rem 0 0; text-align: left;
+          display: inline-block; font-size: 0.75rem; }
+        .addr-suggest li { margin: 0.25rem 0; font-family: var(--font-mono); }
+        .addr-suggest strong { color: var(--accent); }
+        .addr-suggest em { color: var(--text-dim); font-style: normal; font-family: var(--font-sans); }
+        .addr-foot { margin-top: 0.4rem; font-size: 0.7rem; opacity: 0.8; }
         mark.addr-bad { background: rgba(239,68,68,0.16); color: var(--error);
           border-bottom: 1px solid rgba(239,68,68,0.5); border-radius: 2px; padding: 0 1px; }
         .addr-cover { color: var(--text-dim); }
@@ -1101,6 +1112,17 @@ footer a:hover { text-decoration: underline; }
             different paragraph. Verification re-renders the address you decoded and compares:
             only the true bytes reproduce this exact wording. That costs no extra words, because
             the information rides in <em>which</em> prose was chosen rather than in any word's value.</p>
+            <p>Errors are reported the way a word processor does. An address word that is wrong or
+            not in the vocabulary gets a <span class="tok-spell">red spelling underline</span>; a
+            connective word that disagrees with what the address calls for gets a
+            <span class="tok-grammar">blue grammar underline</span>. The split is real rather than
+            cosmetic: an address word is either off the vocabulary or the wrong entry in it, while a
+            connective word is the wrong choice in an otherwise well-formed sentence.</p>
+            <p>Unlike an ordinary spell checker, a suggestion here is <strong>confirmed, not
+            guessed</strong>. Substituting the candidate and re-rendering either reproduces the
+            received wording or it does not &mdash; so the checker can say &ldquo;this is the word
+            that was meant&rdquo; rather than &ldquo;this is a word that looks similar&rdquo;. It is
+            still shown as a proposal and never applied.</p>
             <p>Try the damage buttons. A fumbled connective word still yields the right address but
             can no longer self-verify. A mistyped <em>address</em> word decodes to a different
             address &mdash; caught only by the wording. A lost word is caught by the word count,
@@ -2452,6 +2474,18 @@ function addrDamages() {
       },
     },
     {
+      label: 'misspell an address word',
+      why: 'The word leaves the vocabulary entirely, so it reads as a misspelling — and the checksum can confirm which word was meant.',
+      apply: () => {
+        const t = [...toks];
+        const w = mid.word;
+        // drop a middle letter: almost always leaves the wordlist
+        const bad = w.slice(0, Math.floor(w.length / 2)) + w.slice(Math.floor(w.length / 2) + 1);
+        t[mid.token_index] = addrSwapIn(t[mid.token_index], bad);
+        return t.join(' ');
+      },
+    },
+    {
       label: 'lose a word',
       why: 'A fixed-length address has a fixed word count, so a dropped word is caught before anything is decoded.',
       apply: () => { const t = [...toks]; t.splice(places[1].token_index, 1); return t.join(' '); },
@@ -2501,52 +2535,145 @@ function addrApplyDamage(i) {
 // Show WHERE the text disagrees with its own re-render, and — when the payload
 // itself is wrong — what single correction would explain it. Corrections are
 // surfaced as proposals and never applied: the search is not always unique.
+// Error reporting modelled on a word processor: payload words get SPELL errors
+// (red), cover words get GRAMMAR errors (blue). The two damage classes really do
+// behave that way — a payload word is either off the vocabulary or the wrong
+// entry in it, while a cover word is the wrong choice in a well-formed sentence.
+//
+// It is stronger than an ordinary spell checker in one respect: a suggestion is
+// not merely ranked by likelihood, it is CONFIRMED. Substituting the candidate
+// and re-rendering either reproduces the received text or it does not.
+const SPELL = 'spell', GRAMMAR = 'grammar';
+
+/// Analyse an artifact and return per-token annotations.
+/// { kind, suggest, note } keyed by token index; empty map means clean.
+function addrCheck(artifact, nBytes) {
+  const toks = artifact.split(/\s+/).filter(Boolean);
+  const core = t => [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')
+                          .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
+  const marks = new Map();
+  const harvested = [];
+  const harvestIdx = [];
+  toks.forEach((t, i) => { const c = core(t); if (c && addrIndex.has(c)) { harvested.push(c); harvestIdx.push(i); } });
+
+  const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
+
+  // ── too few address words: one has been mangled OFF the vocabulary ────
+  // That is a misspelling in the strict sense — the word is not in the
+  // dictionary at all — so look for a nearby dictionary word that restores the
+  // count AND explains the wording.
+  if (harvested.length < expected) {
+    for (let i = 0; i < toks.length; i++) {
+      const c = core(toks[i]);
+      if (!c || addrIndex.has(c)) continue;
+      for (const cand of addrEdit1(c)) {
+        const trial = toks.slice();
+        trial[i] = addrSwapIn(toks[i], cand);
+        const r = addrRead(trial.join(' '), nBytes);
+        if (r.verdict === 'verified') {
+          marks.set(i, { kind: SPELL, suggest: cand,
+            note: `not an address word; “${cand}” restores the address and matches the wording` });
+          return { marks, verdict: 'repairable' };
+        }
+      }
+    }
+    return { marks, verdict: 'short' };
+  }
+  if (harvested.length > expected) return { marks, verdict: 'long' };
+
+  // ── right count: compare against the re-render ────────────────────────
+  const program = addrUnpack(harvested, nBytes);
+  if (!program) return { marks, verdict: 'undecodable' };
+  const { bad } = addrDiffAgainstRerender(artifact, program);
+  if (bad.size === 0) return { marks, verdict: 'clean' };
+
+  const payloadPositions = new Set(harvestIdx);
+  const rr = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
+    'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
+  const expectedToks = rr.error ? [] : rr.encoded_text.split(/\s+/).filter(Boolean);
+
+  // Map diff indices (which count prose tokens) back to artifact token indices.
+  const proseIdx = toks.map((t, i) => core(t) ? i : -1).filter(i => i >= 0);
+
+  // If every address word is intact, the disagreement is cover-only: grammar.
+  const payloadBad = [...bad].some(k => payloadPositions.has(proseIdx[k]));
+  if (!payloadBad) {
+    for (const k of bad) {
+      const i = proseIdx[k];
+      if (i === undefined) continue;
+      marks.set(i, { kind: GRAMMAR, suggest: expectedToks[k],
+        note: expectedToks[k] ? `the address calls for “${expectedToks[k]}” here` : 'unexpected word' });
+    }
+    return { marks, verdict: 'cover-damage' };
+  }
+
+  // Otherwise an address word is wrong. The cover disagreement is a CONSEQUENCE,
+  // not a second fault, so flag only the address word — marking 25 cover words
+  // would be technically true and useless.
+  const hits = addrProposeRepairs(artifact, addrPack(program));
+  if (hits.length === 1) {
+    marks.set(harvestIdx[hits[0].index], { kind: SPELL, suggest: hits[0].to,
+      note: `wrong address word; “${hits[0].to}” explains this wording` });
+    return { marks, verdict: 'repairable' };
+  }
+  for (const i of harvestIdx) marks.set(i, { kind: SPELL, suggest: null, note: 'an address word here is wrong' });
+  return { marks, verdict: hits.length ? 'ambiguous' : 'unlocatable' };
+}
+
 function addrPaintDamage(box, artifact, res) {
   const note = document.getElementById('addr-repair');
-  note.textContent = '';
+  note.innerHTML = '';
   note.className = 'addr-repair hidden';
 
-  if (!res.program) {
-    box.textContent = artifact;
-    note.textContent = res.note || 'The text could not be read as an address.';
-    note.className = 'addr-repair';
-    return;
-  }
-
-  const { bad } = addrDiffAgainstRerender(artifact, res.program);
+  const nBytes = addrState ? addrState.program.length : 20;
+  const { marks, verdict } = addrCheck(artifact, nBytes);
   const toks = artifact.split(/\s+/).filter(Boolean);
-  let k = -1;
-  box.innerHTML = toks.map(t => {
-    const core = [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('');
-    if (!core.length) return `<span class="addr-cover">${t}</span>`;
-    k++;
-    return bad.has(k) ? `<mark class="addr-bad">${t}</mark>` : t;
+
+  box.innerHTML = toks.map((t, i) => {
+    const m = marks.get(i);
+    if (!m) return t;
+    const cls = m.kind === SPELL ? 'tok-spell' : 'tok-grammar';
+    return `<span class="${cls}" title="${m.note.replace(/"/g, '&quot;')}">${t}</span>`;
   }).join(' ');
 
-  if (res.verdict === 'unverified') {
-    note.textContent = `${bad.size} word${bad.size === 1 ? '' : 's'} ${bad.size === 1 ? 'disagrees' : 'disagree'} with the re-render — ` +
-      `highlighted above. The address words are intact, so the address itself is still right.`;
-    note.className = 'addr-repair';
-    return;
+  // The suggestion strip, the way a word processor lists what it found.
+  const items = [...marks.entries()].filter(([, m]) => m.suggest)
+    .map(([i, m]) => `<li><span class="${m.kind === SPELL ? 'tok-spell' : 'tok-grammar'}">${toks[i]}</span>` +
+                     ` &rarr; <strong>${m.suggest}</strong> <em>${m.note}</em></li>`);
+  const headline = {
+    'clean':       'No errors found.',
+    'cover-damage':`${marks.size} wording error${marks.size === 1 ? '' : 's'} — the address words are intact, so the address itself is correct.`,
+    'repairable':  'Address-word error. The correction below is confirmed: substituting it reproduces this exact wording.',
+    'ambiguous':   'An address word is wrong, and more than one correction would explain the text — it cannot be resolved automatically.',
+    'unlocatable': 'An address word is wrong, but no plausible misspelling explains the text, so the position cannot be recovered.',
+    'short':       'Too few address words — one is missing and no nearby word restores it.',
+    'long':        'Too many address words — a connective word has been read as address data.',
+    'undecodable': 'The address words do not decode.',
+  }[verdict] || '';
+
+  // Keep the badge consistent with what the checker actually found: a word count
+  // mismatch reads as "unreadable" to the decoder, but if the checker can name and
+  // confirm the misspelling, that is a spelling error, not an unreadable artifact.
+  const badge = {
+    'clean':       ['ok',   '\u2713 verified'],
+    'cover-damage':['warn', `\u26a0 ${marks.size} wording error${marks.size === 1 ? '' : 's'}`],
+    'repairable':  ['bad',  '\u2717 misspelled address word'],
+    'ambiguous':   ['bad',  '\u2717 wrong address (ambiguous)'],
+    'unlocatable': ['bad',  '\u2717 wrong address'],
+    'short':       ['bad',  '\u2717 missing an address word'],
+    'long':        ['bad',  '\u2717 extra address word'],
+    'undecodable': ['bad',  '\u2717 unreadable'],
+  }[verdict];
+  if (badge) {
+    const el = document.getElementById('addr-verdict');
+    el.className = 'addr-verdict ' + badge[0];
+    el.textContent = badge[1];
   }
-  if (res.verdict === 'mismatch') {
-    const words = addrPack(res.program);
-    const hits = addrProposeRepairs(artifact, words);
-    if (hits.length === 1) {
-      note.innerHTML = `Every word disagrees, because a wrong address word changes the whole ` +
-        `wording — the diff cannot point at it. A repair search can: replacing ` +
-        `<strong>${hits[0].from}</strong> with <strong>${hits[0].to}</strong> explains this text. ` +
-        `Shown as a proposal, not applied.`;
-    } else if (hits.length > 1) {
-      note.innerHTML = `Every word disagrees. The repair search found ${hits.length} corrections ` +
-        `that would explain this text (` + hits.map(h => `${h.from}&rarr;${h.to}`).join(', ') +
-        `), so it cannot be resolved automatically.`;
-    } else {
-      note.textContent = 'Every word disagrees, so an address word is wrong — but no single ' +
-        'plausible typo explains it, so the position cannot be recovered.';
-    }
-    note.className = 'addr-repair';
-  }
+
+  note.innerHTML = `<div class="addr-headline">${headline}</div>` +
+                   (items.length ? `<ul class="addr-suggest">${items.join('')}</ul>` : '') +
+                   (verdict === 'repairable' ? '<div class="addr-foot">Shown as a proposal — never applied automatically.</div>' : '');
+  note.className = 'addr-repair';
 }
 
 function addrToggleRoles() {
