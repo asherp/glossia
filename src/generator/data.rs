@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -464,6 +464,68 @@ pub fn load_payload_words(language: &str) -> Result<Vec<String>, String> {
 /// Load payload words for a specific wordlist profile.
 pub fn load_payload_words_for_wordlist(language: &str, wordlist: &str) -> Result<Vec<String>, String> {
     Ok(load_or_build_payload_cache(language, wordlist)?.words.clone())
+}
+
+/// The set of characters that appear in a payload wordlist.
+///
+/// A format that decorates prose with sigils must not choose a character any
+/// payload word uses, or decoding would strip payload content. Reading the
+/// alphabet from the wordlist itself makes that condition checkable rather than
+/// guessed — see [`crate::codec::Markup`].
+pub fn payload_alphabet(language: &str, wordlist: &str) -> Result<BTreeSet<char>, String> {
+    Ok(load_payload_words_for_wordlist(language, wordlist)?
+        .iter()
+        .flat_map(|w| w.chars())
+        .collect())
+}
+
+/// Alphabets for every embedded payload wordlist, keyed `"language/wordlist"`.
+///
+/// Wordlists are append-only, so a list that is safe for a given sigil today can
+/// acquire a colliding character tomorrow. Validating against every shipped
+/// wordlist — not just the one a format currently uses — turns that into a test
+/// failure instead of a silently mis-decoded artifact.
+///
+/// Wordlists that fail to load are skipped rather than propagated, so a single
+/// malformed profile cannot mask collisions in the rest.
+pub fn all_payload_alphabets() -> BTreeMap<String, BTreeSet<char>> {
+    let mut out = BTreeMap::new();
+    for language in get_available_languages() {
+        for wordlist in get_available_wordlists(language) {
+            if let Ok(alphabet) = payload_alphabet(language, &wordlist) {
+                if !alphabet.is_empty() {
+                    out.insert(format!("{language}/{wordlist}"), alphabet);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Every `"language/wordlist"` whose payload alphabet contains one of `chars`.
+///
+/// Returns the offending characters per wordlist, so a format can report exactly
+/// which sigil clashes with which list.
+pub fn markup_collisions<I: IntoIterator<Item = char>>(
+    chars: I,
+) -> BTreeMap<String, Vec<char>> {
+    let chars: Vec<char> = chars.into_iter().collect();
+    let mut out = BTreeMap::new();
+    for (name, alphabet) in all_payload_alphabets() {
+        let hits: Vec<char> = chars
+            .iter()
+            .copied()
+            .filter(|c| {
+                alphabet.contains(c)
+                    || c.to_lowercase().any(|lc| alphabet.contains(&lc))
+                    || c.to_uppercase().any(|uc| alphabet.contains(&uc))
+            })
+            .collect();
+        if !hits.is_empty() {
+            out.insert(name, hits);
+        }
+    }
+    out
 }
 
 /// Inject a scale-derived payload wordlist into the in-memory cache.
