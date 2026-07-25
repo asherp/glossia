@@ -1,6 +1,6 @@
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
-use rand::rngs::StdRng;
+use crate::CoverRng;
 use std::collections::HashSet;
 
 use crate::generator::data::{
@@ -164,7 +164,7 @@ fn encode_inner(
             Some(grammar_dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
         )
     } else {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = CoverRng::seed_from_u64(seed);
         generate_text_with_original_payload(
             &mut rng, &lex, &payload_toks, None, false, mode, language,
             Some(grammar_dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
@@ -297,7 +297,7 @@ fn random_words_inner(
         return Err("Wordlist is empty".to_string());
     }
 
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let mut selected = Vec::with_capacity(count);
     for _ in 0..count {
         use rand::seq::SliceRandom;
@@ -785,7 +785,7 @@ fn encode_characters_inner(
     };
 
     // 7. Generate text
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let mode = if grammar_dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
@@ -1196,7 +1196,7 @@ fn encode_random_words_inner(
     }
 
     // 2. Generate random words
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let mut selected_words = Vec::with_capacity(count);
     for _ in 0..count {
         use rand::seq::SliceRandom;
@@ -1249,7 +1249,7 @@ fn encode_random_words_inner(
     };
 
     // 7. Generate text with the same RNG (re-seeded for text generation)
-    let mut text_rng = StdRng::seed_from_u64(seed.wrapping_add(1)); // Offset seed for text gen
+    let mut text_rng = CoverRng::seed_from_u64(seed.wrapping_add(1)); // Offset seed for text gen
     let mode = if grammar_dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
@@ -1419,7 +1419,7 @@ fn encode_raw_base_n_inner(
             Some(dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
         )
     } else {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = CoverRng::seed_from_u64(seed);
         generate_text_with_original_payload(
             &mut rng, &lex, &payload_toks, None, false, mode, language,
             Some(dialect), k_min, k_max, SentenceLengthMode::Natural, " ",

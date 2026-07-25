@@ -15,6 +15,23 @@ pub mod image_codec;
 pub mod wasm;
 
 // Re-export key types
+/// The RNG that realizes cover words and sentence shape.
+///
+/// Pinned to ChaCha12 explicitly rather than inherited from `rand::rngs::StdRng`.
+/// `StdRng` is documented as not reproducible across `rand` major versions -- its
+/// algorithm may change -- which makes it unsafe for anything whose *output* is
+/// part of a format. Verification by re-render (#76) is exactly that: a dependency
+/// bump could otherwise change every rendering while the version field still
+/// claimed compatibility.
+///
+/// `StdRng` in rand 0.8 *is* ChaCha12, and `seed_from_u64` is a `SeedableRng`
+/// provided method, so this pin is byte-identical to the previous behaviour --
+/// verified over raw stream, `gen::<f64>()` and `choose()` draws. ChaCha20 is a
+/// different stream and would invalidate every existing encoding; do not
+/// "upgrade" to it. The RNG never selects payload words, only cover, so its
+/// strength is not a security property.
+pub type CoverRng = rand_chacha::ChaCha12Rng;
+
 pub use types::Pos;
 pub use grammar::{Grammar, SequenceWithProbability, DialectConfig};
 

@@ -25,7 +25,7 @@ use std::fmt;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use rand::SeedableRng;
-use rand::rngs::StdRng;
+use crate::CoverRng;
 
 use crate::codec::{self, DataMode};
 use crate::generator::data::{
@@ -1626,7 +1626,7 @@ fn generate_prose_for_zone(
         cover_override, length_mode, k_min_override, k_max_override,
     )?;
 
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let (text, payload_set) = generate_text_with_original_payload(
         &mut rng,
         &gen.lex,

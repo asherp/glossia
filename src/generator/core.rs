@@ -1,5 +1,5 @@
 use rand::{seq::SliceRandom, Rng, SeedableRng};
-use rand::rngs::StdRng;
+use crate::CoverRng;
 use std::collections::{HashMap, HashSet};
 use crate::types::Pos;
 use crate::grammar::{Grammar, SequenceWithProbability};
@@ -926,7 +926,7 @@ pub fn generate_text_best_of_indexed(
     const DENSITY_TOL: f64 = 0.02;
 
     let gen_one = |seed: u64| {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = CoverRng::seed_from_u64(seed);
         generate_text_with_original_payload(
             &mut rng, lex, payload, original_payload_set, verbose, mode, language,
             grammar_dialect, k_min, k_max, length_mode, delimiter,

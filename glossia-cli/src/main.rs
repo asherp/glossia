@@ -6,7 +6,7 @@
 // rand = "0.8"
 
 use rand::{seq::SliceRandom, Rng, SeedableRng};
-use rand::rngs::StdRng;
+use glossia::CoverRng;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use glossia::types::Pos;
@@ -1625,7 +1625,7 @@ fn main() {
         // Generate a random seed from thread_rng for non-deterministic behavior
         rand::thread_rng().gen::<u64>()
     };
-    let mut rng = StdRng::seed_from_u64(seed_value);
+    let mut rng = CoverRng::seed_from_u64(seed_value);
     
     if verbose {
         if seed.is_some() {
@@ -1936,7 +1936,7 @@ fn main() {
                 &delimiter,
             )
         } else {
-            let mut variation_rng = StdRng::seed_from_u64(variation_seed);
+            let mut variation_rng = CoverRng::seed_from_u64(variation_seed);
             generate_text_with_original_payload(
                 &mut variation_rng,
                 &lex,
@@ -2345,7 +2345,7 @@ mod tests {
     fn test_plan_sentence_max_j() {
         // Load cache
         let cache = SequenceCache::load(GenerationMode::Body, "english", 20, false).expect("Failed to load cache");
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         
         // Create payload with N, V, N
         let payload = vec![
@@ -2379,7 +2379,7 @@ mod tests {
     #[test]
     fn test_ordered_payload_extraction() {
         // Smoke test: generate text and verify payload words appear in order
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let words = vec!["abandon".to_string(), "ability".to_string(), "able".to_string()];
         
         let payload: Vec<PayloadTok> = words
@@ -2574,7 +2574,7 @@ mod tests {
         };
 
         // Generate sentences with random BIP39 words (using fixed seed for reproducibility)
-        let mut rng = StdRng::seed_from_u64(TEST_SEED);
+        let mut rng = CoverRng::seed_from_u64(TEST_SEED);
         let words = select_random_words(&mut rng, 10, "english").unwrap();
         
         let payload: Vec<PayloadTok> = words
@@ -2645,7 +2645,7 @@ mod tests {
 
         // Test with different payload sizes (using same seed for reproducibility)
         for word_count in [5, 8, 12] {
-            let mut rng = StdRng::seed_from_u64(TEST_SEED);
+            let mut rng = CoverRng::seed_from_u64(TEST_SEED);
             let words = select_random_words(&mut rng, word_count, "english").unwrap();
             
             let payload: Vec<PayloadTok> = words
@@ -2689,7 +2689,7 @@ mod tests {
     #[test]
     fn test_sentence_structure() {
         // Test that generated sentences have reasonable structure (using fixed seed for reproducibility)
-        let mut rng = StdRng::seed_from_u64(TEST_SEED);
+        let mut rng = CoverRng::seed_from_u64(TEST_SEED);
         let words = select_random_words(&mut rng, 5, "english").unwrap();
         
         let payload: Vec<PayloadTok> = words
@@ -2727,7 +2727,7 @@ mod tests {
     #[test]
     fn test_compute_k_candidates_compact_mode() {
         let cache = SequenceCache::load(GenerationMode::Body, "english", 20, false).expect("Failed to load cache");
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         
         // Compact mode should return k_min..=k_max in order
         let candidates = compute_k_candidates(
@@ -2759,7 +2759,7 @@ mod tests {
     #[test]
     fn test_compute_k_candidates_natural_mode() {
         let cache = SequenceCache::load(GenerationMode::Body, "english", 20, false).expect("Failed to load cache");
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         
         // Natural mode should ignore k_min and sample from all available k values
         let candidates = compute_k_candidates(
@@ -2793,7 +2793,7 @@ mod tests {
     #[test]
     fn test_compute_k_candidates_natural_mode_prefix() {
         let cache = SequenceCache::load(GenerationMode::Subject, "english", 20, false).expect("Failed to load cache");
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         
         // Natural mode with require_prefix should start at k=2 (k_min ignored)
         let candidates = compute_k_candidates(
@@ -2827,7 +2827,7 @@ mod tests {
     #[test]
     fn test_compute_k_candidates_natural_mode_weight_ordering() {
         let cache = SequenceCache::load(GenerationMode::Body, "english", 20, false).expect("Failed to load cache");
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         
         // Test that after the sampled k, remaining k's are in descending weight order
         let candidates = compute_k_candidates(
@@ -2892,7 +2892,7 @@ mod tests {
         let mut forced: HashMap<usize, usize> = HashMap::new();
         forced.insert(1, 0); // Force "apple" into N slot
 
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
@@ -2919,7 +2919,7 @@ mod tests {
         let mut forced: HashMap<usize, usize> = HashMap::new();
         forced.insert(1, 0); // Force "basket" into N slot
 
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
@@ -2951,7 +2951,7 @@ mod tests {
         let refinements = vec![Some("def".to_string()), None, None];
 
         let def_words: HashSet<&str> = ["the", "its", "our"].iter().copied().collect();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
@@ -2988,7 +2988,7 @@ mod tests {
         let slots = vec![Pos::N, Pos::Cop, Pos::Adj, Pos::Dot];
         let refinements = vec![None, Some("sg".to_string()), None, None];
 
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
@@ -3022,7 +3022,7 @@ mod tests {
         let slots = vec![Pos::N, Pos::Cop, Pos::Adj, Pos::Dot];
         let refinements = vec![None, Some("pl".to_string()), None, None];
 
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
@@ -3046,7 +3046,7 @@ mod tests {
         let slots = vec![Pos::Adj, Pos::N, Pos::V, Pos::N, Pos::Dot];
         let refinements = vec![None, None, None, None, None];
 
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let mut payload_i = 0usize;
         let out = fill_slots(
             &mut rng, &lex, &slots, &refinements, &payload, &mut payload_i,
@@ -3073,7 +3073,7 @@ mod tests {
         ].iter().copied().collect();
 
         for seed in [42u64, 123, 999, 7, 2024] {
-            let mut rng = StdRng::seed_from_u64(seed);
+            let mut rng = CoverRng::seed_from_u64(seed);
             let words = select_random_words(&mut rng, 6, "latin").unwrap();
 
             let payload: Vec<PayloadTok> = words.iter().map(|word| {
@@ -3138,7 +3138,7 @@ mod tests {
     #[test]
     fn test_english_round_trip() {
         // Encode 4+ BIP39 words, extract from output, verify they match in order
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let words = vec![
             "abandon".to_string(),
             "ability".to_string(),
@@ -3192,13 +3192,13 @@ mod tests {
 
         let lex = setup_test_lexicon(payload_set, wordlist_set);
 
-        let mut rng1 = StdRng::seed_from_u64(42);
+        let mut rng1 = CoverRng::seed_from_u64(42);
         let (text1, _) = generate_text(
             &mut rng1, &lex, &payload, false, GenerationMode::Body, "english",
             3, 20, SentenceLengthMode::Compact, " ",
         );
 
-        let mut rng2 = StdRng::seed_from_u64(42);
+        let mut rng2 = CoverRng::seed_from_u64(42);
         let (text2, _) = generate_text(
             &mut rng2, &lex, &payload, false, GenerationMode::Body, "english",
             3, 20, SentenceLengthMode::Compact, " ",
@@ -3211,7 +3211,7 @@ mod tests {
 
     #[test]
     fn test_single_payload_word_appears_in_output() {
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let payload = vec![PayloadTok::new("abandon", &[Pos::N, Pos::V])];
         let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
         let wordlist_words = load_payload_words("english").unwrap();
@@ -3235,7 +3235,7 @@ mod tests {
     #[test]
     fn test_many_payload_words_round_trip() {
         // Test with 12 random BIP39 words
-        let mut rng = StdRng::seed_from_u64(99);
+        let mut rng = CoverRng::seed_from_u64(99);
         let words = select_random_words(&mut rng, 12, "english").unwrap();
 
         let payload: Vec<PayloadTok> = words.iter().map(|word| {
@@ -3270,7 +3270,7 @@ mod tests {
     #[test]
     fn test_output_ends_with_period_body_mode() {
         // Body mode text should end with a period for English
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let words = vec!["abandon".to_string(), "ability".to_string()];
         let payload: Vec<PayloadTok> = words.iter().map(|word| {
             let tags = tag_word(word);
@@ -3350,7 +3350,7 @@ mod tests {
 
     #[test]
     fn test_meta_round_trip_4_words() {
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let words = vec![
             "base64".to_string(),
             "latin".to_string(),
@@ -3398,7 +3398,7 @@ mod tests {
 
     #[test]
     fn test_meta_round_trip_8_words() {
-        let mut rng = StdRng::seed_from_u64(100);
+        let mut rng = CoverRng::seed_from_u64(100);
         let words = select_random_words(&mut rng, 8, "meta").unwrap();
 
         let pos_mapping = build_pos_mapping_for_wordlist("meta", "default")
@@ -3456,13 +3456,13 @@ mod tests {
 
         let lex = setup_meta_lexicon(payload_set, wordlist_set);
 
-        let mut rng1 = StdRng::seed_from_u64(42);
+        let mut rng1 = CoverRng::seed_from_u64(42);
         let (text1, _) = generate_text(
             &mut rng1, &lex, &payload, false, GenerationMode::Body, "meta",
             3, 12, SentenceLengthMode::Compact, " ",
         );
 
-        let mut rng2 = StdRng::seed_from_u64(42);
+        let mut rng2 = CoverRng::seed_from_u64(42);
         let (text2, _) = generate_text(
             &mut rng2, &lex, &payload, false, GenerationMode::Body, "meta",
             3, 12, SentenceLengthMode::Compact, " ",
@@ -3473,7 +3473,7 @@ mod tests {
 
     #[test]
     fn test_meta_output_ends_with_period() {
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let words = vec!["pgp".to_string(), "nostr".to_string()];
         let pos_mapping = build_pos_mapping_for_wordlist("meta", "default")
             .expect("Meta POS mapping");
@@ -3505,7 +3505,7 @@ mod tests {
     #[test]
     fn test_first_word_is_capitalized() {
         // First word of output should be capitalized
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
         let words = vec!["abandon".to_string(), "ability".to_string()];
         let payload: Vec<PayloadTok> = words.iter().map(|word| {
             let tags = tag_word(word);
