@@ -146,6 +146,82 @@ pub fn alnum_token_count(text: &str) -> usize {
         .count()
 }
 
+/// A declared set of markup characters — opcode sigils, delimiters, any decoration
+/// a format places around prose — that decoding must strip rather than read.
+///
+/// [`normalize_token`] can only strip what is non-alphanumeric, which is a guess:
+/// `β` is Unicode category `Ll`, indistinguishable from a payload letter, so
+/// `βabsorb` normalizes to itself and the payload word vanishes. Declaring the
+/// markup removes the guess — a known symbol is stripped whether or not Unicode
+/// considers it a letter.
+///
+/// The safety condition is not "non-alphanumeric" but "not a character any payload
+/// word uses", which [`Markup::new`] checks against the wordlist. Both shipped
+/// payload lists are plain `a`–`z`, so symbols, Greek letters and numerals are all
+/// admissible; declaring `e` is not.
+#[derive(Debug, Clone, Default)]
+pub struct Markup {
+    chars: std::collections::HashSet<char>,
+}
+
+impl Markup {
+    /// Declare a markup set, validated against the payload wordlist.
+    ///
+    /// Returns `Err` with the offending characters if any of them appears inside a
+    /// payload word, since stripping such a character would corrupt decoding.
+    pub fn new<I, S>(chars: I, payload_words: &[S]) -> Result<Self, Vec<char>>
+    where
+        I: IntoIterator<Item = char>,
+        S: AsRef<str>,
+    {
+        let chars: std::collections::HashSet<char> = chars.into_iter().collect();
+        let alphabet: std::collections::HashSet<char> = payload_words
+            .iter()
+            .flat_map(|w| w.as_ref().to_lowercase().chars().collect::<Vec<_>>())
+            .collect();
+        let mut bad: Vec<char> = chars
+            .iter()
+            .copied()
+            .filter(|c| {
+                alphabet.contains(c) || c.to_lowercase().any(|lc| alphabet.contains(&lc))
+            })
+            .collect();
+        if !bad.is_empty() {
+            bad.sort_unstable();
+            return Err(bad);
+        }
+        Ok(Self { chars })
+    }
+
+    /// A markup set with no validation available (no wordlist to check against).
+    pub fn unchecked<I: IntoIterator<Item = char>>(chars: I) -> Self {
+        Self { chars: chars.into_iter().collect() }
+    }
+
+    pub fn contains(&self, c: char) -> bool {
+        self.chars.contains(&c)
+    }
+
+    /// Normalize a token, stripping declared markup as well as non-alphanumerics.
+    pub fn normalize_token(&self, word: &str) -> String {
+        word.trim_matches(|c: char| !c.is_alphanumeric() || self.chars.contains(&c))
+            .to_lowercase()
+    }
+}
+
+/// Like [`payload_tokens`], but strips a declared [`Markup`] set from token edges
+/// first, so format decoration cannot hide an adjacent payload word.
+pub fn payload_tokens_with_markup<F: Fn(&str) -> bool>(
+    text: &str,
+    markup: &Markup,
+    is_payload: F,
+) -> Vec<String> {
+    text.split_whitespace()
+        .map(|w| markup.normalize_token(w))
+        .filter(|w| !w.is_empty() && is_payload(w))
+        .collect()
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 // Payload integrity
 // ═══════════════════════════════════════════════════════════════════════
@@ -730,6 +806,48 @@ mod tests {
                 "adjacent {sym} should hide the payload word"
             );
         }
+    }
+
+    #[test]
+    fn declared_markup_rescues_an_adjacent_alphanumeric_symbol() {
+        // The case normalize_token cannot handle: beta is Unicode Ll, so trimming
+        // by category leaves it attached and the payload word is lost. Declaring
+        // it as markup strips it.
+        let wl = ["absorb".to_string(), "victory".to_string()];
+        let markup = Markup::new(['\u{03B2}', '\u{2460}', '\u{25BD}'], &wl).unwrap();
+        let is_payload = |w: &str| w == "absorb";
+
+        assert!(payload_tokens("\u{03B2}absorb", is_payload).is_empty(), "undeclared: lost");
+        assert_eq!(
+            payload_tokens_with_markup("\u{03B2}absorb", &markup, is_payload),
+            vec!["absorb"],
+            "declared: recovered"
+        );
+        assert_eq!(
+            payload_tokens_with_markup("\u{2460}absorb \u{25BD} victory", &markup, is_payload),
+            vec!["absorb"]
+        );
+    }
+
+    #[test]
+    fn markup_rejects_characters_payload_words_use() {
+        let wl = ["absorb".to_string(), "victory".to_string()];
+        // 'e' does not occur, 'a' and 'b' do.
+        assert!(Markup::new(['e'], &wl).is_ok());
+        assert_eq!(Markup::new(['a', 'b', '\u{25BD}'], &wl).unwrap_err(), vec!['a', 'b']);
+        // Case-folded: declaring 'A' would still strip 'a'.
+        assert_eq!(Markup::new(['A'], &wl).unwrap_err(), vec!['A']);
+    }
+
+    #[test]
+    fn markup_leaves_undeclared_text_alone() {
+        let wl = ["absorb".to_string()];
+        let markup = Markup::new(['\u{25BD}'], &wl).unwrap();
+        assert_eq!(markup.normalize_token("Absorb."), "absorb");
+        assert_eq!(markup.normalize_token("\u{25BD}absorb"), "absorb");
+        // A markup char inside a word is not an edge, so the token stays corrupt
+        // and is dropped rather than silently mis-parsed.
+        assert_eq!(markup.normalize_token("ab\u{25BD}sorb"), "ab\u{25BD}sorb");
     }
 
     #[test]

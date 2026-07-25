@@ -6,7 +6,7 @@
 //!
 //! Run: cargo run --release --example api_smoke
 
-use glossia::codec::{checksum_seed, crc32, hex_decode, payload_tokens};
+use glossia::codec::{checksum_seed, crc32, hex_decode, payload_tokens, payload_tokens_with_markup, Markup};
 use glossia::generator::data::load_payload_words_for_wordlist;
 use glossia::pipeline::encode_words_into_language;
 use std::collections::HashSet;
@@ -88,9 +88,27 @@ fn main() {
     );
     println!("{artifact}\n");
 
-    // Decode through the canonical tokenizer, including the opcode symbol.
+    // Declare the format's opcode sigils, validated against the payload alphabet.
+    // Declaring them means decoding strips them by name rather than guessing from
+    // Unicode category -- so even a letter-like sigil is safe, and one that would
+    // collide with payload text is rejected up front.
+    let sigils = ['\u{29C9}', '\u{2317}', '\u{225F}', '\u{2713}', '\u{29B5}',
+                  '\u{25BD}', '\u{25B3}', '\u{03B2}'];
+    let markup = Markup::new(sigils, &wl).expect("sigils must not collide with payload alphabet");
+    match Markup::new(['e'], &wl) {
+        Err(bad) => println!("rejected as markup (payload letters): {bad:?}"),
+        Ok(_) => println!("WARNING: 'e' wrongly accepted as markup"),
+    }
+    // Adjacent, no space -- the case plain normalization loses.
+    let flush = format!("\u{03B2}{}", artifact.trim_start_matches("\u{25BD} "));
     let set: HashSet<String> = wl.iter().map(|w| w.to_lowercase()).collect();
-    let harvested = payload_tokens(&artifact, |w| set.contains(w));
+    println!(
+        "flush sigil: plain harvest {} words, declared-markup harvest {} words",
+        payload_tokens(&flush, |w| set.contains(w)).len(),
+        payload_tokens_with_markup(&flush, &markup, |w| set.contains(w)).len()
+    );
+
+    let harvested = payload_tokens_with_markup(&artifact, &markup, |w| set.contains(w));
     let idx: Vec<usize> = harvested
         .iter()
         .map(|w| wl.iter().position(|x| x.to_lowercase() == *w).unwrap())
