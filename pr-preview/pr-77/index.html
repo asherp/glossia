@@ -898,10 +898,22 @@ footer a:hover { text-decoration: underline; }
         .addr-repair { max-width: 720px; margin: 0.7rem auto 0; text-align: center;
           font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
         .addr-repair strong { color: var(--accent); font-family: var(--font-mono); }
+        .addr-popup { position: absolute; z-index: 50; max-width: 340px; padding: 0.7rem 0.85rem;
+          background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.25); font-size: 0.78rem; text-align: left; }
+        .addr-popup.spell { border-top: 3px solid var(--error); }
+        .addr-popup.grammar { border-top: 3px solid var(--blue); }
+        .addr-popup-h { font-weight: 600; margin-bottom: 0.35rem; }
+        .addr-popup-h strong { color: var(--accent); font-family: var(--font-mono); }
+        .addr-popup-b { color: var(--text-dim); line-height: 1.5; }
+        .addr-popup-t { margin: 0.5rem 0; font-family: var(--font-mono); font-size: 0.7rem; width: 100%; }
+        .addr-popup-t td:first-child { color: var(--text-dim); padding-right: 0.6rem; }
+        .addr-popup-warn { margin-top: 0.4rem; color: var(--error); font-size: 0.72rem; line-height: 1.45; }
+        .addr-popup-actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
         .tok-spell { text-decoration: underline wavy var(--error); text-underline-offset: 3px;
-          text-decoration-thickness: 1.5px; cursor: help; }
+          text-decoration-thickness: 1.5px; cursor: pointer; }
         .tok-grammar { text-decoration: underline wavy var(--blue); text-underline-offset: 3px;
-          text-decoration-thickness: 1.5px; cursor: help; }
+          text-decoration-thickness: 1.5px; cursor: pointer; }
         .addr-headline { margin-bottom: 0.4rem; }
         .addr-suggest { list-style: none; padding: 0; margin: 0.4rem 0 0; text-align: left;
           display: inline-block; font-size: 0.75rem; }
@@ -2620,6 +2632,84 @@ function addrCheck(artifact, nBytes) {
   return { marks, verdict: hits.length ? 'ambiguous' : 'unlocatable' };
 }
 
+// "Did you mean…?" popups. The two kinds are NOT symmetric, and the popups say so:
+//
+//   SPELL   — the word carries address data. Accepting the correction CHANGES THE
+//             ADDRESS, so the popup shows both hash160s and never applies on its own.
+//   GRAMMAR — the word carries no data. The address is already correct; accepting
+//             only restores the canonical wording so the artifact self-verifies
+//             again. Safe to apply on a click.
+//
+// Collapsing the two into one "accept" button would hide exactly the distinction
+// that matters: one decides where money goes, the other is cosmetic.
+let addrCurrent = null;   // { artifact, marks, nBytes }
+
+function addrClosePopup() {
+  const el = document.getElementById('addr-popup');
+  if (el) el.remove();
+}
+
+function addrShowPopup(tokenEl, idx) {
+  addrClosePopup();
+  if (!addrCurrent) return;
+  const m = addrCurrent.marks.get(idx);
+  if (!m || !m.suggest) return;
+
+  const toks = addrCurrent.artifact.split(/\s+/).filter(Boolean);
+  const fixed = toks.slice();
+  fixed[idx] = addrSwapIn(toks[idx], m.suggest);
+
+  const pop = document.createElement('div');
+  pop.id = 'addr-popup';
+  pop.className = 'addr-popup ' + (m.kind === SPELL ? 'spell' : 'grammar');
+
+  if (m.kind === SPELL) {
+    // What the text says now, versus what it would say corrected. This is the
+    // decision the user is actually being asked to make.
+    const now = addrRead(addrCurrent.artifact, addrCurrent.nBytes);
+    const after = addrRead(fixed.join(' '), addrCurrent.nBytes);
+    pop.innerHTML =
+      `<div class="addr-popup-h">Did you mean <strong>${m.suggest}</strong>?</div>` +
+      `<div class="addr-popup-b">${m.note}</div>` +
+      `<table class="addr-popup-t">` +
+      `<tr><td>as written</td><td>${now.program ? addrHex(now.program).slice(0, 16) + '…' : 'does not decode'}</td></tr>` +
+      `<tr><td>corrected</td><td><strong>${after.program ? addrHex(after.program).slice(0, 16) + '…' : '—'}</strong></td></tr>` +
+      `</table>` +
+      `<div class="addr-popup-warn">This changes the address. Apply only if you agree it is the word that was meant.</div>` +
+      `<div class="addr-popup-actions"><button class="btn-sm" id="addr-pop-apply">Use “${m.suggest}”</button>` +
+      `<button class="btn-sm" id="addr-pop-close">Keep as written</button></div>`;
+  } else {
+    pop.innerHTML =
+      `<div class="addr-popup-h">The address calls for <strong>${m.suggest}</strong> here.</div>` +
+      `<div class="addr-popup-b">This word carries no address data, so the address is already correct. ` +
+      `Restoring it only lets the artifact verify itself again.</div>` +
+      `<div class="addr-popup-actions"><button class="btn-sm" id="addr-pop-apply">Fix wording</button>` +
+      `<button class="btn-sm" id="addr-pop-close">Leave it</button></div>`;
+  }
+
+  document.body.appendChild(pop);
+  const r = tokenEl.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - pop.offsetWidth - 8,
+                                        r.left + window.scrollX)) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+
+  document.getElementById('addr-pop-close').onclick = addrClosePopup;
+  document.getElementById('addr-pop-apply').onclick = () => {
+    addrClosePopup();
+    const box = document.getElementById('addr-output');
+    const text = fixed.join(' ');
+    const res = addrRead(text, addrCurrent.nBytes);
+    addrSetVerdict(res);
+    addrPaintDamage(box, text, res);
+  };
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#addr-popup') && !e.target.closest('.tok-spell') && !e.target.closest('.tok-grammar')) {
+    addrClosePopup();
+  }
+});
+
 function addrPaintDamage(box, artifact, res) {
   const note = document.getElementById('addr-repair');
   note.innerHTML = '';
@@ -2629,12 +2719,17 @@ function addrPaintDamage(box, artifact, res) {
   const { marks, verdict } = addrCheck(artifact, nBytes);
   const toks = artifact.split(/\s+/).filter(Boolean);
 
+  addrCurrent = { artifact, marks, nBytes };
   box.innerHTML = toks.map((t, i) => {
     const m = marks.get(i);
     if (!m) return t;
     const cls = m.kind === SPELL ? 'tok-spell' : 'tok-grammar';
-    return `<span class="${cls}" title="${m.note.replace(/"/g, '&quot;')}">${t}</span>`;
+    const hint = m.suggest ? ' \u2014 click for suggestion' : '';
+    return `<span class="${cls}" data-i="${i}" title="${(m.note + hint).replace(/"/g, '&quot;')}">${t}</span>`;
   }).join(' ');
+  box.querySelectorAll('[data-i]').forEach(el => {
+    el.onclick = ev => { ev.stopPropagation(); addrShowPopup(el, +el.dataset.i); };
+  });
 
   // The suggestion strip, the way a word processor lists what it found.
   const items = [...marks.entries()].filter(([, m]) => m.suggest)
