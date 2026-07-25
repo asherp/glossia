@@ -884,19 +884,9 @@ footer a:hover { text-decoration: underline; }
         /* Prose address */
         .addr-legend { text-align: center; font-family: var(--font-mono); font-size: 0.68rem;
           color: var(--text-dim); margin: -0.4rem 0 0.9rem; }
-        .addr-solo { max-width: 760px; margin: 0 auto; }
-        .addr-solo .panel-footer { display: flex; align-items: center; gap: 0.5rem; }
-        .addr-solo .panel-footer .addr-meta { margin-right: auto; }
-        .addr-raw { max-width: 720px; margin: 1rem auto 0; }
-        .addr-raw > summary { list-style: none; cursor: pointer; color: var(--text-dim);
-          font-size: 0.75rem; text-align: center; }
-        .addr-raw > summary::-webkit-details-marker { display: none; }
-        .addr-raw > summary::after { content: "\25be"; margin-left: 0.3rem; font-size: 0.75em; opacity: 0.7; }
-        .addr-raw[open] > summary::after { display: inline-block; transform: rotate(180deg); }
-        .addr-raw-body { margin-top: 0.6rem; }
-        .addr-raw-body p { font-size: 0.75rem; color: var(--text-dim); text-align: center; margin: 0 0 0.6rem; }
-        .addr-raw-input { border: 1px solid var(--border); border-radius: 6px; min-height: 40px;
-          background: var(--surface); }
+        .addr-panels .panel-right .panel-footer { justify-content: flex-start; }
+        .addr-panels .panel-right .panel-footer .addr-meta { margin-right: auto; }
+        .addr-addr { font-family: var(--font-mono); font-size: 0.85rem; word-break: break-all; }
         .addr-picker { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
         .addr-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
         .addr-verdict { margin-left: auto; font-size: 0.7rem; font-family: var(--font-mono);
@@ -918,10 +908,6 @@ footer a:hover { text-decoration: underline; }
         .addr-popup.grammar { border-top: 3px solid var(--blue); }
         .addr-popup-h { font-weight: 600; margin-bottom: 0.35rem; }
         .addr-popup-h strong { color: var(--accent); font-family: var(--font-mono); }
-        .addr-popup-b { color: var(--text-dim); line-height: 1.5; }
-        .addr-popup-t { margin: 0.5rem 0; font-family: var(--font-mono); font-size: 0.7rem; width: 100%; }
-        .addr-popup-t td:first-child { color: var(--text-dim); padding-right: 0.6rem; }
-        .addr-popup-warn { margin-top: 0.4rem; color: var(--error); font-size: 0.72rem; line-height: 1.45; }
         .addr-popup-actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
         .tok-spell { text-decoration: underline wavy var(--error); text-underline-offset: 3px;
           text-decoration-thickness: 1.5px; cursor: pointer; }
@@ -1075,39 +1061,47 @@ footer a:hover { text-decoration: underline; }
         <div class="addr-picker" id="addr-picker"></div>
         <div class="addr-legend" id="addr-legend"></div>
 
-        <div class="panel addr-solo">
-          <div class="panel-header">
-            <span class="dialect-label">Prose address</span>
-            <span class="addr-verdict" id="addr-verdict"></span>
+        <div class="panels addr-panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="addr-left-label">Bitcoin address</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="addr-input" class="io-input"
+                   data-placeholder="Paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
+            </div>
+            <div class="panel-footer">
+              <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
           </div>
-          <div class="panel-body">
-            <div class="output-area empty" id="addr-output">Output will appear here</div>
-          </div>
-          <div class="panel-footer">
-            <span class="addr-meta" id="addr-meta"></span>
-            <button class="btn-sm" id="addr-roles-btn" onclick="addrToggleRoles()"
-                    title="Show the grammatical role of each address word">Show roles</button>
-            <button class="btn-sm" onclick="addrCopy()">Copy</button>
+
+          <button class="swap-btn" id="addr-swap-btn" onclick="addrToggle()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="addr-right-label">Prose address</span>
+              <span class="addr-verdict" id="addr-verdict"></span>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="addr-output">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <span class="addr-meta" id="addr-meta"></span>
+              <button class="btn-sm" id="addr-roles-btn" onclick="addrToggleRoles()"
+                      title="Show the grammatical role of each address word">Show roles</button>
+              <button class="btn-sm" onclick="addrCopy()">Copy</button>
+            </div>
           </div>
         </div>
 
         <div class="addr-repair hidden" id="addr-repair"></div>
 
-        <div class="addr-damage">
+        <div class="addr-damage" id="addr-damage">
           <span class="addr-damage-label">Now damage it, the way a person would:</span>
           <div class="addr-damage-row" id="addr-damage-row"></div>
         </div>
-
-        <details class="addr-raw">
-          <summary>Enter or view the same address in base58</summary>
-          <div class="addr-raw-body">
-            <p>Checking the prose never requires this. It is here so you can paste your own
-            address, and so a sceptic can confirm the words really are the script.</p>
-            <div contenteditable="true" spellcheck="false" id="addr-input" class="io-input addr-raw-input"
-                 data-placeholder="Paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
-            <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
-          </div>
-        </details>
 
         <details class="demo-details" id="addr-how">
           <summary id="addr-hint"></summary>
@@ -1148,6 +1142,11 @@ footer a:hover { text-decoration: underline; }
             can no longer self-verify. A mistyped <em>address</em> word decodes to a different
             address &mdash; caught only by the wording. A lost word is caught by the word count,
             since a fixed-length address has a fixed number of words.</p>
+            <p>Press <strong>&#8646;</strong> to run it backwards. The words are not a label
+            attached to an address; they <em>are</em> the address, and decoding hands back the
+            string they were made from. Swap after damaging the prose and you can watch it hand
+            back a <em>different</em> address &mdash; which is the whole reason the wording has to
+            be checkable.</p>
           </div>
         </details>
       </div>
@@ -2263,6 +2262,57 @@ async function addrParse(text) {
   return { type: 'P2TR', program };
 }
 
+// ── the inverse: rebuild the address string from what the prose decoded to ──
+// Only needed for the decode direction, which is what makes the claim falsifiable:
+// the words are not a label attached to an address, they ARE the address, and
+// running them backwards has to produce the string you started from.
+function b58encode(bytes) {
+  let n = 0n;
+  for (const b of bytes) n = n * 256n + BigInt(b);
+  let s = '';
+  while (n > 0n) { s = B58A[Number(n % 58n)] + s; n /= 58n; }
+  for (const b of bytes) { if (b !== 0) break; s = '1' + s; }
+  return s;
+}
+async function b58checkEncode(version, program) {
+  const body = new Uint8Array(1 + program.length);
+  body[0] = version; body.set(program, 1);
+  const d = (await sha256d(body)).slice(0, 4);
+  const full = new Uint8Array(body.length + 4);
+  full.set(body); full.set(d, body.length);
+  return b58encode(full);
+}
+function bech32Encode(hrp, witver, program) {
+  const data = [witver].concat(convertBits([...program], 8, 5, true));
+  const constVal = witver === 0 ? 1 : 0x2bc830a3;
+  const pm = (bech32Poly(bech32Expand(hrp).concat(data, [0, 0, 0, 0, 0, 0])) ^ constVal) >>> 0;
+  const chk = [];
+  for (let i = 0; i < 6; i++) chk.push((pm >> (5 * (5 - i))) & 31);
+  return hrp + '1' + data.concat(chk).map(v => BECH32A[v]).join('');
+}
+function addrFormat(type, program) {
+  switch (type) {
+    case 'P2PKH':  return b58checkEncode(0x00, program);
+    case 'P2SH':   return b58checkEncode(0x05, program);
+    case 'P2TR':   return Promise.resolve(bech32Encode('bc', 1, program));
+    default:       return Promise.resolve(bech32Encode('bc', 0, program));
+  }
+}
+
+/// Which script the leading glyphs describe. The opcodes are written verbatim,
+/// so the script type survives transcription without costing a payload word;
+/// ⓪ is shared by P2WPKH and P2WSH, and the word count separates those.
+function addrTypeFromGlyphs(text, nBytes) {
+  const lead = (text.trim().split(/\s+/)[0] || '');
+  const g = [...lead].filter(c => ADDR_MARKUP.has(c));
+  const first = g[0];
+  if (first === ADDR_OPS.DUP[0]) return 'P2PKH';
+  if (first === ADDR_OPS.HASH160[0]) return 'P2SH';
+  if (first === ADDR_OPS.ONE[0]) return 'P2TR';
+  if (first === ADDR_OPS.ZERO[0]) return nBytes === 20 ? 'P2WPKH' : 'P2WSH';
+  return null;
+}
+
 // ── bit packing: program bits, then the header, filling the slack exactly ──
 const ADDR_BPW = 11;
 function addrHeaderBits(n) { return Math.ceil(n * 8 / ADDR_BPW) * ADDR_BPW - n * 8; }
@@ -2442,7 +2492,91 @@ function addrPaint(artifact, placements) {
   box.innerHTML = `<span class="addr-cover">${lead}</span>${html}`;
 }
 
-async function addrUpdate() {
+// ── direction ───────────────────────────────────────────────────────
+// Encode is the demonstration; decode is what makes it falsifiable. Running the
+// words backwards has to hand back the address string they came from — otherwise
+// "the prose IS the address" is just an assertion.
+let addrMode = 'encode';
+
+function addrApplyMode() {
+  const enc = addrMode === 'encode';
+  document.getElementById('addr-left-label').textContent = enc ? 'Bitcoin address' : 'Prose address';
+  document.getElementById('addr-right-label').textContent = enc ? 'Prose address' : 'Bitcoin address';
+  document.getElementById('addr-input').dataset.placeholder =
+    enc ? 'Paste a bc1… / 1… / 3… address' : 'Paste a prose address';
+  document.getElementById('addr-damage').classList.toggle('hidden', !enc);
+  document.getElementById('addr-picker').classList.toggle('hidden', !enc);
+  document.getElementById('addr-roles-btn').classList.toggle('hidden', !enc);
+  document.getElementById('addr-output').classList.toggle('addr-addr', !enc);
+}
+
+function addrToggle() {
+  addrClosePopup();
+  const out = document.getElementById('addr-output').textContent || '';
+  addrMode = addrMode === 'encode' ? 'decode' : 'encode';
+  addrApplyMode();
+  document.getElementById('addr-input').textContent = out;
+  addrUpdate();
+}
+
+function addrUpdate() {
+  addrClosePopup();
+  document.getElementById('addr-repair').className = 'addr-repair hidden';
+  return addrMode === 'encode' ? addrEncodeRun() : addrDecodeRun();
+}
+
+/// Address words in a text, in order — the decoder's whole view of it.
+function addrHarvest(text) {
+  const strip = w => [...w].filter(ch => !ADDR_MARKUP.has(ch)).join('')
+                           .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
+  return text.split(/\s+/).filter(Boolean).map(strip).filter(w => w && addrIndex.has(w));
+}
+
+async function addrDecodeRun() {
+  const errEl = document.getElementById('addr-error');
+  const metaEl = document.getElementById('addr-meta');
+  const box = document.getElementById('addr-output');
+  const verdictEl = document.getElementById('addr-verdict');
+  const text = (document.getElementById('addr-input').textContent || '').trim();
+  errEl.classList.add('hidden');
+
+  const blank = () => {
+    box.textContent = 'Output will appear here';
+    box.classList.add('empty');
+    metaEl.textContent = '';
+    verdictEl.textContent = '';
+    verdictEl.className = 'addr-verdict';
+  };
+  const fail = note => {
+    blank();
+    verdictEl.className = 'addr-verdict bad';
+    verdictEl.textContent = '✗ unreadable';
+    verdictEl.title = note;
+    errEl.textContent = note;
+    errEl.classList.remove('hidden');
+  };
+  if (!text) return blank();
+
+  // A fixed-length address has a fixed word count, so the count picks the size.
+  const words = addrHarvest(text);
+  const nBytes = { 15: 20, 24: 32 }[words.length];
+  if (!nBytes) return fail(`${words.length} address words — a prose address has 15 or 24`);
+  const type = addrTypeFromGlyphs(text, nBytes);
+  if (!type) return fail('no opcode symbol, so the script type is unknown');
+  const res = addrRead(text, nBytes);
+  if (!res.program) return fail(res.note || 'does not decode');
+
+  box.classList.remove('empty');
+  box.textContent = await addrFormat(type, res.program);
+  // Count prose words only, so the figure means the same thing in both
+  // directions — the opcode glyphs are script, not wording.
+  const prose = text.split(/\s+/).filter(t => [...t].some(c => !ADDR_MARKUP.has(c)));
+  metaEl.textContent = `${type} · ${words.length} address words · ${prose.length} words total`;
+  document.getElementById('addr-legend').textContent = addrLegend(type);
+  addrSetVerdict(res);
+}
+
+async function addrEncodeRun() {
   const errEl = document.getElementById('addr-error');
   const metaEl = document.getElementById('addr-meta');
   try {
@@ -2644,16 +2778,13 @@ function addrCheck(artifact, nBytes) {
   return { marks, verdict: hits.length ? 'ambiguous' : 'unlocatable' };
 }
 
-// "Did you mean…?" popups. The two kinds are NOT symmetric, and the popups say so:
+// "Did you mean…?" popups — the question and the two answers, nothing else.
 //
-//   SPELL   — the word carries address data. Accepting the correction CHANGES THE
-//             ADDRESS, so the popup shows both hash160s and never applies on its own.
-//   GRAMMAR — the word carries no data. The address is already correct; accepting
-//             only restores the canonical wording so the artifact self-verifies
-//             again. Safe to apply on a click.
-//
-// Collapsing the two into one "accept" button would hide exactly the distinction
-// that matters: one decides where money goes, the other is cosmetic.
+// The two kinds are NOT symmetric: a SPELL correction changes which address the
+// text refers to, a GRAMMAR one only restores wording the address already
+// determined. That asymmetry is carried by the border colour and by the
+// suggestion strip below the prose, not by paragraphs inside the popup — a
+// spell checker that lectured you would not get read.
 let addrCurrent = null;   // { artifact, marks, nBytes }
 
 function addrClosePopup() {
@@ -2675,31 +2806,15 @@ function addrShowPopup(tokenEl, idx) {
   pop.id = 'addr-popup';
   pop.className = 'addr-popup ' + (m.kind === SPELL ? 'spell' : 'grammar');
 
-  if (m.kind === SPELL) {
-    // Deliberately NOT a hex comparison. The claim of this format is that reading
-    // the prose is a valid check in its own right; falling back to "here are two
-    // hashes, compare them" would concede the opposite and hand the user the exact
-    // character-by-character task the words exist to replace. The meaningful
-    // statement is about agreement: as written, the words and the wording describe
-    // different addresses, and only one substitution makes them agree.
-    pop.innerHTML =
-      `<div class="addr-popup-h">Did you mean <strong>${m.suggest}</strong>?</div>` +
-      `<div class="addr-popup-b">As written, these words spell a <strong>different address</strong> ` +
-      `&mdash; and the rest of the sentence does not match that address.</div>` +
-      `<div class="addr-popup-b">With <strong>${m.suggest}</strong>, the words and the wording agree, ` +
-      `which is what makes an address readable as correct.</div>` +
-      `<div class="addr-popup-warn">This changes which address the text refers to. Apply only if you ` +
-      `agree it is the word that was meant.</div>` +
-      `<div class="addr-popup-actions"><button class="btn-sm" id="addr-pop-apply">Use &ldquo;${m.suggest}&rdquo;</button>` +
-      `<button class="btn-sm" id="addr-pop-close">Keep as written</button></div>`;
-  } else {
-    pop.innerHTML =
-      `<div class="addr-popup-h">The address calls for <strong>${m.suggest}</strong> here.</div>` +
-      `<div class="addr-popup-b">This word carries no address data, so the address is already correct. ` +
-      `Restoring it only lets the artifact verify itself again.</div>` +
-      `<div class="addr-popup-actions"><button class="btn-sm" id="addr-pop-apply">Fix wording</button>` +
-      `<button class="btn-sm" id="addr-pop-close">Leave it</button></div>`;
-  }
+  // Just the question and the two answers, the way a spell checker asks it. The
+  // suggestion is already CONFIRMED by re-rendering, so there is nothing to
+  // caveat; the red/blue border carries the spell-vs-grammar distinction and the
+  // button labels carry the consequence.
+  pop.innerHTML =
+    `<div class="addr-popup-h">Did you mean <strong>${m.suggest}</strong>?</div>` +
+    `<div class="addr-popup-actions">` +
+    `<button class="btn-sm" id="addr-pop-apply">Use &ldquo;${m.suggest}&rdquo;</button>` +
+    `<button class="btn-sm" id="addr-pop-close">Keep as written</button></div>`;
 
   document.body.appendChild(pop);
   const r = tokenEl.getBoundingClientRect();
@@ -2810,6 +2925,7 @@ function addrInit() {
     b.onclick = () => {
       picker.querySelectorAll('.lang-btn').forEach(x => x.classList.remove('active'));
       b.classList.add('active');
+      if (addrMode !== 'encode') { addrMode = 'encode'; addrApplyMode(); }
       document.getElementById('addr-input').textContent = p.addr;
       addrUpdate();
       document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
@@ -2825,6 +2941,7 @@ function addrInit() {
   });
   input.textContent = ADDR_PRESETS[0].addr;
   document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+  addrApplyMode();
   addrUpdate();
 }
 
@@ -2833,6 +2950,7 @@ const ADDR_BASE_HINT = 'Opcodes stay as symbols; only the entropy-carrying progr
 
 // Exposed for debugging and for driving the panel from a test harness.
 window.addrRead = addrRead;
+window.addrToggle = addrToggle;
 window.addrToggleRoles = addrToggleRoles;
 window.addrCopy = addrCopy;
 
