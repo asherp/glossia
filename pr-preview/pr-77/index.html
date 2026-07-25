@@ -882,6 +882,8 @@ footer a:hover { text-decoration: underline; }
         #panel-address { order: 0; }
         #panel-bip39, #panel-apikey, #panel-address { border-top: 1px solid var(--border); padding-top: 0.5rem; }
         /* Prose address */
+        .addr-legend { text-align: center; font-family: var(--font-mono); font-size: 0.68rem;
+          color: var(--text-dim); margin: -0.4rem 0 0.9rem; }
         .addr-picker { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
         .addr-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
         .addr-verdict { margin-left: auto; font-size: 0.7rem; font-family: var(--font-mono);
@@ -892,6 +894,7 @@ footer a:hover { text-decoration: underline; }
         .addr-damage { max-width: 720px; margin: 0.9rem auto 0; text-align: center; }
         .addr-damage-label { font-size: 0.75rem; color: var(--text-dim); }
         .addr-damage-row { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; margin-top: 0.5rem; }
+        .addr-glyph { font-family: var(--font-mono); color: var(--accent); }
         .addr-cover { color: var(--text-dim); }
         .addr-pay { text-decoration: underline; text-decoration-color: var(--accent); }
         .addr-pay sub { font-size: 0.6em; color: var(--accent); opacity: 0.85; }
@@ -1029,6 +1032,7 @@ footer a:hover { text-decoration: underline; }
         </div>
 
         <div class="addr-picker" id="addr-picker"></div>
+        <div class="addr-legend" id="addr-legend"></div>
 
         <div class="panels">
           <div class="panel panel-left">
@@ -1069,10 +1073,18 @@ footer a:hover { text-decoration: underline; }
         <details class="demo-details" id="addr-how">
           <summary id="addr-hint"></summary>
           <div class="enc-how-body">
-            <p>The opcodes are shown as symbols (<strong>&#9661;</strong> witness v0,
-            <strong>&#9651;</strong> v1/Taproot, <strong>&#8981;</strong> hash160), so Glossia only
-            encodes the part that carries entropy &mdash; the 20- or 32-byte program. That is
+            <p>Opcodes use the <strong>Book of Bitcoin notation</strong> &mdash; the same glyphs a
+            script gets when it is read in the book (<span class="addr-glyph">&#9450;</span> OP_0,
+            <span class="addr-glyph">&#9312;</span> OP_1, <span class="addr-glyph">&#8961;</span> OP_DUP,
+            <span class="addr-glyph">&#8982;</span> OP_HASH160, <span class="addr-glyph">&#8801;</span>
+            OP_EQUALVERIFY, <span class="addr-glyph">&#8711;</span> OP_CHECKSIG). Glossia encodes only the
+            part that carries entropy &mdash; the 20- or 32-byte program &mdash; which is
             <strong>15 words</strong> for a hash160 address and <strong>24</strong> for a 32-byte one.</p>
+            <p><strong>&#9450;</strong> and <strong>&#9312;</strong> are worth a note: Unicode counts them
+            as <em>alphanumeric</em>, so the decoder&rsquo;s token trim does not strip them. Written flush
+            against an address word they would hide it entirely. They are safe here because the format
+            <em>declares</em> its glyphs and they are removed by name &mdash; a rule based on character
+            category would silently lose a word.</p>
             <p>The format's version and wordlist size ride in the <strong>bit-packing slack</strong>
             and cost nothing: 160 data bits + 5 header bits is exactly 15 words, and 256 + 8 is
             exactly 24. Wordlist size is stored as its log&#8322;, which fits in 4 bits because
@@ -2096,8 +2108,34 @@ updateToggleIcon();
 // property of the ADDRESS FORMAT, not of Glossia: the header rides in the
 // bit-packing slack (160+5 = 15 words exactly; 256+8 = 24 words exactly).
 
-const ADDR_SIGILS = { P2PKH: '⧉ ⌗', P2SH: '⌗', P2WPKH: '▽', P2WSH: '▽', P2TR: '△' };
-const ADDR_TRAIL = { P2PKH: '≟ ✓', P2SH: '⩵', P2WPKH: '', P2WSH: '', P2TR: '' };
+// Opcode glyphs are the Book of Bitcoin notation (btc-prose.js OPCODE_SYMBOLS),
+// not a set invented here — a script renders the same way whether it is being
+// read in the book or handled as an address.
+//
+// Note ⓪ (OP_0) and ① (OP_1) are Unicode category No: ALPHANUMERIC. They survive
+// the decoder's token trim, so placed flush against a payload word they would
+// hide it. They are safe here only because they are declared as markup and
+// stripped by name — a category-based rule would leave them attached.
+const ADDR_OPS = {
+  DUP:         ['\u29C9', 'OP_DUP'],
+  HASH160:     ['\u2316', 'OP_HASH160'],
+  EQUALVERIFY: ['\u2261', 'OP_EQUALVERIFY'],
+  CHECKSIG:    ['\u2207', 'OP_CHECKSIG'],
+  EQUAL:       ['=',       'OP_EQUAL'],
+  ZERO:        ['\u24EA', 'OP_0'],
+  ONE:         ['\u2460', 'OP_1'],
+};
+const ADDR_SCRIPT = {
+  P2PKH:  { lead: ['DUP', 'HASH160'], trail: ['EQUALVERIFY', 'CHECKSIG'] },
+  P2SH:   { lead: ['HASH160'],        trail: ['EQUAL'] },
+  P2WPKH: { lead: ['ZERO'],           trail: [] },
+  P2WSH:  { lead: ['ZERO'],           trail: [] },
+  P2TR:   { lead: ['ONE'],            trail: [] },
+};
+const ADDR_MARKUP = new Set(Object.values(ADDR_OPS).map(([g]) => g));
+const addrGlyphs = (type, which) => ((ADDR_SCRIPT[type] || {})[which] || []).map(k => ADDR_OPS[k][0]).join(' ');
+const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_SCRIPT[type] || {}).trail || [])
+  .map(k => ADDR_OPS[k][0] + ' ' + ADDR_OPS[k][1]).join('  \u00b7  ');
 const ADDR_COUNTER_RANGE = 4;
 const ADDR_VERSION = 1;
 const ADDR_PRESETS = [
@@ -2199,7 +2237,7 @@ function addrRender(program, type) {
   const words = addrPack(program);
   const r = JSON.parse(wasmEncodeWords(JSON.stringify(words), 'english', 'default', 'body', addrSeed(program, 0), ADDR_COUNTER_RANGE));
   if (r.error) throw new Error(r.error);
-  const lead = ADDR_SIGILS[type] || '', trail = ADDR_TRAIL[type] || '';
+  const lead = addrGlyphs(type, 'lead'), trail = addrGlyphs(type, 'trail');
   return {
     prose: r.encoded_text,
     artifact: [lead, r.encoded_text, trail].filter(Boolean).join(' '),
@@ -2212,16 +2250,23 @@ function addrRender(program, type) {
 // address has a fixed word count), then re-render and compare.
 function addrRead(artifact, nBytes) {
   const toks = artifact.split(/\s+/).filter(Boolean);
-  const harvested = toks.map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase())
-                        .filter(w => w && addrIndex.has(w));
+  const stripMarkup = w => {
+    let a = 0, b = w.length;
+    while (a < b && (ADDR_MARKUP.has(w[a]) || !/[\p{L}\p{N}]/u.test(w[a]))) a++;
+    while (b > a && (ADDR_MARKUP.has(w[b - 1]) || !/[\p{L}\p{N}]/u.test(w[b - 1]))) b--;
+    return w.slice(a, b).toLowerCase();
+  };
+  const harvested = toks.map(stripMarkup).filter(w => w && addrIndex.has(w));
   const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
   if (harvested.length !== expected)
     return { verdict: 'unreadable', note: `wrong number of address words (${harvested.length}, expected ${expected})` };
   const program = addrUnpack(harvested, nBytes);
   if (!program) return { verdict: 'unreadable', note: 'word not in the address vocabulary' };
 
-  const proseToks = toks.filter(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '') !== '' &&
-                                     !/^[▽△⌗⧉≟✓⩵ ]+$/u.test(t));
+  // Compare against the re-render with markup removed, so spacing around a glyph
+  // (⓪Insect vs ⓪ Insect) is a formatting difference rather than a failed check.
+  const proseToks = toks.map(t => [...t].filter(ch => !ADDR_MARKUP.has(ch)).join(''))
+                        .filter(t => t.length);
   let best = 0;
   for (let c = 0; c < ADDR_COUNTER_RANGE; c++) {
     const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)), 'english', 'default', 'body', addrSeed(program, 0) + BigInt(c), 1));
@@ -2278,6 +2323,7 @@ async function addrUpdate() {
     addrState = { program, type, ...r };
     errEl.classList.add('hidden');
     metaEl.textContent = `${type} · ${program.length}-byte program · ${r.words.length} address words · crc32 ${wasmPayloadCrc32(addrHex(program)).toString(16).padStart(8, '0')}`;
+    document.getElementById('addr-legend').textContent = addrLegend(type);
     addrPaint(r.artifact, r.placements);
     addrSetVerdict(addrRead(r.artifact, program.length));
     addrRenderDamage();
@@ -2341,7 +2387,8 @@ function addrApplyDamage(i) {
   const d = addrDamages()[i];
   const damagedProse = d.apply();
   const lead = addrState.artifact.slice(0, addrState.artifact.length - addrState.prose.length);
-  const trail = ADDR_TRAIL[addrState.type] ? ' ' + ADDR_TRAIL[addrState.type] : '';
+  const t2 = addrGlyphs(addrState.type, 'trail');
+  const trail = t2 ? ' ' + t2 : '';
   const artifact = lead + damagedProse + trail;
   const box = document.getElementById('addr-output');
   box.classList.remove('empty');
@@ -2400,6 +2447,8 @@ function addrInit() {
 const ADDR_BASE_HINT = 'Opcodes stay as symbols; only the entropy-carrying program is encoded. ' +
   'The cover words are chosen by a seed derived from the address itself, so the wording IS the checksum.';
 
+// Exposed for debugging and for driving the panel from a test harness.
+window.addrRead = addrRead;
 window.addrToggleRoles = addrToggleRoles;
 window.addrCopy = addrCopy;
 
