@@ -1475,10 +1475,14 @@ pub fn generate_text_traced<R: Rng>(
     } else {
         // Body mode: Keep generating sentences until all payload tokens are embedded
         
-        // In merkle mode (when original_payload_set is provided), use segmentation approach
-        // Segment the sequence into chunks ending with 1-2 payload words
+        // Segmented generation: split the payload into chunks ending in 1-2 payload
+        // words and emit a sentence per chunk, rejecting any sentence that embeds
+        // none of them. This is the STANDARD path -- the pipeline always supplies
+        // `original_payload_set` -- not a merkle-only branch. Merkleizing merely
+        // makes the set narrower than `payload`, so validation checks the original
+        // words rather than the interleaved merkle ones.
         if original_payload_set.is_some() {
-            let (t, ps, pl) = generate_text_merkle_segmented(
+            let (t, ps, pl) = generate_text_segmented(
                 rng,
                 lex,
                 payload,
@@ -1886,7 +1890,13 @@ pub fn generate_text_traced<R: Rng>(
 }
 
 /// Generate text using merkle segmentation: segment sequence into chunks ending with 1-2 payload words
-fn generate_text_merkle_segmented<R: Rng>(
+/// Generate prose by segmenting the payload and validating each sentence.
+///
+/// Every sentence must embed at least one word from `original_payload_set`, or it
+/// is discarded and regenerated. Used for all pipeline encodes; when merkleizing,
+/// `payload` also carries merkle words and `original_payload_set` is the narrower
+/// set that validation applies to.
+fn generate_text_segmented<R: Rng>(
     rng: &mut R,
     lex: &Lexicon,
     payload: &[PayloadTok],
