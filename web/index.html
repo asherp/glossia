@@ -887,6 +887,8 @@ footer a:hover { text-decoration: underline; }
         .addr-panels .panel-right .panel-footer { justify-content: flex-start; }
         .addr-panels .panel-right .panel-footer .addr-meta { margin-right: auto; }
         .addr-addr { font-family: var(--font-mono); font-size: 0.85rem; word-break: break-all; }
+        .addr-editable { outline: none; cursor: text; }
+        .addr-editable:focus { box-shadow: inset 0 0 0 2px rgba(124,108,240,0.35); }
         .addr-picker { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
         .addr-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
         .addr-verdict { margin-left: auto; font-size: 0.7rem; font-family: var(--font-mono);
@@ -2507,7 +2509,15 @@ function addrApplyMode() {
   document.getElementById('addr-damage').classList.toggle('hidden', !enc);
   document.getElementById('addr-picker').classList.toggle('hidden', !enc);
   document.getElementById('addr-roles-btn').classList.toggle('hidden', !enc);
-  document.getElementById('addr-output').classList.toggle('addr-addr', !enc);
+  const out = document.getElementById('addr-output');
+  out.classList.toggle('addr-addr', !enc);
+  // The prose is editable in the encode direction: the damage buttons cover the
+  // typical failures, but the point is that ANY edit is checkable, so let the
+  // reader make one. In decode the box holds the recovered address, an output.
+  out.contentEditable = enc ? 'true' : 'false';
+  out.spellcheck = false;
+  out.classList.toggle('addr-editable', enc);
+  out.title = enc ? 'Edit the prose — it is rechecked as you type' : '';
 }
 
 function addrToggle() {
@@ -2521,7 +2531,9 @@ function addrToggle() {
 
 function addrUpdate() {
   addrClosePopup();
-  document.getElementById('addr-repair').className = 'addr-repair hidden';
+  const note = document.getElementById('addr-repair');
+  note.innerHTML = '';
+  note.className = 'addr-repair hidden';
   return addrMode === 'encode' ? addrEncodeRun() : addrDecodeRun();
 }
 
@@ -2900,6 +2912,52 @@ function addrPaintDamage(box, artifact, res) {
   note.className = 'addr-repair';
 }
 
+// ── editing the prose in place ──────────────────────────────────────
+// Repainting replaces the box's children, which would drop the caret, so record
+// where it is as a character offset and put it back afterwards. Offsets are
+// taken against the rendered text, and the repaint normalizes whitespace, so
+// they line up unless the edit added runs of spaces.
+function addrCaretOffset(root) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || !root.contains(sel.anchorNode)) return null;
+  const cur = sel.getRangeAt(0);
+  const r = document.createRange();
+  r.selectNodeContents(root);
+  r.setEnd(cur.endContainer, cur.endOffset);
+  return r.toString().length;
+}
+
+function addrSetCaret(root, offset) {
+  if (offset === null) return;
+  const sel = window.getSelection(), r = document.createRange();
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n, seen = 0;
+  while ((n = walk.nextNode())) {
+    if (seen + n.length >= offset) {
+      r.setStart(n, offset - seen);
+      r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+      return;
+    }
+    seen += n.length;
+  }
+  r.selectNodeContents(root); r.collapse(false);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+
+function addrRecheck() {
+  if (addrMode !== 'encode' || !addrState) return;
+  const box = document.getElementById('addr-output');
+  const caret = addrCaretOffset(box);
+  const text = box.textContent.replace(/\s+/g, ' ').trim();
+  if (!text) return;
+  const res = addrRead(text, addrState.program.length);
+  addrSetVerdict(res);
+  addrPaintDamage(box, text, res);
+  addrSetCaret(box, caret);
+  document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+}
+
 function addrToggleRoles() {
   addrShowRoles = !addrShowRoles;
   document.getElementById('addr-roles-btn').textContent = addrShowRoles ? 'Hide roles' : 'Show roles';
@@ -2939,6 +2997,18 @@ function addrInit() {
     clearTimeout(input._t);
     input._t = setTimeout(addrUpdate, 250);
   });
+  const out = document.getElementById('addr-output');
+  out.addEventListener('input', () => {
+    clearTimeout(out._t);
+    out._t = setTimeout(addrRecheck, 400);
+  });
+  // Paste as plain text, or the browser drops styled markup into the box and the
+  // token diff picks up formatting rather than words.
+  out.addEventListener('paste', e => {
+    e.preventDefault();
+    document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text'));
+  });
+
   input.textContent = ADDR_PRESETS[0].addr;
   document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
   addrApplyMode();
