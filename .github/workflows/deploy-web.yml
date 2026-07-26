@@ -61,6 +61,15 @@ jobs:
       - name: Build docs
         run: mdbook build docs -d ../web/docs
 
+      # Stamp the deployed pages with the commit they were built from. A cached
+      # page that looks current is indistinguishable from a current one, so the
+      # footer says which build is on screen instead of leaving it to be guessed.
+      - name: Stamp build
+        run: |
+          SHA='${{ github.sha }}'
+          sed -i "s|<meta name=\"glossia-build\" content=\"dev\">|<meta name=\"glossia-build\" content=\"${SHA:0:7}\">|" web/index.html
+          grep -o 'glossia-build" content="[^"]*"' web/index.html
+
       # Deploy the production site to the root of gh-pages. clean-exclude keeps
       # the pr-preview/ directory (managed by the PR Preview workflow) intact so
       # production deploys don't wipe live preview deployments.
