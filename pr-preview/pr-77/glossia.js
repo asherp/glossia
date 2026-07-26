@@ -573,6 +573,40 @@ export function get_bits_per_word(language, wordlist) {
 }
 
 /**
+ * The cover vocabulary for a language/dialect, as a flat JSON array.
+ *
+ * The complement of `get_payload_words`, and what a verifier needs to tell a
+ * misspelling from a word that was never payload. Locating a damaged payload
+ * word means searching tokens that are not in the payload wordlist — but the
+ * connective prose is not in it either, so without this list every cover word
+ * is a candidate site and the search does an order of magnitude more work than
+ * the question requires.
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function get_cover_words(language, wordlist) {
+    let deferred3_0;
+    let deferred3_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.get_cover_words(retptr, ptr0, len0, ptr1, len1);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred3_0 = r0;
+        deferred3_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred3_0, deferred3_1, 1);
+    }
+}
+
+/**
  * Return the default wordlist profile name for a language.
  *
  * Uses the grammar-declared `default_wordlist` if present, otherwise
