@@ -17,7 +17,16 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
+<meta name="glossia-build" content="332483b">
 <script>
+  // Which build is this page? Two rounds of "the feature you shipped isn't
+  // here" turned out to be a cache serving the previous deploy, so the answer
+  // is now printed in the footer rather than reasoned about.
+  window.GLOSSIA_BUILD = (document.querySelector('meta[name="glossia-build"]') || {}).content || 'dev';
+  window.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('build-stamp');
+    if (el) el.textContent = ' • build ' + window.GLOSSIA_BUILD;
+  });
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
@@ -1345,6 +1354,7 @@ footer a:hover { text-decoration: underline; }
     </p>
     <p style="font-size:0.7rem;color:var(--text-dim);">
       Client-side WebAssembly &bull; Your keys never leave your device
+      <span id="build-stamp" style="font-family:var(--font-mono);opacity:0.7;"></span>
     </p>
   </footer>
 </div>
