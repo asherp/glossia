@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
 use crate::CoverRng;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use crate::generator::data::{
     get_available_languages, get_available_wordlists,
@@ -1310,6 +1310,36 @@ pub fn get_payload_words(language: &str, wordlist: &str) -> String {
         }),
         Err(e) => serde_json::json!({ "error": e }).to_string(),
     }
+}
+
+/// The cover vocabulary for a language/dialect, as a flat JSON array.
+///
+/// The complement of `get_payload_words`, and what a verifier needs to tell a
+/// misspelling from a word that was never payload. Locating a damaged payload
+/// word means searching tokens that are not in the payload wordlist — but the
+/// connective prose is not in it either, so without this list every cover word
+/// is a candidate site and the search does an order of magnitude more work than
+/// the question requires.
+#[wasm_bindgen]
+pub fn get_cover_words(language: &str, wordlist: &str) -> String {
+    let payload: HashSet<String> = match load_payload_words_for_wordlist(language, wordlist) {
+        Ok(w) => w.iter().map(|x| x.to_lowercase()).collect(),
+        Err(e) => return serde_json::json!({ "error": e }).to_string(),
+    };
+    let cover_wl = match crate::grammar::DialectConfig::from_language_dialect(language, "body") {
+        Ok(cfg) => cfg.cover_wordlist().to_string(),
+        Err(_) => "cover".to_string(),
+    };
+    let (by_pos, refined) = load_cover_words_by_pos_for_wordlist(&payload, language, &cover_wl);
+    let mut out: BTreeSet<String> = BTreeSet::new();
+    for words in by_pos.into_values() {
+        out.extend(words.into_iter().map(|w| w.to_lowercase()));
+    }
+    for words in refined.into_values() {
+        out.extend(words.into_iter().map(|w| w.to_lowercase()));
+    }
+    serde_json::to_string(&out.into_iter().collect::<Vec<_>>())
+        .unwrap_or_else(|e| serde_json::json!({ "error": e.to_string() }).to_string())
 }
 
 /// Wrap caller-supplied payload words in cover prose, reporting where each landed.

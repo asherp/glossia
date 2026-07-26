@@ -1373,6 +1373,7 @@ import init, {
   decode_raw_base_n as wasmDecodeRawBaseN,
   encode_words as wasmEncodeWords,
   get_payload_words as wasmGetPayloadWords,
+  get_cover_words as wasmGetCoverWords,
   checksum_seed_for as wasmChecksumSeed,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
@@ -2230,6 +2231,7 @@ const ADDR_PRESETS = [
 
 let addrWords = null;         // BIP39 wordlist, index order
 let addrIndex = null;         // word -> index
+let addrCover = null;         // the connective vocabulary, for locating misspellings
 let addrState = null;         // { program, type, artifact, placements }
 let addrShowRoles = false;
 
@@ -2367,10 +2369,28 @@ function addrSeed(program, counter) {
   return wasmChecksumSeed(addrHex(program) + ADDR_BPW.toString(16).padStart(2, '0') + ADDR_VERSION.toString(16).padStart(2, '0'), BigInt(counter));
 }
 
+// An address determines its prose exactly, so the rendering is a pure function
+// of the program bytes — and the checker asks for the SAME one repeatedly: once
+// to verify, once to diff, and once per keystroke while the payload is untouched
+// (which is every edit to a cover word). Each of those is ~100ms of generation.
+// Memoize on the program.
+const addrProseCache = new Map();
+function addrProse(program) {
+  const key = addrHex(program);
+  if (addrProseCache.has(key)) return addrProseCache.get(key);
+  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
+    'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
+  const text = r.error ? null : r.encoded_text;
+  if (addrProseCache.size > 400) addrProseCache.clear();
+  addrProseCache.set(key, text);
+  return text;
+}
+
 function addrRender(program, type) {
   const words = addrPack(program);
   const r = JSON.parse(wasmEncodeWords(JSON.stringify(words), 'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
   if (r.error) throw new Error(r.error);
+  addrProseCache.set(addrHex(program), r.encoded_text);   // the checker will ask for this
   const lead = addrGlyphs(type, 'lead'), trail = addrGlyphs(type, 'trail');
   return {
     prose: r.encoded_text,
@@ -2403,9 +2423,9 @@ function addrRead(artifact, nBytes) {
                         .filter(t => t.length);
   // One render. The address determines its prose exactly, so there is nothing to
   // search over.
-  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)), 'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
-  if (r.error) return { verdict: 'unreadable', note: r.error };
-  const got = r.encoded_text.split(/\s+/).filter(Boolean);
+  const rendered = addrProse(program);
+  if (rendered === null) return { verdict: 'unreadable', note: 'encode failed' };
+  const got = rendered.split(/\s+/).filter(Boolean);
   if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
   const n = Math.max(got.length, proseToks.length, 1);
   let same = 0;
@@ -2427,10 +2447,9 @@ function addrRead(artifact, nBytes) {
 function addrDiffAgainstRerender(artifact, program) {
   const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
     [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
-  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
-    'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
-  if (r.error) return { bad: new Set(), rendered: [] };
-  const got = r.encoded_text.split(/\s+/).filter(Boolean);
+  const text = addrProse(program);
+  if (text === null) return { bad: new Set(), rendered: [] };
+  const got = text.split(/\s+/).filter(Boolean);
   const bad = new Set();
   for (let i = 0; i < Math.max(got.length, recv.length); i++) if (got[i] !== recv[i]) bad.add(i);
   return { bad, rendered: got, recv };
@@ -2469,15 +2488,16 @@ function addrProposeRepairs(artifact, words) {
   const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
     [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
   const hits = [];
+  const deadline = performance.now() + ADDR_SEARCH_MS;
   for (let i = 0; i < words.length; i++) {
     for (const cand of addrEdit1(words[i])) {
+      if (performance.now() > deadline) return hits;
       const w = words.slice(); w[i] = cand;
       const prog = addrUnpack(w, addrState ? addrState.program.length : 20);
       if (!prog) continue;
-      const r = JSON.parse(wasmEncodeWords(JSON.stringify(w), 'english', 'default', 'body',
-        addrSeed(prog, 0), ADDR_BEST_OF));
-      if (r.error) continue;
-      const got = r.encoded_text.split(/\s+/).filter(Boolean);
+      const text = addrProse(prog);
+      if (text === null) continue;
+      const got = text.split(/\s+/).filter(Boolean);
       let miss = 0;
       for (let k = 0; k < Math.max(got.length, recv.length); k++) if (got[k] !== recv[k]) miss++;
       if (miss <= 1) hits.push({ index: i, from: words[i], to: cand });
@@ -2740,6 +2760,15 @@ function addrApplyDamage(i) {
 // and re-rendering either reproduces the received text or it does not.
 const SPELL = 'spell', GRAMMAR = 'grammar';
 
+// A repair search that FAILS is the expensive one: a word two typos away from
+// any address word has no single-edit explanation, so the search only learns
+// that by trying everything. Cap it. Nothing is lost by stopping — the verdict
+// for "searched and found nothing" and "stopped searching" is the same claim,
+// that no single typo explains the text. And because every candidate render is
+// memoized, a repeat check picks up where this one left off for free, so the
+// search completes across a pause instead of blocking one keystroke.
+const ADDR_SEARCH_MS = 250;
+
 /// Analyse an artifact and return per-token annotations.
 /// { kind, suggest, note } keyed by token index; empty map means clean.
 function addrCheck(artifact, nBytes) {
@@ -2758,9 +2787,22 @@ function addrCheck(artifact, nBytes) {
   // dictionary at all — so look for a nearby dictionary word that restores the
   // count AND explains the wording.
   if (harvested.length < expected) {
+    // Candidate sites are tokens that are not address words — but the connective
+    // prose is not in the address wordlist either, so taking every such token
+    // meant trying edit-neighbours of "may", "to", "a" and the rest, each a full
+    // re-render. Sites the cover vocabulary explains come SECOND, not never: a
+    // mistyped address word can land on a real cover word, and that case still
+    // has to be findable. Ordering it this way makes the common case ~10x less
+    // work without giving up any answer.
+    const sites = [];
     for (let i = 0; i < toks.length; i++) {
       const c = core(toks[i]);
       if (!c || addrIndex.has(c)) continue;
+      sites.push([i, c, addrCover && addrCover.has(c) ? 1 : 0]);
+    }
+    sites.sort((a, b) => a[2] - b[2]);
+    const deadline = performance.now() + ADDR_SEARCH_MS;
+    for (const [i, c] of sites) {
       for (const cand of addrEdit1(c)) {
         const trial = toks.slice();
         trial[i] = addrSwapIn(toks[i], cand);
@@ -2770,6 +2812,7 @@ function addrCheck(artifact, nBytes) {
             note: `not an address word; “${cand}” restores the address and matches the wording` });
           return { marks, verdict: 'repairable' };
         }
+        if (performance.now() > deadline) return { marks, verdict: 'short' };
       }
     }
     return { marks, verdict: 'short' };
@@ -2779,13 +2822,12 @@ function addrCheck(artifact, nBytes) {
   // ── right count: compare against the re-render ────────────────────────
   const program = addrUnpack(harvested, nBytes);
   if (!program) return { marks, verdict: 'undecodable' };
-  const { bad } = addrDiffAgainstRerender(artifact, program);
+  // `rendered` IS the expected wording — the diff just computed it, so asking
+  // for it again was a second full generation for an answer already in hand.
+  const { bad, rendered: expectedToks } = addrDiffAgainstRerender(artifact, program);
   if (bad.size === 0) return { marks, verdict: 'clean' };
 
   const payloadPositions = new Set(harvestIdx);
-  const rr = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
-    'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
-  const expectedToks = rr.error ? [] : rr.encoded_text.split(/\s+/).filter(Boolean);
 
   // Map diff indices (which count prose tokens) back to artifact token indices.
   const proseIdx = toks.map((t, i) => core(t) ? i : -1).filter(i => i >= 0);
@@ -2970,17 +3012,32 @@ function addrSetCaret(root, offset) {
   sel.removeAllRanges(); sel.addRange(r);
 }
 
+// A check is one generation in the easy cases and up to sixteen when an address
+// word is wrong, so it can take a beat. Yield a frame first and say so, rather
+// than freezing mid-keystroke with a stale verdict still on screen. The token
+// drops a result whose text has already been superseded.
+let addrCheckToken = 0;
+
 function addrRecheck() {
   if (addrMode !== 'encode' || !addrState) return;
   const box = document.getElementById('addr-output');
   const caret = addrCaretOffset(box);
   const text = box.textContent.replace(/\s+/g, ' ').trim();
   if (!text) return;
-  const res = addrRead(text, addrState.program.length);
-  addrSetVerdict(res);
-  addrPaintDamage(box, text, res);
-  addrSetCaret(box, caret);
-  document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+
+  const el = document.getElementById('addr-verdict');
+  el.className = 'addr-verdict';
+  el.textContent = '… checking';
+  const token = ++addrCheckToken;
+
+  requestAnimationFrame(() => {
+    if (token !== addrCheckToken) return;
+    const res = addrRead(text, addrState.program.length);
+    addrSetVerdict(res);
+    addrPaintDamage(box, text, res);
+    addrSetCaret(box, caret);
+    document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+  });
 }
 
 function addrToggleRoles() {
@@ -2999,6 +3056,8 @@ function addrInit() {
   if (wl.error) { console.error('address panel:', wl.error); return; }
   addrWords = wl;
   addrIndex = new Map(wl.map((w, i) => [w.toLowerCase(), i]));
+  const cw = JSON.parse(wasmGetCoverWords('english', 'bip39'));
+  addrCover = new Set(cw.error ? [] : cw);
 
   const picker = document.getElementById('addr-picker');
   ADDR_PRESETS.forEach((p, i) => {
@@ -3023,9 +3082,12 @@ function addrInit() {
     input._t = setTimeout(addrUpdate, 250);
   });
   const out = document.getElementById('addr-output');
-  out.addEventListener('input', () => {
+  out.addEventListener('input', e => {
     clearTimeout(out._t);
-    out._t = setTimeout(addrRecheck, 400);
+    // A spell checker flags a word when you leave it, not while you are inside
+    // it — so finishing a word checks almost at once, and typing mid-word waits.
+    const left = typeof e.data === 'string' && /[\s.,;:!?]/.test(e.data);
+    out._t = setTimeout(addrRecheck, left ? 60 : 250);
   });
   // Paste as plain text, or the browser drops styled markup into the box and the
   // token diff picks up formatting rather than words.
