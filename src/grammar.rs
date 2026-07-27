@@ -1,5 +1,6 @@
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, Mutex, OnceLock};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 use crate::types::{Pos, Sym};
@@ -129,6 +130,27 @@ impl DialectConfig {
     /// is derived at runtime from the base chromatic payload filtered by the scale pattern.
     /// The derived words are injected into the in-memory cache so that subsequent
     /// `load_payload_words_for_wordlist()` calls find them transparently.
+    /// `from_language_dialect`, memoized. Same reasoning as the grammar cache it
+    /// sits on top of: the config is a pure function of (language, dialect), and
+    /// building one reparses the grammar plus its wordlist and scale references.
+    ///
+    /// A scale-defining dialect is deliberately NOT cached: constructing it
+    /// injects derived payload words into the wordlist cache as a side effect,
+    /// and skipping the construction would skip the injection.
+    pub fn from_language_dialect_cached(language: &str, dialect: &str) -> Result<Arc<DialectConfig>, String> {
+        static CACHE: OnceLock<Mutex<HashMap<String, Arc<DialectConfig>>>> = OnceLock::new();
+        let key = format!("{language}/{dialect}");
+        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Some(hit) = cache.lock().unwrap().get(&key) {
+            return Ok(hit.clone());
+        }
+        let built = Arc::new(Self::from_language_dialect(language, dialect).map_err(|e| e.to_string())?);
+        if built.scale.is_none() {
+            cache.lock().unwrap().insert(key, built.clone());
+        }
+        Ok(built)
+    }
+
     pub fn from_language_dialect(language: &str, dialect: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let grammar = Grammar::from_language_dialect(language, dialect)?;
         let (mut payload_wl, payload_language, cover_wl) = Self::parse_wordlist_refs(language, dialect);
@@ -748,6 +770,28 @@ impl Grammar {
             }
         }
         (" ".to_string(), true, None, None, "bitpack".to_string(), None)
+    }
+
+    /// `from_language_dialect`, memoized.
+    ///
+    /// Parsing grammar.yaml and rebuilding the CFG rules depends only on
+    /// (language, dialect) and produces the same grammar every time, yet the
+    /// encode path did it twice per call. Callers that only read from the
+    /// grammar should prefer this; the owned constructor stays for callers that
+    /// mutate one. Errors are returned as strings because the underlying
+    /// `Box<dyn Error>` is neither `Send` nor cacheable.
+    pub fn from_language_dialect_cached(language: &str, dialect: &str) -> Result<Arc<Grammar>, String> {
+        static CACHE: OnceLock<Mutex<HashMap<String, Result<Arc<Grammar>, String>>>> = OnceLock::new();
+        let key = format!("{language}/{dialect}");
+        let cache = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+        if let Some(hit) = cache.lock().unwrap().get(&key) {
+            return hit.clone();
+        }
+        let built = Grammar::from_language_dialect(language, dialect)
+            .map(Arc::new)
+            .map_err(|e| e.to_string());
+        cache.lock().unwrap().insert(key, built.clone());
+        built
     }
 
     /// Load grammar from language and dialect (YAML-only)

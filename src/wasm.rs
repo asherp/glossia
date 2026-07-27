@@ -93,7 +93,7 @@ fn encode_inner(
     };
 
     // 1. Load grammar
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     // 2. Load payload wordlist and build WordlistTree
@@ -132,8 +132,8 @@ fn encode_inner(
     // Attach the semantic model so planning (and best-of-N) can bias toward
     // coherent verb-argument pairings. Absent for non-English; never affects
     // decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
     // Derive k_min/k_max from the grammar's structure and payload size.
@@ -214,7 +214,7 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
     let payload_tree = WordlistTree::new(payload_words.clone());
 
     // 2. Load grammar to check payload separator
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, "body")
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, "body")
         .map_err(|e| format!("Grammar error: {}", e))?;
     let payload_separator = grammar.payload_separator();
 
@@ -406,7 +406,7 @@ pub fn get_all_dialects() -> String {
 
         for dialect_name in dialects {
             // Try to load the dialect config to get wordlist info
-            match DialectConfig::from_language_dialect(lang, &dialect_name) {
+            match DialectConfig::from_language_dialect_cached(lang, &dialect_name) {
                 Ok(config) => {
                     let payload_wl = config.payload_wordlist();
                     let cover_wl = config.cover_wordlist();
@@ -772,7 +772,7 @@ fn encode_characters_inner(
     lex = lex.with_refined_cover(refined_cover);
 
     // 6. Load grammar and compute dynamic k_min/k_max
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     let min_k = grammar.min_sentence_length().unwrap_or(5);
@@ -1231,12 +1231,12 @@ fn encode_random_words_inner(
     // Attach the semantic model so planning (and best-of-N) can bias toward
     // coherent verb-argument pairings. Absent for non-English; never affects
     // decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
     // 6. Load grammar and compute dynamic k_min/k_max
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     let min_k = grammar.min_sentence_length().unwrap_or(5);
@@ -1326,7 +1326,7 @@ pub fn get_cover_words(language: &str, wordlist: &str) -> String {
         Ok(w) => w.iter().map(|x| x.to_lowercase()).collect(),
         Err(e) => return serde_json::json!({ "error": e }).to_string(),
     };
-    let cover_wl = match crate::grammar::DialectConfig::from_language_dialect(language, "body") {
+    let cover_wl = match crate::grammar::DialectConfig::from_language_dialect_cached(language, "body") {
         Ok(cfg) => cfg.cover_wordlist().to_string(),
         Err(_) => "cover".to_string(),
     };
@@ -1509,11 +1509,11 @@ fn encode_raw_base_n_inner(
     // Attach the semantic model so planning (and best-of-N) can bias toward
     // coherent verb-argument pairings. Absent for non-English; never affects
     // decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     let min_k = grammar.min_sentence_length().unwrap_or(5);

@@ -1121,7 +1121,7 @@ impl Pipeline {
 
         // Resolve payload_language: if the dialect declares a different language
         // for payload files, pass it so decode loads the correct wordlist.
-        let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+        let payload_lang = DialectConfig::from_language_dialect_cached(language, dialect)
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
@@ -1237,7 +1237,7 @@ impl Pipeline {
         }
 
         // Resolve payload_language for cross-language payload (e.g., sig_bip39).
-        let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+        let payload_lang = DialectConfig::from_language_dialect_cached(language, dialect)
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
@@ -1313,7 +1313,7 @@ fn apply_wordlist_modifier(
 fn resolve_dialect_wordlist(ep: Endpoint) -> Endpoint {
     match ep {
         Endpoint::Language { ref language, ref wordlist, ref dialect } if wordlist == "default" => {
-            if let Ok(config) = DialectConfig::from_language_dialect(language, dialect) {
+            if let Ok(config) = DialectConfig::from_language_dialect_cached(language, dialect) {
                 let declared = config.payload_wordlist();
                 if declared != "default" {
                     return Endpoint::Language {
@@ -1359,7 +1359,7 @@ fn prepare_payload(
     // Resolve payload_language: if the dialect declares a different language for
     // payload files (e.g., sig_bip39 uses English BIP39 words inside CS grammar),
     // load from that language's directory instead.
-    let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+    let payload_lang = DialectConfig::from_language_dialect_cached(language, dialect)
         .map(|c| c.payload_language().to_string())
         .unwrap_or_else(|_| language.to_string());
 
@@ -1473,7 +1473,7 @@ fn prepare_words_encode(
     let payload_word_set: HashSet<String> =
         payload_words.iter().map(|w| w.to_lowercase()).collect();
 
-    let grammar = Grammar::from_language_dialect(language, dialect)
+    let grammar = Grammar::from_language_dialect_cached(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
     let is_cs_grammar = !grammar.dot_is_punctuation();
     let pos_mapping = if is_cs_grammar {
@@ -1576,10 +1576,13 @@ pub fn build_zone_generator(
     k_min_override: Option<usize>,
     k_max_override: Option<usize>,
 ) -> Result<ZoneGenerator, PipelineError> {
-    // 1. Load grammar and dialect config.
-    let dialect_config = crate::grammar::DialectConfig::from_language_dialect(language, dialect)
+    // 1. Load grammar and dialect config. Both are pure functions of
+    // (language, dialect) and both parse YAML, so both are memoized — this is
+    // called once per encode, and best-of-N plus a verifier's repair search make
+    // that a lot of encodes.
+    let dialect_config = crate::grammar::DialectConfig::from_language_dialect_cached(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Dialect config error: {}", e)))?;
-    let grammar = Grammar::from_language_dialect(language, dialect)
+    let grammar = Grammar::from_language_dialect_cached(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
 
     // 2. Build Lexicon (cover words).
@@ -1616,8 +1619,8 @@ pub fn build_zone_generator(
     // Optional semantic model: softly biases sentence planning toward coherent
     // verb-argument pairings. Absent for languages without a semantics.yaml, in
     // which case planning is unchanged. Never affects payload order or decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
     // 3. Grammar-derived sentence parameters.
@@ -1998,7 +2001,7 @@ pub fn encode_into_language_best_of(
     // Best-of ranks candidates by semantic coherence, so with no model (or a
     // single candidate) there is nothing to select over — this is exactly a plain
     // single encode.
-    if n == 1 || crate::generator::data::load_semantics(language).is_none() {
+    if n == 1 || crate::generator::data::load_semantics_cached(language).is_none() {
         return encode_into_language(
             input, language, wordlist, dialect, forced_data_mode, base_seed, verbose,
             cover_override, length_mode, k_min_override, k_max_override,
@@ -2083,7 +2086,7 @@ fn encode_into_language_best_of_via_pipeline(
     // in exchange for higher coherence. Small: density stays primary.
     const DENSITY_TOL: f64 = 0.02;
 
-    let model = crate::generator::data::load_semantics(language)
+    let model = crate::generator::data::load_semantics_cached(language)
         .expect("caller ensures a semantic model exists for best-of selection");
 
     let mut candidates: Vec<(f64, f64, (String, HashSet<String>, Vec<String>, DataMode))> =

@@ -76,6 +76,39 @@ pub fn load_semantics(language: &str) -> Option<crate::generator::semantics::Sem
     if std::env::var("GLOSSIA_DISABLE_SEMANTICS").is_ok() {
         return None;
     }
+    load_semantics_uncached(language)
+}
+
+static SEMANTICS_CACHE: OnceLock<Mutex<HashMap<String, Option<Arc<crate::generator::semantics::SemanticModel>>>>> =
+    OnceLock::new();
+
+/// `load_semantics`, memoized and pre-wrapped in the `Arc` the Lexicon wants.
+///
+/// English's semantics.yaml is ~100 KB and was reparsed on every encode — the
+/// single largest fixed cost in the pipeline. The result depends only on the
+/// language, so parse it once.
+///
+/// The env-var escape hatch is deliberately checked *outside* the cache, so
+/// toggling `GLOSSIA_DISABLE_SEMANTICS` still takes effect within a process.
+pub fn load_semantics_cached(
+    language: &str,
+) -> Option<Arc<crate::generator::semantics::SemanticModel>> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if std::env::var("GLOSSIA_DISABLE_SEMANTICS").is_ok() {
+        return None;
+    }
+    let cache = SEMANTICS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(hit) = cache.lock().unwrap().get(language) {
+        return hit.clone();
+    }
+    let model = load_semantics_uncached(language).map(Arc::new);
+    cache.lock().unwrap().insert(language.to_string(), model.clone());
+    model
+}
+
+/// The parse itself, without the env-var check (which `load_semantics_cached`
+/// applies first) — so a cached entry never bakes in the escape hatch's state.
+fn load_semantics_uncached(language: &str) -> Option<crate::generator::semantics::SemanticModel> {
     let content = get_embedded_yaml(&format!("{}/semantics.yaml", language))?;
     match crate::generator::semantics::SemanticModel::from_yaml(content) {
         Ok(model) if !model.is_empty() => Some(model),
@@ -605,9 +638,57 @@ pub fn load_cover_words_by_pos(wordlist_set: &HashSet<String>, language: &str) -
     load_cover_words_by_pos_for_wordlist(wordlist_set, language, default_wordlist(language))
 }
 
+/// The parsed cover vocabulary for a language/wordlist, before any payload filter.
+///
+/// Parsing cover.yaml is the expensive half and depends only on (language,
+/// wordlist); removing payload words from the result is the cheap half and is
+/// the only part that varies per call. Splitting them lets the parse be
+/// memoized, which matters because every encode used to redo it.
+struct CoverIndex {
+    by_pos: HashMap<Pos, Vec<String>>,
+    refined: HashMap<(Pos, String), Vec<String>>,
+}
+
+static COVER_INDEX_CACHE: OnceLock<Mutex<HashMap<String, Arc<CoverIndex>>>> = OnceLock::new();
+
+fn cover_index(language: &str, wordlist: &str) -> Arc<CoverIndex> {
+    let key = format!("{language}/{wordlist}");
+    let cache = COVER_INDEX_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(hit) = cache.lock().unwrap().get(&key) {
+        return hit.clone();
+    }
+    let (by_pos, refined) = parse_cover_words(&HashSet::new(), language, wordlist);
+    let idx = Arc::new(CoverIndex { by_pos, refined });
+    cache.lock().unwrap().insert(key, idx.clone());
+    idx
+}
+
 /// Load cover words for a specific wordlist profile.
 /// Returns (by_pos, refined_cover) where refined_cover maps (POS, refinement_tag) -> words.
 pub fn load_cover_words_by_pos_for_wordlist(wordlist_set: &HashSet<String>, language: &str, wordlist: &str) -> (HashMap<Pos, Vec<String>>, HashMap<(Pos, String), Vec<String>>) {
+    let idx = cover_index(language, wordlist);
+    if wordlist_set.is_empty() {
+        return (idx.by_pos.clone(), idx.refined.clone());
+    }
+    // Dropping a word from every bucket is equivalent to never having added it,
+    // which is what the unfiltered parse would have done — including leaving a
+    // POS out entirely rather than mapping it to an empty list, since a present
+    // but empty bucket is not the same thing to the Lexicon.
+    let keep = |words: &Vec<String>| -> Vec<String> {
+        words.iter().filter(|w| !wordlist_set.contains(&w.to_lowercase())).cloned().collect()
+    };
+    let by_pos = idx.by_pos.iter()
+        .map(|(pos, words)| (*pos, keep(words)))
+        .filter(|(_, words)| !words.is_empty())
+        .collect();
+    let refined = idx.refined.iter()
+        .map(|(k, words)| (k.clone(), keep(words)))
+        .filter(|(_, words)| !words.is_empty())
+        .collect();
+    (by_pos, refined)
+}
+
+fn parse_cover_words(wordlist_set: &HashSet<String>, language: &str, wordlist: &str) -> (HashMap<Pos, Vec<String>>, HashMap<(Pos, String), Vec<String>>) {
     let (_, cover_filename) = wordlist_filenames(language, wordlist);
     // Load language-specific POS tag mappings
     let pos_mappings = load_pos_mappings(language);
