@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="16ff274">
+<meta name="glossia-build" content="20a85ce">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -143,31 +143,6 @@ body {
   flex-shrink: 0;
 }
 .theme-toggle:hover { border-color: var(--accent); }
-.top-bar-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  flex-shrink: 0;
-}
-.book-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 0.03em;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: border-color 0.15s, color 0.15s;
-}
-.book-link:hover { border-color: var(--accent); color: var(--accent); }
-.book-link-glyph { color: var(--accent); font-size: 0.9em; }
 
 /* Controls section */
 .controls-section {
@@ -511,6 +486,12 @@ footer a:hover { text-decoration: underline; }
 }
 .hero .cta {
   margin-top: 2rem;
+  /* Three buttons no longer fit one line on a narrow screen, and margin-left
+     spacing leaves a stray gap when they wrap. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
 }
 .hero .cta a {
   display: inline-block;
@@ -528,6 +509,15 @@ footer a:hover { text-decoration: underline; }
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(124, 108, 240, 0.4);
 }
+/* Secondary actions: the same shape, outlined rather than filled, so "Try the
+   Demo" stays the one obvious thing to press. */
+.hero .cta a.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: calc(0.75rem - 2px) calc(2rem - 2px);
+}
+.hero .cta a.ghost:hover { background: var(--accent); color: #fff; }
 
 /* Section headings */
 .section-header {
@@ -820,14 +810,6 @@ footer a:hover { text-decoration: underline; }
   select, input { font-size: 0.8rem; padding: 0.35rem 0.5rem; }
   .top-bar h1 { font-size: 1.3rem; }
   .top-bar .tagline { font-size: 0.8rem; }
-  /* The title already wraps at this width; a full-width button beside it would
-     squeeze it further, so the link keeps its glyph and drops its words —
-     matching the theme toggle it sits next to. */
-  .book-link {
-    width: 36px; height: 36px; padding: 0; gap: 0;
-    border-radius: 50%; justify-content: center; font-size: 0;
-  }
-  .book-link-glyph { font-size: 1.1rem; }
   #random-btns { width: 100%; }
   #random-btns button { flex: 1 1 auto; min-width: 70px; font-size: 0.65rem; padding: 0.25rem 0.4rem; }
   .preset-tab { padding: 0.4rem 0.6rem; font-size: 0.7rem; }
@@ -850,14 +832,7 @@ footer a:hover { text-decoration: underline; }
       <h1>GLOSSIA:</h1>
       <span class="tagline">human interfaces for machine data</span>
     </div>
-    <div class="top-bar-actions">
-      <a class="book-link" href="https://asherp.github.io/Book-of-Bitcoin/bitcoin-book.html"
-         target="_blank" rel="noopener"
-         title="The Book of Bitcoin — the chain read as prose">
-        <span class="book-link-glyph" aria-hidden="true">&#9635;</span>The Book of Bitcoin
-      </a>
-      <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9790;</button>
-    </div>
+    <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">&#9790;</button>
   </div>
 
   <div id="loading" class="loading">
@@ -880,7 +855,9 @@ footer a:hover { text-decoration: underline; }
 
       <div class="cta">
         <a href="#demo">Try the Demo</a>
-        <a href="compose.html" style="background:transparent; color:var(--accent); border:2px solid var(--accent); margin-left:0.75rem;">Create Bulletin</a>
+        <a class="ghost" href="compose.html">Create Bulletin</a>
+        <a class="ghost" href="https://asherp.github.io/Book-of-Bitcoin/bitcoin-book.html"
+           target="_blank" rel="noopener">The Book of Bitcoin</a>
       </div>
     </section>
 
