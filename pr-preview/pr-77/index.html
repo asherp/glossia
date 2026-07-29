@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="9bcb90c">
+<meta name="glossia-build" content="e01a816">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -2427,10 +2427,10 @@ function addrRead(artifact, nBytes) {
   if (rendered === null) return { verdict: 'unreadable', note: 'encode failed' };
   const got = rendered.split(/\s+/).filter(Boolean);
   if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
+  // Aligned, not positional: one dropped connective word should read as "one
+  // word out of thirty differs", not as "everything after it differs".
   const n = Math.max(got.length, proseToks.length, 1);
-  let same = 0;
-  for (let i = 0; i < Math.min(got.length, proseToks.length); i++) if (got[i] === proseToks[i]) same++;
-  const best = same / n;
+  const best = addrAlign(proseToks, got).matched / n;
   return best > 0.75
     ? { verdict: 'unverified', program, match: best }
     : { verdict: 'mismatch', program, match: best };
@@ -2444,15 +2444,48 @@ function addrRead(artifact, nBytes) {
 // damage changes the checksum and therefore the whole paragraph, so the diff
 // localizes nothing — only a repair search can, by proposing plausible typo
 // corrections and keeping those that explain the received text.
+// Align received tokens against rendered ones (longest common subsequence).
+//
+// Comparing position by position was wrong for the two edits people actually
+// make: dropping a word and adding one. Either shifts every token after it, so
+// a positional diff reports the whole tail as damaged — including the address
+// words, which are sitting there perfectly intact. The checker then concluded
+// an address word must be wrong and said so.
+//
+// Returns one op per received token plus the gaps: 'same', 'sub' (this token
+// should read `want`), 'ins' (this token is not in the rendering at all) and
+// 'del' (a word is missing before token `i`).
+function addrAlign(recv, got) {
+  const n = recv.length, m = got.length;
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      L[i][j] = recv[i] === got[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+
+  const ops = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (recv[i] === got[j]) { ops.push({ op: 'same', i, want: got[j] }); i++; j++; }
+    // Skipping either side costs the same, so this is one word written in place
+    // of another — report it that way. "this should say X" beats "delete this,
+    // then insert that", and it keeps a substitution to a single mark.
+    else if (L[i + 1][j] === L[i][j + 1]) { ops.push({ op: 'sub', i, want: got[j] }); i++; j++; }
+    else if (L[i + 1][j] > L[i][j + 1]) { ops.push({ op: 'ins', i, want: null }); i++; }
+    else { ops.push({ op: 'del', i, want: got[j] }); j++; }
+  }
+  while (i < n) { ops.push({ op: 'ins', i, want: null }); i++; }
+  while (j < m) { ops.push({ op: 'del', i: Math.max(0, n - 1), want: got[j] }); j++; }
+  return { ops, matched: L[0][0] };
+}
+
 function addrDiffAgainstRerender(artifact, program) {
   const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
     [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
   const text = addrProse(program);
-  if (text === null) return { bad: new Set(), rendered: [] };
+  if (text === null) return { ops: [], rendered: [], recv };
   const got = text.split(/\s+/).filter(Boolean);
-  const bad = new Set();
-  for (let i = 0; i < Math.max(got.length, recv.length); i++) if (got[i] !== recv[i]) bad.add(i);
-  return { bad, rendered: got, recv };
+  const { ops } = addrAlign(recv, got);
+  return { ops: ops.filter(o => o.op !== 'same'), rendered: got, recv };
 }
 
 // Replace a token's word while keeping its capitalization and punctuation, so the
@@ -2484,11 +2517,11 @@ function addrEdit1(w) {
 // at exactly the damaged word — so the test is "differs in at most one token",
 // not "matches". A wrong candidate changes the checksum and mismatches almost
 // everywhere.
-function addrProposeRepairs(artifact, words) {
+function addrProposeRepairs(artifact, words, budgetMs = ADDR_SEARCH_MS) {
   const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
     [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
   const hits = [];
-  const deadline = performance.now() + ADDR_SEARCH_MS;
+  const deadline = performance.now() + budgetMs;
   for (let i = 0; i < words.length; i++) {
     for (const cand of addrEdit1(words[i])) {
       if (performance.now() > deadline) return hits;
@@ -2768,10 +2801,13 @@ const SPELL = 'spell', GRAMMAR = 'grammar';
 // memoized, a repeat check picks up where this one left off for free, so the
 // search completes across a pause instead of blocking one keystroke.
 const ADDR_SEARCH_MS = 250;
+/// Where the widening passes stop. Past this the text really has no single-typo
+/// explanation, and saying so is the honest answer.
+const ADDR_SEARCH_MAX_MS = 4000;
 
 /// Analyse an artifact and return per-token annotations.
 /// { kind, suggest, note } keyed by token index; empty map means clean.
-function addrCheck(artifact, nBytes) {
+function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
   const toks = artifact.split(/\s+/).filter(Boolean);
   const core = t => [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')
                           .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
@@ -2801,7 +2837,7 @@ function addrCheck(artifact, nBytes) {
       sites.push([i, c, addrCover && addrCover.has(c) ? 1 : 0]);
     }
     sites.sort((a, b) => a[2] - b[2]);
-    const deadline = performance.now() + ADDR_SEARCH_MS;
+    const deadline = performance.now() + budgetMs;
     for (const [i, c] of sites) {
       for (const cand of addrEdit1(c)) {
         const trial = toks.slice();
@@ -2824,22 +2860,32 @@ function addrCheck(artifact, nBytes) {
   if (!program) return { marks, verdict: 'undecodable' };
   // `rendered` IS the expected wording — the diff just computed it, so asking
   // for it again was a second full generation for an answer already in hand.
-  const { bad, rendered: expectedToks } = addrDiffAgainstRerender(artifact, program);
-  if (bad.size === 0) return { marks, verdict: 'clean' };
+  const { ops } = addrDiffAgainstRerender(artifact, program);
+  if (ops.length === 0) return { marks, verdict: 'clean' };
 
   const payloadPositions = new Set(harvestIdx);
 
   // Map diff indices (which count prose tokens) back to artifact token indices.
   const proseIdx = toks.map((t, i) => core(t) ? i : -1).filter(i => i >= 0);
 
-  // If every address word is intact, the disagreement is cover-only: grammar.
-  const payloadBad = [...bad].some(k => payloadPositions.has(proseIdx[k]));
-  if (!payloadBad) {
-    for (const k of bad) {
-      const i = proseIdx[k];
+  // Which of these mean an ADDRESS word is wrong? Only a substitution landing on
+  // a payload position whose WORD differs — "ring" written where the rendering
+  // says "ring." is the same address word with a sentence break lost, which is
+  // wording, not spelling. A missing or extra word is never an address-word
+  // fault here either: the word count already agreed, so anything inserted or
+  // dropped was connective prose.
+  const wrongAddressWord = ops.some(o =>
+    o.op === 'sub' && payloadPositions.has(proseIdx[o.i]) &&
+    core(toks[proseIdx[o.i]] || '') !== core(o.want || ''));
+
+  if (!wrongAddressWord) {
+    for (const o of ops) {
+      const i = proseIdx[o.i];
       if (i === undefined) continue;
-      marks.set(i, { kind: GRAMMAR, suggest: expectedToks[k],
-        note: expectedToks[k] ? `the address calls for “${expectedToks[k]}” here` : 'unexpected word' });
+      const note = o.op === 'del' ? `a word is missing here: “${o.want}”`
+                 : o.op === 'ins' ? 'this word is not part of the address’s wording'
+                 : `the address calls for “${o.want}” here`;
+      marks.set(i, { kind: GRAMMAR, suggest: o.op === 'ins' ? null : o.want, note });
     }
     return { marks, verdict: 'cover-damage' };
   }
@@ -2847,7 +2893,7 @@ function addrCheck(artifact, nBytes) {
   // Otherwise an address word is wrong. The cover disagreement is a CONSEQUENCE,
   // not a second fault, so flag only the address word — marking 25 cover words
   // would be technically true and useless.
-  const hits = addrProposeRepairs(artifact, addrPack(program));
+  const hits = addrProposeRepairs(artifact, addrPack(program), budgetMs);
   if (hits.length === 1) {
     marks.set(harvestIdx[hits[0].index], { kind: SPELL, suggest: hits[0].to,
       note: `wrong address word; “${hits[0].to}” explains this wording` });
@@ -2918,13 +2964,13 @@ document.addEventListener('click', e => {
   }
 });
 
-function addrPaintDamage(box, artifact, res) {
+function addrPaintDamage(box, artifact, res, budgetMs = ADDR_SEARCH_MS) {
   const note = document.getElementById('addr-repair');
   note.innerHTML = '';
   note.className = 'addr-repair hidden';
 
   const nBytes = addrState ? addrState.program.length : 20;
-  const { marks, verdict } = addrCheck(artifact, nBytes);
+  const { marks, verdict } = addrCheck(artifact, nBytes, budgetMs);
   const toks = artifact.split(/\s+/).filter(Boolean);
 
   addrCurrent = { artifact, marks, nBytes };
@@ -2977,6 +3023,7 @@ function addrPaintDamage(box, artifact, res) {
                    (items.length ? `<ul class="addr-suggest">${items.join('')}</ul>` : '') +
                    (verdict === 'repairable' ? '<div class="addr-foot">Shown as a proposal — never applied automatically.</div>' : '');
   note.className = 'addr-repair';
+  return verdict;
 }
 
 // ── editing the prose in place ──────────────────────────────────────
@@ -3030,14 +3077,29 @@ function addrRecheck() {
   el.textContent = '… checking';
   const token = ++addrCheckToken;
 
-  requestAnimationFrame(() => {
-    if (token !== addrCheckToken) return;
-    const res = addrRead(text, addrState.program.length);
-    addrSetVerdict(res);
-    addrPaintDamage(box, text, res);
-    addrSetCaret(box, caret);
-    document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
-  });
+  requestAnimationFrame(() => addrRunCheck(box, text, caret, token, ADDR_SEARCH_MS));
+}
+
+/// One checking pass, then a wider one if the budget cut the search short.
+///
+/// A budget that stops the search early can stop it before the answer: a word
+/// two sites down the text has a perfectly good correction that a 250ms pass
+/// never reaches, and "cannot locate it" is a worse answer than a slow right
+/// one. So a pass that finds nothing schedules a wider pass on a later tick.
+/// Every candidate the last pass rendered is memoized, so the next one resumes
+/// where it stopped instead of repeating the work — and the user reads a fast
+/// provisional verdict that sharpens rather than a frozen page.
+function addrRunCheck(box, text, caret, token, budgetMs) {
+  if (token !== addrCheckToken || addrMode !== 'encode' || !addrState) return;
+  const res = addrRead(text, addrState.program.length);
+  addrSetVerdict(res);
+  const verdict = addrPaintDamage(box, text, res, budgetMs);
+  addrSetCaret(box, caret);
+  document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+
+  if ((verdict === 'short' || verdict === 'unlocatable') && budgetMs < ADDR_SEARCH_MAX_MS) {
+    setTimeout(() => addrRunCheck(box, text, caret, token, budgetMs * 4), 0);
+  }
 }
 
 function addrToggleRoles() {
