@@ -3,19 +3,35 @@
  * Strategy:
  *   - Precache the app shell on install (resilient: a missing entry, e.g. an
  *     unbuilt WASM artifact, does not abort the install).
- *   - Same-origin GET requests are served stale-while-revalidate: the cached
- *     copy answers instantly (offline-capable) while a background fetch refreshes
- *     the cache for next time. This lets rebuilt JS/WASM propagate on the next
- *     visit without any manual cache-busting.
+ *   - App code — the HTML pages and the JS/WASM built alongside them — is served
+ *     NETWORK-FIRST, falling back to cache when offline.
+ *   - Everything else (vendor libraries, icons, the manifest) is served
+ *     stale-while-revalidate: cache now, refresh in the background.
  *   - Navigations fall back to the cached page, then to index.html, when offline.
  *   - Cross-origin requests (nostr relays over wss://, remote images) are left
  *     untouched — the SW never intercepts them.
+ *
+ * App code is network-first because stale-while-revalidate left every visitor
+ * exactly one deploy behind: the cached page answered instantly and the fresh
+ * one only landed in the cache for NEXT time, so a change looked like it had
+ * not shipped until the second reload. Worse, index.html and glossia.js are
+ * rebuilt together, and a fresh page paired with a stale module is a version
+ * skew nothing in the app can detect. Vendor files and icons change on their
+ * own schedule and keep the fast path.
  *
  * Bump CACHE when the shell list changes or you want to force-evict old caches.
  * Everything here is scoped to the directory sw.js is served from, so it works
  * unchanged at the site root (glossia.io) and under a per-PR preview subpath.
  */
-const CACHE = 'glossia-shell-v3';
+const CACHE = 'glossia-shell-v5';
+
+/// App code: rebuilt with every deploy and required to agree with itself.
+function isAppCode(req, url) {
+  if (req.mode === 'navigate') return true;
+  const path = url.pathname;
+  if (/\.(html|wasm)$/.test(path)) return true;
+  return /\/glossia(-\w+)?\.js$/.test(path);   // glossia.js, glossia-msg.js, glossia-nostr.js
+}
 
 // App shell, relative to the SW scope. glossia.js / glossia_bg.wasm are
 // gitignored build artifacts — present after a build/deploy, possibly absent in
@@ -25,19 +41,6 @@ const SHELL = [
   './index.html',
   './compose.html',
   './bulletin.html',
-  './bitcoin-book.html',
-  './bitcoin-contents.html',
-  './btc-tx.js',
-  './btc-prose.js',
-  './btc-citation.js',
-  './btc-contents.js',
-  './bitcoin-book.webmanifest',
-  './icons/beta-icon.svg',
-  './icons/beta-icon-16.png',
-  './icons/beta-icon-32.png',
-  './icons/beta-icon-180.png',
-  './icons/beta-icon-192.png',
-  './icons/beta-icon-512.png',
   './glossia.js',
   './glossia_bg.wasm',
   './glossia-msg.js',
@@ -100,8 +103,13 @@ self.addEventListener('fetch', (event) => {
       return res;
     }).catch(() => null);
 
-    // Stale-while-revalidate: cached copy now, refresh in the background.
-    if (cached) {
+    if (isAppCode(req, url)) {
+      // Network-first: what was just deployed wins, cache is the offline net.
+      const fresh = await network;
+      if (fresh) return fresh;
+      if (cached) return cached;
+    } else if (cached) {
+      // Stale-while-revalidate: cached copy now, refresh in the background.
       event.waitUntil(network);
       return cached;
     }

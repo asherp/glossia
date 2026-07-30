@@ -17,7 +17,16 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
+<meta name="glossia-build" content="80dd1aa">
 <script>
+  // Which build is this page? Two rounds of "the feature you shipped isn't
+  // here" turned out to be a cache serving the previous deploy, so the answer
+  // is now printed in the footer rather than reasoned about.
+  window.GLOSSIA_BUILD = (document.querySelector('meta[name="glossia-build"]') || {}).content || 'dev';
+  window.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('build-stamp');
+    if (el) el.textContent = ' • build ' + window.GLOSSIA_BUILD;
+  });
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').catch((e) => console.warn('SW registration failed:', e));
@@ -301,7 +310,9 @@ mark {
   height: 48px;
   border-radius: 50%;
   background: var(--surface);
-  border: 2px solid var(--border);
+  /* The neutral border disappeared against a dark surface — a control nobody
+     can find is a control that does not exist. */
+  border: 2px solid var(--accent);
   color: var(--accent);
   display: flex;
   align-items: center;
@@ -319,7 +330,19 @@ mark {
   box-shadow: 0 4px 12px rgba(124, 108, 240, 0.3);
   transform: translate(-50%, -50%) scale(1.05);
 }
-.swap-btn svg { width: 20px; height: 20px; fill: currentColor; }
+.swap-btn svg { width: 22px; height: 22px; fill: currentColor; }
+.swap-btn::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 100%;
+  margin-top: 0.4rem;
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
 
 /* Buttons */
 button {
@@ -463,6 +486,12 @@ footer a:hover { text-decoration: underline; }
 }
 .hero .cta {
   margin-top: 2rem;
+  /* Three buttons no longer fit one line on a narrow screen, and margin-left
+     spacing leaves a stray gap when they wrap. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
 }
 .hero .cta a {
   display: inline-block;
@@ -480,6 +509,15 @@ footer a:hover { text-decoration: underline; }
   transform: translateY(-2px);
   box-shadow: 0 6px 16px rgba(124, 108, 240, 0.4);
 }
+/* Secondary actions: the same shape, outlined rather than filled, so "Try the
+   Demo" stays the one obvious thing to press. */
+.hero .cta a.ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: calc(0.75rem - 2px) calc(2rem - 2px);
+}
+.hero .cta a.ghost:hover { background: var(--accent); color: #fff; }
 
 /* Section headings */
 .section-header {
@@ -817,7 +855,9 @@ footer a:hover { text-decoration: underline; }
 
       <div class="cta">
         <a href="#demo">Try the Demo</a>
-        <a href="compose.html" style="background:transparent; color:var(--accent); border:2px solid var(--accent); margin-left:0.75rem;">Create Bulletin</a>
+        <a class="ghost" href="compose.html">Create Bulletin</a>
+        <a class="ghost" href="https://asherp.github.io/Book-of-Bitcoin/bitcoin-book.html"
+           target="_blank" rel="noopener">The Book of Bitcoin</a>
       </div>
     </section>
 
@@ -879,7 +919,54 @@ footer a:hover { text-decoration: underline; }
         /* Stacked demos (no tabs): encryption first, each visually separated. */
         .demo-section { display: flex; flex-direction: column; }
         #panel-encrypt { order: -1; }
-        #panel-bip39, #panel-apikey { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+        #panel-address { order: 0; }
+        #panel-bip39, #panel-apikey, #panel-address { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+        /* Prose address */
+        .addr-legend { text-align: center; font-family: var(--font-mono); font-size: 0.68rem;
+          color: var(--text-dim); margin: -0.4rem 0 0.9rem; }
+        .addr-panels .panel-right .panel-footer { justify-content: flex-start; }
+        .addr-panels .panel-right .panel-footer .addr-meta { margin-right: auto; }
+        .addr-addr { font-family: var(--font-mono); font-size: 0.85rem; word-break: break-all; }
+        .addr-editable { outline: none; cursor: text; }
+        .addr-editable:focus { box-shadow: inset 0 0 0 2px rgba(124,108,240,0.35); }
+        .addr-picker { display: flex; gap: 0.35rem; justify-content: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
+        .addr-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-dim); }
+        .addr-verdict { margin-left: auto; font-size: 0.7rem; font-family: var(--font-mono);
+          padding: 0.15rem 0.5rem; border-radius: 999px; border: 1px solid transparent; white-space: nowrap; }
+        .addr-verdict.ok   { color: var(--success); border-color: rgba(34,197,94,0.4);  background: rgba(34,197,94,0.1); }
+        .addr-verdict.warn { color: var(--orange);  border-color: rgba(249,115,22,0.4); background: rgba(249,115,22,0.1); }
+        .addr-verdict.bad  { color: var(--error);   border-color: rgba(239,68,68,0.4);  background: rgba(239,68,68,0.1); }
+        .addr-damage { max-width: 720px; margin: 0.9rem auto 0; text-align: center; }
+        .addr-damage-label { font-size: 0.75rem; color: var(--text-dim); }
+        .addr-damage-row { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; margin-top: 0.5rem; }
+        .addr-glyph { font-family: var(--font-mono); color: var(--accent); }
+        .addr-repair { max-width: 720px; margin: 0.7rem auto 0; text-align: center;
+          font-size: 0.76rem; line-height: 1.6; color: var(--text-dim); }
+        .addr-repair strong { color: var(--accent); font-family: var(--font-mono); }
+        .addr-popup { position: absolute; z-index: 50; max-width: 340px; padding: 0.7rem 0.85rem;
+          background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.25); font-size: 0.78rem; text-align: left; }
+        .addr-popup.spell { border-top: 3px solid var(--error); }
+        .addr-popup.grammar { border-top: 3px solid var(--blue); }
+        .addr-popup-h { font-weight: 600; margin-bottom: 0.35rem; }
+        .addr-popup-h strong { color: var(--accent); font-family: var(--font-mono); }
+        .addr-popup-actions { display: flex; gap: 0.4rem; margin-top: 0.6rem; }
+        .tok-spell { text-decoration: underline wavy var(--error); text-underline-offset: 3px;
+          text-decoration-thickness: 1.5px; cursor: pointer; }
+        .tok-grammar { text-decoration: underline wavy var(--blue); text-underline-offset: 3px;
+          text-decoration-thickness: 1.5px; cursor: pointer; }
+        .addr-headline { margin-bottom: 0.4rem; }
+        .addr-suggest { list-style: none; padding: 0; margin: 0.4rem 0 0; text-align: left;
+          display: inline-block; font-size: 0.75rem; }
+        .addr-suggest li { margin: 0.25rem 0; font-family: var(--font-mono); }
+        .addr-suggest strong { color: var(--accent); }
+        .addr-suggest em { color: var(--text-dim); font-style: normal; font-family: var(--font-sans); }
+        .addr-foot { margin-top: 0.4rem; font-size: 0.7rem; opacity: 0.8; }
+        mark.addr-bad { background: rgba(239,68,68,0.16); color: var(--error);
+          border-bottom: 1px solid rgba(239,68,68,0.5); border-radius: 2px; padding: 0 1px; }
+        .addr-cover { color: var(--text-dim); }
+        .addr-pay { text-decoration: underline; text-decoration-color: var(--accent); }
+        .addr-pay sub { font-size: 0.6em; color: var(--accent); opacity: 0.85; }
         .enc-password-row { display: flex; align-items: center; justify-content: center;
           gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
         .enc-password-row input { min-width: 260px; }
@@ -1002,6 +1089,106 @@ footer a:hover { text-decoration: underline; }
             bits, recovering the key in whichever format you pick — <strong>ASCII</strong>,
             <strong>hex</strong>, or <strong>base64</strong>. Press <strong>⇄</strong> to switch
             direction; the output format defaults to the one detected when encoding.</p>
+          </div>
+        </details>
+      </div>
+
+      <!-- ─── Prose Bitcoin address panel ──────────────────────────── -->
+      <div id="panel-address">
+        <div class="section-header">
+          <h3>Bitcoin Address as Prose</h3>
+          <p>A locking script you can read, dictate, and check by eye &mdash; and that tells you when it has been damaged</p>
+        </div>
+
+        <div class="addr-picker" id="addr-picker"></div>
+        <div class="addr-legend" id="addr-legend"></div>
+
+        <div class="panels addr-panels">
+          <div class="panel panel-left">
+            <div class="panel-header">
+              <span class="dialect-label" id="addr-left-label">Bitcoin address</span>
+            </div>
+            <div class="panel-body">
+              <div contenteditable="true" spellcheck="false" id="addr-input" class="io-input"
+                   data-placeholder="Paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
+            </div>
+            <div class="panel-footer">
+              <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
+            </div>
+          </div>
+
+          <button class="swap-btn" id="addr-swap-btn" onclick="addrToggle()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          </button>
+
+          <div class="panel panel-right">
+            <div class="panel-header">
+              <span class="dialect-label" id="addr-right-label">Prose address</span>
+              <span class="addr-verdict" id="addr-verdict"></span>
+            </div>
+            <div class="panel-body">
+              <div class="output-area empty" id="addr-output">Output will appear here</div>
+            </div>
+            <div class="panel-footer">
+              <span class="addr-meta" id="addr-meta"></span>
+              <button class="btn-sm" id="addr-roles-btn" onclick="addrToggleRoles()"
+                      title="Show the grammatical role of each address word">Show roles</button>
+              <button class="btn-sm" onclick="addrCopy()">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="addr-repair hidden" id="addr-repair"></div>
+
+        <div class="addr-damage" id="addr-damage">
+          <span class="addr-damage-label">Now damage it, the way a person would:</span>
+          <div class="addr-damage-row" id="addr-damage-row"></div>
+        </div>
+
+        <details class="demo-details" id="addr-how">
+          <summary id="addr-hint"></summary>
+          <div class="enc-how-body">
+            <p>Opcodes use the <strong>Book of Bitcoin notation</strong> &mdash; the same glyphs a
+            script gets when it is read in the book (<span class="addr-glyph">&#9450;</span> OP_0,
+            <span class="addr-glyph">&#9312;</span> OP_1, <span class="addr-glyph">&#8961;</span> OP_DUP,
+            <span class="addr-glyph">&#8982;</span> OP_HASH160, <span class="addr-glyph">&#8801;</span>
+            OP_EQUALVERIFY, <span class="addr-glyph">&#8711;</span> OP_CHECKSIG). Glossia encodes only the
+            part that carries entropy &mdash; the 20- or 32-byte program &mdash; which is
+            <strong>15 words</strong> for a hash160 address and <strong>24</strong> for a 32-byte one.</p>
+            <p><strong>&#9450;</strong> and <strong>&#9312;</strong> are worth a note: Unicode counts them
+            as <em>alphanumeric</em>, so the decoder&rsquo;s token trim does not strip them. Written flush
+            against an address word they would hide it entirely. They are safe here because the format
+            <em>declares</em> its glyphs and they are removed by name &mdash; a rule based on character
+            category would silently lose a word.</p>
+            <p>The format's version and wordlist size ride in the <strong>bit-packing slack</strong>
+            and cost nothing: 160 data bits + 5 header bits is exactly 15 words, and 256 + 8 is
+            exactly 24. Wordlist size is stored as its log&#8322;, which fits in 4 bits because
+            payload wordlists are powers of two.</p>
+            <p><strong>The wording is the checksum.</strong> The cover words are chosen by a seed
+            derived from a CRC-32 of the address, so a different address produces a visibly
+            different paragraph. Verification re-renders the address you decoded and compares:
+            only the true bytes reproduce this exact wording. That costs no extra words, because
+            the information rides in <em>which</em> prose was chosen rather than in any word's value.</p>
+            <p>Errors are reported the way a word processor does. An address word that is wrong or
+            not in the vocabulary gets a <span class="tok-spell">red spelling underline</span>; a
+            connective word that disagrees with what the address calls for gets a
+            <span class="tok-grammar">blue grammar underline</span>. The split is real rather than
+            cosmetic: an address word is either off the vocabulary or the wrong entry in it, while a
+            connective word is the wrong choice in an otherwise well-formed sentence.</p>
+            <p>Unlike an ordinary spell checker, a suggestion here is <strong>confirmed, not
+            guessed</strong>. Substituting the candidate and re-rendering either reproduces the
+            received wording or it does not &mdash; so the checker can say &ldquo;this is the word
+            that was meant&rdquo; rather than &ldquo;this is a word that looks similar&rdquo;. It is
+            still shown as a proposal and never applied.</p>
+            <p>Try the damage buttons. A fumbled connective word still yields the right address but
+            can no longer self-verify. A mistyped <em>address</em> word decodes to a different
+            address &mdash; caught only by the wording. A lost word is caught by the word count,
+            since a fixed-length address has a fixed number of words.</p>
+            <p>Press <strong>&#8646;</strong> to run it backwards. The words are not a label
+            attached to an address; they <em>are</em> the address, and decoding hands back the
+            string they were made from. Swap after damaging the prose and you can watch it hand
+            back a <em>different</em> address &mdash; which is the whole reason the wording has to
+            be checkable.</p>
           </div>
         </details>
       </div>
@@ -1173,7 +1360,7 @@ footer a:hover { text-decoration: underline; }
       <span style="margin:0 0.5rem;color:var(--border);">&bull;</span>
       <a href="bulletin.html">Bulletins</a>
       <span style="margin:0 0.5rem;color:var(--border);">&bull;</span>
-      <a href="bitcoin-book.html">The Bitcoin Book</a>
+      <a href="https://asherp.github.io/Book-of-Bitcoin/bitcoin-book.html">The Book of Bitcoin</a>
       <span style="margin:0 0.5rem;color:var(--border);">&bull;</span>
       <a href="docs/">Documentation</a>
       <span style="margin:0 0.5rem;color:var(--border);">&bull;</span>
@@ -1184,6 +1371,7 @@ footer a:hover { text-decoration: underline; }
     </p>
     <p style="font-size:0.7rem;color:var(--text-dim);">
       Client-side WebAssembly &bull; Your keys never leave your device
+      <span id="build-stamp" style="font-family:var(--font-mono);opacity:0.7;"></span>
     </p>
   </footer>
 </div>
@@ -1200,6 +1388,10 @@ import init, {
   get_default_wordlist as wasmGetDefaultWordlist,
   encode_raw_base_n as wasmEncodeRawBaseN,
   decode_raw_base_n as wasmDecodeRawBaseN,
+  encode_words as wasmEncodeWords,
+  get_payload_words as wasmGetPayloadWords,
+  get_cover_words as wasmGetCoverWords,
+  checksum_seed_for as wasmChecksumSeed,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
@@ -1997,6 +2189,1007 @@ toggleBtn.addEventListener('click', () => {
 });
 updateToggleIcon();
 
+// ─── Prose Bitcoin address ────────────────────────────────────────────
+// A locking script rendered as prose whose COVER WORDS carry the checksum:
+// the cover seed is derived from a CRC-32 of the address, so a different
+// address yields a visibly different paragraph, and re-rendering what you
+// decoded is the verification step. Opcodes are shown as symbols, so Glossia
+// encodes only the entropy-carrying program (20 or 32 bytes).
+//
+// The bit packing lives here rather than in the codec because the layout is a
+// property of the ADDRESS FORMAT, not of Glossia: the header rides in the
+// bit-packing slack (160+5 = 15 words exactly; 256+8 = 24 words exactly).
+
+// Opcode glyphs are the Book of Bitcoin notation (btc-prose.js OPCODE_SYMBOLS),
+// not a set invented here — a script renders the same way whether it is being
+// read in the book or handled as an address.
+//
+// Note ⓪ (OP_0) and ① (OP_1) are Unicode category No: ALPHANUMERIC. They survive
+// the decoder's token trim, so placed flush against a payload word they would
+// hide it. They are safe here only because they are declared as markup and
+// stripped by name — a category-based rule would leave them attached.
+const ADDR_OPS = {
+  DUP:         ['\u29C9', 'OP_DUP'],
+  HASH160:     ['\u2316', 'OP_HASH160'],
+  EQUALVERIFY: ['\u2261', 'OP_EQUALVERIFY'],
+  CHECKSIG:    ['\u2207', 'OP_CHECKSIG'],
+  EQUAL:       ['=',       'OP_EQUAL'],
+  ZERO:        ['\u24EA', 'OP_0'],
+  ONE:         ['\u2460', 'OP_1'],
+};
+const ADDR_SCRIPT = {
+  P2PKH:  { lead: ['DUP', 'HASH160'], trail: ['EQUALVERIFY', 'CHECKSIG'] },
+  P2SH:   { lead: ['HASH160'],        trail: ['EQUAL'] },
+  P2WPKH: { lead: ['ZERO'],           trail: [] },
+  P2WSH:  { lead: ['ZERO'],           trail: [] },
+  P2TR:   { lead: ['ONE'],            trail: [] },
+};
+const ADDR_MARKUP = new Set(Object.values(ADDR_OPS).map(([g]) => g));
+const addrGlyphs = (type, which) => ((ADDR_SCRIPT[type] || {})[which] || []).map(k => ADDR_OPS[k][0]).join(' ');
+const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_SCRIPT[type] || {}).trail || [])
+  .map(k => ADDR_OPS[k][0] + ' ' + ADDR_OPS[k][1]).join('  \u00b7  ');
+// Fluency budget, locked at 4. This is a fixed PARAMETER, not a search: the
+// encoder renders best-of-4 from the checksum seed, and the verifier renders
+// best-of-4 from the same seed and compares. One address, one prose — there is
+// no counter to sweep and no ambiguity about which rendering is canonical.
+//
+// 4 is where the marginal return falls off. Measured over 96 payloads x 128
+// candidates at both address sizes, density rises 0.53 -> 0.59 (20B) going from
+// N=1 to N=4, and every doubling past N=8 buys under one word while costing
+// linearly more to verify.
+const ADDR_BEST_OF = 4;
+const ADDR_VERSION = 1;
+const ADDR_PRESETS = [
+  { label: 'P2WPKH', addr: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4' },
+  { label: 'P2TR',   addr: 'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9' },
+  { label: 'P2PKH',  addr: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' },
+  { label: 'P2SH',   addr: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' },
+];
+
+let addrWords = null;         // BIP39 wordlist, index order
+let addrIndex = null;         // word -> index
+let addrCover = null;         // the connective vocabulary, for locating misspellings
+let addrState = null;         // { program, type, artifact, placements }
+let addrShowRoles = false;
+
+const B58A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const BECH32A = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+
+async function sha256d(b) {
+  const a = await crypto.subtle.digest('SHA-256', b);
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', a));
+}
+
+async function b58check(s) {
+  let n = 0n;
+  for (const c of s) { const i = B58A.indexOf(c); if (i < 0) throw new Error('bad base58 character'); n = n * 58n + BigInt(i); }
+  const raw = new Uint8Array(25);
+  for (let i = 24; i >= 0; i--) { raw[i] = Number(n & 0xffn); n >>= 8n; }
+  const body = raw.slice(0, 21), chk = raw.slice(21);
+  const d = (await sha256d(body)).slice(0, 4);
+  if (chk.some((v, i) => v !== d[i])) throw new Error('address checksum failed');
+  return { version: body[0], program: body.slice(1) };
+}
+
+function bech32Poly(v) {
+  const G = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+  let chk = 1;
+  for (const x of v) { const b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ x; for (let i = 0; i < 5; i++) if ((b >> i) & 1) chk ^= G[i]; }
+  return chk >>> 0;
+}
+function bech32Expand(h) { const o = []; for (const c of h) o.push(c.charCodeAt(0) >> 5); o.push(0); for (const c of h) o.push(c.charCodeAt(0) & 31); return o; }
+function convertBits(data, from, to, pad) {
+  let acc = 0, bits = 0; const out = [], maxv = (1 << to) - 1;
+  for (const v of data) { acc = (acc << from) | v; bits += from; while (bits >= to) { bits -= to; out.push((acc >> bits) & maxv); } }
+  if (pad && bits) out.push((acc << (to - bits)) & maxv);
+  return out;
+}
+function bech32Decode(addr) {
+  const i = addr.lastIndexOf('1');
+  if (i < 1) throw new Error('not a bech32 address');
+  const hrp = addr.slice(0, i), dp = addr.slice(i + 1);
+  const data = [...dp].map(c => { const k = BECH32A.indexOf(c); if (k < 0) throw new Error('bad bech32 character'); return k; });
+  const witver = data[0];
+  const want = witver === 0 ? 1 : 0x2bc830a3;
+  if (bech32Poly(bech32Expand(hrp).concat(data)) !== want) throw new Error('address checksum failed');
+  return { witver, program: Uint8Array.from(convertBits(data.slice(1, -6), 5, 8, false)) };
+}
+
+async function addrParse(text) {
+  const s = (text || '').trim();
+  if (!s) throw new Error('');
+  if (s[0] === '1' || s[0] === '3') {
+    const { version, program } = await b58check(s);
+    return { type: version === 0 ? 'P2PKH' : 'P2SH', program };
+  }
+  const { witver, program } = bech32Decode(s.toLowerCase());
+  if (witver === 0) return { type: program.length === 20 ? 'P2WPKH' : 'P2WSH', program };
+  return { type: 'P2TR', program };
+}
+
+// ── the inverse: rebuild the address string from what the prose decoded to ──
+// Only needed for the decode direction, which is what makes the claim falsifiable:
+// the words are not a label attached to an address, they ARE the address, and
+// running them backwards has to produce the string you started from.
+function b58encode(bytes) {
+  let n = 0n;
+  for (const b of bytes) n = n * 256n + BigInt(b);
+  let s = '';
+  while (n > 0n) { s = B58A[Number(n % 58n)] + s; n /= 58n; }
+  for (const b of bytes) { if (b !== 0) break; s = '1' + s; }
+  return s;
+}
+async function b58checkEncode(version, program) {
+  const body = new Uint8Array(1 + program.length);
+  body[0] = version; body.set(program, 1);
+  const d = (await sha256d(body)).slice(0, 4);
+  const full = new Uint8Array(body.length + 4);
+  full.set(body); full.set(d, body.length);
+  return b58encode(full);
+}
+function bech32Encode(hrp, witver, program) {
+  const data = [witver].concat(convertBits([...program], 8, 5, true));
+  const constVal = witver === 0 ? 1 : 0x2bc830a3;
+  const pm = (bech32Poly(bech32Expand(hrp).concat(data, [0, 0, 0, 0, 0, 0])) ^ constVal) >>> 0;
+  const chk = [];
+  for (let i = 0; i < 6; i++) chk.push((pm >> (5 * (5 - i))) & 31);
+  return hrp + '1' + data.concat(chk).map(v => BECH32A[v]).join('');
+}
+function addrFormat(type, program) {
+  switch (type) {
+    case 'P2PKH':  return b58checkEncode(0x00, program);
+    case 'P2SH':   return b58checkEncode(0x05, program);
+    case 'P2TR':   return Promise.resolve(bech32Encode('bc', 1, program));
+    default:       return Promise.resolve(bech32Encode('bc', 0, program));
+  }
+}
+
+/// Which script the leading glyphs describe. The opcodes are written verbatim,
+/// so the script type survives transcription without costing a payload word;
+/// ⓪ is shared by P2WPKH and P2WSH, and the word count separates those.
+function addrTypeFromGlyphs(text, nBytes) {
+  const lead = (text.trim().split(/\s+/)[0] || '');
+  const g = [...lead].filter(c => ADDR_MARKUP.has(c));
+  const first = g[0];
+  if (first === ADDR_OPS.DUP[0]) return 'P2PKH';
+  if (first === ADDR_OPS.HASH160[0]) return 'P2SH';
+  if (first === ADDR_OPS.ONE[0]) return 'P2TR';
+  if (first === ADDR_OPS.ZERO[0]) return nBytes === 20 ? 'P2WPKH' : 'P2WSH';
+  return null;
+}
+
+// ── bit packing: program bits, then the header, filling the slack exactly ──
+const ADDR_BPW = 11;
+function addrHeaderBits(n) { return Math.ceil(n * 8 / ADDR_BPW) * ADDR_BPW - n * 8; }
+function addrPack(program) {
+  const hb = addrHeaderBits(program.length);
+  const header = (ADDR_BPW << (hb - 4)) | ADDR_VERSION;
+  const db = program.length * 8, n = (db + hb) / ADDR_BPW, out = [];
+  const bit = i => i < db ? (program[i >> 3] >> (7 - (i & 7))) & 1 : (header >> (hb - 1 - (i - db))) & 1;
+  for (let w = 0; w < n; w++) { let v = 0; for (let b = 0; b < ADDR_BPW; b++) v = (v << 1) | bit(w * ADDR_BPW + b); out.push(addrWords[v]); }
+  return out;
+}
+function addrUnpack(words, nBytes) {
+  const hb = addrHeaderBits(nBytes);
+  if (words.length !== (nBytes * 8 + hb) / ADDR_BPW) return null;
+  const bits = [];
+  for (const w of words) { const i = addrIndex.get(w.toLowerCase()); if (i === undefined) return null; for (let b = ADDR_BPW - 1; b >= 0; b--) bits.push((i >> b) & 1); }
+  const prog = new Uint8Array(nBytes);
+  for (let i = 0; i < nBytes; i++) { let v = 0; for (let b = 0; b < 8; b++) v = (v << 1) | bits[i * 8 + b]; prog[i] = v; }
+  return prog;
+}
+const addrHex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+
+// The checksum covers the program plus the header bytes, i.e. exactly the
+// encoded bits. Derived in Rust so browser and core agree bit-for-bit.
+function addrSeed(program, counter) {
+  return wasmChecksumSeed(addrHex(program) + ADDR_BPW.toString(16).padStart(2, '0') + ADDR_VERSION.toString(16).padStart(2, '0'), BigInt(counter));
+}
+
+// An address determines its prose exactly, so the rendering is a pure function
+// of the program bytes — and the checker asks for the SAME one repeatedly: once
+// to verify, once to diff, and once per keystroke while the payload is untouched
+// (which is every edit to a cover word). Each of those is ~100ms of generation.
+// Memoize on the program.
+const addrProseCache = new Map();
+function addrProse(program) {
+  const key = addrHex(program);
+  if (addrProseCache.has(key)) return addrProseCache.get(key);
+  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
+    'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
+  const text = r.error ? null : r.encoded_text;
+  if (addrProseCache.size > 400) addrProseCache.clear();
+  addrProseCache.set(key, text);
+  return text;
+}
+
+function addrRender(program, type) {
+  const words = addrPack(program);
+  const r = JSON.parse(wasmEncodeWords(JSON.stringify(words), 'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
+  if (r.error) throw new Error(r.error);
+  addrProseCache.set(addrHex(program), r.encoded_text);   // the checker will ask for this
+  const lead = addrGlyphs(type, 'lead'), trail = addrGlyphs(type, 'trail');
+  return {
+    prose: r.encoded_text,
+    artifact: [lead, r.encoded_text, trail].filter(Boolean).join(' '),
+    placements: r.placements || [],
+    words,
+  };
+}
+
+// Decode + verify. Mirrors the Rust walkthrough: word count first (a fixed-length
+// address has a fixed word count), then re-render and compare.
+function addrRead(artifact, nBytes) {
+  const toks = artifact.split(/\s+/).filter(Boolean);
+  const stripMarkup = w => {
+    let a = 0, b = w.length;
+    while (a < b && (ADDR_MARKUP.has(w[a]) || !/[\p{L}\p{N}]/u.test(w[a]))) a++;
+    while (b > a && (ADDR_MARKUP.has(w[b - 1]) || !/[\p{L}\p{N}]/u.test(w[b - 1]))) b--;
+    return w.slice(a, b).toLowerCase();
+  };
+  const harvested = toks.map(stripMarkup).filter(w => w && addrIndex.has(w));
+  const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
+  if (harvested.length !== expected)
+    return { verdict: 'unreadable', note: `wrong number of address words (${harvested.length}, expected ${expected})` };
+  const program = addrUnpack(harvested, nBytes);
+  if (!program) return { verdict: 'unreadable', note: 'word not in the address vocabulary' };
+
+  // Compare against the re-render with markup removed, so spacing around a glyph
+  // (⓪Insect vs ⓪ Insect) is a formatting difference rather than a failed check.
+  const proseToks = toks.map(t => [...t].filter(ch => !ADDR_MARKUP.has(ch)).join(''))
+                        .filter(t => t.length);
+  // One render. The address determines its prose exactly, so there is nothing to
+  // search over.
+  const rendered = addrProse(program);
+  if (rendered === null) return { verdict: 'unreadable', note: 'encode failed' };
+  const got = rendered.split(/\s+/).filter(Boolean);
+  if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
+  // Aligned, not positional: one dropped connective word should read as "one
+  // word out of thirty differs", not as "everything after it differs".
+  const n = Math.max(got.length, proseToks.length, 1);
+  const best = addrAlign(proseToks, got).matched / n;
+  return best > 0.75
+    ? { verdict: 'unverified', program, match: best }
+    : { verdict: 'mismatch', program, match: best };
+}
+
+// Locate damage WITHOUT knowing the original. The re-render is the reference:
+// encode whatever the received text decodes to, and compare.
+//
+// Cover damage leaves the payload intact, so the re-render IS the correct
+// paragraph and a token diff points straight at the damaged words. Payload
+// damage changes the checksum and therefore the whole paragraph, so the diff
+// localizes nothing — only a repair search can, by proposing plausible typo
+// corrections and keeping those that explain the received text.
+// Align received tokens against rendered ones (longest common subsequence).
+//
+// Comparing position by position was wrong for the two edits people actually
+// make: dropping a word and adding one. Either shifts every token after it, so
+// a positional diff reports the whole tail as damaged — including the address
+// words, which are sitting there perfectly intact. The checker then concluded
+// an address word must be wrong and said so.
+//
+// Returns one op per received token plus the gaps: 'same', 'sub' (this token
+// should read `want`), 'ins' (this token is not in the rendering at all) and
+// 'del' (a word is missing before token `i`).
+function addrAlign(recv, got) {
+  const n = recv.length, m = got.length;
+  const L = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--)
+    for (let j = m - 1; j >= 0; j--)
+      L[i][j] = recv[i] === got[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+
+  const ops = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (recv[i] === got[j]) { ops.push({ op: 'same', i, want: got[j] }); i++; j++; }
+    // Skipping either side costs the same, so this is one word written in place
+    // of another — report it that way. "this should say X" beats "delete this,
+    // then insert that", and it keeps a substitution to a single mark.
+    else if (L[i + 1][j] === L[i][j + 1]) { ops.push({ op: 'sub', i, want: got[j] }); i++; j++; }
+    else if (L[i + 1][j] > L[i][j + 1]) { ops.push({ op: 'ins', i, want: null }); i++; }
+    else { ops.push({ op: 'del', i, want: got[j] }); j++; }
+  }
+  while (i < n) { ops.push({ op: 'ins', i, want: null }); i++; }
+  while (j < m) { ops.push({ op: 'del', i: Math.max(0, n - 1), want: got[j] }); j++; }
+  return { ops, matched: L[0][0] };
+}
+
+function addrDiffAgainstRerender(artifact, program) {
+  const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
+    [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
+  const text = addrProse(program);
+  if (text === null) return { ops: [], rendered: [], recv };
+  const got = text.split(/\s+/).filter(Boolean);
+  const { ops } = addrAlign(recv, got);
+  return { ops: ops.filter(o => o.op !== 'same'), rendered: got, recv };
+}
+
+// Replace a token's word while keeping its capitalization and punctuation, so the
+// only difference is the word itself. Replacing the whole token would drop a
+// trailing period or an initial capital and change more than intended.
+function addrSwapIn(token, replacement) {
+  const m = token.match(/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u);
+  if (!m) return replacement;
+  const core = m[2];
+  const cased = core && core[0] === core[0].toUpperCase() && core[0] !== core[0].toLowerCase()
+    ? replacement[0].toUpperCase() + replacement.slice(1)
+    : replacement;
+  return m[1] + cased + m[3];
+}
+
+// Words one edit away that are also address words — the plausible-typo set.
+function addrEdit1(w) {
+  const out = new Set(), A = 'abcdefghijklmnopqrstuvwxyz';
+  for (let i = 0; i < w.length; i++) {
+    for (const c of A) { const s = w.slice(0, i) + c + w.slice(i + 1); if (s !== w && addrIndex.has(s)) out.add(s); }
+    const d = w.slice(0, i) + w.slice(i + 1); if (addrIndex.has(d)) out.add(d);
+  }
+  for (let i = 0; i <= w.length; i++)
+    for (const c of A) { const s = w.slice(0, i) + c + w.slice(i + 1 - 1); const t = w.slice(0, i) + c + w.slice(i); if (addrIndex.has(t)) out.add(t); }
+  return [...out];
+}
+
+// A correct repair reproduces the ORIGINAL, which differs from what was received
+// at exactly the damaged word — so the test is "differs in at most one token",
+// not "matches". A wrong candidate changes the checksum and mismatches almost
+// everywhere.
+function addrProposeRepairs(artifact, words, budgetMs = ADDR_SEARCH_MS) {
+  const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
+    [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
+  const hits = [];
+  const deadline = performance.now() + budgetMs;
+  for (let i = 0; i < words.length; i++) {
+    for (const cand of addrEdit1(words[i])) {
+      if (performance.now() > deadline) return hits;
+      const w = words.slice(); w[i] = cand;
+      const prog = addrUnpack(w, addrState ? addrState.program.length : 20);
+      if (!prog) continue;
+      const text = addrProse(prog);
+      if (text === null) continue;
+      const got = text.split(/\s+/).filter(Boolean);
+      let miss = 0;
+      for (let k = 0; k < Math.max(got.length, recv.length); k++) if (got[k] !== recv[k]) miss++;
+      if (miss <= 1) hits.push({ index: i, from: words[i], to: cand });
+      if (hits.length > 4) return hits;
+    }
+  }
+  return hits;
+}
+
+function addrSetVerdict(res) {
+  const el = document.getElementById('addr-verdict');
+  const map = {
+    verified:   ['ok',   '✓ verified'],
+    unverified: ['warn', '⚠ readable, not verified'],
+    mismatch:   ['bad',  '✗ wrong address'],
+    unreadable: ['bad',  '✗ unreadable'],
+  };
+  const [cls, label] = map[res.verdict];
+  el.className = 'addr-verdict ' + cls;
+  const pct = res.match !== undefined && res.verdict !== 'verified' ? ` (${Math.round(res.match * 100)}% wording)` : '';
+  el.textContent = label + pct;
+  el.title = res.note || '';
+}
+
+function addrPaint(artifact, placements) {
+  const box = document.getElementById('addr-output');
+  box.classList.remove('empty');
+  if (!addrShowRoles) { box.textContent = artifact; return; }
+  const byTok = new Map(placements.map(p => [p.token_index, p]));
+  const lead = artifact.slice(0, artifact.length - addrState.prose.length);
+  const toks = addrState.prose.split(/\s+/);
+  const html = toks.map((t, i) => {
+    const p = byTok.get(i);
+    if (!p) return `<span class="addr-cover">${t}</span>`;
+    const role = p.role ? `<sub>${p.role === 'subject' ? 'subj' : 'obj'}</sub>` : '';
+    return `<u class="addr-pay">${t}${role}</u>`;
+  }).join(' ');
+  box.innerHTML = `<span class="addr-cover">${lead}</span>${html}`;
+}
+
+// ── direction ───────────────────────────────────────────────────────
+// Encode is the demonstration; decode is what makes it falsifiable. Running the
+// words backwards has to hand back the address string they came from — otherwise
+// "the prose IS the address" is just an assertion.
+let addrMode = 'encode';
+
+function addrApplyMode() {
+  const enc = addrMode === 'encode';
+  document.getElementById('addr-left-label').textContent = enc ? 'Bitcoin address' : 'Prose address';
+  document.getElementById('addr-right-label').textContent = enc ? 'Prose address' : 'Bitcoin address';
+  document.getElementById('addr-input').dataset.placeholder =
+    enc ? 'Paste a bc1… / 1… / 3… address' : 'Paste a prose address';
+  document.getElementById('addr-swap-btn').dataset.label = enc ? 'encode' : 'decode';
+  document.getElementById('addr-damage').classList.toggle('hidden', !enc);
+  document.getElementById('addr-picker').classList.toggle('hidden', !enc);
+  document.getElementById('addr-roles-btn').classList.toggle('hidden', !enc);
+  const out = document.getElementById('addr-output');
+  out.classList.toggle('addr-addr', !enc);
+  // The prose is editable in the encode direction: the damage buttons cover the
+  // typical failures, but the point is that ANY edit is checkable, so let the
+  // reader make one. In decode the box holds the recovered address, an output.
+  out.contentEditable = enc ? 'true' : 'false';
+  out.spellcheck = false;
+  out.classList.toggle('addr-editable', enc);
+  out.title = enc ? 'Edit the prose — it is rechecked as you type' : '';
+}
+
+function addrToggle() {
+  addrClosePopup();
+  const out = document.getElementById('addr-output').textContent || '';
+  addrMode = addrMode === 'encode' ? 'decode' : 'encode';
+  addrApplyMode();
+  document.getElementById('addr-input').textContent = out;
+  addrUpdate();
+}
+
+function addrUpdate() {
+  addrClosePopup();
+  const note = document.getElementById('addr-repair');
+  note.innerHTML = '';
+  note.className = 'addr-repair hidden';
+  return addrMode === 'encode' ? addrEncodeRun() : addrDecodeRun();
+}
+
+/// Address words in a text, in order — the decoder's whole view of it.
+function addrHarvest(text) {
+  const strip = w => [...w].filter(ch => !ADDR_MARKUP.has(ch)).join('')
+                           .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
+  return text.split(/\s+/).filter(Boolean).map(strip).filter(w => w && addrIndex.has(w));
+}
+
+async function addrDecodeRun() {
+  const errEl = document.getElementById('addr-error');
+  const metaEl = document.getElementById('addr-meta');
+  const box = document.getElementById('addr-output');
+  const verdictEl = document.getElementById('addr-verdict');
+  const text = (document.getElementById('addr-input').textContent || '').trim();
+  errEl.classList.add('hidden');
+
+  const blank = () => {
+    box.textContent = 'Output will appear here';
+    box.classList.add('empty');
+    metaEl.textContent = '';
+    verdictEl.textContent = '';
+    verdictEl.className = 'addr-verdict';
+  };
+  const fail = note => {
+    blank();
+    verdictEl.className = 'addr-verdict bad';
+    verdictEl.textContent = '✗ unreadable';
+    verdictEl.title = note;
+    errEl.textContent = note;
+    errEl.classList.remove('hidden');
+  };
+  if (!text) return blank();
+
+  // A fixed-length address has a fixed word count, so the count picks the size.
+  const words = addrHarvest(text);
+  const nBytes = { 15: 20, 24: 32 }[words.length];
+  if (!nBytes) return fail(`${words.length} address words — a prose address has 15 or 24`);
+  const type = addrTypeFromGlyphs(text, nBytes);
+  if (!type) return fail('no opcode symbol, so the script type is unknown');
+  const res = addrRead(text, nBytes);
+  if (!res.program) return fail(res.note || 'does not decode');
+
+  box.classList.remove('empty');
+  box.textContent = await addrFormat(type, res.program);
+  // Count prose words only, so the figure means the same thing in both
+  // directions — the opcode glyphs are script, not wording.
+  const prose = text.split(/\s+/).filter(t => [...t].some(c => !ADDR_MARKUP.has(c)));
+  metaEl.textContent = `${type} · ${words.length} address words · ${prose.length} words total`;
+  document.getElementById('addr-legend').textContent = addrLegend(type);
+  addrSetVerdict(res);
+}
+
+async function addrEncodeRun() {
+  const errEl = document.getElementById('addr-error');
+  const metaEl = document.getElementById('addr-meta');
+  try {
+    const { type, program } = await addrParse(document.getElementById('addr-input').textContent);
+    const r = addrRender(program, type);
+    addrState = { program, type, ...r };
+    errEl.classList.add('hidden');
+    // Structural facts a reader can act on. The checksum and the hash are machine
+    // detail — surfacing them invites checking the prose against them, which is
+    // the habit this format exists to remove.
+    metaEl.textContent = `${type} · ${r.words.length} address words · ${r.prose.split(/\s+/).length} words total`;
+    document.getElementById('addr-legend').textContent = addrLegend(type);
+    addrPaint(r.artifact, r.placements);
+    addrSetVerdict(addrRead(r.artifact, program.length));
+    addrRenderDamage();
+  } catch (e) {
+    addrState = null;
+    metaEl.textContent = '';
+    document.getElementById('addr-output').textContent = 'Output will appear here';
+    document.getElementById('addr-output').classList.add('empty');
+    document.getElementById('addr-verdict').textContent = '';
+    if (e.message) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
+    else errEl.classList.add('hidden');
+  }
+}
+
+// Damage simulations, each a real transcription failure mode.
+function addrDamages() {
+  if (!addrState) return [];
+  const pros = addrState.prose, places = addrState.placements;
+  const toks = pros.split(/\s+/);
+  const payTok = new Set(places.map(p => p.token_index));
+  const coverIdx = toks.map((_, i) => i).filter(i => !payTok.has(i) && toks[i].length > 2);
+  const mid = places.find(p => addrEdit1(p.word).length) || places[Math.floor(places.length / 2)];
+  return [
+    {
+      label: 'fumble a connective word',
+      why: 'The address words are untouched, so the address is still right — but the wording no longer matches, so it cannot self-verify.',
+      apply: () => { const t = [...toks]; if (coverIdx.length) t[coverIdx[0]] = t[coverIdx[0]] + 's'; return t.join(' '); },
+    },
+    {
+      label: 'mistype an address word',
+      why: 'The dangerous one. A valid substitute still decodes — to a DIFFERENT address. Only the wording catches it.',
+      apply: () => {
+        const t = [...toks];
+        // Prefer a word one edit away — a plausible misreading, and the case the
+        // repair search can recover. Fall back to an arbitrary address word.
+        const near = addrEdit1(mid.word);
+        const sub = near.length ? near[0] : addrWords[(addrIndex.get(mid.word) + 977) % addrWords.length];
+        t[mid.token_index] = addrSwapIn(t[mid.token_index], sub);
+        return t.join(' ');
+      },
+    },
+    {
+      label: 'misspell an address word',
+      why: 'The word leaves the vocabulary entirely, so it reads as a misspelling — and the checksum can confirm which word was meant.',
+      apply: () => {
+        const t = [...toks];
+        const w = mid.word;
+        // drop a middle letter: almost always leaves the wordlist
+        const bad = w.slice(0, Math.floor(w.length / 2)) + w.slice(Math.floor(w.length / 2) + 1);
+        t[mid.token_index] = addrSwapIn(t[mid.token_index], bad);
+        return t.join(' ');
+      },
+    },
+    {
+      label: 'lose a word',
+      why: 'A fixed-length address has a fixed word count, so a dropped word is caught before anything is decoded.',
+      apply: () => { const t = [...toks]; t.splice(places[1].token_index, 1); return t.join(' '); },
+    },
+  ];
+}
+
+function addrRenderDamage() {
+  const row = document.getElementById('addr-damage-row');
+  row.innerHTML = '';
+  addrDamages().forEach((d, i) => {
+    const b = document.createElement('button');
+    b.className = 'btn-sm';
+    b.textContent = d.label;
+    b.onclick = () => addrApplyDamage(i);
+    row.appendChild(b);
+  });
+  const reset = document.createElement('button');
+  reset.className = 'btn-sm';
+  reset.textContent = '↺ reset';
+  reset.onclick = () => {
+    document.getElementById('addr-repair').className = 'addr-repair hidden';
+    addrUpdate();
+  };
+  row.appendChild(reset);
+}
+
+function addrApplyDamage(i) {
+  if (!addrState) return;
+  const d = addrDamages()[i];
+  const damagedProse = d.apply();
+  const lead = addrState.artifact.slice(0, addrState.artifact.length - addrState.prose.length);
+  const t2 = addrGlyphs(addrState.type, 'trail');
+  const trail = t2 ? ' ' + t2 : '';
+  const artifact = lead + damagedProse + trail;
+  const box = document.getElementById('addr-output');
+  box.classList.remove('empty');
+  const res = addrRead(artifact, addrState.program.length);
+  addrSetVerdict(res);
+  addrPaintDamage(box, artifact, res);
+  // Say what happened in words. "It decodes to 741e76e8…" would be true and
+  // would also invite exactly the character-comparison this format replaces.
+  const hint = document.getElementById('addr-hint');
+  const changed = res.program && addrHex(res.program) !== addrHex(addrState.program);
+  hint.textContent = d.why + (changed ? ' The text now refers to a different address.' : '');
+}
+
+// Show WHERE the text disagrees with its own re-render, and — when the payload
+// itself is wrong — what single correction would explain it. Corrections are
+// surfaced as proposals and never applied: the search is not always unique.
+// Error reporting modelled on a word processor: payload words get SPELL errors
+// (red), cover words get GRAMMAR errors (blue). The two damage classes really do
+// behave that way — a payload word is either off the vocabulary or the wrong
+// entry in it, while a cover word is the wrong choice in a well-formed sentence.
+//
+// It is stronger than an ordinary spell checker in one respect: a suggestion is
+// not merely ranked by likelihood, it is CONFIRMED. Substituting the candidate
+// and re-rendering either reproduces the received text or it does not.
+const SPELL = 'spell', GRAMMAR = 'grammar';
+
+// A repair search that FAILS is the expensive one: a word two typos away from
+// any address word has no single-edit explanation, so the search only learns
+// that by trying everything. Cap it. Nothing is lost by stopping — the verdict
+// for "searched and found nothing" and "stopped searching" is the same claim,
+// that no single typo explains the text. And because every candidate render is
+// memoized, a repeat check picks up where this one left off for free, so the
+// search completes across a pause instead of blocking one keystroke.
+const ADDR_SEARCH_MS = 250;
+/// Where the widening passes stop. Past this the text really has no single-typo
+/// explanation, and saying so is the honest answer.
+const ADDR_SEARCH_MAX_MS = 4000;
+
+/// Analyse an artifact and return per-token annotations.
+/// { kind, suggest, note } keyed by token index; empty map means clean.
+function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
+  const toks = artifact.split(/\s+/).filter(Boolean);
+  const core = t => [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')
+                          .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').toLowerCase();
+  const marks = new Map();
+  const harvested = [];
+  const harvestIdx = [];
+  toks.forEach((t, i) => { const c = core(t); if (c && addrIndex.has(c)) { harvested.push(c); harvestIdx.push(i); } });
+
+  const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
+
+  // ── too few address words: one has been mangled OFF the vocabulary ────
+  // That is a misspelling in the strict sense — the word is not in the
+  // dictionary at all — so look for a nearby dictionary word that restores the
+  // count AND explains the wording.
+  if (harvested.length < expected) {
+    // Candidate sites are tokens that are not address words — but the connective
+    // prose is not in the address wordlist either, so taking every such token
+    // meant trying edit-neighbours of "may", "to", "a" and the rest, each a full
+    // re-render. Sites the cover vocabulary explains come SECOND, not never: a
+    // mistyped address word can land on a real cover word, and that case still
+    // has to be findable. Ordering it this way makes the common case ~10x less
+    // work without giving up any answer.
+    const sites = [];
+    for (let i = 0; i < toks.length; i++) {
+      const c = core(toks[i]);
+      if (!c || addrIndex.has(c)) continue;
+      sites.push([i, c, addrCover && addrCover.has(c) ? 1 : 0]);
+    }
+    sites.sort((a, b) => a[2] - b[2]);
+    const deadline = performance.now() + budgetMs;
+    for (const [i, c] of sites) {
+      for (const cand of addrEdit1(c)) {
+        const trial = toks.slice();
+        trial[i] = addrSwapIn(toks[i], cand);
+        const r = addrRead(trial.join(' '), nBytes);
+        if (r.verdict === 'verified') {
+          marks.set(i, { kind: SPELL, suggest: cand,
+            note: `not an address word; “${cand}” restores the address and matches the wording` });
+          return { marks, verdict: 'repairable' };
+        }
+        if (performance.now() > deadline) return { marks, verdict: 'short' };
+      }
+    }
+    return { marks, verdict: 'short' };
+  }
+  if (harvested.length > expected) return { marks, verdict: 'long' };
+
+  // ── right count: compare against the re-render ────────────────────────
+  const program = addrUnpack(harvested, nBytes);
+  if (!program) return { marks, verdict: 'undecodable' };
+  // `rendered` IS the expected wording — the diff just computed it, so asking
+  // for it again was a second full generation for an answer already in hand.
+  const { ops } = addrDiffAgainstRerender(artifact, program);
+  if (ops.length === 0) return { marks, verdict: 'clean' };
+
+  const payloadPositions = new Set(harvestIdx);
+
+  // Map diff indices (which count prose tokens) back to artifact token indices.
+  const proseIdx = toks.map((t, i) => core(t) ? i : -1).filter(i => i >= 0);
+
+  // Which of these mean an ADDRESS word is wrong? Only a substitution landing on
+  // a payload position whose WORD differs — "ring" written where the rendering
+  // says "ring." is the same address word with a sentence break lost, which is
+  // wording, not spelling. A missing or extra word is never an address-word
+  // fault here either: the word count already agreed, so anything inserted or
+  // dropped was connective prose.
+  const wrongAddressWord = ops.some(o =>
+    o.op === 'sub' && payloadPositions.has(proseIdx[o.i]) &&
+    core(toks[proseIdx[o.i]] || '') !== core(o.want || ''));
+
+  if (!wrongAddressWord) {
+    for (const o of ops) {
+      const i = proseIdx[o.i];
+      if (i === undefined) continue;
+      const note = o.op === 'del' ? `a word is missing here: “${o.want}”`
+                 : o.op === 'ins' ? 'this word is not part of the address’s wording'
+                 : `the address calls for “${o.want}” here`;
+      marks.set(i, { kind: GRAMMAR, suggest: o.op === 'ins' ? null : o.want, note });
+    }
+    return { marks, verdict: 'cover-damage' };
+  }
+
+  // Otherwise an address word is wrong. The cover disagreement is a CONSEQUENCE,
+  // not a second fault, so flag only the address word — marking 25 cover words
+  // would be technically true and useless.
+  const hits = addrProposeRepairs(artifact, addrPack(program), budgetMs);
+  if (hits.length === 1) {
+    marks.set(harvestIdx[hits[0].index], { kind: SPELL, suggest: hits[0].to,
+      note: `wrong address word; “${hits[0].to}” explains this wording` });
+    return { marks, verdict: 'repairable' };
+  }
+  for (const i of harvestIdx) marks.set(i, { kind: SPELL, suggest: null, note: 'an address word here is wrong' });
+  return { marks, verdict: hits.length ? 'ambiguous' : 'unlocatable' };
+}
+
+// "Did you mean…?" popups — the question and the two answers, nothing else.
+//
+// The two kinds are NOT symmetric: a SPELL correction changes which address the
+// text refers to, a GRAMMAR one only restores wording the address already
+// determined. That asymmetry is carried by the border colour and by the
+// suggestion strip below the prose, not by paragraphs inside the popup — a
+// spell checker that lectured you would not get read.
+let addrCurrent = null;   // { artifact, marks, nBytes }
+
+function addrClosePopup() {
+  const el = document.getElementById('addr-popup');
+  if (el) el.remove();
+}
+
+function addrShowPopup(tokenEl, idx) {
+  addrClosePopup();
+  if (!addrCurrent) return;
+  const m = addrCurrent.marks.get(idx);
+  if (!m || !m.suggest) return;
+
+  const toks = addrCurrent.artifact.split(/\s+/).filter(Boolean);
+  const fixed = toks.slice();
+  fixed[idx] = addrSwapIn(toks[idx], m.suggest);
+
+  const pop = document.createElement('div');
+  pop.id = 'addr-popup';
+  pop.className = 'addr-popup ' + (m.kind === SPELL ? 'spell' : 'grammar');
+
+  // Just the question and the two answers, the way a spell checker asks it. The
+  // suggestion is already CONFIRMED by re-rendering, so there is nothing to
+  // caveat; the red/blue border carries the spell-vs-grammar distinction and the
+  // button labels carry the consequence.
+  pop.innerHTML =
+    `<div class="addr-popup-h">Did you mean <strong>${m.suggest}</strong>?</div>` +
+    `<div class="addr-popup-actions">` +
+    `<button class="btn-sm" id="addr-pop-apply">Use &ldquo;${m.suggest}&rdquo;</button>` +
+    `<button class="btn-sm" id="addr-pop-close">Keep as written</button></div>`;
+
+  document.body.appendChild(pop);
+  const r = tokenEl.getBoundingClientRect();
+  pop.style.left = Math.max(8, Math.min(window.innerWidth - pop.offsetWidth - 8,
+                                        r.left + window.scrollX)) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+
+  document.getElementById('addr-pop-close').onclick = addrClosePopup;
+  document.getElementById('addr-pop-apply').onclick = () => {
+    addrClosePopup();
+    const box = document.getElementById('addr-output');
+    const text = fixed.join(' ');
+    const res = addrRead(text, addrCurrent.nBytes);
+    addrSetVerdict(res);
+    addrPaintDamage(box, text, res);
+  };
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#addr-popup') && !e.target.closest('.tok-spell') && !e.target.closest('.tok-grammar')) {
+    addrClosePopup();
+  }
+});
+
+function addrPaintDamage(box, artifact, res, budgetMs = ADDR_SEARCH_MS) {
+  const note = document.getElementById('addr-repair');
+  note.innerHTML = '';
+  note.className = 'addr-repair hidden';
+
+  const nBytes = addrState ? addrState.program.length : 20;
+  const { marks, verdict } = addrCheck(artifact, nBytes, budgetMs);
+  const toks = artifact.split(/\s+/).filter(Boolean);
+
+  addrCurrent = { artifact, marks, nBytes };
+  box.innerHTML = toks.map((t, i) => {
+    const m = marks.get(i);
+    if (!m) return t;
+    const cls = m.kind === SPELL ? 'tok-spell' : 'tok-grammar';
+    const hint = m.suggest ? ' \u2014 click for suggestion' : '';
+    return `<span class="${cls}" data-i="${i}" title="${(m.note + hint).replace(/"/g, '&quot;')}">${t}</span>`;
+  }).join(' ');
+  box.querySelectorAll('[data-i]').forEach(el => {
+    el.onclick = ev => { ev.stopPropagation(); addrShowPopup(el, +el.dataset.i); };
+  });
+
+  // The suggestion strip, the way a word processor lists what it found.
+  const items = [...marks.entries()].filter(([, m]) => m.suggest)
+    .map(([i, m]) => `<li><span class="${m.kind === SPELL ? 'tok-spell' : 'tok-grammar'}">${toks[i]}</span>` +
+                     ` &rarr; <strong>${m.suggest}</strong> <em>${m.note}</em></li>`);
+  const headline = {
+    'clean':       'No errors found.',
+    'cover-damage':`${marks.size} wording error${marks.size === 1 ? '' : 's'} — the address words are intact, so the address itself is correct.`,
+    'repairable':  'Address-word error. The correction below is confirmed: substituting it reproduces this exact wording.',
+    'ambiguous':   'An address word is wrong, and more than one correction would explain the text — it cannot be resolved automatically.',
+    'unlocatable': 'An address word is wrong, but no plausible misspelling explains the text, so the position cannot be recovered.',
+    'short':       'Too few address words — one is missing and no nearby word restores it.',
+    'long':        'Too many address words — a connective word has been read as address data.',
+    'undecodable': 'The address words do not decode.',
+  }[verdict] || '';
+
+  // Keep the badge consistent with what the checker actually found: a word count
+  // mismatch reads as "unreadable" to the decoder, but if the checker can name and
+  // confirm the misspelling, that is a spelling error, not an unreadable artifact.
+  const badge = {
+    'clean':       ['ok',   '\u2713 verified'],
+    'cover-damage':['warn', `\u26a0 ${marks.size} wording error${marks.size === 1 ? '' : 's'}`],
+    'repairable':  ['bad',  '\u2717 misspelled address word'],
+    'ambiguous':   ['bad',  '\u2717 wrong address (ambiguous)'],
+    'unlocatable': ['bad',  '\u2717 wrong address'],
+    'short':       ['bad',  '\u2717 missing an address word'],
+    'long':        ['bad',  '\u2717 extra address word'],
+    'undecodable': ['bad',  '\u2717 unreadable'],
+  }[verdict];
+  if (badge) {
+    const el = document.getElementById('addr-verdict');
+    el.className = 'addr-verdict ' + badge[0];
+    el.textContent = badge[1];
+  }
+
+  note.innerHTML = `<div class="addr-headline">${headline}</div>` +
+                   (items.length ? `<ul class="addr-suggest">${items.join('')}</ul>` : '') +
+                   (verdict === 'repairable' ? '<div class="addr-foot">Shown as a proposal — never applied automatically.</div>' : '');
+  note.className = 'addr-repair';
+  return verdict;
+}
+
+// ── editing the prose in place ──────────────────────────────────────
+// Repainting replaces the box's children, which would drop the caret, so record
+// where it is as a character offset and put it back afterwards. Offsets are
+// taken against the rendered text, and the repaint normalizes whitespace, so
+// they line up unless the edit added runs of spaces.
+function addrCaretOffset(root) {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || !root.contains(sel.anchorNode)) return null;
+  const cur = sel.getRangeAt(0);
+  const r = document.createRange();
+  r.selectNodeContents(root);
+  r.setEnd(cur.endContainer, cur.endOffset);
+  return r.toString().length;
+}
+
+function addrSetCaret(root, offset) {
+  if (offset === null) return;
+  const sel = window.getSelection(), r = document.createRange();
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n, seen = 0;
+  while ((n = walk.nextNode())) {
+    if (seen + n.length >= offset) {
+      r.setStart(n, offset - seen);
+      r.collapse(true);
+      sel.removeAllRanges(); sel.addRange(r);
+      return;
+    }
+    seen += n.length;
+  }
+  r.selectNodeContents(root); r.collapse(false);
+  sel.removeAllRanges(); sel.addRange(r);
+}
+
+// A check is one generation in the easy cases and up to sixteen when an address
+// word is wrong, so it can take a beat. Yield a frame first and say so, rather
+// than freezing mid-keystroke with a stale verdict still on screen. The token
+// drops a result whose text has already been superseded.
+let addrCheckToken = 0;
+
+function addrRecheck() {
+  if (addrMode !== 'encode' || !addrState) return;
+  const box = document.getElementById('addr-output');
+  const caret = addrCaretOffset(box);
+  const text = box.textContent.replace(/\s+/g, ' ').trim();
+  if (!text) return;
+
+  const el = document.getElementById('addr-verdict');
+  el.className = 'addr-verdict';
+  el.textContent = '… checking';
+  const token = ++addrCheckToken;
+
+  requestAnimationFrame(() => addrRunCheck(box, text, caret, token, ADDR_SEARCH_MS));
+}
+
+/// One checking pass, then a wider one if the budget cut the search short.
+///
+/// A budget that stops the search early can stop it before the answer: a word
+/// two sites down the text has a perfectly good correction that a 250ms pass
+/// never reaches, and "cannot locate it" is a worse answer than a slow right
+/// one. So a pass that finds nothing schedules a wider pass on a later tick.
+/// Every candidate the last pass rendered is memoized, so the next one resumes
+/// where it stopped instead of repeating the work — and the user reads a fast
+/// provisional verdict that sharpens rather than a frozen page.
+function addrRunCheck(box, text, caret, token, budgetMs) {
+  if (token !== addrCheckToken || addrMode !== 'encode' || !addrState) return;
+  const res = addrRead(text, addrState.program.length);
+  addrSetVerdict(res);
+  const verdict = addrPaintDamage(box, text, res, budgetMs);
+  addrSetCaret(box, caret);
+  document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+
+  if ((verdict === 'short' || verdict === 'unlocatable') && budgetMs < ADDR_SEARCH_MAX_MS) {
+    setTimeout(() => addrRunCheck(box, text, caret, token, budgetMs * 4), 0);
+  }
+}
+
+function addrToggleRoles() {
+  addrShowRoles = !addrShowRoles;
+  document.getElementById('addr-roles-btn').textContent = addrShowRoles ? 'Hide roles' : 'Show roles';
+  if (addrState) addrPaint(addrState.artifact, addrState.placements);
+}
+
+function addrCopy() {
+  const t = document.getElementById('addr-output').textContent;
+  navigator.clipboard.writeText(t);
+}
+
+function addrInit() {
+  const wl = JSON.parse(wasmGetPayloadWords('english', 'bip39'));
+  if (wl.error) { console.error('address panel:', wl.error); return; }
+  addrWords = wl;
+  addrIndex = new Map(wl.map((w, i) => [w.toLowerCase(), i]));
+  const cw = JSON.parse(wasmGetCoverWords('english', 'bip39'));
+  addrCover = new Set(cw.error ? [] : cw);
+
+  const picker = document.getElementById('addr-picker');
+  ADDR_PRESETS.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.className = 'btn-sm lang-btn' + (i === 0 ? ' active' : '');
+    b.textContent = p.label;
+    b.onclick = () => {
+      picker.querySelectorAll('.lang-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      if (addrMode !== 'encode') { addrMode = 'encode'; addrApplyMode(); }
+      document.getElementById('addr-input').textContent = p.addr;
+      addrUpdate();
+      document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+    };
+    picker.appendChild(b);
+  });
+
+  const input = document.getElementById('addr-input');
+  input.addEventListener('input', () => {
+    picker.querySelectorAll('.lang-btn').forEach(x => x.classList.remove('active'));
+    clearTimeout(input._t);
+    input._t = setTimeout(addrUpdate, 250);
+  });
+  const out = document.getElementById('addr-output');
+  out.addEventListener('input', e => {
+    clearTimeout(out._t);
+    // A spell checker flags a word when you leave it, not while you are inside
+    // it — so finishing a word checks almost at once, and typing mid-word waits.
+    const left = typeof e.data === 'string' && /[\s.,;:!?]/.test(e.data);
+    out._t = setTimeout(addrRecheck, left ? 60 : 250);
+  });
+  // Paste as plain text, or the browser drops styled markup into the box and the
+  // token diff picks up formatting rather than words.
+  out.addEventListener('paste', e => {
+    e.preventDefault();
+    document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text'));
+  });
+
+  input.textContent = ADDR_PRESETS[0].addr;
+  document.getElementById('addr-hint').textContent = ADDR_BASE_HINT;
+  addrApplyMode();
+  addrUpdate();
+}
+
+const ADDR_BASE_HINT = 'Opcodes stay as symbols; only the entropy-carrying program is encoded. ' +
+  'The cover words are chosen by a seed derived from the address itself, so the wording IS the checksum.';
+
+// Exposed for debugging and for driving the panel from a test harness.
+window.addrRead = addrRead;
+window.addrToggle = addrToggle;
+window.addrToggleRoles = addrToggleRoles;
+window.addrCopy = addrCopy;
+
 // ─── Startup ─────────────────────────────────────────────────────────
 
 async function startup() {
@@ -2018,6 +3211,9 @@ async function startup() {
     });
     updateChrome();
     generateSeed();
+
+    // Prose Bitcoin address panel
+    try { addrInit(); } catch (e) { console.error('address panel failed to start:', e); }
 
     // API Key panel
     akBuildButtons();
