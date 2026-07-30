@@ -84,6 +84,23 @@ languages that ship a `semantics.yaml`; absent → behaves exactly as before.
   debug is ~40× slower for the sequence enumeration, and always confirm the binary under test
   was actually rebuilt before trusting a measurement.
 
+## Per-call caches (use the `_cached` variants in hot paths)
+
+Everything the encode path loads is a pure function of `(language, dialect, wordlist)`,
+and all of it used to be reparsed on every call — `build_zone_generator` alone cost
+~12 ms, ~6 ms of which was reparsing English's 100 KB `semantics.yaml`. Measure with
+`cargo run --release --example encode_prep_cost`.
+
+| uncached | cached | why it matters |
+|---|---|---|
+| `load_semantics` | `load_semantics_cached` → `Option<Arc<_>>` | 6.05 → 0.00 ms; env escape hatch is checked *outside* the cache so it still toggles |
+| `Grammar::from_language_dialect` | `..._cached` → `Arc<Grammar>` | 1.49 → 0.00 ms |
+| `DialectConfig::from_language_dialect` | `..._cached` → `Arc<DialectConfig>` | 1.47 → 0.00 ms; scale dialects are deliberately NOT cached (construction injects derived payload words as a side effect) |
+| `load_cover_words_by_pos_for_wordlist` | same name — the YAML parse behind it is cached, the payload filter stays per-call | 1.82 → 0.08 ms |
+
+The uncached forms are kept for callers that need an owned, mutable value. Every
+cache builds its value *outside* the lock, so a parse panic cannot poison it.
+
 ## Documentation
 
 All project documentation lives in `docs/src/` (mdBook format). When creating or updating documentation, write to files in that directory and update `docs/src/SUMMARY.md` as needed.

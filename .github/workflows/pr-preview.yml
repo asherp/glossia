@@ -69,6 +69,16 @@ jobs:
         if: github.event.action != 'closed'
         run: mdbook build docs -d ../web/docs
 
+      # Stamp the deployed pages with the commit they were built from. A cached
+      # page that looks current is indistinguishable from a current one, so the
+      # footer says which build is on screen instead of leaving it to be guessed.
+      - name: Stamp build
+        if: github.event.action != 'closed'
+        run: |
+          SHA='${{ github.event.pull_request.head.sha }}'
+          sed -i "s|<meta name=\"glossia-build\" content=\"dev\">|<meta name=\"glossia-build\" content=\"${SHA:0:7}\">|" web/index.html
+          grep -o 'glossia-build" content="[^"]*"' web/index.html
+
       # On open/synchronize/reopen: deploy web/ to gh-pages under
       # pr-preview/pr-<N>/ and comment the URL. On close: remove that directory.
       - name: Deploy PR preview

@@ -25,7 +25,7 @@ use std::fmt;
 use std::sync::{Arc, Mutex, OnceLock};
 
 use rand::SeedableRng;
-use rand::rngs::StdRng;
+use crate::CoverRng;
 
 use crate::codec::{self, DataMode};
 use crate::generator::data::{
@@ -1061,11 +1061,7 @@ impl Pipeline {
             .map_err(|e| PipelineError::DecodeError(e))?;
         let payload_tree = WordlistTree::new(payload_words);
 
-        let words: Vec<String> = input
-            .split_whitespace()
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-            .filter(|w| !w.is_empty() && payload_tree.contains(w))
-            .collect();
+        let words: Vec<String> = codec::payload_tokens(input, |w| payload_tree.contains(w));
 
         if words.is_empty() {
             return Err(PipelineError::DecodeError(
@@ -1125,7 +1121,7 @@ impl Pipeline {
 
         // Resolve payload_language: if the dialect declares a different language
         // for payload files, pass it so decode loads the correct wordlist.
-        let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+        let payload_lang = DialectConfig::from_language_dialect_cached(language, dialect)
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
@@ -1241,7 +1237,7 @@ impl Pipeline {
         }
 
         // Resolve payload_language for cross-language payload (e.g., sig_bip39).
-        let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+        let payload_lang = DialectConfig::from_language_dialect_cached(language, dialect)
             .map(|c| c.payload_language().to_string())
             .unwrap_or_else(|_| language.to_string());
 
@@ -1317,7 +1313,7 @@ fn apply_wordlist_modifier(
 fn resolve_dialect_wordlist(ep: Endpoint) -> Endpoint {
     match ep {
         Endpoint::Language { ref language, ref wordlist, ref dialect } if wordlist == "default" => {
-            if let Ok(config) = DialectConfig::from_language_dialect(language, dialect) {
+            if let Ok(config) = DialectConfig::from_language_dialect_cached(language, dialect) {
                 let declared = config.payload_wordlist();
                 if declared != "default" {
                     return Endpoint::Language {
@@ -1363,7 +1359,7 @@ fn prepare_payload(
     // Resolve payload_language: if the dialect declares a different language for
     // payload files (e.g., sig_bip39 uses English BIP39 words inside CS grammar),
     // load from that language's directory instead.
-    let payload_lang = DialectConfig::from_language_dialect(language, dialect)
+    let payload_lang = DialectConfig::from_language_dialect_cached(language, dialect)
         .map(|c| c.payload_language().to_string())
         .unwrap_or_else(|_| language.to_string());
 
@@ -1434,19 +1430,142 @@ fn prepare_payload(
 /// dialect config, and cover wordlist, then constructing the Lexicon), so it is
 /// factored out of [`generate_prose_for_zone`] and reused across best-of-N
 /// candidates rather than rebuilt per sample.
-struct ZoneGenerator {
-    lex: Lexicon,
-    mode: GenerationMode,
-    k_min: usize,
-    k_max: usize,
-    length_mode: SentenceLengthMode,
+/// Like [`encode_words_into_language`], but also reports where each payload word
+/// landed: its POS slot, sentence, token position and inferred subject/object role.
+///
+/// Which slot a word fills is a property of the rendering, not the payload — the
+/// same word can be a subject in one cover realization and an object in another.
+pub fn encode_words_into_language_traced(
+    words: &[String],
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> Result<(String, u64, Vec<crate::generator::core::Placement>), PipelineError> {
+    let (toks, payload_word_set, gen) = prepare_words_encode(words, language, wordlist, dialect)?;
+    let (text, counter) = {
+        let (t, _s, c) = crate::generator::core::generate_text_best_of_indexed(
+            seed, best_of.max(1), &gen.lex, &toks, Some(&payload_word_set), false,
+            gen.mode, language, Some(dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+        );
+        (t, c)
+    };
+    let mut rng = <crate::CoverRng as rand::SeedableRng>::seed_from_u64(seed.wrapping_add(counter));
+    let (_t2, _s2, placements) = crate::generator::core::generate_text_traced(
+        &mut rng, &gen.lex, &toks, Some(&payload_word_set), false, gen.mode, language,
+        Some(dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+    );
+    debug_assert_eq!(_t2, text, "traced re-render must match the selected candidate");
+    Ok((text, counter, placements))
+}
+
+/// Shared setup for the word-driven encode entry points.
+fn prepare_words_encode(
+    words: &[String],
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+) -> Result<(Vec<PayloadTok>, HashSet<String>, ZoneGenerator), PipelineError> {
+    let wordlist = resolve_wordlist_name(language, wordlist);
+    let payload_words = crate::generator::data::load_payload_words_for_wordlist(language, &wordlist)
+        .map_err(PipelineError::EncodeError)?;
+    let payload_word_set: HashSet<String> =
+        payload_words.iter().map(|w| w.to_lowercase()).collect();
+
+    let grammar = Grammar::from_language_dialect_cached(language, dialect)
+        .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
+    let is_cs_grammar = !grammar.dot_is_punctuation();
+    let pos_mapping = if is_cs_grammar {
+        HashMap::new()
+    } else {
+        build_pos_mapping_for_wordlist(language, &wordlist).map_err(PipelineError::EncodeError)?
+    };
+    // Reject words the payload wordlist does not contain. A word with no allowed
+    // POS cannot be placed in any slot, and the generator would simply omit it —
+    // yielding prose that decodes to a different payload than the caller supplied.
+    // Failing loudly here is the difference between a caught mistake and a wrong
+    // address.
+    let unknown: Vec<String> = words
+        .iter()
+        .filter(|w| !payload_word_set.contains(&w.to_lowercase()))
+        .cloned()
+        .collect();
+    if !unknown.is_empty() {
+        return Err(PipelineError::EncodeError(format!(
+            "not payload words in {}/{}: {}",
+            language,
+            wordlist,
+            unknown.join(", ")
+        )));
+    }
+
+    let toks: Vec<PayloadTok> = words
+        .iter()
+        .map(|word| {
+            let allowed = if is_cs_grammar {
+                vec![Pos::N]
+            } else {
+                pos_mapping.get(&word.to_lowercase()).cloned().unwrap_or_default()
+            };
+            PayloadTok::new(word.clone(), &allowed)
+        })
+        .collect();
+    let gen = build_zone_generator(
+        toks.len(), language, dialect, &payload_word_set, false, None, None, None, None,
+    )?;
+    Ok((toks, payload_word_set, gen))
+}
+
+/// Wrap already-chosen payload words in cover prose.
+///
+/// This is the second stage of encoding on its own, for callers that produced the
+/// payload words themselves rather than letting the grammar's codec do it — a
+/// fixed-length format that packs its own bits, for instance. The words are
+/// embedded in the order given and never altered, so decoding is unchanged.
+///
+/// With `best_of > 1` the densest / most coherent of `best_of` consecutive seeds
+/// is returned; the second element is the winning offset `k`, so the exact
+/// rendering can be reproduced from `seed + k`.
+pub fn encode_words_into_language(
+    words: &[String],
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> Result<(String, u64), PipelineError> {
+    let (toks, payload_word_set, gen) = prepare_words_encode(words, language, wordlist, dialect)?;
+    let (text, _set, counter) = crate::generator::core::generate_text_best_of_indexed(
+        seed, best_of.max(1), &gen.lex, &toks, Some(&payload_word_set), false,
+        gen.mode, language, Some(dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+    );
+    Ok((text, counter))
+}
+
+/// The deterministic half of encoding: everything needed to wrap payload words in
+/// cover prose, with no payload and no RNG involved.
+///
+/// Encoding is two composable stages — map bytes to payload words
+/// ([`crate::codec::encode_base_n`]), then insert cover words around them
+/// ([`crate::generator::core::generate_text_with_original_payload`]). This struct
+/// is the seam: build it once for a language/dialect, then drive it with whatever
+/// payload words you like. Callers that pack their own bits (a fixed-length
+/// address format, say) need that seam, because the byte-oriented entry points
+/// apply the grammar's own codec.
+pub struct ZoneGenerator {
+    pub lex: Lexicon,
+    pub mode: GenerationMode,
+    pub k_min: usize,
+    pub k_max: usize,
+    pub length_mode: SentenceLengthMode,
 }
 
 /// Shared first phase of zone generation: load the grammar/dialect config, build
 /// the cover Lexicon (attaching a semantic model when the language ships one), and
 /// derive the sentence-length parameters. Deterministic — it does not touch the
 /// RNG — so single-shot and best-of-N generation share identical setup.
-fn build_zone_generator(
+pub fn build_zone_generator(
     zone_len: usize,
     language: &str,
     dialect: &str,
@@ -1457,10 +1576,13 @@ fn build_zone_generator(
     k_min_override: Option<usize>,
     k_max_override: Option<usize>,
 ) -> Result<ZoneGenerator, PipelineError> {
-    // 1. Load grammar and dialect config.
-    let dialect_config = crate::grammar::DialectConfig::from_language_dialect(language, dialect)
+    // 1. Load grammar and dialect config. Both are pure functions of
+    // (language, dialect) and both parse YAML, so both are memoized — this is
+    // called once per encode, and best-of-N plus a verifier's repair search make
+    // that a lot of encodes.
+    let dialect_config = crate::grammar::DialectConfig::from_language_dialect_cached(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Dialect config error: {}", e)))?;
-    let grammar = Grammar::from_language_dialect(language, dialect)
+    let grammar = Grammar::from_language_dialect_cached(language, dialect)
         .map_err(|e| PipelineError::EncodeError(format!("Grammar error: {}", e)))?;
 
     // 2. Build Lexicon (cover words).
@@ -1497,8 +1619,8 @@ fn build_zone_generator(
     // Optional semantic model: softly biases sentence planning toward coherent
     // verb-argument pairings. Absent for languages without a semantics.yaml, in
     // which case planning is unchanged. Never affects payload order or decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
     // 3. Grammar-derived sentence parameters.
@@ -1554,7 +1676,7 @@ fn generate_prose_for_zone(
         cover_override, length_mode, k_min_override, k_max_override,
     )?;
 
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let (text, payload_set) = generate_text_with_original_payload(
         &mut rng,
         &gen.lex,
@@ -1879,7 +2001,7 @@ pub fn encode_into_language_best_of(
     // Best-of ranks candidates by semantic coherence, so with no model (or a
     // single candidate) there is nothing to select over — this is exactly a plain
     // single encode.
-    if n == 1 || crate::generator::data::load_semantics(language).is_none() {
+    if n == 1 || crate::generator::data::load_semantics_cached(language).is_none() {
         return encode_into_language(
             input, language, wordlist, dialect, forced_data_mode, base_seed, verbose,
             cover_override, length_mode, k_min_override, k_max_override,
@@ -1964,7 +2086,7 @@ fn encode_into_language_best_of_via_pipeline(
     // in exchange for higher coherence. Small: density stays primary.
     const DENSITY_TOL: f64 = 0.02;
 
-    let model = crate::generator::data::load_semantics(language)
+    let model = crate::generator::data::load_semantics_cached(language)
         .expect("caller ensures a semantic model exists for best-of selection");
 
     let mut candidates: Vec<(f64, f64, (String, HashSet<String>, Vec<String>, DataMode))> =
@@ -2106,10 +2228,7 @@ fn decode_extracted_words(
 /// payload words, the input carries no cover words (see
 /// [`decode_extracted_words`]).
 fn alnum_token_count(text: &str) -> usize {
-    text.split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()))
-        .filter(|w| !w.is_empty())
-        .count()
+    codec::alnum_token_count(text)
 }
 
 /// Internal decode with separate grammar language and payload language.
@@ -2186,10 +2305,7 @@ fn decode_from_language_with_payload_lang(
             .collect()
     } else {
         // Standard: whitespace-delimited, filter against payload wordlist.
-        text.split_whitespace()
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-            .filter(|w| payload_tree.contains(w))
-            .collect()
+        codec::payload_tokens(text, |w| payload_tree.contains(w))
     };
 
     if extracted.is_empty() {
@@ -2287,10 +2403,7 @@ fn decode_from_language_rich_with_payload_lang(
             })
             .collect()
     } else {
-        text.split_whitespace()
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-            .filter(|w| payload_tree.contains(w))
-            .collect()
+        codec::payload_tokens(text, |w| payload_tree.contains(w))
     };
 
     if extracted.is_empty() {

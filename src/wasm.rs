@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use rand::SeedableRng;
-use rand::rngs::StdRng;
-use std::collections::HashSet;
+use crate::CoverRng;
+use std::collections::{BTreeSet, HashSet};
 
 use crate::generator::data::{
     get_available_languages, get_available_wordlists,
@@ -93,7 +93,7 @@ fn encode_inner(
     };
 
     // 1. Load grammar
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     // 2. Load payload wordlist and build WordlistTree
@@ -132,8 +132,8 @@ fn encode_inner(
     // Attach the semantic model so planning (and best-of-N) can bias toward
     // coherent verb-argument pairings. Absent for non-English; never affects
     // decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
     // Derive k_min/k_max from the grammar's structure and payload size.
@@ -164,7 +164,7 @@ fn encode_inner(
             Some(grammar_dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
         )
     } else {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = CoverRng::seed_from_u64(seed);
         generate_text_with_original_payload(
             &mut rng, &lex, &payload_toks, None, false, mode, language,
             Some(grammar_dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
@@ -214,7 +214,7 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
     let payload_tree = WordlistTree::new(payload_words.clone());
 
     // 2. Load grammar to check payload separator
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, "body")
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, "body")
         .map_err(|e| format!("Grammar error: {}", e))?;
     let payload_separator = grammar.payload_separator();
 
@@ -246,10 +246,7 @@ fn decode_inner(text: &str, language: &str, wordlist: &str) -> Result<String, St
             .collect()
     } else {
         // Standard whitespace-delimited extraction
-        text.split_whitespace()
-            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-            .filter(|w| payload_tree.contains(w))
-            .collect()
+        codec::payload_tokens(text, |w| payload_tree.contains(w))
     };
 
     if extracted.is_empty() {
@@ -300,7 +297,7 @@ fn random_words_inner(
         return Err("Wordlist is empty".to_string());
     }
 
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let mut selected = Vec::with_capacity(count);
     for _ in 0..count {
         use rand::seq::SliceRandom;
@@ -409,7 +406,7 @@ pub fn get_all_dialects() -> String {
 
         for dialect_name in dialects {
             // Try to load the dialect config to get wordlist info
-            match DialectConfig::from_language_dialect(lang, &dialect_name) {
+            match DialectConfig::from_language_dialect_cached(lang, &dialect_name) {
                 Ok(config) => {
                     let payload_wl = config.payload_wordlist();
                     let cover_wl = config.cover_wordlist();
@@ -775,7 +772,7 @@ fn encode_characters_inner(
     lex = lex.with_refined_cover(refined_cover);
 
     // 6. Load grammar and compute dynamic k_min/k_max
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     let min_k = grammar.min_sentence_length().unwrap_or(5);
@@ -788,7 +785,7 @@ fn encode_characters_inner(
     };
 
     // 7. Generate text
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let mode = if grammar_dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
@@ -1199,7 +1196,7 @@ fn encode_random_words_inner(
     }
 
     // 2. Generate random words
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = CoverRng::seed_from_u64(seed);
     let mut selected_words = Vec::with_capacity(count);
     for _ in 0..count {
         use rand::seq::SliceRandom;
@@ -1234,12 +1231,12 @@ fn encode_random_words_inner(
     // Attach the semantic model so planning (and best-of-N) can bias toward
     // coherent verb-argument pairings. Absent for non-English; never affects
     // decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
     // 6. Load grammar and compute dynamic k_min/k_max
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, grammar_dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, grammar_dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     let min_k = grammar.min_sentence_length().unwrap_or(5);
@@ -1252,7 +1249,7 @@ fn encode_random_words_inner(
     };
 
     // 7. Generate text with the same RNG (re-seeded for text generation)
-    let mut text_rng = StdRng::seed_from_u64(seed.wrapping_add(1)); // Offset seed for text gen
+    let mut text_rng = CoverRng::seed_from_u64(seed.wrapping_add(1)); // Offset seed for text gen
     let mode = if grammar_dialect.starts_with("subject") {
         GenerationMode::Subject
     } else {
@@ -1300,6 +1297,123 @@ fn encode_random_words_inner(
 
 /// Encode raw bytes (hex or base64 input) into base-N payload words.
 ///
+/// The payload wordlist itself, as a JSON array in index order.
+///
+/// Needed by callers that pack their own bits: the index of a word IS its value,
+/// so a format doing its own bit-packing needs the mapping. Returns `{ error }` on
+/// an unknown language/wordlist.
+#[wasm_bindgen]
+pub fn get_payload_words(language: &str, wordlist: &str) -> String {
+    match load_payload_words_for_wordlist(language, wordlist) {
+        Ok(words) => serde_json::to_string(&words).unwrap_or_else(|e| {
+            serde_json::json!({ "error": e.to_string() }).to_string()
+        }),
+        Err(e) => serde_json::json!({ "error": e }).to_string(),
+    }
+}
+
+/// The cover vocabulary for a language/dialect, as a flat JSON array.
+///
+/// The complement of `get_payload_words`, and what a verifier needs to tell a
+/// misspelling from a word that was never payload. Locating a damaged payload
+/// word means searching tokens that are not in the payload wordlist — but the
+/// connective prose is not in it either, so without this list every cover word
+/// is a candidate site and the search does an order of magnitude more work than
+/// the question requires.
+#[wasm_bindgen]
+pub fn get_cover_words(language: &str, wordlist: &str) -> String {
+    let payload: HashSet<String> = match load_payload_words_for_wordlist(language, wordlist) {
+        Ok(w) => w.iter().map(|x| x.to_lowercase()).collect(),
+        Err(e) => return serde_json::json!({ "error": e }).to_string(),
+    };
+    let cover_wl = match crate::grammar::DialectConfig::from_language_dialect_cached(language, "body") {
+        Ok(cfg) => cfg.cover_wordlist().to_string(),
+        Err(_) => "cover".to_string(),
+    };
+    let (by_pos, refined) = load_cover_words_by_pos_for_wordlist(&payload, language, &cover_wl);
+    let mut out: BTreeSet<String> = BTreeSet::new();
+    for words in by_pos.into_values() {
+        out.extend(words.into_iter().map(|w| w.to_lowercase()));
+    }
+    for words in refined.into_values() {
+        out.extend(words.into_iter().map(|w| w.to_lowercase()));
+    }
+    serde_json::to_string(&out.into_iter().collect::<Vec<_>>())
+        .unwrap_or_else(|e| serde_json::json!({ "error": e.to_string() }).to_string())
+}
+
+/// Wrap caller-supplied payload words in cover prose, reporting where each landed.
+///
+/// For formats that pack their own bits — a fixed-length address that carries a
+/// header in the bit-packing slack, say — where the byte-oriented entries cannot
+/// express the packing. `words_json` is a JSON array of payload words, embedded in
+/// the order given.
+///
+/// Returns JSON `{ encoded_text, counter, placements: [{ word, payload_index, pos,
+/// token_index, sentence, role }] }`, or `{ error }` if any word is not in the
+/// payload wordlist (which would otherwise be silently dropped).
+#[wasm_bindgen]
+pub fn encode_words(
+    words_json: &str,
+    language: &str,
+    wordlist: &str,
+    dialect: &str,
+    seed: u64,
+    best_of: usize,
+) -> String {
+    let words: Vec<String> = match serde_json::from_str(words_json) {
+        Ok(w) => w,
+        Err(e) => return serde_json::json!({ "error": format!("bad words JSON: {e}") }).to_string(),
+    };
+    match crate::pipeline::encode_words_into_language_traced(
+        &words, language, wordlist, dialect, seed, best_of.max(1),
+    ) {
+        Err(e) => serde_json::json!({ "error": format!("{e:?}") }).to_string(),
+        Ok((text, counter, placements)) => {
+            let ps: Vec<serde_json::Value> = placements
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "word": p.word,
+                        "payload_index": p.payload_index,
+                        "pos": p.pos.to_string(),
+                        "token_index": p.token_index,
+                        "sentence": p.sentence,
+                        "role": match p.role {
+                            Some(crate::generator::core::Role::Subject) => "subject",
+                            Some(crate::generator::core::Role::Object) => "object",
+                            None => "",
+                        },
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "encoded_text": text,
+                "counter": counter,
+                "placements": ps,
+            })
+            .to_string()
+        }
+    }
+}
+
+/// Derive a cover seed from a payload checksum, so the choice of prose carries the
+/// checksum. `hex` is the exact byte string the checksum covers.
+///
+/// Exposed so browsers and the Rust core agree bit-for-bit rather than
+/// reimplementing CRC-32 and splitmix64 in JavaScript.
+#[wasm_bindgen]
+pub fn checksum_seed_for(hex: &str, counter: u64) -> u64 {
+    let bytes = codec::hex_decode(hex).unwrap_or_default();
+    codec::checksum_seed(&bytes, counter)
+}
+
+/// CRC-32 of a hex byte string, for display alongside an artifact.
+#[wasm_bindgen]
+pub fn payload_crc32(hex: &str) -> u32 {
+    codec::crc32(&codec::hex_decode(hex).unwrap_or_default())
+}
+
 /// If `dialect` is empty, returns space-joined bare payload words.
 /// If `dialect` is provided (e.g., "body"), wraps the payload words in prose.
 ///
@@ -1395,11 +1509,11 @@ fn encode_raw_base_n_inner(
     // Attach the semantic model so planning (and best-of-N) can bias toward
     // coherent verb-argument pairings. Absent for non-English; never affects
     // decoding.
-    if let Some(model) = crate::generator::data::load_semantics(language) {
-        lex = lex.with_semantics(std::sync::Arc::new(model));
+    if let Some(model) = crate::generator::data::load_semantics_cached(language) {
+        lex = lex.with_semantics(model);
     }
 
-    let grammar = crate::grammar::Grammar::from_language_dialect(language, dialect)
+    let grammar = crate::grammar::Grammar::from_language_dialect_cached(language, dialect)
         .map_err(|e| format!("Grammar error: {}", e))?;
 
     let min_k = grammar.min_sentence_length().unwrap_or(5);
@@ -1422,7 +1536,7 @@ fn encode_raw_base_n_inner(
             Some(dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
         )
     } else {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = CoverRng::seed_from_u64(seed);
         generate_text_with_original_payload(
             &mut rng, &lex, &payload_toks, None, false, mode, language,
             Some(dialect), k_min, k_max, SentenceLengthMode::Natural, " ",
@@ -1481,11 +1595,7 @@ fn decode_raw_base_n_inner(text: &str, language: &str, wordlist: &str, expected_
     let payload_set: HashSet<String> = payload_words.iter().map(|w| w.to_lowercase()).collect();
 
     // 3. Extract payload words (filter out cover/prose words)
-    let extracted: Vec<String> = text
-        .split_whitespace()
-        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
-        .filter(|w| payload_set.contains(w))
-        .collect();
+    let extracted: Vec<String> = codec::payload_tokens(text, |w| payload_set.contains(w));
 
     if extracted.is_empty() {
         return Ok(serde_json::json!({

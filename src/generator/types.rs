@@ -369,7 +369,7 @@ impl Lexicon {
 mod tests {
     use super::*;
     use rand::SeedableRng;
-    use rand::rngs::StdRng;
+    use crate::CoverRng;
 
     /// Build a minimal Lexicon for testing with refined cover words.
     fn test_lexicon_with_refinements() -> Lexicon {
@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_with_matching_tag() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Pick from Det[def] -- should return one of "the", "its", "our"
         let def_words: HashSet<&str> = ["the", "its", "our"].iter().copied().collect();
@@ -422,7 +422,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_cop_sg() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Cop[sg] should produce "is"
         for _ in 0..10 {
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_cop_pl() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Cop[pl] should produce "are"
         for _ in 0..10 {
@@ -446,7 +446,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_fallback_no_refinement() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // No refinement tag -> falls back to unrefined pick_cover
         let word = lex.pick_cover_refined(&mut rng, Pos::Det, None, &[]);
@@ -457,7 +457,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_fallback_unknown_tag() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Unknown refinement tag -> no matching bucket -> falls back to pick_cover
         let word = lex.pick_cover_refined(&mut rng, Pos::Det, Some("nonexistent"), &[]);
@@ -467,7 +467,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_recent_exclusion() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Exclude "the" and "its" from recent -- should return "our"
         let word = lex.pick_cover_refined(&mut rng, Pos::Det, Some("def"), &["the", "its"]);
@@ -477,7 +477,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_exhaustion_fallback() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Cop[sg] only has "is". Mark "is" as recent.
         // The refined selection first tries with recent filter (empty), then drops the recent
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_all_exhausted_final_fallback() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Mark ALL Cop words as recent
         let word = lex.pick_cover_refined(&mut rng, Pos::Cop, Some("sg"), &["is", "are"]);
@@ -512,7 +512,7 @@ mod tests {
         let wordlist_set: HashSet<String> = HashSet::new();
         let lex = Lexicon::new(payload_set, wordlist_set)
             .with_words(Pos::N, &["user"]);
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         let word = lex.pick_cover(&mut rng, Pos::Adv, &[]);
         assert_eq!(word, "", "Should return empty string when no words for POS");
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn test_pick_cover_refined_indef_det() {
         let lex = test_lexicon_with_refinements();
-        let mut rng = StdRng::seed_from_u64(42);
+        let mut rng = CoverRng::seed_from_u64(42);
 
         // Det[indef] should return "a" or "an"
         let indef_words: HashSet<&str> = ["a", "an"].iter().copied().collect();
