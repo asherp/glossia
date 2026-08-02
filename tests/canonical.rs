@@ -38,6 +38,15 @@ fn round_trips_and_verifies_across_languages() {
             assert_eq!(d.payload, payload, "{language} payload round trip");
             assert_eq!(d.version, CANONICAL_VERSION, "{language} version byte");
             assert!(d.verified, "{language} clean artifact must verify");
+            // A language with no cover words for some POS (Latin's open
+            // classes are almost all payload) must omit the slot, not emit an
+            // empty token that widens whitespace and steals the sentence-
+            // initial capital.
+            assert!(!text.contains("  "), "{language} rendering has a double space: {text:?}");
+            for sentence in text.split(". ") {
+                let first = sentence.chars().next().unwrap();
+                assert!(!first.is_lowercase(), "{language} sentence starts lowercase: {sentence:?}");
+            }
         }
     }
 }
@@ -194,7 +203,7 @@ fn v1_golden_renderings() {
     );
     assert_eq!(
         canonical_encode(&zeros, "latin", "default").unwrap(),
-        "Tu aro fas e jul. Fas aro   se  is."
+        "Tu aro fas e jul. Fas aro se is."
     );
     assert_eq!(
         canonical_encode(&zeros, "czech", "default").unwrap(),

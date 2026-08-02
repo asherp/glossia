@@ -145,8 +145,8 @@ impl Lexicon {
         let list = self.by_pos.get(&pos).unwrap_or(&empty);
 
         if list.is_empty() {
-            // No cover words for this POS — return empty string (graceful degradation).
-            // The cover.yaml should be updated to include words for all POS categories.
+            // No cover words for this POS. Return empty — `fill_slots` omits
+            // the slot entirely, so no empty token reaches the output.
             return String::new();
         }
 

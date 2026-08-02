@@ -858,6 +858,14 @@ pub fn fill_slots_traced<R: Rng>(
             lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)
         };
 
+        // An empty pick means the language has no cover words for this POS at
+        // all — Latin's open classes live almost entirely in its payload list,
+        // so its cover has no nouns, verbs or adjectives. Omit the slot rather
+        // than emitting an empty token: an empty token widens the whitespace,
+        // steals the sentence-initial capital, and decodes as nothing anyway.
+        if cover_word.is_empty() {
+            continue;
+        }
         update_gov_verb(&mut gov_verb, slot, &cover_word);
         out.push(cover_word);
         trace.push(Some((slot, None)));

@@ -6,7 +6,11 @@
 # Excluded payload words from: languages/latin/payload.yaml
 # Maximum length: 8
 # Maximum words per POS: 100
-# Total cover words: 128
+# Total cover words: 117
+#
+# Manually removed 11 Wiktionary abbreviation artifacts (not Latin words,
+# but carrying usable POS tags so they surfaced in prose):
+#   bn cp cu ed n nq qa qn s u v
 #
 # POS Tag Distribution:
 #   Adv: 21
@@ -51,16 +55,10 @@ ave:
   Intj: 1.0
 bee:
   Intj: 1.0
-bn:
-  Adv: 1.0
 chaere:
   Intj: 1.0
 cocococo:
   Intj: 1.0
-cp:
-  Adv: 1.0
-cu:
-  Prep: 1.0
 de:
   Prep: 1.0
 debent:
@@ -79,8 +77,6 @@ ecce:
   Intj: 1.0
 eccere:
   Intj: 1.0
-ed:
-  Conj: 1.0
 edepol:
   Intj: 1.0
 ehem:
@@ -178,8 +174,6 @@ mecastor:
   Intj: 1.0
 mehercle:
   Intj: 1.0
-n:
-  Adv: 1.0
 ne:
   Adv: 1.0
   Conj: 1.0
@@ -195,10 +189,7 @@ noenum:
   Adv: 1.0
 non:
   Adv: 1.0
-nq:
-  Conj: 1.0
 o:
-  Adv: 1.0
   Intj: 1.0
 ob:
   Prep: 1.0
@@ -222,18 +213,12 @@ potest:
   Modal: 1.0
 prox:
   Intj: 1.0
-qa:
-  Conj: 1.0
-qn:
-  Adv: 1.0
 quippe:
   Adv: 1.0
 quippini:
   Adv: 1.0
 ruct:
   Intj: 1.0
-s:
-  Adv: 1.0
 salve:
   Intj: 1.0
 scaccus:
@@ -258,12 +243,8 @@ tu:
   Pron: 1.0
 tuxtax:
   Intj: 1.0
-u:
-  Conj: 1.0
 ut:
   Adv: 1.0
-  Conj: 1.0
-v:
   Conj: 1.0
 vae:
   Intj: 1.0
