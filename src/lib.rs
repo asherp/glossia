@@ -7,6 +7,7 @@ pub mod grammar;
 pub mod generator;
 pub mod merkle;
 pub mod codec;
+pub mod canonical;
 pub mod pipeline;
 pub mod scale;
 pub mod image_codec;
@@ -70,6 +71,12 @@ pub use codec::{
 
 // Re-export pipeline types and functions
 pub use pipeline::{Pipeline, Endpoint, Verb, PipelineError, encode_into_language, decode_from_language, cached_payload_tree};
+
+pub use canonical::{
+    canonical_decode, canonical_decode_raw, canonical_encode, canonical_encode_at,
+    canonical_encode_traced, rules_for,
+    CanonicalDecoded, CanonicalError, VersionRules, CANONICAL_VERSION,
+};
 
 #[cfg(feature = "native")]
 use nlprule::{Tokenizer, Rules};

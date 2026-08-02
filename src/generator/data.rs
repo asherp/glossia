@@ -106,6 +106,23 @@ pub fn load_semantics_cached(
     model
 }
 
+/// `load_semantics_cached` without the `GLOSSIA_DISABLE_SEMANTICS` escape
+/// hatch. The canonical encoder renders under frozen per-version rules, and an
+/// environment variable must not be able to change what a canonical artifact
+/// looks like — a verifier with the hatch set would reject every valid
+/// artifact. Shares the same cache.
+pub(crate) fn load_semantics_cached_ignore_env(
+    language: &str,
+) -> Option<Arc<crate::generator::semantics::SemanticModel>> {
+    let cache = SEMANTICS_CACHE.get_or_init(|| Mutex::new(HashMap::new()));
+    if let Some(hit) = cache.lock().unwrap().get(language) {
+        return hit.clone();
+    }
+    let model = load_semantics_uncached(language).map(Arc::new);
+    cache.lock().unwrap().insert(language.to_string(), model.clone());
+    model
+}
+
 /// The parse itself, without the env-var check (which `load_semantics_cached`
 /// applies first) — so a cached entry never bakes in the escape hatch's state.
 fn load_semantics_uncached(language: &str) -> Option<crate::generator::semantics::SemanticModel> {

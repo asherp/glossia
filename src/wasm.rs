@@ -1397,6 +1397,105 @@ pub fn encode_words(
     }
 }
 
+/// Canonical, versioned encode: exactly one prose form per payload, rendered
+/// under the frozen rules of the current canonical version (see
+/// `src/canonical.rs`). `payload_hex` is the payload bytes as hex.
+///
+/// Returns JSON `{ encoded_text, version }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode(payload_hex: &str, language: &str, wordlist: &str) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode(&bytes, language, wordlist) {
+        Ok(text) => serde_json::json!({
+            "encoded_text": text,
+            "version": crate::canonical::CANONICAL_VERSION,
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// Canonical encode with placements — the same text as `canonical_encode`, plus
+/// where each payload word landed, for UIs that annotate the prose.
+///
+/// Returns JSON `{ encoded_text, version, placements: [{ word, payload_index,
+/// pos, token_index, sentence, role }] }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode_traced(payload_hex: &str, language: &str, wordlist: &str) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode_traced(&bytes, language, wordlist) {
+        Ok((text, placements)) => {
+            let ps: Vec<serde_json::Value> = placements
+                .iter()
+                .map(|p| {
+                    serde_json::json!({
+                        "word": p.word,
+                        "payload_index": p.payload_index,
+                        "pos": p.pos.to_string(),
+                        "token_index": p.token_index,
+                        "sentence": p.sentence,
+                        "role": match p.role {
+                            Some(crate::generator::core::Role::Subject) => "subject",
+                            Some(crate::generator::core::Role::Object) => "object",
+                            None => "",
+                        },
+                    })
+                })
+                .collect();
+            serde_json::json!({
+                "encoded_text": text,
+                "version": crate::canonical::CANONICAL_VERSION,
+                "placements": ps,
+            })
+            .to_string()
+        }
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// Decode canonical prose and verify it by re-rendering under the rules of the
+/// version byte the artifact carries — not the current version, so artifacts
+/// from older canonical versions keep verifying. `canonical_text` is the
+/// reference rendering the verification compared against, so a checker can
+/// diff wording without generating again.
+///
+/// Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+/// `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode(text: &str, language: &str, wordlist: &str) -> String {
+    match crate::canonical::canonical_decode(text, language, wordlist) {
+        Ok(d) => serde_json::json!({
+            "version": d.version,
+            "payload_hex": codec::hex_encode(&d.payload),
+            "verified": d.verified,
+            "canonical_text": d.canonical_text,
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// The decode half alone: payload words → version + payload, no verification
+/// re-render. For repair searches that decode many candidates and render each
+/// through their own (memoized) `canonical_encode` call.
+///
+/// Returns JSON `{ version, payload_hex }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_raw(text: &str, language: &str, wordlist: &str) -> String {
+    match crate::canonical::canonical_decode_raw(text, language, wordlist) {
+        Ok((version, payload)) => serde_json::json!({
+            "version": version,
+            "payload_hex": codec::hex_encode(&payload),
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
 /// Derive a cover seed from a payload checksum, so the choice of prose carries the
 /// checksum. `hex` is the exact byte string the checksum covers.
 ///

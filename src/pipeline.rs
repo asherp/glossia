@@ -1334,7 +1334,7 @@ fn resolve_dialect_wordlist(ep: Endpoint) -> Endpoint {
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Resolve "default" wordlist to the actual wordlist name for a language.
-fn resolve_wordlist_name<'a>(language: &str, wordlist: &'a str) -> &'a str {
+pub(crate) fn resolve_wordlist_name<'a>(language: &str, wordlist: &'a str) -> &'a str {
     if wordlist == "default" {
         let dw = default_wordlist(language);
         if dw == "default" { wordlist } else { dw }
@@ -1461,7 +1461,7 @@ pub fn encode_words_into_language_traced(
 }
 
 /// Shared setup for the word-driven encode entry points.
-fn prepare_words_encode(
+pub(crate) fn prepare_words_encode(
     words: &[String],
     language: &str,
     wordlist: &str,
