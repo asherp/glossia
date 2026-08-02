@@ -115,6 +115,31 @@ fn unknown_version_is_refused_by_name() {
 }
 
 #[test]
+fn traced_and_raw_variants_agree_with_the_plain_pair() {
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+
+    let (traced_text, placements) =
+        glossia::canonical_encode_traced(&payload, "english", "bip39").unwrap();
+    assert_eq!(traced_text, text, "traced text must be the canonical rendering");
+    assert!(!placements.is_empty());
+    let toks: Vec<&str> = text.split_whitespace().collect();
+    for p in &placements {
+        let tok: String = toks[p.token_index]
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .collect();
+        assert_eq!(tok.to_lowercase(), p.word.to_lowercase(), "placement resolves to its token");
+    }
+
+    let d = canonical_decode(&text, "english", "bip39").unwrap();
+    assert_eq!(d.canonical_text, text, "clean artifact's reference is itself");
+    let (version, raw_payload) =
+        glossia::canonical_decode_raw(&text, "english", "bip39").unwrap();
+    assert_eq!((version, raw_payload), (d.version, d.payload));
+}
+
+#[test]
 fn empty_payload_is_refused() {
     match canonical_encode(&[], "english", "bip39") {
         Err(CanonicalError::EmptyPayload) => {}

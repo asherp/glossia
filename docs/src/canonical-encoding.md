@@ -72,10 +72,20 @@ new version entry, never an updated golden.
 `examples/canonical_probe.rs` prints the renderings for pinning a new
 version's goldens.
 
+## The address format uses it
+
+The prose Bitcoin address panel (`web/index.html`) is the first consumer: an
+address's program bytes go through `canonical_encode`, so a 20-byte hash160 is
+17 words (version byte + pad word included) and a 32-byte witness program is
+25. The panel's checker builds on `canonical_encode_traced` (grammatical-role
+annotations), `canonical_decode_raw` (repair-search candidates without a
+verify render), and the `canonical_text` returned by `canonical_decode`
+(wording diff without a second generation). The opcode glyphs remain page-side
+markup around the canonical prose.
+
 ## When not to use it
 
-Formats that pack their own bits — a fixed-length address with a header in the
-bit-packing slack, custom seeds, their own best-of policy — should keep using
-the unversioned seams (`encode_words_into_language`, `ZoneGenerator`,
-`checksum_seed`). Those are deliberately flexible; the canonical pair is
-deliberately rigid.
+Callers that need their own seeds, packing, or best-of policy — or prose that
+deliberately is not stable across releases — should use the unversioned seams
+(`encode_words_into_language`, `ZoneGenerator`, `checksum_seed`). Those are
+deliberately flexible; the canonical pair is deliberately rigid.

@@ -122,6 +122,11 @@ pub struct CanonicalDecoded {
     /// `false` means the payload decoded but the prose is not the canonical
     /// rendering of it: transcription damage, or text produced some other way.
     pub verified: bool,
+    /// The canonical rendering of the decoded payload — the reference the
+    /// verification compared against. Verification computes it anyway, and a
+    /// checker UI diffing received wording against expected wording needs it,
+    /// so returning it saves that caller a duplicate generation.
+    pub canonical_text: String,
 }
 
 /// Encode `payload` as canonical prose at [`CANONICAL_VERSION`].
@@ -171,6 +176,24 @@ pub fn canonical_decode(
     language: &str,
     wordlist: &str,
 ) -> Result<CanonicalDecoded, CanonicalError> {
+    let (version, payload) = canonical_decode_raw(text, language, wordlist)?;
+    let reference = canonical_encode_at(&payload, language, wordlist, version)?;
+    let verified = same_wording(text, &reference);
+    Ok(CanonicalDecoded { version, payload, verified, canonical_text: reference })
+}
+
+/// The decode half alone: payload words → version byte + payload bytes, with
+/// the version checked against the registry but the wording NOT verified.
+///
+/// This is for callers doing many decodes per verification — a repair search
+/// proposing typo corrections decodes every candidate but only needs each
+/// candidate's rendering once, from its own (often memoized) encode call.
+/// [`canonical_decode`] is this plus the verify re-render.
+pub fn canonical_decode_raw(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+) -> Result<(u8, Vec<u8>), CanonicalError> {
     let wl = resolve_wordlist_name(language, wordlist);
     let tree = cached_payload_tree(language, wl)
         .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
@@ -194,24 +217,65 @@ pub fn canonical_decode(
     // honest answer — "unverifiable" from a canonical decoder would be
     // indistinguishable from damage.
     rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
-
-    let reference = canonical_encode_at(&payload, language, wl, version)?;
-    let verified = same_wording(text, &reference);
-
-    Ok(CanonicalDecoded { version, payload, verified })
+    Ok((version, payload))
 }
 
-/// Render payload words under a version's frozen rules. Env-independent:
+/// Canonical encode with placements: the current-version rendering plus where
+/// each payload word landed (POS, sentence, subject/object role), for UIs that
+/// annotate the prose. The text is identical to [`canonical_encode`]'s.
+pub fn canonical_encode_traced(
+    payload: &[u8],
+    language: &str,
+    wordlist: &str,
+) -> Result<(String, Vec<crate::generator::core::Placement>), CanonicalError> {
+    let version = CANONICAL_VERSION;
+    let rules = rules_for(version).expect("current version must be registered");
+    if payload.is_empty() {
+        return Err(CanonicalError::EmptyPayload);
+    }
+
+    let mut bytes = Vec::with_capacity(1 + payload.len());
+    bytes.push(version);
+    bytes.extend_from_slice(payload);
+
+    let wl = resolve_wordlist_name(language, wordlist);
+    let tree = cached_payload_tree(language, wl)
+        .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
+    let words = encode_base_n(&bytes, &tree, ENVELOPE_CODEC)
+        .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
+
+    let (toks, payload_word_set, gen) = prepare_render(&words, language, wl, rules)?;
+    let seed = checksum_seed(&bytes, 0);
+    let (text, _set, k) = crate::generator::core::generate_text_best_of_indexed(
+        seed, rules.best_of, &gen.lex, &toks, Some(&payload_word_set), false,
+        gen.mode, language, Some(rules.dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+    );
+    let mut rng = <crate::CoverRng as rand::SeedableRng>::seed_from_u64(seed.wrapping_add(k));
+    let (traced_text, _s, placements) = crate::generator::core::generate_text_traced(
+        &mut rng, &gen.lex, &toks, Some(&payload_word_set), false, gen.mode, language,
+        Some(rules.dialect), gen.k_min, gen.k_max, gen.length_mode, " ",
+    );
+    debug_assert_eq!(traced_text, text, "traced re-render must match the selected candidate");
+    Ok((text, placements))
+}
+
+/// Shared render setup under a version's frozen rules. Env-independent:
 /// semantics is attached or detached from the rules alone, so
 /// `GLOSSIA_DISABLE_SEMANTICS` cannot change what a canonical artifact looks
 /// like.
-fn render_canonical(
+fn prepare_render(
     words: &[String],
-    bytes: &[u8],
     language: &str,
     wordlist: &str,
     rules: &VersionRules,
-) -> Result<String, CanonicalError> {
+) -> Result<
+    (
+        Vec<crate::generator::types::PayloadTok>,
+        HashSet<String>,
+        crate::pipeline::ZoneGenerator,
+    ),
+    CanonicalError,
+> {
     let (toks, payload_word_set, mut gen) =
         prepare_words_encode(words, language, wordlist, rules.dialect)
             .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
@@ -228,7 +292,18 @@ fn render_canonical(
     } else {
         gen.lex = gen.lex.without_semantics();
     }
+    Ok((toks, payload_word_set, gen))
+}
 
+/// Render payload words under a version's frozen rules.
+fn render_canonical(
+    words: &[String],
+    bytes: &[u8],
+    language: &str,
+    wordlist: &str,
+    rules: &VersionRules,
+) -> Result<String, CanonicalError> {
+    let (toks, payload_word_set, gen) = prepare_render(words, language, wordlist, rules)?;
     let seed = checksum_seed(bytes, 0);
     let (text, _set, _k) = crate::generator::core::generate_text_best_of_indexed(
         seed, rules.best_of, &gen.lex, &toks, Some(&payload_word_set), false,
