@@ -1046,12 +1046,26 @@ pub fn generate_text_best_of_indexed(
     };
 
     let n = n_candidates.max(1);
-    let model = lex.semantics();
-    if n == 1 || model.is_none() {
+    if n == 1 {
         let (text, set) = gen_one(base_seed);
         return (text, set, 0);
     }
-    let model = model.unwrap();
+    let Some(model) = lex.semantics() else {
+        // No coherence model — select purely by density. Strictly-greater
+        // comparison keeps the lowest winning offset on ties, so the choice
+        // is deterministic and a verifier reproduces it exactly.
+        let mut best: Option<(f64, u64, (String, HashSet<String>))> = None;
+        for k in 0..n {
+            let out = gen_one(base_seed.wrapping_add(k as u64));
+            let total = out.0.split_whitespace().count().max(1);
+            let density = payload.len() as f64 / total as f64;
+            if best.as_ref().map_or(true, |b| density > b.0) {
+                best = Some((density, k as u64, out));
+            }
+        }
+        let (_, k, (text, set)) = best.expect("n >= 1 candidates generated");
+        return (text, set, k);
+    };
 
     // Generate and score each candidate sequentially. (Candidates are
     // independent and could be parallelized, but the sequence-cache memo makes

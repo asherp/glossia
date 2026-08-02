@@ -7,6 +7,7 @@
 - [Usage](./usage.md)
 - [Examples](./examples.md)
 - [How It Works](./how-it-works.md)
+- [Canonical Encoding](./canonical-encoding.md)
 - [Prose Quality (Semantic Planning)](./prose-quality.md)
 - [Grammar](./grammar.md)
 - [Dialect Calculus](./dialect-calculus.md)

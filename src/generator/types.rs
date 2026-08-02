@@ -90,6 +90,14 @@ impl Lexicon {
         self
     }
 
+    /// Detach the semantic model, forcing classic POS-only planning. The
+    /// canonical encoder uses this to render under a version whose rules
+    /// predate a language's semantics, regardless of what the build ships.
+    pub fn without_semantics(mut self) -> Self {
+        self.semantics = None;
+        self
+    }
+
     /// The attached semantic model, if any.
     pub fn semantics(&self) -> Option<&SemanticModel> {
         self.semantics.as_deref()

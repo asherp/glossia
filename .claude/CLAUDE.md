@@ -12,6 +12,7 @@ Glossia is **a readable encoding, not steganography**. The goal is not to hide t
 - **Type-driven layer** (`grammar.yaml` files): Montague-style semantic types constrain POS slots via lambda calculus
 - **Generator** (`src/generator/`): embeds payload words into POS slots using maximum subsequence matching, fills remaining slots with cover words
 - **Semantic planning** (`src/generator/semantics.rs`): optional layer that biases word choice toward coherent verb-argument pairings (see below)
+- **Canonical layer** (`src/canonical.rs`): versioned, deterministic encode/decode — one payload, one prose form, stable across releases (see below)
 - **Merkle system** (`src/merkle.rs`): append-only wordlist trees with merkleization for cryptographic proofs
 - **Build system** (`build.rs`): embeds all `languages/` YAML at compile time; debug builds embed English only
 
@@ -110,7 +111,27 @@ All project documentation lives in `docs/src/` (mdBook format). When creating or
 - Wordlists are **strictly append-only** for backward compatibility
 - Payload words and cover words must be disjoint sets
 - Function-word POS slots (Aux, Cop, To, Prefix, Dot) are reserved for cover words only
-- `semantics.yaml` is the exception — it *annotates* existing words (classes/frames) rather than defining the wordlist, so it is regenerable, not append-only (see Semantic sentence planning)
+- `semantics.yaml` is the exception — it *annotates* existing words (classes/frames) rather than defining the wordlist, so it is regenerable, not append-only (see Semantic sentence planning). **Caveat**: once a canonical version lists a language in its `semantics_languages`, that language's semantics.yaml is frozen — regeneration requires a new canonical version (see Canonical encoding)
+
+## Canonical encoding (`src/canonical.rs`)
+
+`canonical_encode`/`canonical_decode` (also WASM exports): payload is prefixed with a
+version byte, packed via the self-describing `bitpack` codec, and rendered with cover
+seeded from a checksum of the encoded bytes. Decode reads the version byte and verifies
+by re-rendering **under that version's frozen rules** (`rules_for` registry: best_of,
+dialect, which languages use semantics) — so rendering improvements ship as new versions
+and old artifacts keep verifying. v1: best_of=4, dialect `body`, semantics=english only.
+
+**Freeze discipline**: verification-by-re-render makes everything the renderer reads part
+of the format. For languages with shipped canonical artifacts, grammar/dialect/cover data
+and the version's semantics.yaml must not change in place — even cover *appends* change
+RNG draws. Any such change = new version entry + `CANONICAL_VERSION` bump.
+`tests/canonical.rs` pins exact golden renderings (english/latin/czech); a golden failure
+means "add a version", never "update the golden". `examples/canonical_probe.rs` prints
+renderings for pinning new goldens. The canonical path ignores `GLOSSIA_DISABLE_SEMANTICS`
+(via `load_semantics_cached_ignore_env`). Note: `generate_text_best_of_indexed` selects by
+density (deterministic, lowest-offset tie-break) when a language has no semantic model —
+best-of is meaningful for semantics-less languages too.
 
 ## Agents
 
