@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="80dd1aa">
+<meta name="glossia-build" content="b0ad27e">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -1154,16 +1154,19 @@ footer a:hover { text-decoration: underline; }
             <span class="addr-glyph">&#8982;</span> OP_HASH160, <span class="addr-glyph">&#8801;</span>
             OP_EQUALVERIFY, <span class="addr-glyph">&#8711;</span> OP_CHECKSIG). Glossia encodes only the
             part that carries entropy &mdash; the 20- or 32-byte program &mdash; which is
-            <strong>15 words</strong> for a hash160 address and <strong>24</strong> for a 32-byte one.</p>
+            <strong>17 words</strong> for a hash160 address and <strong>25</strong> for a 32-byte one.</p>
             <p><strong>&#9450;</strong> and <strong>&#9312;</strong> are worth a note: Unicode counts them
             as <em>alphanumeric</em>, so the decoder&rsquo;s token trim does not strip them. Written flush
             against an address word they would hide it entirely. They are safe here because the format
             <em>declares</em> its glyphs and they are removed by name &mdash; a rule based on character
             category would silently lose a word.</p>
-            <p>The format's version and wordlist size ride in the <strong>bit-packing slack</strong>
-            and cost nothing: 160 data bits + 5 header bits is exactly 15 words, and 256 + 8 is
-            exactly 24. Wordlist size is stored as its log&#8322;, which fits in 4 bits because
-            payload wordlists are powers of two.</p>
+            <p>The words are Glossia&rsquo;s <strong>canonical encoding</strong>: the program is
+            prefixed with a <strong>version byte</strong> and packed with a self-describing codec,
+            so the artifact itself names the rules it was rendered under. When rendering improves
+            &mdash; new languages, better prose &mdash; new artifacts get a new version while an old
+            one keeps verifying under the rules its byte selects. The version and packing cost two
+            words on a hash160 address; that is the price of an artifact that stays valid across
+            releases.</p>
             <p><strong>The wording is the checksum.</strong> The cover words are chosen by a seed
             derived from a CRC-32 of the address, so a different address produces a visibly
             different paragraph. Verification re-renders the address you decoded and compares:
@@ -1388,10 +1391,11 @@ import init, {
   get_default_wordlist as wasmGetDefaultWordlist,
   encode_raw_base_n as wasmEncodeRawBaseN,
   decode_raw_base_n as wasmDecodeRawBaseN,
-  encode_words as wasmEncodeWords,
   get_payload_words as wasmGetPayloadWords,
   get_cover_words as wasmGetCoverWords,
-  checksum_seed_for as wasmChecksumSeed,
+  canonical_encode as wasmCanonicalEncode,
+  canonical_encode_traced as wasmCanonicalEncodeTraced,
+  canonical_decode_raw as wasmCanonicalDecodeRaw,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
@@ -2228,17 +2232,17 @@ const ADDR_MARKUP = new Set(Object.values(ADDR_OPS).map(([g]) => g));
 const addrGlyphs = (type, which) => ((ADDR_SCRIPT[type] || {})[which] || []).map(k => ADDR_OPS[k][0]).join(' ');
 const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_SCRIPT[type] || {}).trail || [])
   .map(k => ADDR_OPS[k][0] + ' ' + ADDR_OPS[k][1]).join('  \u00b7  ');
-// Fluency budget, locked at 4. This is a fixed PARAMETER, not a search: the
-// encoder renders best-of-4 from the checksum seed, and the verifier renders
-// best-of-4 from the same seed and compares. One address, one prose — there is
-// no counter to sweep and no ambiguity about which rendering is canonical.
+// The prose is Glossia's CANONICAL encoding: [version byte | program] packed
+// by the self-describing bitpack codec, cover seeded from a checksum of those
+// exact bytes, rendered under the version's frozen rules (v1 pins best-of-4,
+// the value the fluency sweep chose). One address, one prose — and the version
+// byte means the rules can evolve without re-rendering existing artifacts.
 //
-// 4 is where the marginal return falls off. Measured over 96 payloads x 128
-// candidates at both address sizes, density rises 0.53 -> 0.59 (20B) going from
-// N=1 to N=4, and every doubling past N=8 buys under one word while costing
-// linearly more to verify.
-const ADDR_BEST_OF = 4;
-const ADDR_VERSION = 1;
+// Word counts follow from the packing: 1 pad word + ceil(8·(nBytes+1)/11).
+// The version byte and pad word cost two words over the old slack-packed
+// layout on a hash160 address; that is the price of a self-describing format.
+const ADDR_WORD_COUNT = { 20: 17, 32: 25 };
+const ADDR_BYTES_FOR_COUNT = { 17: 20, 25: 32 };
 const ADDR_PRESETS = [
   { label: 'P2WPKH', addr: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4' },
   { label: 'P2TR',   addr: 'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9' },
@@ -2358,32 +2362,21 @@ function addrTypeFromGlyphs(text, nBytes) {
   return null;
 }
 
-// ── bit packing: program bits, then the header, filling the slack exactly ──
-const ADDR_BPW = 11;
-function addrHeaderBits(n) { return Math.ceil(n * 8 / ADDR_BPW) * ADDR_BPW - n * 8; }
-function addrPack(program) {
-  const hb = addrHeaderBits(program.length);
-  const header = (ADDR_BPW << (hb - 4)) | ADDR_VERSION;
-  const db = program.length * 8, n = (db + hb) / ADDR_BPW, out = [];
-  const bit = i => i < db ? (program[i >> 3] >> (7 - (i & 7))) & 1 : (header >> (hb - 1 - (i - db))) & 1;
-  for (let w = 0; w < n; w++) { let v = 0; for (let b = 0; b < ADDR_BPW; b++) v = (v << 1) | bit(w * ADDR_BPW + b); out.push(addrWords[v]); }
-  return out;
-}
-function addrUnpack(words, nBytes) {
-  const hb = addrHeaderBits(nBytes);
-  if (words.length !== (nBytes * 8 + hb) / ADDR_BPW) return null;
-  const bits = [];
-  for (const w of words) { const i = addrIndex.get(w.toLowerCase()); if (i === undefined) return null; for (let b = ADDR_BPW - 1; b >= 0; b--) bits.push((i >> b) & 1); }
-  const prog = new Uint8Array(nBytes);
-  for (let i = 0; i < nBytes; i++) { let v = 0; for (let b = 0; b < 8; b++) v = (v << 1) | bits[i * 8 + b]; prog[i] = v; }
-  return prog;
-}
+// ── packing, seeding and rendering all live in the canonical layer now ──
+// The page never touches bits: canonical_encode owns the version byte, the
+// packing, the checksum seed and the frozen rendering rules.
 const addrHex = b => [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+const addrUnhex = h => Uint8Array.from(h.match(/../g) || [], x => parseInt(x, 16));
 
-// The checksum covers the program plus the header bytes, i.e. exactly the
-// encoded bits. Derived in Rust so browser and core agree bit-for-bit.
-function addrSeed(program, counter) {
-  return wasmChecksumSeed(addrHex(program) + ADDR_BPW.toString(16).padStart(2, '0') + ADDR_VERSION.toString(16).padStart(2, '0'), BigInt(counter));
+// Decode payload words to program bytes, no verification render — the repair
+// search decodes many candidates and renders each through the memoized
+// addrProse instead. Returns null if the words do not decode, decode to a
+// different length, or carry a version this build does not know.
+function addrDecodeWords(words, nBytes) {
+  const r = JSON.parse(wasmCanonicalDecodeRaw(words.join(' '), 'english', 'bip39'));
+  if (r.error) return null;
+  const prog = addrUnhex(r.payload_hex);
+  return prog.length === nBytes ? prog : null;
 }
 
 // An address determines its prose exactly, so the rendering is a pure function
@@ -2395,8 +2388,7 @@ const addrProseCache = new Map();
 function addrProse(program) {
   const key = addrHex(program);
   if (addrProseCache.has(key)) return addrProseCache.get(key);
-  const r = JSON.parse(wasmEncodeWords(JSON.stringify(addrPack(program)),
-    'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
+  const r = JSON.parse(wasmCanonicalEncode(key, 'english', 'bip39'));
   const text = r.error ? null : r.encoded_text;
   if (addrProseCache.size > 400) addrProseCache.clear();
   addrProseCache.set(key, text);
@@ -2404,8 +2396,7 @@ function addrProse(program) {
 }
 
 function addrRender(program, type) {
-  const words = addrPack(program);
-  const r = JSON.parse(wasmEncodeWords(JSON.stringify(words), 'english', 'default', 'body', addrSeed(program, 0), ADDR_BEST_OF));
+  const r = JSON.parse(wasmCanonicalEncodeTraced(addrHex(program), 'english', 'bip39'));
   if (r.error) throw new Error(r.error);
   addrProseCache.set(addrHex(program), r.encoded_text);   // the checker will ask for this
   const lead = addrGlyphs(type, 'lead'), trail = addrGlyphs(type, 'trail');
@@ -2413,7 +2404,6 @@ function addrRender(program, type) {
     prose: r.encoded_text,
     artifact: [lead, r.encoded_text, trail].filter(Boolean).join(' '),
     placements: r.placements || [],
-    words,
   };
 }
 
@@ -2428,11 +2418,11 @@ function addrRead(artifact, nBytes) {
     return w.slice(a, b).toLowerCase();
   };
   const harvested = toks.map(stripMarkup).filter(w => w && addrIndex.has(w));
-  const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
+  const expected = ADDR_WORD_COUNT[nBytes];
   if (harvested.length !== expected)
     return { verdict: 'unreadable', note: `wrong number of address words (${harvested.length}, expected ${expected})` };
-  const program = addrUnpack(harvested, nBytes);
-  if (!program) return { verdict: 'unreadable', note: 'word not in the address vocabulary' };
+  const program = addrDecodeWords(harvested, nBytes);
+  if (!program) return { verdict: 'unreadable', note: 'the address words do not decode' };
 
   // Compare against the re-render with markup removed, so spacing around a glyph
   // (⓪Insect vs ⓪ Insect) is a formatting difference rather than a failed check.
@@ -2543,7 +2533,7 @@ function addrProposeRepairs(artifact, words, budgetMs = ADDR_SEARCH_MS) {
     for (const cand of addrEdit1(words[i])) {
       if (performance.now() > deadline) return hits;
       const w = words.slice(); w[i] = cand;
-      const prog = addrUnpack(w, addrState ? addrState.program.length : 20);
+      const prog = addrDecodeWords(w, addrState ? addrState.program.length : 20);
       if (!prog) continue;
       const text = addrProse(prog);
       if (text === null) continue;
@@ -2666,8 +2656,8 @@ async function addrDecodeRun() {
 
   // A fixed-length address has a fixed word count, so the count picks the size.
   const words = addrHarvest(text);
-  const nBytes = { 15: 20, 24: 32 }[words.length];
-  if (!nBytes) return fail(`${words.length} address words — a prose address has 15 or 24`);
+  const nBytes = ADDR_BYTES_FOR_COUNT[words.length];
+  if (!nBytes) return fail(`${words.length} address words — a prose address has 17 or 25`);
   const type = addrTypeFromGlyphs(text, nBytes);
   if (!type) return fail('no opcode symbol, so the script type is unknown');
   const res = addrRead(text, nBytes);
@@ -2694,7 +2684,7 @@ async function addrEncodeRun() {
     // Structural facts a reader can act on. The checksum and the hash are machine
     // detail — surfacing them invites checking the prose against them, which is
     // the habit this format exists to remove.
-    metaEl.textContent = `${type} · ${r.words.length} address words · ${r.prose.split(/\s+/).length} words total`;
+    metaEl.textContent = `${type} · ${ADDR_WORD_COUNT[program.length]} address words · ${r.prose.split(/\s+/).length} words total`;
     document.getElementById('addr-legend').textContent = addrLegend(type);
     addrPaint(r.artifact, r.placements);
     addrSetVerdict(addrRead(r.artifact, program.length));
@@ -2833,7 +2823,7 @@ function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
   const harvestIdx = [];
   toks.forEach((t, i) => { const c = core(t); if (c && addrIndex.has(c)) { harvested.push(c); harvestIdx.push(i); } });
 
-  const expected = (nBytes * 8 + addrHeaderBits(nBytes)) / ADDR_BPW;
+  const expected = ADDR_WORD_COUNT[nBytes];
 
   // ── too few address words: one has been mangled OFF the vocabulary ────
   // That is a misspelling in the strict sense — the word is not in the
@@ -2873,7 +2863,7 @@ function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
   if (harvested.length > expected) return { marks, verdict: 'long' };
 
   // ── right count: compare against the re-render ────────────────────────
-  const program = addrUnpack(harvested, nBytes);
+  const program = addrDecodeWords(harvested, nBytes);
   if (!program) return { marks, verdict: 'undecodable' };
   // `rendered` IS the expected wording — the diff just computed it, so asking
   // for it again was a second full generation for an answer already in hand.
@@ -2910,7 +2900,9 @@ function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
   // Otherwise an address word is wrong. The cover disagreement is a CONSEQUENCE,
   // not a second fault, so flag only the address word — marking 25 cover words
   // would be technically true and useless.
-  const hits = addrProposeRepairs(artifact, addrPack(program), budgetMs);
+  // The received words round-trip through the program, so they ARE the packed
+  // word list — no need to re-pack.
+  const hits = addrProposeRepairs(artifact, harvested, budgetMs);
   if (hits.length === 1) {
     marks.set(harvestIdx[hits[0].index], { kind: SPELL, suggest: hits[0].to,
       note: `wrong address word; “${hits[0].to}” explains this wording` });

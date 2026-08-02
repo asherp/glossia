@@ -1,6 +1,145 @@
 /* @ts-self-types="./glossia.d.ts" */
 
 /**
+ * Decode canonical prose and verify it by re-rendering under the rules of the
+ * version byte the artifact carries — not the current version, so artifacts
+ * from older canonical versions keep verifying. `canonical_text` is the
+ * reference rendering the verification compared against, so a checker can
+ * diff wording without generating again.
+ *
+ * Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+ * `{ error }`.
+ * @param {string} text
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function canonical_decode(text, language, wordlist) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_decode(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * The decode half alone: payload words → version + payload, no verification
+ * re-render. For repair searches that decode many candidates and render each
+ * through their own (memoized) `canonical_encode` call.
+ *
+ * Returns JSON `{ version, payload_hex }` or `{ error }`.
+ * @param {string} text
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function canonical_decode_raw(text, language, wordlist) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_decode_raw(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Canonical, versioned encode: exactly one prose form per payload, rendered
+ * under the frozen rules of the current canonical version (see
+ * `src/canonical.rs`). `payload_hex` is the payload bytes as hex.
+ *
+ * Returns JSON `{ encoded_text, version }` or `{ error }`.
+ * @param {string} payload_hex
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function canonical_encode(payload_hex, language, wordlist) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(payload_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_encode(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Canonical encode with placements — the same text as `canonical_encode`, plus
+ * where each payload word landed, for UIs that annotate the prose.
+ *
+ * Returns JSON `{ encoded_text, version, placements: [{ word, payload_index,
+ * pos, token_index, sentence, role }] }` or `{ error }`.
+ * @param {string} payload_hex
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function canonical_encode_traced(payload_hex, language, wordlist) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(payload_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_encode_traced(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Derive a cover seed from a payload checksum, so the choice of prose carries the
  * checksum. `hex` is the exact byte string the checksum covers.
  *
