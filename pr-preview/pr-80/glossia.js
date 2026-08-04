@@ -176,6 +176,45 @@ export function canonical_encode(payload_hex, language, wordlist) {
 }
 
 /**
+ * Canonical encode at an EXPLICIT format version, rather than the current one.
+ *
+ * The framing follows the version's own rules, so this writes a version-1
+ * artifact (version byte leading, no checksum) as faithfully as a current one.
+ * It is the re-render half of verification — a JS host checking an old artifact
+ * needs to reproduce it under the rules it was written with — and the escape
+ * hatch for emitting prose an older release can still read.
+ *
+ * Returns JSON `{ encoded_text, version }` or `{ error, kind }`.
+ * @param {string} payload_hex
+ * @param {string} language
+ * @param {string} wordlist
+ * @param {number} version
+ * @returns {string}
+ */
+export function canonical_encode_at(payload_hex, language, wordlist, version) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(payload_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_encode_at(retptr, ptr0, len0, ptr1, len1, ptr2, len2, version);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Canonical encode with NO padding word, for a payload whose byte count the
  * caller already knows and can restate when decoding. Same envelope, same
  * version, same rules as `canonical_encode` — one word shorter, and the prose
