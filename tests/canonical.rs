@@ -8,9 +8,20 @@
 //! these.
 
 use glossia::{
-    canonical_decode, canonical_encode, canonical_encode_at, rules_for, CanonicalError,
-    CANONICAL_VERSION,
+    canonical_decode, canonical_decode_fixed, canonical_encode, canonical_encode_at,
+    canonical_encode_fixed, canonical_encode_fixed_at, canonical_encode_fixed_traced, rules_for,
+    CanonicalError, Envelope, CANONICAL_VERSION,
 };
+
+/// `payload || version || crc32(payload || version)` — the envelope as
+/// `src/canonical.rs` seals it, rebuilt here so a test can craft bytes the
+/// public API would refuse to write.
+fn envelope(payload: &[u8], version: u8) -> Vec<u8> {
+    let mut bytes = payload.to_vec();
+    bytes.push(version);
+    bytes.extend_from_slice(&glossia::codec::crc32(&bytes).to_be_bytes());
+    bytes
+}
 
 const LANGS: &[(&str, &str)] = &[
     ("english", "bip39"),
@@ -64,28 +75,31 @@ fn encoding_is_deterministic() {
 }
 
 #[test]
-fn payload_word_swap_decodes_different_and_unverified() {
+fn payload_word_swap_is_caught_by_the_checksum() {
     let payload: Vec<u8> = (0u8..20).collect();
     let text = canonical_encode(&payload, "english", "bip39").unwrap();
-    // "valve" is a payload word in this rendering; "zebra" is a different
-    // BIP39 word not present in it. The swap keeps the word count, so it
-    // decodes cleanly — to different bytes — and only the wording check
-    // catches it.
-    assert!(text.contains("valve"), "expected payload word missing: {text}");
-    let damaged = text.replace("valve", "zebra");
-    let d = canonical_decode(&damaged, "english", "bip39").unwrap();
-    assert_ne!(d.payload, payload, "swapped payload word must change the bytes");
-    assert!(!d.verified, "damaged payload must not verify");
+    // "cage" is a payload word in this rendering; "zebra" is a different BIP39
+    // word not present in it. The swap keeps the word count, so the words still
+    // unpack — to different bytes — and it is the trailing checksum that refuses
+    // them. Before the checksum this returned a decode with `verified: false`,
+    // which put the burden on every caller to look at that flag.
+    assert!(text.contains("cage"), "expected payload word missing: {text}");
+    let damaged = text.replace("cage", "zebra");
+    match canonical_decode(&damaged, "english", "bip39") {
+        Err(CanonicalError::ChecksumMismatch { .. }) => {}
+        other => panic!("expected ChecksumMismatch, got {other:?}"),
+    }
 }
 
 #[test]
 fn cover_word_damage_keeps_payload_but_unverifies() {
     let payload: Vec<u8> = (0u8..20).collect();
     let text = canonical_encode(&payload, "english", "bip39").unwrap();
-    // "may" is a cover word here — not in BIP39 — so mangling it leaves the
-    // payload intact and only the wording disagrees.
-    assert!(text.contains(" may "), "expected cover word missing: {text}");
-    let damaged = text.replacen(" may ", " mays ", 1);
+    // "via" is a cover word here — not in BIP39 — so mangling it leaves the
+    // payload and its checksum intact, and only the wording disagrees. This is
+    // the damage the checksum CANNOT see and the re-render can.
+    assert!(text.contains(" via "), "expected cover word missing: {text}");
+    let damaged = text.replacen(" via ", " vias ", 1);
     let d = canonical_decode(&damaged, "english", "bip39").unwrap();
     assert_eq!(d.payload, payload, "cover damage must not change the payload");
     assert!(!d.verified, "cover damage must not verify");
@@ -103,11 +117,11 @@ fn verification_ignores_punctuation_and_case() {
 
 #[test]
 fn unknown_version_is_refused_by_name() {
-    // Craft an artifact claiming version 200 through the unversioned seam.
+    // Craft an artifact claiming version 200 through the unversioned seam. The
+    // checksum has to be well-formed or the decoder would stop at it first.
     let tree = glossia::cached_payload_tree("english", "bip39").unwrap();
-    let mut bytes = vec![200u8];
-    bytes.extend(0u8..8);
-    let words = glossia::codec::encode_base_n(&bytes, &tree, "bitpack").unwrap();
+    let bytes = envelope(&(0u8..8).collect::<Vec<u8>>(), 200);
+    let words = glossia::codec::encode_base_n(&bytes, &tree, "canonical_bitpack").unwrap();
     let (text, _) = glossia::pipeline::encode_words_into_language(
         &words, "english", "bip39", "body", 7, 1,
     )
@@ -116,10 +130,63 @@ fn unknown_version_is_refused_by_name() {
         Err(CanonicalError::UnsupportedVersion(200)) => {}
         other => panic!("expected UnsupportedVersion(200), got {other:?}"),
     }
-    // Encoding at an unknown version is refused the same way.
+    // Encoding at an unknown version is refused the same way, both packings.
     match canonical_encode_at(&[1, 2, 3], "english", "bip39", 200) {
         Err(CanonicalError::UnsupportedVersion(200)) => {}
         other => panic!("expected UnsupportedVersion(200), got {other:?}"),
+    }
+    match canonical_encode_fixed_at(&[1, 2, 3], "english", "bip39", 200) {
+        Err(CanonicalError::UnsupportedVersion(200)) => {}
+        other => panic!("expected UnsupportedVersion(200), got {other:?}"),
+    }
+}
+
+#[test]
+fn version_1_artifacts_still_decode_and_verify() {
+    // The point of versioned rules. v1 frames `version || payload` with a
+    // leading padding word and carries no checksum; v2 frames the other way
+    // round. A v1 artifact must still decode, still report version 1, and still
+    // VERIFY — its wording re-rendered under v1's rules, not the current ones.
+    //
+    // English and Czech only: the 0.4.0 wordlist fix renumbered Latin and
+    // German, which is a wordlist change rather than a format one and is
+    // outside what a canonical version can freeze.
+    for (language, wordlist) in [("english", "bip39"), ("czech", "default")] {
+        for payload in payloads() {
+            let text = canonical_encode_at(&payload, language, wordlist, 1)
+                .unwrap_or_else(|e| panic!("{language} v1 encode: {e}"));
+            let d = canonical_decode(&text, language, wordlist)
+                .unwrap_or_else(|e| panic!("{language} v1 decode: {e}"));
+            assert_eq!(d.version, 1, "{language} must report the artifact's own version");
+            assert_eq!(d.payload, payload, "{language} v1 payload round trip");
+            assert!(d.verified, "{language} v1 artifact must still verify");
+        }
+    }
+}
+
+#[test]
+fn the_two_framings_do_not_read_each_other() {
+    // Each version vouches only for the framing it declares, so neither
+    // framing can quietly claim the other's artifact. Without that check the v1
+    // attempt would accept any artifact whose leading byte happened to read 1.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let v1 = canonical_encode_at(&payload, "english", "bip39", 1).unwrap();
+    let v2 = canonical_encode_at(&payload, "english", "bip39", 2).unwrap();
+    assert_ne!(v1, v2, "the framings must produce different prose");
+
+    assert_eq!(canonical_decode(&v1, "english", "bip39").unwrap().version, 1);
+    assert_eq!(canonical_decode(&v2, "english", "bip39").unwrap().version, 2);
+
+    // The fixed packing exists only under v2's framing, so asking for it at v1
+    // is refused by name rather than inventing a layout that never shipped.
+    match canonical_encode_fixed_at(&payload, "english", "bip39", 1) {
+        Err(CanonicalError::NoFixedForm(1)) => {}
+        other => panic!("expected NoFixedForm(1), got {other:?}"),
+    }
+    // And a v1 artifact cannot be read through the fixed decoder.
+    match canonical_decode_fixed(&v1, "english", "bip39", payload.len()) {
+        Err(_) => {}
+        Ok(d) => panic!("fixed decoder must not accept a v1 artifact, got {d:?}"),
     }
 }
 
@@ -171,42 +238,230 @@ fn canonical_ignores_the_semantics_escape_hatch() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Version 1 freeze
+// The fixed packing
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn fixed_round_trips_and_verifies_across_languages() {
+    for (language, wordlist) in LANGS {
+        for payload in payloads() {
+            let text = canonical_encode_fixed(&payload, language, wordlist)
+                .unwrap_or_else(|e| panic!("{language} fixed encode: {e}"));
+            let d = canonical_decode_fixed(&text, language, wordlist, payload.len())
+                .unwrap_or_else(|e| panic!("{language} fixed decode: {e}"));
+            assert_eq!(d.payload, payload, "{language} fixed payload round trip");
+            assert_eq!(d.version, CANONICAL_VERSION, "{language} fixed version");
+            assert!(d.verified, "{language} clean fixed artifact must verify");
+        }
+    }
+}
+
+#[test]
+fn fixed_spends_one_word_less_than_self_describing() {
+    // The padding word is the whole difference: same bytes, same rules, one
+    // fewer word to carry a length the caller already knows.
+    for len in [1usize, 20, 32, 65] {
+        let payload: Vec<u8> = (0..len).map(|i| (i as u8).wrapping_mul(37)).collect();
+        let self_words = glossia::canonical_encode_traced(&payload, "english", "bip39")
+            .unwrap()
+            .1
+            .len();
+        let fixed_words = canonical_encode_fixed_traced(&payload, "english", "bip39")
+            .unwrap()
+            .1
+            .len();
+        assert_eq!(
+            self_words,
+            fixed_words + 1,
+            "len {len}: fixed must be exactly one word shorter"
+        );
+    }
+}
+
+#[test]
+fn the_opening_word_carries_payload_not_envelope() {
+    // The regression this layout exists for. Under v1 the leading padding word
+    // was a function of payload LENGTH alone, so every same-sized payload opened
+    // on the same word — every 32-byte hash began "abandon". Behind the payload,
+    // the opening word is payload.
+    for encode_traced in [
+        glossia::canonical_encode_traced
+            as fn(&[u8], &str, &str) -> Result<_, CanonicalError>,
+        canonical_encode_fixed_traced,
+    ] {
+        let mut firsts = std::collections::HashSet::new();
+        for i in 0..8u8 {
+            let payload: Vec<u8> = (0..32u8).map(|j| j ^ i.wrapping_mul(37)).collect();
+            let (_text, placements) = encode_traced(&payload, "english", "bip39").unwrap();
+            firsts.insert(placements[0].word.clone());
+        }
+        assert!(
+            firsts.len() > 1,
+            "opening word is fixed across distinct 32-byte payloads: {firsts:?}"
+        );
+    }
+}
+
+#[test]
+fn a_truncated_fixed_artifact_is_refused_by_word_count() {
+    // `decode_bitpack_fixed` used to fill `expected_bytes` from whatever words
+    // it had and leave the rest zero, so a paragraph with its tail cut off
+    // decoded to a plausible zero-padded payload. It now counts first, which
+    // catches a truncation as the wrong SHAPE rather than the wrong bytes —
+    // a better error, and the one that lets a host tell "not canonical prose"
+    // (fall back to another decoder) from "canonical prose, damaged" (do not).
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode_fixed(&payload, "english", "bip39").unwrap();
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let truncated = words[..words.len() * 2 / 3].join(" ");
+    match canonical_decode_fixed(&truncated, "english", "bip39", payload.len()) {
+        Err(CanonicalError::Decode(msg)) => {
+            assert!(msg.contains("expected"), "error should name the count: {msg}");
+        }
+        other => panic!("expected a Decode error on a truncated artifact, got {other:?}"),
+    }
+}
+
+#[test]
+fn prose_of_another_length_does_not_pass_as_a_short_payload() {
+    // The same guard from the other side: prose encoding a 32-byte payload must
+    // not decode as a 20-byte one just because the words are all in the list.
+    let long: Vec<u8> = (0u8..32).collect();
+    let text = canonical_encode_fixed(&long, "english", "bip39").unwrap();
+    match canonical_decode_fixed(&text, "english", "bip39", 20) {
+        Err(CanonicalError::Decode(_)) => {}
+        other => panic!("expected a Decode error for the wrong length, got {other:?}"),
+    }
+}
+
+#[test]
+fn canonical_bitpack_puts_the_padding_word_last() {
+    let tree = glossia::cached_payload_tree("english", "bip39").unwrap();
+    let bits_per_word = 11usize;
+    for len in [1usize, 8, 20, 32] {
+        let data: Vec<u8> = (0..len).map(|i| (i as u8).wrapping_mul(53)).collect();
+        let words = glossia::codec::encode_base_n(&data, &tree, "canonical_bitpack").unwrap();
+        let n_data = (data.len() * 8).div_ceil(bits_per_word);
+        let pad = n_data * bits_per_word - data.len() * 8;
+        assert_eq!(words.len(), n_data + 1, "len {len}: word count");
+        assert_eq!(
+            tree.position(words.last().unwrap()),
+            Some(pad),
+            "len {len}: last word must be the padding count"
+        );
+        let back = glossia::codec::decode_base_n(&words, &tree, "canonical_bitpack").unwrap();
+        assert_eq!(back, data, "len {len}: round trip");
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Wordlist sizes
+// ═══════════════════════════════════════════════════════════════════════
+
+#[test]
+fn payload_wordlists_are_powers_of_two() {
+    // `encode_base_n` gates every bitpack codec on this, falling back to
+    // big-integer base-N without a word of complaint. German and Latin failed it
+    // silently for one release because YAML resolved `null:` (die Null) and
+    // `false:` to non-string scalars and the loader skipped them — 2048 -> 2047
+    // and 32768 -> 32767. The words are the guard that would have caught it.
+    for (language, wordlist, expected) in [
+        ("english", "bip39", 2048usize),
+        ("latin", "default", 32768),
+        ("czech", "default", 2048),
+        ("german", "default", 2048),
+    ] {
+        let tree = glossia::cached_payload_tree(language, wordlist).unwrap();
+        assert_eq!(tree.len(), expected, "{language} wordlist size");
+        assert!(tree.len().is_power_of_two(), "{language} must stay a power of two");
+    }
+    assert!(
+        glossia::cached_payload_tree("german", "default").unwrap().contains("null"),
+        "German's `null` must survive YAML's core schema"
+    );
+    assert!(
+        glossia::cached_payload_tree("latin", "default").unwrap().contains("false"),
+        "Latin's `false` must survive YAML's core schema"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Version 2 freeze
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
 fn v1_rules_are_frozen() {
-    let rules = rules_for(1).expect("v1 must always exist");
-    // Changing any of these re-renders every v1 artifact. If a change here is
+    let rules = rules_for(1).expect("v1 must stay reachable — artifacts exist");
+    assert_eq!(rules.best_of, 4);
+    assert_eq!(rules.dialect, "body");
+    assert_eq!(rules.semantics_languages, &["english"]);
+    assert_eq!(rules.envelope, Envelope::VersionLeading);
+}
+
+#[test]
+fn v2_rules_are_frozen() {
+    let rules = rules_for(2).expect("v2 must always exist");
+    // Changing any of these re-renders every v2 artifact. If a change here is
     // intended, it belongs in a NEW version — see the module docs.
     assert_eq!(rules.best_of, 4);
     assert_eq!(rules.dialect, "body");
     assert_eq!(rules.semantics_languages, &["english"]);
+    assert_eq!(rules.envelope, Envelope::PayloadLeading);
 }
 
 #[test]
 fn v1_golden_renderings() {
+    // The 0.3.0 renderings, unchanged. These are the artifacts in the wild that
+    // v1's continued registration exists to keep readable — a diff here means
+    // one of them stopped verifying.
+    //
+    // Latin's v1 golden is deliberately absent: the 0.4.0 wordlist fix
+    // renumbered that list, so no v1 Latin rendering from 0.3.0 survives. See
+    // the retired `v1.0-cafe-latin` vector in tests/test_vectors.json.
+    let hash160: Vec<u8> = (0u8..20).collect();
+    let zeros = vec![0u8; 8];
+
+    assert_eq!(
+        canonical_encode_at(&hash160, "english", "bip39", 1).unwrap(),
+        "Its absurd absurd abandon dog. Alcohol may doctor its odd loan. Son bring abuse to anxiety. Flash addict its bright valve. An ancient cow embark our gas."
+    );
+    assert_eq!(
+        canonical_encode_at(&zeros, "english", "bip39", 1).unwrap(),
+        "The absent absurd abandon abandon. Our abandon abandon abandon to abandon."
+    );
+    assert_eq!(
+        canonical_encode_at(&zeros, "czech", "default", 1).unwrap(),
+        "Aktovka mít amputace se abdikace. Abdikace dát ze abdikace. Abdikace mít abdikace se abdikace."
+    );
+}
+
+#[test]
+fn v2_golden_renderings() {
     // Exact canonical renderings, pinned. These freeze everything the
     // rendering reads: grammar, dialect config, cover wordlists, English's
     // semantics.yaml, the RNG, and the best-of selection. A diff here means a
-    // v1 artifact in the wild no longer verifies.
+    // v2 artifact in the wild no longer verifies.
     let hash160: Vec<u8> = (0u8..20).collect();
     let zeros = vec![0u8; 8];
 
     assert_eq!(
         canonical_encode(&hash160, "english", "bip39").unwrap(),
-        "Its absurd absurd abandon dog. Alcohol may doctor its odd loan. Son bring abuse to anxiety. Flash addict its bright valve. An ancient cow embark our gas."
+        "Abandon amount a liar. Amount expire to adjust via cage. Candy arch to gather. Drum get bullet out an absurd math via equal. Some cop are frozen. Method pistol scale to abuse."
+    );
+    assert_eq!(
+        canonical_encode_fixed(&hash160, "english", "bip39").unwrap(),
+        "Abandon amount a liar. Amount expire to adjust via cage. Candy arch to gather. Drum get bullet out an absurd math via equal. Some cop are frozen. Method may pistol the scale."
     );
     assert_eq!(
         canonical_encode(&zeros, "english", "bip39").unwrap(),
-        "The absent absurd abandon abandon. Our abandon abandon abandon to abandon."
+        "Abandon abandon abandon to abandon. Abandon may abandon the amused abstract. A tap is intact. Son avoid to absorb."
     );
     assert_eq!(
         canonical_encode(&zeros, "latin", "default").unwrap(),
-        "Tu aro fas e jul. Fas aro se is."
+        "Is abs eo. Tu abs eo abs tu. Is eo abs is. Tu aro colonus. Torminalis aca is."
     );
     assert_eq!(
         canonical_encode(&zeros, "czech", "default").unwrap(),
-        "Aktovka mít amputace se abdikace. Abdikace dát ze abdikace. Abdikace mít abdikace se abdikace."
+        "Abdikace ne mít abdikace. Abdikace jít na abdikace. Abdikace mít abdikace si biftek ku alkohol. Nastat mít butik za alej."
     );
 }

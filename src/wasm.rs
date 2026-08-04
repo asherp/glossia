@@ -1413,7 +1413,32 @@ pub fn canonical_encode(payload_hex: &str, language: &str, wordlist: &str) -> St
             "version": crate::canonical::CANONICAL_VERSION,
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
+/// Canonical encode at an EXPLICIT format version, rather than the current one.
+///
+/// The framing follows the version's own rules, so this writes a version-1
+/// artifact (version byte leading, no checksum) as faithfully as a current one.
+/// It is the re-render half of verification — a JS host checking an old artifact
+/// needs to reproduce it under the rules it was written with — and the escape
+/// hatch for emitting prose an older release can still read.
+///
+/// Returns JSON `{ encoded_text, version }` or `{ error, kind }`.
+#[wasm_bindgen]
+pub fn canonical_encode_at(
+    payload_hex: &str,
+    language: &str,
+    wordlist: &str,
+    version: u8,
+) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode_at(&bytes, language, wordlist, version) {
+        Ok(text) => serde_json::json!({ "encoded_text": text, "version": version }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1427,7 +1452,36 @@ pub fn canonical_encode_traced(payload_hex: &str, language: &str, wordlist: &str
     let Some(bytes) = codec::hex_decode(payload_hex) else {
         return serde_json::json!({ "error": "bad payload hex" }).to_string();
     };
-    match crate::canonical::canonical_encode_traced(&bytes, language, wordlist) {
+    traced_json(crate::canonical::canonical_encode_traced(&bytes, language, wordlist))
+}
+
+/// A canonical error as JSON: the message, plus a stable `kind` slug.
+///
+/// The slug is what lets a caller branch without matching on prose. It matters
+/// most for `checksum_mismatch`: a host that falls back to another decoder when
+/// the canonical one declines needs to know the difference between "this is not
+/// canonical prose" (fall back) and "this is canonical prose and it is damaged"
+/// (do not fall back — quietly returning bytes from a different codec would
+/// hand the caller a plausible wrong answer).
+fn canonical_error_json(e: crate::canonical::CanonicalError) -> String {
+    use crate::canonical::CanonicalError as E;
+    let kind = match e {
+        E::EmptyPayload => "empty_payload",
+        E::UnsupportedVersion(_) => "unsupported_version",
+        E::NoPayloadWords => "no_payload_words",
+        E::ChecksumMismatch { .. } => "checksum_mismatch",
+        E::NoFixedForm(_) => "no_fixed_form",
+        E::Encode(_) => "encode",
+        E::Decode(_) => "decode",
+    };
+    serde_json::json!({ "error": e.to_string(), "kind": kind }).to_string()
+}
+
+/// Shared JSON shaping for the traced encoders.
+fn traced_json(
+    result: Result<(String, Vec<crate::generator::core::Placement>), crate::canonical::CanonicalError>,
+) -> String {
+    match result {
         Ok((text, placements)) => {
             let ps: Vec<serde_json::Value> = placements
                 .iter()
@@ -1453,7 +1507,7 @@ pub fn canonical_encode_traced(payload_hex: &str, language: &str, wordlist: &str
             })
             .to_string()
         }
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1475,7 +1529,7 @@ pub fn canonical_decode(text: &str, language: &str, wordlist: &str) -> String {
             "canonical_text": d.canonical_text,
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1492,7 +1546,85 @@ pub fn canonical_decode_raw(text: &str, language: &str, wordlist: &str) -> Strin
             "payload_hex": codec::hex_encode(&payload),
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
+/// Canonical encode with NO padding word, for a payload whose byte count the
+/// caller already knows and can restate when decoding. Same envelope, same
+/// version, same rules as `canonical_encode` — one word shorter, and the prose
+/// opens on payload rather than on a constant the payload's length fixed.
+///
+/// Returns JSON `{ encoded_text, version }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode_fixed(payload_hex: &str, language: &str, wordlist: &str) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode_fixed(&bytes, language, wordlist) {
+        Ok(text) => serde_json::json!({
+            "encoded_text": text,
+            "version": crate::canonical::CANONICAL_VERSION,
+        })
+        .to_string(),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
+/// `canonical_encode_fixed` with placements, for UIs that annotate the prose.
+///
+/// Returns JSON `{ encoded_text, version, placements: [...] }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode_fixed_traced(payload_hex: &str, language: &str, wordlist: &str) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    traced_json(crate::canonical::canonical_encode_fixed_traced(&bytes, language, wordlist))
+}
+
+/// Decode prose written by `canonical_encode_fixed` and verify it by
+/// re-rendering. `payload_len` is the payload's byte count, the envelope's own
+/// bytes excluded.
+///
+/// Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+/// `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_fixed(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> String {
+    match crate::canonical::canonical_decode_fixed(text, language, wordlist, payload_len) {
+        Ok(d) => serde_json::json!({
+            "version": d.version,
+            "payload_hex": codec::hex_encode(&d.payload),
+            "verified": d.verified,
+            "canonical_text": d.canonical_text,
+        })
+        .to_string(),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
+/// The fixed decode half alone: no verification re-render, checksum still
+/// checked.
+///
+/// Returns JSON `{ version, payload_hex }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_raw_fixed(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> String {
+    match crate::canonical::canonical_decode_raw_fixed(text, language, wordlist, payload_len) {
+        Ok((version, payload)) => serde_json::json!({
+            "version": version,
+            "payload_hex": codec::hex_encode(&payload),
+        })
+        .to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 

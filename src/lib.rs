@@ -73,9 +73,10 @@ pub use codec::{
 pub use pipeline::{Pipeline, Endpoint, Verb, PipelineError, encode_into_language, decode_from_language, cached_payload_tree};
 
 pub use canonical::{
-    canonical_decode, canonical_decode_raw, canonical_encode, canonical_encode_at,
-    canonical_encode_traced, rules_for,
-    CanonicalDecoded, CanonicalError, VersionRules, CANONICAL_VERSION,
+    canonical_decode, canonical_decode_fixed, canonical_decode_raw, canonical_decode_raw_fixed,
+    canonical_encode, canonical_encode_at, canonical_encode_fixed, canonical_encode_fixed_at,
+    canonical_encode_fixed_traced, canonical_encode_traced, rules_for,
+    CanonicalDecoded, CanonicalError, Envelope, VersionRules, CANONICAL_VERSION,
 };
 
 #[cfg(feature = "native")]

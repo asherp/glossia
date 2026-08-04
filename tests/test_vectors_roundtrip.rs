@@ -53,6 +53,15 @@ struct DecodeStabilityVector {
     expected_decoded: ValueWithFormat,
     #[serde(default)]
     decode_meta: Option<String>,
+    /// The release that knowingly broke this vector, if any. Retiring a vector
+    /// is a format break being ADMITTED, not tidied away: the entry stays, with
+    /// the version and the reason beside it, so the record of what stopped
+    /// decoding is in the same file as the promise that it wouldn't. A retired
+    /// vector must carry both fields.
+    #[serde(default)]
+    retired_in: Option<String>,
+    #[serde(default)]
+    retired_reason: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -357,6 +366,17 @@ fn decode_stability_vectors() {
     };
 
     for v in &section.vectors {
+        if let Some(ref release) = v.retired_in {
+            let reason = v.retired_reason.as_deref().unwrap_or("");
+            assert!(
+                !reason.is_empty(),
+                "[{}] retired in {release} without a reason — a break has to say what broke it",
+                v.id
+            );
+            eprintln!("[{}] retired in {release}: {reason}", v.id);
+            continue;
+        }
+
         // For crypto formats that need special routing, use the meta pipeline
         if let Some(ref meta) = v.decode_meta {
             let pipe = Pipeline::from_meta(meta).unwrap_or_else(|e| {

@@ -409,6 +409,7 @@ pub fn detect_mode(s: &str) -> (DataMode, Vec<u8>) {
 ///
 /// The `codec` parameter controls encoding strategy:
 /// - `"bitpack"`: fixed-size bit chunks with padding word (uniform distribution, requires power-of-2 wordlist)
+/// - `"canonical_bitpack"`: as `"bitpack"`, but the padding word rides last
 /// - `"bitpack_fixed"`: fixed-size bit chunks without padding word (for known-length payloads)
 /// - `"base_n"` (or anything else): big-integer base-N encoding
 pub fn encode_base_n(data: &[u8], wordlist: &WordlistTree, codec: &str) -> Result<Vec<String>, DecodeError> {
@@ -421,6 +422,7 @@ pub fn encode_base_n(data: &[u8], wordlist: &WordlistTree, codec: &str) -> Resul
     if wordlist.len() > 1 && wordlist.len().is_power_of_two() {
         match codec {
             "bitpack" => return encode_bitpack(data, wordlist),
+            "canonical_bitpack" => return encode_canonical_bitpack(data, wordlist),
             "bitpack_fixed" => return encode_bitpack_fixed(data, wordlist),
             _ => {}
         }
@@ -432,6 +434,7 @@ pub fn encode_base_n(data: &[u8], wordlist: &WordlistTree, codec: &str) -> Resul
 ///
 /// The `codec` parameter controls decoding strategy:
 /// - `"bitpack"`: fixed-size bit chunks with padding word (requires power-of-2 wordlist)
+/// - `"canonical_bitpack"`: as `"bitpack"`, but the padding word rides last
 /// - `"bitpack_fixed"`: fixed-size bit chunks without padding word (requires `expected_bytes`)
 /// - `"base_n"` (or anything else): big-integer base-N decoding
 ///
@@ -446,6 +449,7 @@ pub fn decode_base_n(words: &[String], wordlist: &WordlistTree, codec: &str) -> 
     if wordlist.len() > 1 && wordlist.len().is_power_of_two() {
         match codec {
             "bitpack" => return decode_bitpack(words, wordlist),
+            "canonical_bitpack" => return decode_canonical_bitpack(words, wordlist),
             "bitpack_fixed" => {
                 // Without expected_bytes, infer from word count (exact when aligned)
                 let bits_per_word = wordlist.len().trailing_zeros() as usize;
@@ -592,6 +596,44 @@ fn decode_bitpack(words: &[String], wordlist: &WordlistTree) -> Result<Vec<u8>, 
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// Canonical bitpack encoding (padding word last)
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Encode bytes exactly as [`encode_bitpack`] does, but with the padding word
+/// riding LAST instead of first.
+///
+/// Format: `[data_word_0] ... [data_word_N-1] [padding_word]`
+///
+/// Same bits, same padding count, same round trip -- only the position of the
+/// envelope word differs, and the reason is what a reader sees. The padding
+/// count depends solely on the payload's LENGTH, so for any fixed-size field it
+/// is a constant, and at the front of the list it becomes a constant FIRST word
+/// of the prose: every 32-byte hash opened with the wordlist's word 0. Moving it
+/// to the tail puts payload entropy in the opening words, where a reader starts,
+/// and leaves the fixed word where a paragraph is already trailing off.
+fn encode_canonical_bitpack(data: &[u8], wordlist: &WordlistTree) -> Result<Vec<String>, DecodeError> {
+    let mut words = encode_bitpack(data, wordlist)?;
+    if !words.is_empty() {
+        let pad = words.remove(0);
+        words.push(pad);
+    }
+    Ok(words)
+}
+
+/// Decode [`encode_canonical_bitpack`] output: rotate the trailing padding word
+/// back to the front and hand the rest to the shared bitpack decoder, so the two
+/// layouts can never drift apart in their bit handling.
+fn decode_canonical_bitpack(words: &[String], wordlist: &WordlistTree) -> Result<Vec<u8>, DecodeError> {
+    if words.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut rotated = Vec::with_capacity(words.len());
+    rotated.push(words[words.len() - 1].clone());
+    rotated.extend_from_slice(&words[..words.len() - 1]);
+    decode_bitpack(&rotated, wordlist)
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // Bitpack fixed encoding (no padding word, for known-length payloads)
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -632,11 +674,27 @@ fn encode_bitpack_fixed(data: &[u8], wordlist: &WordlistTree) -> Result<Vec<Stri
 ///
 /// The caller must supply `expected_bytes` — the original payload byte count.
 /// This resolves the bit-alignment ambiguity without needing a padding word.
+///
+/// The word count must be exactly the one `encode_bitpack_fixed` would produce
+/// for `expected_bytes`. It used to be a floor rather than an equality: too few
+/// words simply left the tail of the output zero, so a truncated artifact — or
+/// prose written at some other length entirely — decoded to a plausible
+/// zero-padded payload instead of an error. A decoder told how many bytes to
+/// expect should say so when it was not handed them.
 fn decode_bitpack_fixed(words: &[String], wordlist: &WordlistTree, expected_bytes: usize) -> Result<Vec<u8>, DecodeError> {
     use std::collections::HashMap;
 
     let bits_per_word = wordlist.len().trailing_zeros() as usize;
     let data_bits = expected_bytes * 8;
+    let expected_words = data_bits.div_ceil(bits_per_word);
+    if words.len() != expected_words {
+        return Err(DecodeError::MalformedPayload(format!(
+            "decode_bitpack_fixed: {} words for {} bytes, expected {}",
+            words.len(),
+            expected_bytes,
+            expected_words
+        )));
+    }
 
     let mut word_to_index: HashMap<String, usize> = HashMap::new();
     for (i, word) in wordlist.words().iter().enumerate() {
