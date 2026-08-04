@@ -10,7 +10,7 @@
 use glossia::{
     canonical_decode, canonical_decode_fixed, canonical_encode, canonical_encode_at,
     canonical_encode_fixed, canonical_encode_fixed_at, canonical_encode_fixed_traced, rules_for,
-    CanonicalError, CANONICAL_VERSION,
+    CanonicalError, Envelope, CANONICAL_VERSION,
 };
 
 /// `payload || version || crc32(payload || version)` — the envelope as
@@ -142,26 +142,52 @@ fn unknown_version_is_refused_by_name() {
 }
 
 #[test]
-fn version_1_artifacts_are_refused_rather_than_misread() {
-    // v1 put the version byte FIRST and carried no checksum. This release packs
-    // neither, so a v1 artifact must fail loudly. What it must NOT do is hand
-    // back a payload shifted by five bytes as though it had read it.
-    let tree = glossia::cached_payload_tree("english", "bip39").unwrap();
-    let mut v1_bytes = vec![1u8];
-    v1_bytes.extend(0u8..20);
-    let words = glossia::codec::encode_base_n(&v1_bytes, &tree, "bitpack").unwrap();
-    let (text, _) = glossia::pipeline::encode_words_into_language(
-        &words, "english", "bip39", "body", 7, 1,
-    )
-    .unwrap();
-    match canonical_decode(&text, "english", "bip39") {
-        Err(CanonicalError::ChecksumMismatch { .. }) => {}
-        Err(CanonicalError::UnsupportedVersion(_)) => {}
-        Err(CanonicalError::Decode(_)) => {}
-        other => panic!("a v1 artifact must be refused, got {other:?}"),
+fn version_1_artifacts_still_decode_and_verify() {
+    // The point of versioned rules. v1 frames `version || payload` with a
+    // leading padding word and carries no checksum; v2 frames the other way
+    // round. A v1 artifact must still decode, still report version 1, and still
+    // VERIFY — its wording re-rendered under v1's rules, not the current ones.
+    //
+    // English and Czech only: the 0.4.0 wordlist fix renumbered Latin and
+    // German, which is a wordlist change rather than a format one and is
+    // outside what a canonical version can freeze.
+    for (language, wordlist) in [("english", "bip39"), ("czech", "default")] {
+        for payload in payloads() {
+            let text = canonical_encode_at(&payload, language, wordlist, 1)
+                .unwrap_or_else(|e| panic!("{language} v1 encode: {e}"));
+            let d = canonical_decode(&text, language, wordlist)
+                .unwrap_or_else(|e| panic!("{language} v1 decode: {e}"));
+            assert_eq!(d.version, 1, "{language} must report the artifact's own version");
+            assert_eq!(d.payload, payload, "{language} v1 payload round trip");
+            assert!(d.verified, "{language} v1 artifact must still verify");
+        }
     }
-    // And v1 is gone from the registry, so nothing can be written at it either.
-    assert!(rules_for(1).is_none(), "v1 rules must not be reachable");
+}
+
+#[test]
+fn the_two_framings_do_not_read_each_other() {
+    // Each version vouches only for the framing it declares, so neither
+    // framing can quietly claim the other's artifact. Without that check the v1
+    // attempt would accept any artifact whose leading byte happened to read 1.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let v1 = canonical_encode_at(&payload, "english", "bip39", 1).unwrap();
+    let v2 = canonical_encode_at(&payload, "english", "bip39", 2).unwrap();
+    assert_ne!(v1, v2, "the framings must produce different prose");
+
+    assert_eq!(canonical_decode(&v1, "english", "bip39").unwrap().version, 1);
+    assert_eq!(canonical_decode(&v2, "english", "bip39").unwrap().version, 2);
+
+    // The fixed packing exists only under v2's framing, so asking for it at v1
+    // is refused by name rather than inventing a layout that never shipped.
+    match canonical_encode_fixed_at(&payload, "english", "bip39", 1) {
+        Err(CanonicalError::NoFixedForm(1)) => {}
+        other => panic!("expected NoFixedForm(1), got {other:?}"),
+    }
+    // And a v1 artifact cannot be read through the fixed decoder.
+    match canonical_decode_fixed(&v1, "english", "bip39", payload.len()) {
+        Err(_) => {}
+        Ok(d) => panic!("fixed decoder must not accept a v1 artifact, got {d:?}"),
+    }
 }
 
 #[test]
@@ -364,6 +390,15 @@ fn payload_wordlists_are_powers_of_two() {
 // ═══════════════════════════════════════════════════════════════════════
 
 #[test]
+fn v1_rules_are_frozen() {
+    let rules = rules_for(1).expect("v1 must stay reachable — artifacts exist");
+    assert_eq!(rules.best_of, 4);
+    assert_eq!(rules.dialect, "body");
+    assert_eq!(rules.semantics_languages, &["english"]);
+    assert_eq!(rules.envelope, Envelope::VersionLeading);
+}
+
+#[test]
 fn v2_rules_are_frozen() {
     let rules = rules_for(2).expect("v2 must always exist");
     // Changing any of these re-renders every v2 artifact. If a change here is
@@ -371,6 +406,33 @@ fn v2_rules_are_frozen() {
     assert_eq!(rules.best_of, 4);
     assert_eq!(rules.dialect, "body");
     assert_eq!(rules.semantics_languages, &["english"]);
+    assert_eq!(rules.envelope, Envelope::PayloadLeading);
+}
+
+#[test]
+fn v1_golden_renderings() {
+    // The 0.3.0 renderings, unchanged. These are the artifacts in the wild that
+    // v1's continued registration exists to keep readable — a diff here means
+    // one of them stopped verifying.
+    //
+    // Latin's v1 golden is deliberately absent: the 0.4.0 wordlist fix
+    // renumbered that list, so no v1 Latin rendering from 0.3.0 survives. See
+    // the retired `v1.0-cafe-latin` vector in tests/test_vectors.json.
+    let hash160: Vec<u8> = (0u8..20).collect();
+    let zeros = vec![0u8; 8];
+
+    assert_eq!(
+        canonical_encode_at(&hash160, "english", "bip39", 1).unwrap(),
+        "Its absurd absurd abandon dog. Alcohol may doctor its odd loan. Son bring abuse to anxiety. Flash addict its bright valve. An ancient cow embark our gas."
+    );
+    assert_eq!(
+        canonical_encode_at(&zeros, "english", "bip39", 1).unwrap(),
+        "The absent absurd abandon abandon. Our abandon abandon abandon to abandon."
+    );
+    assert_eq!(
+        canonical_encode_at(&zeros, "czech", "default", 1).unwrap(),
+        "Aktovka mít amputace se abdikace. Abdikace dát ze abdikace. Abdikace mít abdikace se abdikace."
+    );
 }
 
 #[test]

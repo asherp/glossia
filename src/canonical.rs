@@ -46,21 +46,30 @@
 //! requires a new canonical version if canonical artifacts exist for that
 //! language. The golden tests in `tests/canonical.rs` enforce the freeze.
 //!
-//! # Version 1 is gone, and why that was allowed once
+//! # Two framings, both live
 //!
-//! Version 1 put the version byte in FRONT of the payload, which is what made
-//! the envelope unversionable: the byte had to be readable before the rules were
-//! known, so its position could never move without breaking the mechanism that
-//! is supposed to prevent breaks. Version 2 moves it anyway, and pays for it by
-//! dropping v1 from [`rules_for`] outright rather than pretending both layouts
-//! can coexist — a v1 artifact reads its last byte as a version, finds nothing
-//! registered, and is refused by name.
+//! Version 1 put the version byte in FRONT of the payload, and that position was
+//! meant to be eternal: the byte has to be readable before the rules are known,
+//! so moving it appears to break the very mechanism that keeps artifacts
+//! readable. Version 2 moves it anyway, and the checksum is what pays for the
+//! move. A decoder no longer has to be TOLD which framing it is holding — it
+//! tries [`Envelope::PayloadLeading`], and a wrong guess fails its crc32 with
+//! probability 1 − 2⁻³². So it falls back to [`Envelope::VersionLeading`]
+//! without guesswork, and v1 artifacts keep decoding and keep verifying under
+//! v1's own rules.
 //!
-//! That was affordable exactly once: v1 shipped in 0.3.0, and the only consumer
-//! rendered its prose on demand rather than storing it, so no artifact was
-//! stranded. It is not affordable again. From v2 on the envelope's shape is
-//! frozen along with everything else a version freezes, and a future version
-//! changes rendering rules only.
+//! [`Envelope`] is therefore part of [`VersionRules`], and a version vouches
+//! only for the framing it declares — a v1 attempt is rejected unless the byte
+//! it finds names a version that actually says `VersionLeading`. This is what
+//! `rules_for` is for; dropping an old version would make the whole apparatus
+//! decorative.
+//!
+//! One caveat no version rule can repair: v1 artifacts in LATIN and GERMAN do
+//! not decode under 0.4.0. Those wordlists were one word short of a power of two
+//! until this release, so restoring the words renumbered every index and moved
+//! both languages from base-N to bitpack. That is a wordlist change rather than
+//! a format change, and it sits outside what a canonical version freezes.
+//! English and Czech v1 artifacts are unaffected.
 //!
 //! Callers that want more flexibility — their own seeds, bit packing, headers,
 //! best-of budgets — should use [`crate::pipeline::encode_words_into_language`]
@@ -76,64 +85,106 @@ use crate::codec::{
 use crate::pipeline::{cached_payload_tree, prepare_words_encode, resolve_wordlist_name};
 
 /// The version new canonical artifacts are written at.
-///
-/// Version 2 moved the version byte behind the payload and added the trailing
-/// checksum. Version 1 artifacts carried the version byte in front and cannot be
-/// read under this layout — a v1 artifact decodes its LAST byte as the version,
-/// which names no registered rules, so [`canonical_decode`] refuses it by name
-/// instead of returning a mis-framed payload.
 pub const CANONICAL_VERSION: u8 = 2;
 
-/// The byte↔word packing for the self-describing entry points. Deliberately NOT
-/// part of [`VersionRules`]: the version byte must be readable before the
-/// version is known, so the packing itself can never be versioned.
-/// (`canonical_bitpack` self-describes its padding with a trailing pad word;
-/// non-power-of-two wordlists fall back to base-N big-integer packing inside
-/// `encode_base_n`, deterministically.)
-const ENVELOPE_CODEC: &str = "canonical_bitpack";
-
 /// The byte↔word packing for the length-parameterized entry points. The caller
-/// states the payload's byte count, so no padding word is needed at all.
+/// states the payload's byte count, so no padding word is needed at all. Only
+/// [`Envelope::PayloadLeading`] versions offer it; v1 never had a fixed form.
 const FIXED_ENVELOPE_CODEC: &str = "bitpack_fixed";
 
 /// Width of the trailing crc32 over `payload || version`.
 const CHECKSUM_LEN: usize = 4;
 
-/// The envelope's fixed overhead: one version byte plus the checksum.
-const ENVELOPE_OVERHEAD: usize = 1 + CHECKSUM_LEN;
-
-/// Wrap a payload: `payload || version || crc32(payload || version)`.
-fn seal_envelope(payload: &[u8], version: u8) -> Vec<u8> {
-    let mut bytes = Vec::with_capacity(payload.len() + ENVELOPE_OVERHEAD);
-    bytes.extend_from_slice(payload);
-    bytes.push(version);
-    bytes.extend_from_slice(&crc32(&bytes).to_be_bytes());
-    bytes
-}
-
-/// Unwrap an envelope into `(version, payload)`, checking the trailing crc32.
+/// How a version frames its payload, and therefore how its bytes pack into
+/// words.
 ///
-/// The version is NOT checked against the registry here — [`rules_for`] is the
-/// caller's business, because the fixed and self-describing decoders report an
-/// unsupported version identically but reach this point differently.
-fn open_envelope(bytes: &[u8]) -> Result<(u8, Vec<u8>), CanonicalError> {
-    // A canonical artifact is at least one payload byte plus the envelope.
-    if bytes.len() < 1 + ENVELOPE_OVERHEAD {
-        return Err(CanonicalError::Decode(format!(
-            "decoded to {} bytes, fewer than the {} an envelope needs",
-            bytes.len(),
-            1 + ENVELOPE_OVERHEAD
-        )));
-    }
-    let (body, checksum) = bytes.split_at(bytes.len() - CHECKSUM_LEN);
-    let found = u32::from_be_bytes(checksum.try_into().expect("split at CHECKSUM_LEN"));
-    let expected = crc32(body);
-    if found != expected {
-        return Err(CanonicalError::ChecksumMismatch { expected, found });
-    }
-    let version = body[body.len() - 1];
-    Ok((version, body[..body.len() - 1].to_vec()))
+/// This is the one part of a version's format that the decoder must work out
+/// WITHOUT knowing the version — the layout tells it where the version byte is.
+/// v1 solved that by putting the byte first and declaring the framing eternal;
+/// v2 moves it behind the payload and pays for the move with a checksum, which
+/// is what lets a decoder tell the two apart by trying and checking rather than
+/// by being told.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Envelope {
+    /// v1: `version || payload`, packed with `bitpack` (leading padding word).
+    /// No checksum — the wording re-render was the only integrity check.
+    VersionLeading,
+    /// v2: `payload || version || crc32`, packed with `canonical_bitpack`
+    /// (trailing padding word) or `bitpack_fixed` (none).
+    PayloadLeading,
 }
+
+impl Envelope {
+    /// The self-describing codec this framing packs with.
+    fn codec(self) -> &'static str {
+        match self {
+            Envelope::VersionLeading => "bitpack",
+            Envelope::PayloadLeading => "canonical_bitpack",
+        }
+    }
+
+    /// Bytes this framing adds around the payload.
+    fn overhead(self) -> usize {
+        match self {
+            Envelope::VersionLeading => 1,
+            Envelope::PayloadLeading => 1 + CHECKSUM_LEN,
+        }
+    }
+
+    /// Wrap a payload for this framing.
+    fn seal(self, payload: &[u8], version: u8) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(payload.len() + self.overhead());
+        match self {
+            Envelope::VersionLeading => {
+                bytes.push(version);
+                bytes.extend_from_slice(payload);
+            }
+            Envelope::PayloadLeading => {
+                bytes.extend_from_slice(payload);
+                bytes.push(version);
+                bytes.extend_from_slice(&crc32(&bytes).to_be_bytes());
+            }
+        }
+        bytes
+    }
+
+    /// Unwrap into `(version, payload)`, checking the checksum where there is
+    /// one. The version is NOT checked against the registry here — that is the
+    /// caller's business.
+    fn open(self, bytes: &[u8]) -> Result<(u8, Vec<u8>), CanonicalError> {
+        if bytes.len() < 1 + self.overhead() {
+            return Err(CanonicalError::Decode(format!(
+                "decoded to {} bytes, fewer than the {} a {:?} envelope needs",
+                bytes.len(),
+                1 + self.overhead(),
+                self
+            )));
+        }
+        match self {
+            Envelope::VersionLeading => Ok((bytes[0], bytes[1..].to_vec())),
+            Envelope::PayloadLeading => {
+                let (body, checksum) = bytes.split_at(bytes.len() - CHECKSUM_LEN);
+                let found =
+                    u32::from_be_bytes(checksum.try_into().expect("split at CHECKSUM_LEN"));
+                let expected = crc32(body);
+                if found != expected {
+                    return Err(CanonicalError::ChecksumMismatch { expected, found });
+                }
+                Ok((body[body.len() - 1], body[..body.len() - 1].to_vec()))
+            }
+        }
+    }
+}
+
+/// The framings a decoder tries, newest first.
+///
+/// Order matters only for cost, not correctness: `PayloadLeading` carries a
+/// crc32, so a wrong guess is caught with probability 1 − 2⁻³², and
+/// `VersionLeading` is only accepted when the byte it finds names rules that
+/// actually declare that framing. A v2 artifact read as v1 yields a version
+/// byte from the middle of a payload, which all but never lands on a
+/// registered `VersionLeading` version.
+const ENVELOPES: &[Envelope] = &[Envelope::PayloadLeading, Envelope::VersionLeading];
 
 /// The rendering rules a canonical version freezes.
 ///
@@ -154,26 +205,48 @@ pub struct VersionRules {
     /// that lets semantics arrive for a language without re-rendering its
     /// existing artifacts.
     pub semantics_languages: &'static [&'static str],
+    /// How this version frames its payload. Unlike the other fields, the
+    /// decoder must determine this BEFORE it knows the version — see
+    /// [`Envelope`] and [`ENVELOPES`].
+    pub envelope: Envelope,
 }
+
+static V1: VersionRules = VersionRules {
+    best_of: 4,
+    dialect: "body",
+    // English's semantics.yaml is load-bearing for v1 renderings and is
+    // therefore frozen: regenerating it requires a new canonical version.
+    semantics_languages: &["english"],
+    envelope: Envelope::VersionLeading,
+};
 
 static V2: VersionRules = VersionRules {
     best_of: 4,
     dialect: "body",
-    // English's semantics.yaml is load-bearing for v2 renderings and is
-    // therefore frozen: regenerating it requires a new canonical version.
     semantics_languages: &["english"],
+    envelope: Envelope::PayloadLeading,
 };
 
 /// The frozen rules for a canonical version, or `None` if this library release
 /// does not know the version (i.e. the artifact was written by a newer one).
 ///
-/// Version 1 is absent deliberately. Its envelope put the version byte FIRST,
-/// which this release no longer packs or unpacks, so there is no layout under
-/// which a v1 artifact could be re-rendered for verification. Reporting it as
-/// unsupported is the honest answer; silently reading it under v2 framing would
-/// hand back a payload shifted by five bytes.
+/// Version 1 stays registered even though v2 reframed the envelope. Keeping it
+/// is the whole point of versioning rules: an artifact written by 0.3.0 still
+/// decodes and still verifies, because `rules_for` hands the decoder v1's
+/// framing and v1's rendering rules rather than the current ones. What made
+/// that possible is v2's checksum — a decoder can try the new framing, see it
+/// fail its crc32, and fall back to the old one without guessing.
+///
+/// One caveat that no version rule can repair: v1 artifacts in LATIN and GERMAN
+/// do not decode under this release. Those two payload wordlists were one word
+/// short of a power of two until 0.4.0 (YAML resolved `false:` and `null:` to
+/// non-string scalars and the loader dropped them), so restoring the words
+/// renumbered every index and switched the languages from base-N to bitpack.
+/// That is a wordlist change, not a format change, and it is outside what a
+/// canonical version freezes. English and Czech v1 artifacts are unaffected.
 pub fn rules_for(version: u8) -> Option<&'static VersionRules> {
     match version {
+        1 => Some(&V1),
         2 => Some(&V2),
         _ => None,
     }
@@ -192,6 +265,10 @@ pub enum CanonicalError {
     /// The trailing crc32 does not match the payload and version it covers:
     /// the words decoded, but not to the bytes that were encoded.
     ChecksumMismatch { expected: u32, found: u32 },
+    /// The version has no length-parameterized form. Only versions framed
+    /// `payload || version || checksum` offer one; v1's leading version byte
+    /// predates the fixed packing.
+    NoFixedForm(u8),
     Encode(String),
     Decode(String),
 }
@@ -208,6 +285,11 @@ impl fmt::Display for CanonicalError {
                 f,
                 "checksum mismatch: the words carry {:08x}, the payload they decode to checks as {:08x}",
                 found, expected
+            ),
+            CanonicalError::NoFixedForm(v) => write!(
+                f,
+                "canonical version {} has no fixed-length form (its version byte leads)",
+                v
             ),
             CanonicalError::Encode(e) => write!(f, "encode error: {}", e),
             CanonicalError::Decode(e) => write!(f, "decode error: {}", e),
@@ -264,7 +346,8 @@ pub fn canonical_encode_at(
     wordlist: &str,
     version: u8,
 ) -> Result<String, CanonicalError> {
-    encode_canonical_with(payload, language, wordlist, version, ENVELOPE_CODEC)
+    let rules = rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
+    encode_canonical_with(payload, language, wordlist, version, rules.envelope.codec())
 }
 
 /// Encode `payload` as canonical prose with NO padding word.
@@ -292,6 +375,10 @@ pub fn canonical_encode_fixed_at(
     wordlist: &str,
     version: u8,
 ) -> Result<String, CanonicalError> {
+    let rules = rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
+    if rules.envelope != Envelope::PayloadLeading {
+        return Err(CanonicalError::NoFixedForm(version));
+    }
     encode_canonical_with(payload, language, wordlist, version, FIXED_ENVELOPE_CODEC)
 }
 
@@ -308,7 +395,7 @@ fn encode_canonical_with(
         return Err(CanonicalError::EmptyPayload);
     }
 
-    let bytes = seal_envelope(payload, version);
+    let bytes = rules.envelope.seal(payload, version);
     let wl = resolve_wordlist_name(language, wordlist);
     let tree = cached_payload_tree(language, wl)
         .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
@@ -376,6 +463,13 @@ pub fn canonical_decode_raw_fixed(
 
 /// The shared decode body. `payload_len` present selects the fixed packing and
 /// states how many bytes to expect; absent selects the self-describing one.
+///
+/// The fixed packing exists only under [`Envelope::PayloadLeading`], so a stated
+/// length pins the framing and there is nothing to search. Without one, each
+/// framing in [`ENVELOPES`] is tried in turn and the first that both unpacks and
+/// names a version declaring that same framing wins. The error reported on total
+/// failure is the FIRST framing's, since that is the one a current artifact was
+/// meant to be.
 fn decode_canonical_with(
     text: &str,
     language: &str,
@@ -393,23 +487,54 @@ fn decode_canonical_with(
         return Err(CanonicalError::NoPayloadWords);
     }
 
-    let bytes = match payload_len {
-        Some(n) => decode_base_n_fixed(&words, &tree, FIXED_ENVELOPE_CODEC, n + ENVELOPE_OVERHEAD),
-        None => decode_base_n(&words, &tree, ENVELOPE_CODEC),
+    if let Some(n) = payload_len {
+        let envelope = Envelope::PayloadLeading;
+        let bytes = decode_base_n_fixed(
+            &words,
+            &tree,
+            FIXED_ENVELOPE_CODEC,
+            n + envelope.overhead(),
+        )
+        .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
+        // The checksum runs before the version lookup on purpose: damaged words
+        // are far likelier than an artifact from the future, so a mangled
+        // paragraph should report itself as mangled rather than as an
+        // unsupported version it never claimed.
+        let (version, payload) = envelope.open(&bytes)?;
+        let rules = rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
+        if rules.envelope != envelope {
+            return Err(CanonicalError::NoFixedForm(version));
+        }
+        return Ok((version, payload));
     }
-    .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
 
-    // The checksum runs before the version lookup on purpose: damaged words are
-    // far likelier than an artifact from the future, so a mangled paragraph
-    // should report itself as mangled rather than as an unsupported version it
-    // never claimed.
-    let (version, payload) = open_envelope(&bytes)?;
-    // Unknown version: the payload words still decode, but there is no way to
-    // verify the wording without the version's rules. Refusing outright is the
-    // honest answer — "unverifiable" from a canonical decoder would be
-    // indistinguishable from damage.
-    rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
-    Ok((version, payload))
+    let mut first_error = None;
+    for &envelope in ENVELOPES {
+        let attempt = decode_base_n(&words, &tree, envelope.codec())
+            .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))
+            .and_then(|bytes| envelope.open(&bytes))
+            .and_then(|(version, payload)| {
+                let rules =
+                    rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
+                // A version only vouches for the framing it declares. Without
+                // this the v1 attempt would accept any artifact whose seventh
+                // byte happened to read 1 or 2.
+                if rules.envelope != envelope {
+                    return Err(CanonicalError::UnsupportedVersion(version));
+                }
+                Ok((version, payload))
+            });
+        match attempt {
+            Ok(found) => return Ok(found),
+            Err(e) => first_error.get_or_insert(e),
+        };
+    }
+    // Unknown version, or nothing that framed cleanly: the payload words may
+    // still unpack, but there is no way to verify the wording without a
+    // version's rules. Refusing outright is the honest answer —
+    // "unverifiable" from a canonical decoder would be indistinguishable from
+    // damage.
+    Err(first_error.expect("ENVELOPES is never empty"))
 }
 
 /// Canonical encode with placements: the current-version rendering plus where
@@ -420,7 +545,8 @@ pub fn canonical_encode_traced(
     language: &str,
     wordlist: &str,
 ) -> Result<(String, Vec<crate::generator::core::Placement>), CanonicalError> {
-    encode_traced_with(payload, language, wordlist, ENVELOPE_CODEC)
+    let rules = rules_for(CANONICAL_VERSION).expect("current version must be registered");
+    encode_traced_with(payload, language, wordlist, rules.envelope.codec())
 }
 
 /// [`canonical_encode_fixed`] with placements. Text identical to
@@ -446,7 +572,7 @@ fn encode_traced_with(
         return Err(CanonicalError::EmptyPayload);
     }
 
-    let bytes = seal_envelope(payload, version);
+    let bytes = rules.envelope.seal(payload, version);
     let wl = resolve_wordlist_name(language, wordlist);
     let tree = cached_payload_tree(language, wl)
         .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;

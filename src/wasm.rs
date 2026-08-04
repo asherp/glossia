@@ -1417,6 +1417,31 @@ pub fn canonical_encode(payload_hex: &str, language: &str, wordlist: &str) -> St
     }
 }
 
+/// Canonical encode at an EXPLICIT format version, rather than the current one.
+///
+/// The framing follows the version's own rules, so this writes a version-1
+/// artifact (version byte leading, no checksum) as faithfully as a current one.
+/// It is the re-render half of verification — a JS host checking an old artifact
+/// needs to reproduce it under the rules it was written with — and the escape
+/// hatch for emitting prose an older release can still read.
+///
+/// Returns JSON `{ encoded_text, version }` or `{ error, kind }`.
+#[wasm_bindgen]
+pub fn canonical_encode_at(
+    payload_hex: &str,
+    language: &str,
+    wordlist: &str,
+    version: u8,
+) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode_at(&bytes, language, wordlist, version) {
+        Ok(text) => serde_json::json!({ "encoded_text": text, "version": version }).to_string(),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
 /// Canonical encode with placements — the same text as `canonical_encode`, plus
 /// where each payload word landed, for UIs that annotate the prose.
 ///
@@ -1445,6 +1470,7 @@ fn canonical_error_json(e: crate::canonical::CanonicalError) -> String {
         E::UnsupportedVersion(_) => "unsupported_version",
         E::NoPayloadWords => "no_payload_words",
         E::ChecksumMismatch { .. } => "checksum_mismatch",
+        E::NoFixedForm(_) => "no_fixed_form",
         E::Encode(_) => "encode",
         E::Decode(_) => "decode",
     };
