@@ -1,6 +1,6 @@
 [package]
 name = "glossia-cli"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Command-line interface for glossia: encode binary data into grammatical natural language"
@@ -20,5 +20,5 @@ path = "src/main.rs"
 # Both `path` and `version` so it builds from the workspace during development
 # and resolves to the published crate when installed from crates.io. Publish the
 # `glossia` library first, then this CLI.
-glossia = { path = "..", version = "0.3.0", features = ["native"] }
+glossia = { path = "..", version = "0.4.0", features = ["native"] }
 rand = "0.8"

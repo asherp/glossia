@@ -1427,7 +1427,14 @@ pub fn canonical_encode_traced(payload_hex: &str, language: &str, wordlist: &str
     let Some(bytes) = codec::hex_decode(payload_hex) else {
         return serde_json::json!({ "error": "bad payload hex" }).to_string();
     };
-    match crate::canonical::canonical_encode_traced(&bytes, language, wordlist) {
+    traced_json(crate::canonical::canonical_encode_traced(&bytes, language, wordlist))
+}
+
+/// Shared JSON shaping for the traced encoders.
+fn traced_json(
+    result: Result<(String, Vec<crate::generator::core::Placement>), crate::canonical::CanonicalError>,
+) -> String {
+    match result {
         Ok((text, placements)) => {
             let ps: Vec<serde_json::Value> = placements
                 .iter()
@@ -1487,6 +1494,84 @@ pub fn canonical_decode(text: &str, language: &str, wordlist: &str) -> String {
 #[wasm_bindgen]
 pub fn canonical_decode_raw(text: &str, language: &str, wordlist: &str) -> String {
     match crate::canonical::canonical_decode_raw(text, language, wordlist) {
+        Ok((version, payload)) => serde_json::json!({
+            "version": version,
+            "payload_hex": codec::hex_encode(&payload),
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// Canonical encode with NO padding word, for a payload whose byte count the
+/// caller already knows and can restate when decoding. Same envelope, same
+/// version, same rules as `canonical_encode` — one word shorter, and the prose
+/// opens on payload rather than on a constant the payload's length fixed.
+///
+/// Returns JSON `{ encoded_text, version }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode_fixed(payload_hex: &str, language: &str, wordlist: &str) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode_fixed(&bytes, language, wordlist) {
+        Ok(text) => serde_json::json!({
+            "encoded_text": text,
+            "version": crate::canonical::CANONICAL_VERSION,
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// `canonical_encode_fixed` with placements, for UIs that annotate the prose.
+///
+/// Returns JSON `{ encoded_text, version, placements: [...] }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode_fixed_traced(payload_hex: &str, language: &str, wordlist: &str) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    traced_json(crate::canonical::canonical_encode_fixed_traced(&bytes, language, wordlist))
+}
+
+/// Decode prose written by `canonical_encode_fixed` and verify it by
+/// re-rendering. `payload_len` is the payload's byte count, the envelope's own
+/// bytes excluded.
+///
+/// Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+/// `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_fixed(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> String {
+    match crate::canonical::canonical_decode_fixed(text, language, wordlist, payload_len) {
+        Ok(d) => serde_json::json!({
+            "version": d.version,
+            "payload_hex": codec::hex_encode(&d.payload),
+            "verified": d.verified,
+            "canonical_text": d.canonical_text,
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// The fixed decode half alone: no verification re-render, checksum still
+/// checked.
+///
+/// Returns JSON `{ version, payload_hex }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_raw_fixed(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> String {
+    match crate::canonical::canonical_decode_raw_fixed(text, language, wordlist, payload_len) {
         Ok((version, payload)) => serde_json::json!({
             "version": version,
             "payload_hex": codec::hex_encode(&payload),

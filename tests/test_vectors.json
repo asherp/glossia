@@ -222,7 +222,7 @@
   },
 
   "decode_stability_vectors": {
-    "_comment": "APPEND-ONLY. These vectors pin encoded prose from specific versions. Every future glossia build must decode each prose string to the expected value. Never edit or remove existing entries.",
+    "_comment": "APPEND-ONLY. These vectors pin encoded prose from specific versions. Every future glossia build must decode each prose string to the expected value. Never edit or remove existing entries. A vector a release knowingly breaks is RETIRED in place — annotated with retired_in and retired_reason and skipped by the test — never deleted, so the break stays on the record beside the promise it broke.",
     "vectors": [
       {
         "id": "v1.0-single-zero-byte",
@@ -297,6 +297,8 @@
       {
         "id": "v1.0-cafe-latin",
         "pinned_since": "1.0.0",
+        "retired_in": "0.4.0",
+        "retired_reason": "Latin's payload wordlist was one word short of 32768: YAML's core schema resolves the entry `false:` to a boolean, and the loader skipped non-string keys. Off a power of two, encode_base_n silently chose big-integer base-N over bitpack. Restoring the word restores bitpack, which re-encodes every Latin artifact — this prose was written under the fallback and cannot decode under the codec Latin was always meant to use.",
         "encoded_prose": "Aca  e  contritio.",
         "decode_from": { "language": "latin", "wordlist": "default", "dialect": "default" },
         "expected_decoded": { "value": "cafe", "format": "hex" }

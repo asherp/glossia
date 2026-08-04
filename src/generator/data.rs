@@ -236,6 +236,31 @@ fn payload_cache_file_path(language: &str, wordlist: &str, payload_path: Option<
     glossia_cache_dir().join(format!("payload_cache_{language}_{wordlist}_{key:016x}.bin"))
 }
 
+/// A payload-wordlist YAML key as the word it spells.
+///
+/// A wordlist is a list of words, but YAML's core schema resolves a few of them
+/// to non-string scalars: German's `null` (die Null) becomes the null value,
+/// Latin's `false` becomes a boolean, and a numeric wordlist (math/primes)
+/// becomes numbers. Reading the key with `as_str()` alone drops those entries
+/// silently, which costs the word AND can knock the list off the size its codec
+/// depends on -- `encode_base_n` gates the bitpack codecs on a power-of-two
+/// wordlist, so one lost word sent German (2048 -> 2047) and Latin
+/// (32768 -> 32767) down the big-integer path instead. Spell the scalar back
+/// out rather than skipping it; only a non-scalar key (a sequence or mapping,
+/// which no wordlist writes) is genuinely not a word.
+fn payload_key_word(key: &serde_yaml::Value) -> Option<String> {
+    use serde_yaml::Value;
+    match key {
+        Value::String(s) => Some(s.clone()),
+        // `null` and `~` both land here; a wordlist that wants the word spells
+        // it out, and no wordlist carries `~`.
+        Value::Null => Some("null".to_string()),
+        Value::Bool(b) => Some(b.to_string()),
+        Value::Number(n) => Some(n.to_string()),
+        _ => None,
+    }
+}
+
 fn load_or_build_payload_cache(language: &str, wordlist: &str) -> Result<Arc<PayloadCacheData>, String> {
     // In-memory cache keyed on (language, wordlist).
     let cache_key = format!("{}:{}", language, wordlist);
@@ -328,7 +353,7 @@ fn load_or_build_payload_cache(language: &str, wordlist: &str) -> Result<Arc<Pay
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::with_capacity(mapping.len());
 
     for (key, value) in mapping {
-        let word = match key.as_str() {
+        let word = match payload_key_word(key) {
             Some(s) => s.to_lowercase(),
             None => continue,
         };
@@ -623,7 +648,7 @@ pub fn load_payload_words_from_yaml_content(yaml_content: &str) -> Result<Vec<St
     let mut words: Vec<String> = Vec::with_capacity(mapping.len());
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::with_capacity(mapping.len());
     for (key, _) in mapping {
-        if let Some(s) = key.as_str() {
+        if let Some(s) = payload_key_word(key) {
             let word = s.to_lowercase();
             if !word.is_empty() && seen.insert(word.clone()) {
                 words.push(word);
