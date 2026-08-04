@@ -1413,7 +1413,7 @@ pub fn canonical_encode(payload_hex: &str, language: &str, wordlist: &str) -> St
             "version": crate::canonical::CANONICAL_VERSION,
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1428,6 +1428,27 @@ pub fn canonical_encode_traced(payload_hex: &str, language: &str, wordlist: &str
         return serde_json::json!({ "error": "bad payload hex" }).to_string();
     };
     traced_json(crate::canonical::canonical_encode_traced(&bytes, language, wordlist))
+}
+
+/// A canonical error as JSON: the message, plus a stable `kind` slug.
+///
+/// The slug is what lets a caller branch without matching on prose. It matters
+/// most for `checksum_mismatch`: a host that falls back to another decoder when
+/// the canonical one declines needs to know the difference between "this is not
+/// canonical prose" (fall back) and "this is canonical prose and it is damaged"
+/// (do not fall back — quietly returning bytes from a different codec would
+/// hand the caller a plausible wrong answer).
+fn canonical_error_json(e: crate::canonical::CanonicalError) -> String {
+    use crate::canonical::CanonicalError as E;
+    let kind = match e {
+        E::EmptyPayload => "empty_payload",
+        E::UnsupportedVersion(_) => "unsupported_version",
+        E::NoPayloadWords => "no_payload_words",
+        E::ChecksumMismatch { .. } => "checksum_mismatch",
+        E::Encode(_) => "encode",
+        E::Decode(_) => "decode",
+    };
+    serde_json::json!({ "error": e.to_string(), "kind": kind }).to_string()
 }
 
 /// Shared JSON shaping for the traced encoders.
@@ -1460,7 +1481,7 @@ fn traced_json(
             })
             .to_string()
         }
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1482,7 +1503,7 @@ pub fn canonical_decode(text: &str, language: &str, wordlist: &str) -> String {
             "canonical_text": d.canonical_text,
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1499,7 +1520,7 @@ pub fn canonical_decode_raw(text: &str, language: &str, wordlist: &str) -> Strin
             "payload_hex": codec::hex_encode(&payload),
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1520,7 +1541,7 @@ pub fn canonical_encode_fixed(payload_hex: &str, language: &str, wordlist: &str)
             "version": crate::canonical::CANONICAL_VERSION,
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1556,7 +1577,7 @@ pub fn canonical_decode_fixed(
             "canonical_text": d.canonical_text,
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 
@@ -1577,7 +1598,7 @@ pub fn canonical_decode_raw_fixed(
             "payload_hex": codec::hex_encode(&payload),
         })
         .to_string(),
-        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+        Err(e) => canonical_error_json(e),
     }
 }
 

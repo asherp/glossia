@@ -674,11 +674,27 @@ fn encode_bitpack_fixed(data: &[u8], wordlist: &WordlistTree) -> Result<Vec<Stri
 ///
 /// The caller must supply `expected_bytes` — the original payload byte count.
 /// This resolves the bit-alignment ambiguity without needing a padding word.
+///
+/// The word count must be exactly the one `encode_bitpack_fixed` would produce
+/// for `expected_bytes`. It used to be a floor rather than an equality: too few
+/// words simply left the tail of the output zero, so a truncated artifact — or
+/// prose written at some other length entirely — decoded to a plausible
+/// zero-padded payload instead of an error. A decoder told how many bytes to
+/// expect should say so when it was not handed them.
 fn decode_bitpack_fixed(words: &[String], wordlist: &WordlistTree, expected_bytes: usize) -> Result<Vec<u8>, DecodeError> {
     use std::collections::HashMap;
 
     let bits_per_word = wordlist.len().trailing_zeros() as usize;
     let data_bits = expected_bytes * 8;
+    let expected_words = data_bits.div_ceil(bits_per_word);
+    if words.len() != expected_words {
+        return Err(DecodeError::MalformedPayload(format!(
+            "decode_bitpack_fixed: {} words for {} bytes, expected {}",
+            words.len(),
+            expected_bytes,
+            expected_words
+        )));
+    }
 
     let mut word_to_index: HashMap<String, usize> = HashMap::new();
     for (i, word) in wordlist.words().iter().enumerate() {

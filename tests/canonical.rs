@@ -277,6 +277,38 @@ fn the_opening_word_carries_payload_not_envelope() {
 }
 
 #[test]
+fn a_truncated_fixed_artifact_is_refused_by_word_count() {
+    // `decode_bitpack_fixed` used to fill `expected_bytes` from whatever words
+    // it had and leave the rest zero, so a paragraph with its tail cut off
+    // decoded to a plausible zero-padded payload. It now counts first, which
+    // catches a truncation as the wrong SHAPE rather than the wrong bytes —
+    // a better error, and the one that lets a host tell "not canonical prose"
+    // (fall back to another decoder) from "canonical prose, damaged" (do not).
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode_fixed(&payload, "english", "bip39").unwrap();
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let truncated = words[..words.len() * 2 / 3].join(" ");
+    match canonical_decode_fixed(&truncated, "english", "bip39", payload.len()) {
+        Err(CanonicalError::Decode(msg)) => {
+            assert!(msg.contains("expected"), "error should name the count: {msg}");
+        }
+        other => panic!("expected a Decode error on a truncated artifact, got {other:?}"),
+    }
+}
+
+#[test]
+fn prose_of_another_length_does_not_pass_as_a_short_payload() {
+    // The same guard from the other side: prose encoding a 32-byte payload must
+    // not decode as a 20-byte one just because the words are all in the list.
+    let long: Vec<u8> = (0u8..32).collect();
+    let text = canonical_encode_fixed(&long, "english", "bip39").unwrap();
+    match canonical_decode_fixed(&text, "english", "bip39", 20) {
+        Err(CanonicalError::Decode(_)) => {}
+        other => panic!("expected a Decode error for the wrong length, got {other:?}"),
+    }
+}
+
+#[test]
 fn canonical_bitpack_puts_the_padding_word_last() {
     let tree = glossia::cached_payload_tree("english", "bip39").unwrap();
     let bits_per_word = 11usize;
