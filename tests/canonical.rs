@@ -9,7 +9,8 @@
 
 use glossia::align::{align, Op};
 use glossia::{
-    canonical_decode, canonical_decode_fixed, canonical_encode, canonical_encode_at,
+    canonical_decode, canonical_decode_fixed, canonical_decode_slots_fixed,
+    canonical_encode, canonical_encode_at,
     canonical_encode_fixed, canonical_encode_fixed_at, canonical_encode_fixed_traced, rules_for,
     CanonicalError, Envelope, Verdict, CANONICAL_VERSION,
 };
@@ -77,19 +78,136 @@ fn encoding_is_deterministic() {
 
 #[test]
 fn payload_word_swap_is_caught_by_the_checksum() {
+    // Pinned to v2, which spends no parity. A swapped payload word keeps the
+    // word count, so the words still unpack — to different bytes — and it is
+    // the trailing checksum that refuses them. Before the checksum this
+    // returned a decode with `verified: false`, which put the burden on every
+    // caller to look at that flag.
+    //
+    // v3 does better than refuse: see the repair test below. This one holds
+    // the older behavior in place, because a v2 artifact must keep decoding
+    // exactly as it always did.
     let payload: Vec<u8> = (0u8..20).collect();
-    let text = canonical_encode(&payload, "english", "bip39").unwrap();
-    // "cage" is a payload word in this rendering; "zebra" is a different BIP39
-    // word not present in it. The swap keeps the word count, so the words still
-    // unpack — to different bytes — and it is the trailing checksum that refuses
-    // them. Before the checksum this returned a decode with `verified: false`,
-    // which put the burden on every caller to look at that flag.
+    let text = canonical_encode_at(&payload, "english", "bip39", 2).unwrap();
     assert!(text.contains("cage"), "expected payload word missing: {text}");
     let damaged = text.replace("cage", "zebra");
     match canonical_decode(&damaged, "english", "bip39") {
         Err(CanonicalError::ChecksumMismatch { .. }) => {}
         other => panic!("expected ChecksumMismatch, got {other:?}"),
     }
+}
+
+#[test]
+fn v3_repairs_a_swapped_payload_word_instead_of_refusing_it() {
+    // What the parity buys. The same damage v2 can only detect, v3 corrects —
+    // without being told where it is, since an unlocated fault is what the
+    // search half of the budget is for.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let (slot, word) = a_lone_payload_word(&text, &is_payload);
+    let intruder = a_payload_word_absent_from(&text, "english", "bip39");
+
+    let damaged = text.replacen(&format!(" {word} "), &format!(" {intruder} "), 1);
+    assert_ne!(damaged, text, "the swap must actually land");
+
+    let d = canonical_decode(&damaged, "english", "bip39").unwrap();
+    assert_eq!(d.payload, payload, "the payload must come back intact");
+    assert_eq!(d.version, 3);
+    assert_eq!(d.repaired, vec![slot], "the repair must name the damaged word");
+}
+
+#[test]
+fn v3_repairs_two_swapped_words_which_is_its_unlocated_bound() {
+    // 2·errors + erasures ≤ 4, so two unlocated faults is exactly the limit.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+
+    let mut damaged = text.clone();
+    let mut hit = Vec::new();
+    for (k, w) in slots.iter().enumerate() {
+        if hit.len() == 2 {
+            break;
+        }
+        let delimited = format!(" {w} ");
+        if slots.iter().filter(|x| *x == w).count() == 1 && damaged.contains(&delimited) {
+            let intruder = a_payload_word_absent_from(&damaged, "english", "bip39");
+            damaged = damaged.replacen(&delimited, &format!(" {intruder} "), 1);
+            hit.push(k);
+        }
+    }
+    assert_eq!(hit.len(), 2, "the test needs two lone payload words to damage");
+
+    let d = canonical_decode(&damaged, "english", "bip39").unwrap();
+    assert_eq!(d.payload, payload);
+    assert_eq!(d.repaired, hit, "both faults located and repaired");
+}
+
+#[test]
+fn a_word_lost_off_the_wordlist_is_repaired_when_alignment_says_where() {
+    // The two halves meeting. A payload word mangled OFF the wordlist never
+    // reaches the harvest, so the prose alone cannot even say a word is
+    // missing — the sequence is simply one shorter, and every later word has
+    // slid up a slot. Alignment against the re-render recovers the position,
+    // and a located fault costs parity half what an unlocated one does.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode_fixed(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let (slot, word) = a_lone_payload_word(&text, &is_payload);
+
+    // Knock it off the list entirely.
+    let damaged = text.replacen(&format!(" {word} "), &format!(" {word}zz "), 1);
+    assert_ne!(damaged, text);
+
+    // Alignment against the correct rendering — the position an error
+    // correcting decoder is in once it holds a candidate.
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, vec![slot], "alignment must locate the hole");
+
+    let d = canonical_decode_slots_fixed(&a.payload_slots, "english", "bip39", payload.len())
+        .expect("a located hole is repairable");
+    assert_eq!(d.payload, payload, "the payload must come back intact");
+    assert_eq!(d.repaired, vec![slot]);
+}
+
+#[test]
+fn four_located_holes_are_repairable_where_four_unlocated_faults_are_not() {
+    // The headline asymmetry, end to end and in prose: parity 4 repairs four
+    // words it is TOLD about, and cannot repair four it must find.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode_fixed(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+
+    let mut damaged = text.clone();
+    let mut hit = Vec::new();
+    for (k, w) in slots.iter().enumerate() {
+        if hit.len() == 4 {
+            break;
+        }
+        let delimited = format!(" {w} ");
+        if slots.iter().filter(|x| *x == w).count() == 1 && damaged.contains(&delimited) {
+            damaged = damaged.replacen(&delimited, &format!(" {w}zz "), 1);
+            hit.push(k);
+        }
+    }
+    assert_eq!(hit.len(), 4, "the test needs four lone payload words to damage");
+
+    // Told where: repaired.
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, hit, "alignment must locate all four");
+    let d = canonical_decode_slots_fixed(&a.payload_slots, "english", "bip39", payload.len())
+        .expect("four located holes are within the budget");
+    assert_eq!(d.payload, payload);
+    assert_eq!(d.repaired, hit);
+
+    // Not told where: refused. Four unlocated faults need parity 8.
+    assert!(
+        canonical_decode_fixed(&damaged, "english", "bip39", payload.len()).is_err(),
+        "four unlocated faults must exceed the budget, not be guessed at"
+    );
 }
 
 #[test]
@@ -400,6 +518,75 @@ fn v1_rules_are_frozen() {
 }
 
 #[test]
+fn v3_rules_are_frozen() {
+    let rules = rules_for(3).expect("v3 must always exist");
+    // Same rendering rules as v2 — the ONLY difference is the parity. Changing
+    // any of these, the parity included, re-renders every v3 artifact.
+    assert_eq!(rules.best_of, 4);
+    assert_eq!(rules.dialect, "body");
+    assert_eq!(rules.semantics_languages, &["english"]);
+    assert_eq!(rules.envelope, Envelope::PayloadLeading);
+    assert_eq!(rules.parity, glossia::V3_PARITY);
+    assert_eq!(glossia::V3_PARITY, 4, "parity is pinned to the version, not chosen per call");
+    assert_eq!(CANONICAL_VERSION, 3, "new artifacts are written at v3");
+
+    // The versions that carry none must keep carrying none.
+    assert_eq!(rules_for(1).unwrap().parity, 0);
+    assert_eq!(rules_for(2).unwrap().parity, 0);
+}
+
+#[test]
+fn v3_golden_renderings() {
+    // Exact v3 renderings, pinned on the same terms as v1's and v2's above.
+    // These additionally freeze the parity: the RS symbols are payload words
+    // like any other, so a change to the field, the generator polynomial, or
+    // V3_PARITY moves the prose.
+    let hash160: Vec<u8> = (0u8..20).collect();
+    let zeros = vec![0u8; 8];
+
+    assert_eq!(
+        canonical_encode(&hash160, "english", "bip39").unwrap(),
+        "Abandon amount a liar. Amount expire to adjust for cage. Candy arch to gather via a drum. Bullet set an absurd math. Its equal infant mention some canyon. Divorce abuse to spy for initial. Owner yet see our mammal."
+    );
+    assert_eq!(
+        canonical_encode_fixed(&hash160, "english", "bip39").unwrap(),
+        "Abandon amount liar to amount. Aid expire to adjust for cage. Candy arch to gather via drum to bullet out absurd. Math may equal infant. Mention too set canyon. Divorce shrug to tie. Its rapid earth may get member."
+    );
+    assert_eq!(
+        canonical_encode(&zeros, "english", "bip39").unwrap(),
+        "Abandon abandon abandon to abandon. Abandon may abandon to assume. Theme may set eagle. Parade too absorb our seed. Its typical cap not adjust its cargo."
+    );
+    assert_eq!(
+        canonical_encode(&zeros, "latin", "default").unwrap(),
+        "Is abs eo abs is abs eo. Tu abs bao. Glomiscellum pensa e aca. Is subsido parco. Tu vult expetesso chromis."
+    );
+    assert_eq!(
+        canonical_encode(&zeros, "czech", "default").unwrap(),
+        "Abdikace mít abdikace ob abdikace. Nový abdikace dát abdikace. Abdikace mít brusinka se valcha. Kamera mít pomoc si alej. Nový smlouva vyklopit bachor ob dotek."
+    );
+}
+
+#[test]
+fn v3_costs_exactly_the_parity_in_words() {
+    // The price, stated in the unit a reader pays it in. v3 seals the same
+    // bytes as v2, so any extra word is parity and nothing else.
+    let is_payload = payload_pred("english", "bip39");
+    for payload in payloads() {
+        let v2 = canonical_encode_fixed_at(&payload, "english", "bip39", 2).unwrap();
+        let v3 = canonical_encode_fixed_at(&payload, "english", "bip39", 3).unwrap();
+        let n2 = glossia::codec::payload_tokens(&v2, &is_payload).len();
+        let n3 = glossia::codec::payload_tokens(&v3, &is_payload).len();
+        assert_eq!(
+            n3 - n2,
+            glossia::V3_PARITY,
+            "v3 must cost exactly the parity, no more: {} vs {} words",
+            n3,
+            n2
+        );
+    }
+}
+
+#[test]
 fn v2_rules_are_frozen() {
     let rules = rules_for(2).expect("v2 must always exist");
     // Changing any of these re-renders every v2 artifact. If a change here is
@@ -446,23 +633,23 @@ fn v2_golden_renderings() {
     let zeros = vec![0u8; 8];
 
     assert_eq!(
-        canonical_encode(&hash160, "english", "bip39").unwrap(),
+        canonical_encode_at(&hash160, "english", "bip39", 2).unwrap(),
         "Abandon amount a liar. Amount expire to adjust via cage. Candy arch to gather. Drum get bullet out an absurd math via equal. Some cop are frozen. Method pistol scale to abuse."
     );
     assert_eq!(
-        canonical_encode_fixed(&hash160, "english", "bip39").unwrap(),
+        canonical_encode_fixed_at(&hash160, "english", "bip39", 2).unwrap(),
         "Abandon amount a liar. Amount expire to adjust via cage. Candy arch to gather. Drum get bullet out an absurd math via equal. Some cop are frozen. Method may pistol the scale."
     );
     assert_eq!(
-        canonical_encode(&zeros, "english", "bip39").unwrap(),
+        canonical_encode_at(&zeros, "english", "bip39", 2).unwrap(),
         "Abandon abandon abandon to abandon. Abandon may abandon the amused abstract. A tap is intact. Son avoid to absorb."
     );
     assert_eq!(
-        canonical_encode(&zeros, "latin", "default").unwrap(),
+        canonical_encode_at(&zeros, "latin", "default", 2).unwrap(),
         "Is abs eo. Tu abs eo abs tu. Is eo abs is. Tu aro colonus. Torminalis aca is."
     );
     assert_eq!(
-        canonical_encode(&zeros, "czech", "default").unwrap(),
+        canonical_encode_at(&zeros, "czech", "default", 2).unwrap(),
         "Abdikace ne mít abdikace. Abdikace jít na abdikace. Abdikace mít abdikace si biftek ku alkohol. Nastat mít butik za alej."
     );
 }
@@ -499,6 +686,26 @@ fn a_cover_word_in(text: &str, is_payload: &impl Fn(&str) -> bool) -> String {
         .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
         .find(|t| !t.is_empty() && !is_payload(t) && text.contains(&format!(" {t} ")))
         .expect("the rendering must contain at least one cover word")
+}
+
+/// A payload word occurring exactly once in `text` and whitespace-delimited,
+/// with its slot index.
+///
+/// Both conditions matter for staging damage: a repeated word makes `replacen`
+/// hit an occurrence other than the slot under test, and one abutting
+/// punctuation or a sentence start cannot be swapped without disturbing its
+/// neighbours. Chosen from the text rather than named, so a rendering change
+/// does not silently turn these tests into no-ops.
+fn a_lone_payload_word(text: &str, is_payload: &impl Fn(&str) -> bool) -> (usize, String) {
+    let slots = glossia::codec::payload_tokens(text, is_payload);
+    slots
+        .iter()
+        .enumerate()
+        .find(|(_, w)| {
+            slots.iter().filter(|x| x == w).count() == 1 && text.contains(&format!(" {w} "))
+        })
+        .map(|(k, w)| (k, w.clone()))
+        .expect("the rendering must contain a lone whitespace-delimited payload word")
 }
 
 /// A payload word that does NOT occur in `text` — a symbol nobody sent, for
@@ -650,17 +857,17 @@ fn a_deletion_and_an_insertion_together_stay_two_local_faults() {
     // and one spurious word gained leaves the harvest the RIGHT LENGTH but
     // shifted through the middle, so a naive decode is wrong across that whole
     // span while looking perfectly well-formed.
-    let lost = format!(" {} ", slots[1]);
-    assert!(text.contains(&lost));
-    let damaged = text.replacen(&lost, " ", 1);
+    let (lost_slot, lost_word) = a_lone_payload_word(&text, &is_payload);
+    let damaged = text.replacen(&format!(" {lost_word} "), " ", 1);
+    assert_ne!(damaged, text, "the deletion must actually land");
     let cover = a_cover_word_in(&damaged, &is_payload);
     let intruder = a_payload_word_absent_from(&text, "english", "bip39");
     let damaged = damaged.replacen(&format!(" {cover} "), &format!(" {intruder} "), 1);
 
     let a = align(&damaged, &text, None, &is_payload);
-    assert_eq!(a.erasures, vec![1], "the loss stays one hole");
+    assert_eq!(a.erasures, vec![lost_slot], "the loss stays one hole");
     assert_eq!(a.spurious.len(), 1, "the gain stays one spurious token");
-    for (k, w) in slots.iter().enumerate().filter(|(k, _)| *k != 1) {
+    for (k, w) in slots.iter().enumerate().filter(|(k, _)| *k != lost_slot) {
         assert_eq!(a.payload_slots[k].as_ref(), Some(w), "slot {k} survived the desync");
     }
 }

@@ -89,7 +89,8 @@ pub use pipeline::{Pipeline, Endpoint, Verb, PipelineError, encode_into_language
 pub use canonical::{
     canonical_decode, canonical_decode_fixed, canonical_decode_raw, canonical_decode_raw_fixed,
     canonical_encode, canonical_encode_at, canonical_encode_fixed, canonical_encode_fixed_at,
-    canonical_encode_fixed_traced, canonical_encode_traced, rules_for,
+    canonical_decode_fixed_repaired, canonical_decode_slots_fixed,
+    canonical_encode_fixed_traced, canonical_encode_traced, rules_for, V3_PARITY,
     CanonicalDecoded, CanonicalError, Envelope, Verdict, VersionRules, CANONICAL_VERSION,
 };
 
