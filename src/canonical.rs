@@ -78,9 +78,9 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use crate::align::{align, Alignment};
 use crate::codec::{
-    checksum_seed, crc32, decode_base_n, decode_base_n_fixed, encode_base_n, normalize_token,
-    payload_tokens,
+    checksum_seed, crc32, decode_base_n, decode_base_n_fixed, encode_base_n, payload_tokens,
 };
 use crate::pipeline::{cached_payload_tree, prepare_words_encode, resolve_wordlist_name};
 
@@ -299,6 +299,24 @@ impl fmt::Display for CanonicalError {
 
 impl std::error::Error for CanonicalError {}
 
+/// How far the received prose confirmed the payload it decoded to.
+///
+/// The third state #76 names — outright failure — is the `Err` half of the
+/// decode result, not a variant here: a decode that could not name a version or
+/// whose checksum did not hold produces no payload to render a verdict on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verdict {
+    /// The wording is the canonical rendering of the payload. Because the cover
+    /// seed is a checksum of the encoded bytes, a wrong payload re-renders the
+    /// whole paragraph differently — so matching wording is a check on the
+    /// bytes, not merely on the prose.
+    Verified,
+    /// The payload decoded and its checksum held, but the wording is not the
+    /// canonical rendering. The cover took transcription damage, or the text
+    /// was produced some other way. The payload still stands on its crc32.
+    Unverified,
+}
+
 /// Result of [`canonical_decode`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalDecoded {
@@ -306,11 +324,28 @@ pub struct CanonicalDecoded {
     pub version: u8,
     /// The payload bytes (version byte stripped).
     pub payload: Vec<u8>,
+    /// Whether the wording confirms the payload, and if not, how far it fell
+    /// short. Reaching this type at all means the envelope's checksum held, so
+    /// [`Verdict::Unverified`] is "the bytes are right and the prose carrying
+    /// them is damaged", not "the bytes are doubtful".
+    pub verdict: Verdict,
+    /// Where the received wording and the canonical rendering diverge, with the
+    /// damage mapped onto payload slots. Empty of damage exactly when
+    /// [`Verdict::Verified`].
+    ///
+    /// This is what a checker UI marks up, and what an error-correcting decoder
+    /// takes its erasure positions from: [`Alignment::payload_slots`] is the
+    /// received symbols in the rendering's own coordinates, so a dropped or
+    /// spurious word does not shift everything after it.
+    pub alignment: Alignment,
     /// Whether the received wording matches the canonical re-render for this
     /// payload and version, compared as normalized alphanumeric tokens — so
     /// punctuation spacing and surrounding markup are formatting, not damage.
     /// `false` means the payload decoded but the prose is not the canonical
     /// rendering of it: transcription damage, or text produced some other way.
+    ///
+    /// Retained as the flat form of [`Verdict`]; `verified == (verdict ==
+    /// Verdict::Verified)`.
     pub verified: bool,
     /// The canonical rendering of the decoded payload — the reference the
     /// verification compared against. Verification computes it anyway, and a
@@ -414,8 +449,7 @@ pub fn canonical_decode(
 ) -> Result<CanonicalDecoded, CanonicalError> {
     let (version, payload) = canonical_decode_raw(text, language, wordlist)?;
     let reference = canonical_encode_at(&payload, language, wordlist, version)?;
-    let verified = same_wording(text, &reference);
-    Ok(CanonicalDecoded { version, payload, verified, canonical_text: reference })
+    judge(text, reference, version, payload, language, wordlist)
 }
 
 /// Decode prose written by [`canonical_encode_fixed`], given the payload's byte
@@ -431,8 +465,41 @@ pub fn canonical_decode_fixed(
 ) -> Result<CanonicalDecoded, CanonicalError> {
     let (version, payload) = canonical_decode_raw_fixed(text, language, wordlist, payload_len)?;
     let reference = canonical_encode_fixed_at(&payload, language, wordlist, version)?;
-    let verified = same_wording(text, &reference);
-    Ok(CanonicalDecoded { version, payload, verified, canonical_text: reference })
+    judge(text, reference, version, payload, language, wordlist)
+}
+
+/// Align received text against its canonical re-render and assemble the verdict.
+///
+/// The alignment subsumes the old boolean comparison: the wording matches
+/// exactly when every position aligned as [`crate::align::Op::Same`], so
+/// `verified` is read off the alignment rather than computed a second way. That
+/// keeps one answer where there were two, and it means an unverified result
+/// arrives with the reason attached instead of only the fact.
+fn judge(
+    text: &str,
+    reference: String,
+    version: u8,
+    payload: Vec<u8>,
+    language: &str,
+    wordlist: &str,
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let wl = resolve_wordlist_name(language, wordlist);
+    let tree = cached_payload_tree(language, wl)
+        .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
+    let payload_set: HashSet<String> = tree.words().iter().map(|w| w.to_lowercase()).collect();
+
+    let alignment = align(text, &reference, None, |w| payload_set.contains(w));
+    let verified = alignment.is_clean();
+    let verdict = if verified { Verdict::Verified } else { Verdict::Unverified };
+
+    Ok(CanonicalDecoded {
+        version,
+        payload,
+        verdict,
+        alignment,
+        verified,
+        canonical_text: reference,
+    })
 }
 
 /// The decode half alone: payload words → version byte + payload bytes, with the
@@ -647,14 +714,3 @@ fn render_canonical(
     Ok(text)
 }
 
-/// Wording equality over normalized alphanumeric tokens: word-exact,
-/// punctuation- and markup-insensitive.
-fn same_wording(a: &str, b: &str) -> bool {
-    let norm = |s: &str| -> Vec<String> {
-        s.split_whitespace()
-            .map(normalize_token)
-            .filter(|t| !t.is_empty())
-            .collect()
-    };
-    norm(a) == norm(b)
-}

@@ -7,10 +7,11 @@
 //! `CANONICAL_VERSION`, and pin new goldens for the new version alongside
 //! these.
 
+use glossia::align::{align, Op};
 use glossia::{
     canonical_decode, canonical_decode_fixed, canonical_encode, canonical_encode_at,
     canonical_encode_fixed, canonical_encode_fixed_at, canonical_encode_fixed_traced, rules_for,
-    CanonicalError, Envelope, CANONICAL_VERSION,
+    CanonicalError, Envelope, Verdict, CANONICAL_VERSION,
 };
 
 /// `payload || version || crc32(payload || version)` — the envelope as
@@ -464,4 +465,231 @@ fn v2_golden_renderings() {
         canonical_encode(&zeros, "czech", "default").unwrap(),
         "Abdikace ne mít abdikace. Abdikace jít na abdikace. Abdikace mít abdikace si biftek ku alkohol. Nastat mít butik za alej."
     );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Alignment: locating damage rather than only detecting it
+// ═══════════════════════════════════════════════════════════════════════
+//
+// The split below is not arbitrary. Damage to a COVER word leaves the payload
+// and its crc32 intact, so `canonical_decode` succeeds and carries an alignment
+// with it. Damage to a PAYLOAD word changes the bytes, the checksum fails, and
+// the decode returns `Err` — there is no payload to render a comparison from.
+//
+// That is the checksum doing its job, and it is also precisely why alignment
+// cannot bootstrap. A payload-damage alignment has to be taken against a
+// CANDIDATE's re-render, which is the position an error-correcting decoder is
+// in once it has proposed a correction. Those tests call `align` directly
+// against the known-correct rendering, standing in for that candidate.
+
+/// The payload wordlist as a predicate, for tests that align by hand.
+fn payload_pred(language: &str, wordlist: &str) -> impl Fn(&str) -> bool {
+    let tree = glossia::cached_payload_tree(language, wordlist).expect("payload tree");
+    let set: std::collections::HashSet<String> =
+        tree.words().iter().map(|w| w.to_lowercase()).collect();
+    move |w: &str| set.contains(w)
+}
+
+/// A cover word occurring in `text`, whitespace-delimited so a replacement
+/// cannot land inside a longer word. Chosen from the text rather than named
+/// outright, so these tests do not break when a rendering changes which cover
+/// words it happens to draw.
+fn a_cover_word_in(text: &str, is_payload: &impl Fn(&str) -> bool) -> String {
+    text.split_whitespace()
+        .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+        .find(|t| !t.is_empty() && !is_payload(t) && text.contains(&format!(" {t} ")))
+        .expect("the rendering must contain at least one cover word")
+}
+
+/// A payload word that does NOT occur in `text` — a symbol nobody sent, for
+/// staging a spurious arrival.
+fn a_payload_word_absent_from(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+) -> String {
+    let tree = glossia::cached_payload_tree(language, wordlist).expect("payload tree");
+    let present: std::collections::HashSet<String> = text
+        .split_whitespace()
+        .map(|t| t.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+        .collect();
+    tree.words()
+        .iter()
+        .map(|w| w.to_lowercase())
+        .find(|w| !present.contains(w))
+        .expect("the wordlist must hold a word this rendering did not use")
+}
+
+#[test]
+fn a_clean_decode_carries_a_clean_alignment() {
+    let payload: Vec<u8> = (0u8..20).collect();
+    for (language, wordlist) in LANGS {
+        let text = canonical_encode(&payload, language, wordlist).unwrap();
+        let d = canonical_decode(&text, language, wordlist).unwrap();
+        assert_eq!(d.verdict, Verdict::Verified);
+        assert!(d.alignment.is_clean(), "{language}: clean text must align clean");
+        assert!(d.alignment.erasures.is_empty(), "{language}");
+        assert!(d.alignment.spurious.is_empty(), "{language}");
+        assert!(
+            d.alignment.payload_slots.iter().all(|s| s.is_some()),
+            "{language}: every slot filled"
+        );
+    }
+}
+
+#[test]
+fn cover_damage_is_localized_and_costs_no_payload_slot() {
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    assert!(text.contains(" via "), "expected cover word missing: {text}");
+    let damaged = text.replacen(" via ", " vias ", 1);
+
+    let d = canonical_decode(&damaged, "english", "bip39").unwrap();
+    assert_eq!(d.payload, payload, "cover damage must not touch the payload");
+    assert_eq!(d.verdict, Verdict::Unverified);
+
+    // The whole gain over a boolean: the disagreement is one token, and it is
+    // named. A cover word is not a payload word, so no slot is a hole.
+    let damaged_tokens: Vec<_> = d.alignment.tokens.iter().filter(|t| t.op != Op::Same).collect();
+    assert_eq!(damaged_tokens.len(), 1, "exactly one token disagrees");
+    assert_eq!(damaged_tokens[0].received.as_deref(), Some("vias"));
+    assert_eq!(damaged_tokens[0].expected.as_deref(), Some("via"));
+    assert!(d.alignment.erasures.is_empty(), "cover damage costs no payload slot");
+    assert_eq!(d.alignment.payload_intact(), d.alignment.payload_slots.len());
+}
+
+#[test]
+fn a_payload_word_knocked_off_the_list_becomes_an_erasure_at_its_own_slot() {
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+
+    // The payload words of the correct rendering, in order — the slots.
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+    assert!(slots.len() > 3, "need several slots to damage a middle one");
+
+    // Mangle the third payload word off the wordlist. The harvest loses it
+    // entirely, which is the damage mode a positional code cannot see unaided.
+    let target = &slots[2];
+    let damaged = text.replacen(target.as_str(), &format!("{target}zz"), 1);
+    assert_ne!(damaged, text, "the substitution must actually land");
+
+    // Payload damage fails the checksum: there is no decode to align from.
+    assert!(
+        canonical_decode(&damaged, "english", "bip39").is_err(),
+        "payload damage must be caught, not silently decoded"
+    );
+
+    // An error-correcting decoder holding the right candidate aligns against
+    // its re-render — and gets the slot number, which is what it needs.
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, vec![2], "the hole is at the damaged slot, and only there");
+    assert_eq!(a.payload_slots[2], None);
+    assert_eq!(a.payload_slots.len(), slots.len(), "slot count follows the rendering");
+    for (k, w) in slots.iter().enumerate().filter(|(k, _)| *k != 2) {
+        assert_eq!(a.payload_slots[k].as_ref(), Some(w), "slot {k} must be undisturbed");
+    }
+}
+
+#[test]
+fn a_dropped_payload_word_does_not_shift_the_slots_after_it() {
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+
+    // Delete the second payload word outright. Every later payload word now
+    // arrives one position early; without alignment the harvest reads as
+    // damaged from that point to the end.
+    let target = format!(" {} ", slots[1]);
+    assert!(text.contains(&target), "expected a whitespace-delimited payload word");
+    let damaged = text.replacen(&target, " ", 1);
+
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, vec![1], "only the dropped slot is a hole");
+    for (k, w) in slots.iter().enumerate().filter(|(k, _)| *k != 1) {
+        assert_eq!(
+            a.payload_slots[k].as_ref(),
+            Some(w),
+            "slot {k} kept its own word across the shift"
+        );
+    }
+}
+
+#[test]
+fn a_cover_word_mangled_onto_the_list_is_reported_spurious_and_takes_no_slot() {
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+
+    // A word that was never sent arrives on the payload wordlist. The harvest
+    // gains a symbol, shifting everything after it the other way.
+    let cover = a_cover_word_in(&text, &is_payload);
+    let intruder = a_payload_word_absent_from(&text, "english", "bip39");
+    let damaged = text.replacen(&format!(" {cover} "), &format!(" {intruder} "), 1);
+    assert_ne!(damaged, text, "the substitution must actually land");
+
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.spurious.len(), 1, "the arrival is spurious, not a slot");
+    assert!(a.erasures.is_empty(), "no slot actually lost its word");
+    assert_eq!(a.payload_slots.len(), slots.len());
+    for (k, w) in slots.iter().enumerate() {
+        assert_eq!(a.payload_slots[k].as_ref(), Some(w), "slot {k} undisturbed");
+    }
+}
+
+#[test]
+fn a_deletion_and_an_insertion_together_stay_two_local_faults() {
+    let payload: Vec<u8> = (100u8..132).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+
+    // The case that defeats a positional code outright: one payload word lost
+    // and one spurious word gained leaves the harvest the RIGHT LENGTH but
+    // shifted through the middle, so a naive decode is wrong across that whole
+    // span while looking perfectly well-formed.
+    let lost = format!(" {} ", slots[1]);
+    assert!(text.contains(&lost));
+    let damaged = text.replacen(&lost, " ", 1);
+    let cover = a_cover_word_in(&damaged, &is_payload);
+    let intruder = a_payload_word_absent_from(&text, "english", "bip39");
+    let damaged = damaged.replacen(&format!(" {cover} "), &format!(" {intruder} "), 1);
+
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, vec![1], "the loss stays one hole");
+    assert_eq!(a.spurious.len(), 1, "the gain stays one spurious token");
+    for (k, w) in slots.iter().enumerate().filter(|(k, _)| *k != 1) {
+        assert_eq!(a.payload_slots[k].as_ref(), Some(w), "slot {k} survived the desync");
+    }
+}
+
+#[test]
+fn erasure_count_is_the_parity_budget_an_ecc_would_need() {
+    // The whole point of erasures over errors: an erasure costs one parity
+    // symbol where an unlocated error costs two. This pins the accounting that
+    // #81's parity sizing rests on, so a regression in localization shows up as
+    // a doubled budget rather than as a silent quality loss.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+
+    let mut damaged = text.clone();
+    for k in [0usize, 2, 4] {
+        let target = format!(" {} ", slots[k]);
+        if let Some(_) = damaged.find(&target) {
+            damaged = damaged.replacen(&target, &format!(" {}zz ", slots[k]), 1);
+        }
+    }
+
+    let a = align(&damaged, &text, None, &is_payload);
+    assert!(!a.erasures.is_empty(), "damage must be located");
+    assert!(
+        a.erasures.iter().all(|&k| [0, 2, 4].contains(&k)),
+        "every hole must be one we made: {:?}",
+        a.erasures
+    );
+    assert_eq!(a.payload_intact(), a.payload_slots.len() - a.erasures.len());
 }
