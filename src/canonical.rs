@@ -101,8 +101,21 @@ pub const CANONICAL_VERSION: u8 = 3;
 ///
 /// Four buys, via `2·errors + erasures ≤ parity`, either two mistranscribed
 /// words found by search or four located by [`crate::align`] — and it costs four
-/// words. On a 32-byte payload (24 words in GF(2¹¹)) that is 28 words for one
-/// that survives four damaged ones.
+/// words.
+///
+/// It is an ABSOLUTE budget, not a rate: four words wherever the artifact is
+/// four words longer, so the protection thins as the payload grows. Measured in
+/// English, a 20-byte hash160 runs 19 words → 23 (17% parity), a 32-byte
+/// program 27 → 31 (13%), and a 128-byte payload 97 → 101 (4%). Latin packs 15
+/// bits to a word instead of 11, so it needs fewer words for the same bytes and
+/// the same four cost it proportionally more: 32 bytes is 20 → 24 (17%).
+///
+/// That suits the lengths this format was sized for — an address, a hash, a key
+/// — where four damaged words is a generous envelope for hand transcription. It
+/// suits a long payload less well, and a version wanting a constant error RATE
+/// rather than a constant count would pin a formula here instead of a number.
+/// Either is equally pinned: what the version has to fix is that word count
+/// follows from payload length alone, not that it follows by a constant.
 pub const V3_PARITY: usize = 4;
 
 /// The byte↔word packing for the length-parameterized entry points. The caller

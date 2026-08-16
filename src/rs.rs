@@ -29,7 +29,8 @@
 //! # Shortened codes
 //!
 //! A natural RS codeword over GF(2^m) is `2^m − 1` symbols. Real payloads are far
-//! shorter — a 32-byte hash is 24 words in GF(2¹¹) — so this is a *shortened*
+//! shorter — a 32-byte hash is 24 words in GF(2¹¹), 27 once the canonical
+//! envelope's five bytes join it — so this is a *shortened*
 //! code: conceptually the codeword is padded with leading zeros that are never
 //! transmitted. Positions are numbered within the actual length, consistently on
 //! both sides, which is what keeps that equivalence exact.
@@ -794,7 +795,7 @@ mod tests {
     #[test]
     fn parity_cost_is_one_word_per_symbol() {
         // The accounting #81 rests on, in the units the prose is measured in.
-        // A 32-byte payload is 24 words in GF(2¹¹); correcting one located
+        // A bare 32-byte payload is 24 words in GF(2¹¹); correcting one located
         // fault costs one more word, one unlocated fault costs two.
         let rs1 = Rs::new(11, 1).unwrap();
         let rs2 = Rs::new(11, 2).unwrap();
