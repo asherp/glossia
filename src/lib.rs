@@ -7,6 +7,8 @@ pub mod grammar;
 pub mod generator;
 pub mod merkle;
 pub mod codec;
+pub mod gf;
+pub mod rs;
 pub mod align;
 pub mod canonical;
 pub mod pipeline;
