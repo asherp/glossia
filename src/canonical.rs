@@ -84,39 +84,52 @@ use crate::codec::{
 };
 use crate::merkle::WordlistTree;
 use crate::pipeline::{cached_payload_tree, prepare_words_encode, resolve_wordlist_name};
-use crate::rs::Rs;
+use crate::rs::Interleaved;
 
 /// The version new canonical artifacts are written at.
 pub const CANONICAL_VERSION: u8 = 3;
 
-/// How many Reed–Solomon parity symbols v3 spends.
+/// How much Reed–Solomon parity a version spends, as a rate rather than a count.
+///
+/// Pinned to the version, like everything else the renderer reads. What a
+/// version must fix is that an artifact's word count follows from its payload
+/// length and from nothing else — not that it follows by a constant. A formula
+/// satisfies that as fully as a number does, and a constant does not survive
+/// arbitrary length: four words of protection is generous for a 19-word address
+/// and negligible for a 1000-word transaction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParityRules {
+    /// Parity never falls below this, however short the payload.
+    pub floor: usize,
+    /// At least one parity symbol per this many message symbols.
+    pub divisor: usize,
+}
+
+/// v3's parity: one symbol per eight, never fewer than four.
 ///
 /// Pinned to the version rather than offered as a parameter. A parameter would
 /// have to be declared somewhere the decoder can read before it has decoded —
-/// which costs a symbol, the very thing parity is being counted in — and it
-/// would make an artifact's word count depend on a caller's choice rather than
-/// on its payload. Pinning keeps [`canonical_encode_fixed`]'s word count a
-/// constant per payload size, which is what lets a format state a field's
-/// length in its notation instead of carrying it.
+/// costing a symbol, the very thing parity is counted in — and it would make an
+/// artifact's word count depend on a caller's choice rather than on its payload.
 ///
-/// Four buys, via `2·errors + erasures ≤ parity`, either two mistranscribed
-/// words found by search or four located by [`crate::align`] — and it costs four
-/// words.
+/// **The rate.** One in eight gives, via `2·errors + erasures ≤ parity`, about
+/// 12% of the words repairable when [`crate::align`] locates them and 6% when
+/// the decoder must find them. Payloads here are not bounded — a whole
+/// transaction, a mail body — and a fixed count would thin to nothing across
+/// that range: four words is generous protection for a 19-word address and
+/// negligible for a 1000-word transaction. A rate holds its meaning at every
+/// length, and 1/8 is the rate of RS(255,223), which is well-trodden ground.
 ///
-/// It is an ABSOLUTE budget, not a rate: four words wherever the artifact is
-/// four words longer, so the protection thins as the payload grows. Measured in
-/// English, a 20-byte hash160 runs 19 words → 23 (17% parity), a 32-byte
-/// program 27 → 31 (13%), and a 128-byte payload 97 → 101 (4%). Latin packs 15
-/// bits to a word instead of 11, so it needs fewer words for the same bytes and
-/// the same four cost it proportionally more: 32 bytes is 20 → 24 (17%).
+/// **The floor.** Below 32 message words the floor binds, so an address, a
+/// hash160 or a witness program costs exactly the four words it would have cost
+/// under a fixed budget — the short artifacts this format was first sized for
+/// are unaffected by the rate.
 ///
-/// That suits the lengths this format was sized for — an address, a hash, a key
-/// — where four damaged words is a generous envelope for hand transcription. It
-/// suits a long payload less well, and a version wanting a constant error RATE
-/// rather than a constant count would pin a formula here instead of a number.
-/// Either is equally pinned: what the version has to fix is that word count
-/// follows from payload length alone, not that it follows by a constant.
-pub const V3_PARITY: usize = 4;
+/// Measured in English: a 20-byte hash160 runs 19 → 23 words, a 32-byte program
+/// 27 → 31, a 128-byte payload 97 → 110, a 1 KB payload 745 → 839. Latin packs
+/// 15 bits to a word rather than 11, so it needs fewer words for the same bytes
+/// and pays the same rate on a smaller base.
+pub const V3_PARITY: ParityRules = ParityRules { floor: 4, divisor: 8 };
 
 /// The byte↔word packing for the length-parameterized entry points. The caller
 /// states the payload's byte count, so no padding word is needed at all. Only
@@ -224,10 +237,10 @@ impl Envelope {
 ///
 /// v3 and v2 share a framing and differ only in parity, so the pair is what
 /// distinguishes them — the envelope alone no longer identifies a version.
-const FRAMINGS: &[(Envelope, usize)] = &[
-    (Envelope::PayloadLeading, V3_PARITY),
-    (Envelope::PayloadLeading, 0),
-    (Envelope::VersionLeading, 0),
+const FRAMINGS: &[(Envelope, Option<ParityRules>)] = &[
+    (Envelope::PayloadLeading, Some(V3_PARITY)),
+    (Envelope::PayloadLeading, None),
+    (Envelope::VersionLeading, None),
 ];
 
 /// The rendering rules a canonical version freezes.
@@ -265,7 +278,7 @@ pub struct VersionRules {
     ///
     /// Like `envelope`, the decoder must guess this before it can read the
     /// version that states it, so it too is part of a framing candidate.
-    pub parity: usize,
+    pub parity: Option<ParityRules>,
 }
 
 static V1: VersionRules = VersionRules {
@@ -275,7 +288,7 @@ static V1: VersionRules = VersionRules {
     // therefore frozen: regenerating it requires a new canonical version.
     semantics_languages: &["english"],
     envelope: Envelope::VersionLeading,
-    parity: 0,
+    parity: None,
 };
 
 static V2: VersionRules = VersionRules {
@@ -283,7 +296,7 @@ static V2: VersionRules = VersionRules {
     dialect: "body",
     semantics_languages: &["english"],
     envelope: Envelope::PayloadLeading,
-    parity: 0,
+    parity: None,
 };
 
 /// v3: v2's bytes exactly, with Reed–Solomon parity over the packed words.
@@ -298,7 +311,7 @@ static V3: VersionRules = VersionRules {
     dialect: "body",
     semantics_languages: &["english"],
     envelope: Envelope::PayloadLeading,
-    parity: V3_PARITY,
+    parity: Some(V3_PARITY),
 };
 
 /// The frozen rules for a canonical version, or `None` if this library release
@@ -547,15 +560,15 @@ fn words_of(symbols: &[u16], tree: &WordlistTree) -> Result<Vec<String>, Canonic
 fn append_parity(
     words: Vec<String>,
     tree: &WordlistTree,
-    parity: usize,
+    parity: Option<ParityRules>,
 ) -> Result<Vec<String>, CanonicalError> {
-    if parity == 0 {
+    let Some(rules) = parity else {
         return Ok(words);
-    }
-    let rs = Rs::for_wordlist_len(tree.len(), parity)
+    };
+    let il = Interleaved::for_wordlist_len(tree.len(), rules.floor, rules.divisor)
         .map_err(|e| CanonicalError::Encode(e.to_string()))?;
     let symbols = symbols_of(&words, tree)?;
-    let codeword = rs
+    let codeword = il
         .encode(&symbols)
         .map_err(|e| CanonicalError::Encode(e.to_string()))?;
     words_of(&codeword, tree)
@@ -571,19 +584,22 @@ fn append_parity(
 fn take_parity(
     words: &[String],
     tree: &WordlistTree,
-    parity: usize,
+    parity: Option<ParityRules>,
     erasures: &[usize],
 ) -> Result<(Vec<String>, Vec<usize>), CanonicalError> {
-    if parity == 0 {
+    let Some(rules) = parity else {
         return Ok((words.to_vec(), Vec::new()));
-    }
-    let rs = Rs::for_wordlist_len(tree.len(), parity)
+    };
+    let il = Interleaved::for_wordlist_len(tree.len(), rules.floor, rules.divisor)
         .map_err(|e| CanonicalError::Decode(e.to_string()))?;
     let symbols = symbols_of(words, tree)?;
-    let corrected = rs
+    let corrected = il
         .decode(&symbols, erasures)
         .map_err(|e| CanonicalError::Decode(e.to_string()))?;
-    let message = words_of(rs.message_of(&corrected.codeword), tree)?;
+    let message = il
+        .message_of(&corrected.codeword)
+        .ok_or_else(|| CanonicalError::Decode("word count belongs to no message".into()))?;
+    let message = words_of(message, tree)?;
     let mut repaired = corrected.errors;
     repaired.extend(corrected.erasures);
     repaired.sort_unstable();

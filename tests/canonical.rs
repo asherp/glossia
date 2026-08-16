@@ -8,6 +8,7 @@
 //! these.
 
 use glossia::align::{align, Op};
+use glossia::rs::Interleaved;
 use glossia::{
     canonical_decode, canonical_decode_fixed, canonical_decode_slots_fixed,
     canonical_encode, canonical_encode_at,
@@ -526,13 +527,15 @@ fn v3_rules_are_frozen() {
     assert_eq!(rules.dialect, "body");
     assert_eq!(rules.semantics_languages, &["english"]);
     assert_eq!(rules.envelope, Envelope::PayloadLeading);
-    assert_eq!(rules.parity, glossia::V3_PARITY);
-    assert_eq!(glossia::V3_PARITY, 4, "parity is pinned to the version, not chosen per call");
+    assert_eq!(rules.parity, Some(glossia::V3_PARITY));
+    // Parity is a RATE pinned to the version, not a count chosen per call.
+    assert_eq!(glossia::V3_PARITY.floor, 4);
+    assert_eq!(glossia::V3_PARITY.divisor, 8);
     assert_eq!(CANONICAL_VERSION, 3, "new artifacts are written at v3");
 
     // The versions that carry none must keep carrying none.
-    assert_eq!(rules_for(1).unwrap().parity, 0);
-    assert_eq!(rules_for(2).unwrap().parity, 0);
+    assert_eq!(rules_for(1).unwrap().parity, None);
+    assert_eq!(rules_for(2).unwrap().parity, None);
 }
 
 #[test]
@@ -567,23 +570,141 @@ fn v3_golden_renderings() {
 }
 
 #[test]
-fn v3_costs_exactly_the_parity_in_words() {
-    // The price, stated in the unit a reader pays it in. v3 seals the same
-    // bytes as v2, so any extra word is parity and nothing else.
+fn v3_costs_the_parity_rate_in_words() {
+    // The price, in the unit a reader pays it in. v3 seals the same bytes as
+    // v2, so every extra word is parity and nothing else — and the count is
+    // the pinned formula, max(floor, ceil(k/divisor)), not a constant.
     let is_payload = payload_pred("english", "bip39");
+    let r = glossia::V3_PARITY;
     for payload in payloads() {
         let v2 = canonical_encode_fixed_at(&payload, "english", "bip39", 2).unwrap();
         let v3 = canonical_encode_fixed_at(&payload, "english", "bip39", 3).unwrap();
         let n2 = glossia::codec::payload_tokens(&v2, &is_payload).len();
         let n3 = glossia::codec::payload_tokens(&v3, &is_payload).len();
+        let expected = r.floor.max(n2.div_ceil(r.divisor));
         assert_eq!(
             n3 - n2,
-            glossia::V3_PARITY,
-            "v3 must cost exactly the parity, no more: {} vs {} words",
-            n3,
-            n2
+            expected,
+            "a {n2}-word message must spend {expected} parity words, got {}",
+            n3 - n2
         );
     }
+}
+
+#[test]
+fn short_payloads_pay_the_floor_and_long_ones_pay_the_rate() {
+    // The floor is what keeps addresses and hashes at the cost they had under
+    // a fixed budget, while long payloads get protection that scales.
+    let is_payload = payload_pred("english", "bip39");
+    let r = glossia::V3_PARITY;
+    let spend = |n: usize| -> (usize, usize) {
+        let payload: Vec<u8> = (0..n).map(|i| (i * 7 + 3) as u8).collect();
+        let v2 = canonical_encode_fixed_at(&payload, "english", "bip39", 2).unwrap();
+        let v3 = canonical_encode_fixed_at(&payload, "english", "bip39", 3).unwrap();
+        let w2 = glossia::codec::payload_tokens(&v2, &is_payload).len();
+        let w3 = glossia::codec::payload_tokens(&v3, &is_payload).len();
+        (w2, w3 - w2)
+    };
+
+    // A hash160 and a witness program sit under the floor's reach.
+    for n in [20usize, 32] {
+        let (words, parity) = spend(n);
+        assert!(words <= 32, "{n} bytes is {words} words, expected within the floor");
+        assert_eq!(parity, r.floor, "{n} bytes must pay only the floor");
+    }
+    // A long payload pays the rate, and the rate is what holds tolerance
+    // steady as length grows.
+    let (words, parity) = spend(1024);
+    assert!(words > 32);
+    assert_eq!(parity, words.div_ceil(r.divisor));
+    let tolerance = parity as f64 / (words + parity) as f64;
+    assert!(
+        (0.10..0.13).contains(&tolerance),
+        "a 1 KB payload should carry ~11% parity, got {tolerance:.3}"
+    );
+}
+
+#[test]
+fn every_payload_size_stays_inside_the_field() {
+    // The regression this policy exists to prevent. A codeword cannot exceed
+    // the field's 2047 symbols, so before blocking, v3 hard-failed above ~2.8 KB
+    // in English while v2 encoded it fine — a parity-carrying version strictly
+    // WORSE than one without.
+    //
+    // Checked at the symbol layer rather than through a full encode: packing
+    // bytes into words is cheap, rendering them as prose is not, and a 100 KB
+    // artifact is ~150k words of generation. What broke was the codeword
+    // length, and that is decided entirely by the word count — so this reaches
+    // sizes a prose round trip could not afford while testing the thing that
+    // actually failed.
+    let tree = glossia::cached_payload_tree("english", "bip39").unwrap();
+    let r = glossia::V3_PARITY;
+    let il = Interleaved::for_wordlist_len(tree.len(), r.floor, r.divisor).unwrap();
+
+    for n in [1usize, 20, 2804, 2805, 12_000, 100_000] {
+        // The envelope exactly as canonical seals it, packed exactly as the
+        // fixed form packs it, so `k` is the real word count for `n` bytes.
+        let mut bytes: Vec<u8> = (0..n).map(|i| (i % 251) as u8).collect();
+        bytes.push(CANONICAL_VERSION);
+        bytes.extend_from_slice(&glossia::codec::crc32(&bytes).to_be_bytes());
+        let words = glossia::codec::encode_base_n(&bytes, &tree, "bitpack_fixed").unwrap();
+        let k = words.len();
+
+        let symbols: Vec<u16> = (0..k).map(|i| ((i * 37) % 2048) as u16).collect();
+        let code = il
+            .encode(&symbols)
+            .unwrap_or_else(|e| panic!("{n} bytes is {k} words and must encode: {e}"));
+
+        let layout = il.layout(k);
+        let longest = k.div_ceil(layout.blocks) + layout.parity_per_block;
+        assert!(
+            longest <= il.field().group_order(),
+            "{n} bytes produces a {longest}-symbol codeword, past the field"
+        );
+        assert_eq!(il.message_of(&code).unwrap(), &symbols[..], "{n} bytes round trip");
+    }
+}
+
+#[test]
+#[ignore = "generates thousands of words of prose; run with --release --ignored"]
+fn a_blocked_payload_round_trips_and_repairs_in_prose() {
+    // The end-to-end companion to the test above, at the smallest payload that
+    // needs more than one codeword. Ignored by default because a debug-mode
+    // encode of this size runs into minutes; the property it adds over the
+    // symbol-level test is that the canonical WIRING carries blocking through
+    // rendering, harvesting and verification.
+    let payload: Vec<u8> = (0..2805).map(|i| (i % 251) as u8).collect();
+    let text = canonical_encode_fixed(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+
+    let d = canonical_decode_fixed(&text, "english", "bip39", payload.len()).unwrap();
+    assert_eq!(d.payload, payload, "a blocked artifact must round trip");
+    assert!(d.verified);
+    assert!(d.repaired.is_empty());
+
+    // A run of consecutive payload words knocked off the wordlist — the burst
+    // interleaving exists to survive.
+    let slots = glossia::codec::payload_tokens(&text, &is_payload);
+    let mut damaged = text.clone();
+    let mut hit = Vec::new();
+    for (k, w) in slots.iter().enumerate() {
+        if hit.len() == 20 {
+            break;
+        }
+        let delimited = format!(" {w} ");
+        if slots.iter().filter(|x| *x == w).count() == 1 && damaged.contains(&delimited) {
+            damaged = damaged.replacen(&delimited, &format!(" {w}zz "), 1);
+            hit.push(k);
+        }
+    }
+    assert_eq!(hit.len(), 20);
+
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, hit, "alignment must locate every hole");
+    let d = canonical_decode_slots_fixed(&a.payload_slots, "english", "bip39", payload.len())
+        .expect("20 located holes are well inside this artifact's budget");
+    assert_eq!(d.payload, payload);
+    assert_eq!(d.repaired, hit);
 }
 
 #[test]

@@ -484,6 +484,227 @@ impl Rs {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Blocking, for payloads longer than the field
+// ═══════════════════════════════════════════════════════════════════════
+
+/// How a message of a given length is cut into codewords, and what each spends.
+///
+/// Derived from the message length alone, so an artifact's word count still
+/// follows from its payload and from nothing else.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Layout {
+    /// How many codewords the message is spread across.
+    pub blocks: usize,
+    /// Parity symbols each block spends. Uniform across blocks, so the total is
+    /// `blocks × parity_per_block`.
+    pub parity_per_block: usize,
+}
+
+impl Layout {
+    pub fn total_parity(&self) -> usize {
+        self.blocks * self.parity_per_block
+    }
+}
+
+/// Reed–Solomon across as many codewords as a message needs, interleaved.
+///
+/// # Why blocking is not optional
+///
+/// A codeword cannot be longer than the field's multiplicative group: 2047
+/// symbols in GF(2¹¹), 32767 in GF(2¹⁵). Since a symbol is a word, that caps a
+/// single codeword at about 2.8 KB of English and 61 KB of Latin — and payloads
+/// are not bounded. A whole transaction, a mail body: these run past it. Without
+/// blocking a long payload does not merely lose protection, it fails to encode
+/// at all, which would make a parity-carrying version strictly worse than one
+/// without.
+///
+/// # Why interleaved
+///
+/// Message symbol `i` goes to block `i % blocks`. So `blocks` consecutive
+/// damaged words land in `blocks` different codewords, one symbol each, instead
+/// of concentrating in one. Transcription damage is often exactly that shape — a
+/// skipped line, a garbled clause — and a burst that would exhaust one block's
+/// budget is survivable when spread. It costs nothing: interleaving changes only
+/// which word position a symbol occupies, not how many there are.
+///
+/// # Layout
+///
+/// The message stays in its own order at the front and every block's parity
+/// follows, block by block:
+///
+/// ```text
+/// [ m_0 m_1 … m_k-1 ][ parity of block 0 ][ parity of block 1 ] …
+/// ```
+///
+/// so the encoding stays systematic — the words a reader already has are where
+/// they were, and the parity is a suffix.
+#[derive(Debug, Clone)]
+pub struct Interleaved {
+    gf: Arc<Gf>,
+    /// Parity never falls below this, however short the message.
+    floor: usize,
+    /// Parity is at least one symbol per `divisor` message symbols, which is
+    /// what makes tolerance a rate rather than a fixed count.
+    divisor: usize,
+}
+
+impl Interleaved {
+    pub fn new(gf: Arc<Gf>, floor: usize, divisor: usize) -> Self {
+        assert!(divisor > 0, "a parity divisor of zero is not a rate");
+        Interleaved { gf, floor, divisor }
+    }
+
+    pub fn for_wordlist_len(len: usize, floor: usize, divisor: usize) -> Result<Self, RsError> {
+        Ok(Interleaved::new(Gf::for_wordlist_len(len)?, floor, divisor))
+    }
+
+    pub fn field(&self) -> &Arc<Gf> {
+        &self.gf
+    }
+
+    /// Parity for one block holding `k` message symbols.
+    fn parity_for(&self, k: usize) -> usize {
+        self.floor.max(k.div_ceil(self.divisor))
+    }
+
+    /// How a `k`-symbol message is cut up. Uses as few blocks as the field
+    /// allows, since a single codeword spreads its budget over the whole
+    /// message and so tolerates an uneven distribution of damage better than
+    /// several smaller ones would.
+    pub fn layout(&self, k: usize) -> Layout {
+        let max = self.gf.group_order();
+        let mut blocks = 1usize;
+        loop {
+            let per = k.div_ceil(blocks).max(1);
+            let parity = self.parity_for(per);
+            if per + parity <= max {
+                return Layout { blocks, parity_per_block: parity };
+            }
+            blocks += 1;
+        }
+    }
+
+    /// Total symbols a `k`-symbol message occupies once parity is added.
+    pub fn total_len(&self, k: usize) -> usize {
+        k + self.layout(k).total_parity()
+    }
+
+    /// Recover the message length from a total symbol count.
+    ///
+    /// [`total_len`](Self::total_len) is strictly increasing in `k` — one more
+    /// message symbol is always at least one more symbol overall — so a total
+    /// determines its message length uniquely, and a binary search finds it.
+    /// `None` means no message produces this total, which is itself the answer:
+    /// the word count does not belong to this parity policy, so a decoder can
+    /// reject the framing without unpacking anything.
+    pub fn message_len_for_total(&self, total: usize) -> Option<usize> {
+        if total == 0 {
+            return None;
+        }
+        let (mut lo, mut hi) = (1usize, total);
+        while lo <= hi {
+            let mid = lo + (hi - lo) / 2;
+            match self.total_len(mid).cmp(&total) {
+                std::cmp::Ordering::Equal => return Some(mid),
+                std::cmp::Ordering::Less => lo = mid + 1,
+                std::cmp::Ordering::Greater => {
+                    if mid == 1 {
+                        return None;
+                    }
+                    hi = mid - 1;
+                }
+            }
+        }
+        None
+    }
+
+    /// Global symbol positions belonging to block `j`, message part first.
+    fn block_positions(&self, k: usize, layout: &Layout, j: usize) -> Vec<usize> {
+        let mut positions: Vec<usize> = (j..k).step_by(layout.blocks).collect();
+        let base = k + j * layout.parity_per_block;
+        positions.extend(base..base + layout.parity_per_block);
+        positions
+    }
+
+    /// Append parity to `message`.
+    pub fn encode(&self, message: &[u16]) -> Result<Vec<u16>, RsError> {
+        if message.is_empty() {
+            return Err(RsError::ParityTooLarge { parity: self.floor, len: 0 });
+        }
+        let k = message.len();
+        let layout = self.layout(k);
+        let mut out = message.to_vec();
+        out.resize(k + layout.total_parity(), 0);
+
+        for j in 0..layout.blocks {
+            let block: Vec<u16> = (j..k).step_by(layout.blocks).map(|i| message[i]).collect();
+            if block.is_empty() {
+                continue;
+            }
+            let rs = Rs::with_field(self.gf.clone(), layout.parity_per_block);
+            let codeword = rs.encode(&block)?;
+            let parity = &codeword[block.len()..];
+            let base = k + j * layout.parity_per_block;
+            out[base..base + parity.len()].copy_from_slice(parity);
+        }
+        Ok(out)
+    }
+
+    /// Repair `received` and return the message.
+    ///
+    /// `erasures` are global positions, message and parity alike, and are routed
+    /// to whichever block owns each one.
+    pub fn decode(&self, received: &[u16], erasures: &[usize]) -> Result<Corrected, RsError> {
+        let n = received.len();
+        let k = self
+            .message_len_for_total(n)
+            .ok_or(RsError::Uncorrectable)?;
+        let layout = self.layout(k);
+
+        let erased: std::collections::HashSet<usize> = erasures.iter().copied().collect();
+        if let Some(&p) = erased.iter().find(|&&p| p >= n) {
+            return Err(RsError::ErasureOutOfRange { position: p, len: n });
+        }
+
+        let mut out = received.to_vec();
+        let mut errors = Vec::new();
+        let mut filled = Vec::new();
+
+        for j in 0..layout.blocks {
+            let positions = self.block_positions(k, &layout, j);
+            if positions.len() <= layout.parity_per_block {
+                continue;
+            }
+            let block: Vec<u16> = positions.iter().map(|&p| received[p]).collect();
+            let block_erasures: Vec<usize> = positions
+                .iter()
+                .enumerate()
+                .filter(|(_, p)| erased.contains(p))
+                .map(|(local, _)| local)
+                .collect();
+
+            let rs = Rs::with_field(self.gf.clone(), layout.parity_per_block);
+            let corrected = rs.decode(&block, &block_erasures)?;
+            for (local, &global) in positions.iter().enumerate() {
+                out[global] = corrected.codeword[local];
+            }
+            errors.extend(corrected.errors.iter().map(|&local| positions[local]));
+            filled.extend(corrected.erasures.iter().map(|&local| positions[local]));
+        }
+
+        errors.sort_unstable();
+        filled.sort_unstable();
+        Ok(Corrected { codeword: out, errors, erasures: filled })
+    }
+
+    /// Strip parity, returning the message.
+    pub fn message_of<'a>(&self, codeword: &'a [u16]) -> Option<&'a [u16]> {
+        let k = self.message_len_for_total(codeword.len())?;
+        Some(&codeword[..k])
+    }
+}
+
 /// `g(x) = ∏ (x − α^j)` for `j` in `0..parity`, descending, `g[0] = 1`.
 fn build_generator(gf: &Gf, parity: usize) -> Vec<u16> {
     let mut g = vec![1u16];
@@ -836,6 +1057,203 @@ mod tests {
         assert_eq!(out.codeword, code);
         assert_eq!(out.errors, vec![2]);
         assert_eq!(out.erasures, vec![4]);
+    }
+
+    // ── blocking ───────────────────────────────────────────────────────────
+
+    /// The canonical policy, mirrored here so the codec tests exercise what
+    /// ships rather than a shape of their own.
+    fn interleaved(m: u32) -> Interleaved {
+        Interleaved::new(Gf::cached(m).unwrap(), 4, 8)
+    }
+
+    #[test]
+    fn short_messages_stay_one_block_at_the_floor() {
+        // Below 32 symbols the floor binds, so an address or a hash costs the
+        // same four words it did before parity became a rate.
+        let il = interleaved(11);
+        for k in [1usize, 5, 19, 27, 32] {
+            let l = il.layout(k);
+            assert_eq!(l.blocks, 1, "k={k}");
+            assert_eq!(l.parity_per_block, 4, "k={k} must sit on the floor");
+        }
+        // Just past the floor's reach, the rate takes over.
+        assert_eq!(il.layout(33).parity_per_block, 5);
+        assert_eq!(il.layout(800).parity_per_block, 100);
+    }
+
+    #[test]
+    fn blocking_starts_exactly_where_the_field_runs_out() {
+        // A single codeword holds k + ceil(k/8) ≤ 2047, so k ≤ 1819.
+        let il = interleaved(11);
+        assert_eq!(il.layout(1819).blocks, 1);
+        assert!(il.total_len(1819) <= il.field().group_order());
+        assert_eq!(il.layout(1820).blocks, 2, "one symbol past the field is two blocks");
+        // And every layout, at any length, keeps each codeword legal.
+        for k in [1usize, 100, 1819, 1820, 5000, 40_000] {
+            let l = il.layout(k);
+            let longest = k.div_ceil(l.blocks) + l.parity_per_block;
+            assert!(
+                longest <= il.field().group_order(),
+                "k={k} produces a {longest}-symbol codeword"
+            );
+        }
+    }
+
+    #[test]
+    fn a_total_determines_its_message_length() {
+        // What lets the decoder recover k without being told it.
+        let il = interleaved(11);
+        for k in [1usize, 19, 33, 500, 1819, 1820, 4000] {
+            assert_eq!(il.message_len_for_total(il.total_len(k)), Some(k), "k={k}");
+        }
+    }
+
+    #[test]
+    fn a_total_no_message_produces_is_refused() {
+        // The cheap rejection that lets a decoder dismiss a wrong framing on
+        // word count alone, before unpacking anything.
+        let il = interleaved(11);
+        let reachable: std::collections::HashSet<usize> =
+            (1..200).map(|k| il.total_len(k)).collect();
+        let orphans: Vec<usize> = (1..200).filter(|n| !reachable.contains(n)).collect();
+        assert!(!orphans.is_empty(), "the policy must leave gaps to reject");
+        for n in orphans {
+            assert_eq!(il.message_len_for_total(n), None, "total {n}");
+        }
+    }
+
+    #[test]
+    fn interleaved_round_trips_at_every_length_regime() {
+        let il = interleaved(11);
+        let gf = il.field().clone();
+        let mut rng = Lcg(0x1234);
+        for k in [1usize, 19, 33, 500, 1819, 1820, 3000] {
+            let msg: Vec<u16> = (0..k).map(|_| rng.symbol(&gf)).collect();
+            let code = il.encode(&msg).unwrap();
+            assert_eq!(code.len(), il.total_len(k), "k={k}");
+            assert_eq!(&code[..k], &msg[..], "k={k} must stay systematic");
+            let out = il.decode(&code, &[]).unwrap();
+            assert_eq!(out.repairs(), 0, "k={k} clean");
+            assert_eq!(il.message_of(&out.codeword).unwrap(), &msg[..], "k={k}");
+        }
+    }
+
+    #[test]
+    fn damage_at_the_rate_is_repaired_at_every_length() {
+        // The headline claim, at each regime: damage up to the parity rate is
+        // repaired when located, and half of it when it must be found.
+        let il = interleaved(11);
+        let gf = il.field().clone();
+        for k in [40usize, 500, 1819, 2500] {
+            let mut rng = Lcg(0xABCD ^ k as u64);
+            let msg: Vec<u16> = (0..k).map(|_| rng.symbol(&gf)).collect();
+            let code = il.encode(&msg).unwrap();
+            let layout = il.layout(k);
+            let n = code.len();
+
+            // A CONTIGUOUS run, deliberately: interleaving sends consecutive
+            // positions to consecutive blocks, so a run of the full budget
+            // divides evenly and each block sits exactly at its limit. A
+            // strided run would not — with two blocks, a stride of two puts
+            // every hit in one block and exhausts it at half the nominal
+            // budget.
+            let budget = layout.total_parity();
+            assert!(budget < n);
+            let mut damaged = code.clone();
+            let hit: Vec<usize> = (0..budget).collect();
+            for &p in &hit {
+                damaged[p] = 0;
+            }
+            let out = il
+                .decode(&damaged, &hit)
+                .unwrap_or_else(|e| panic!("k={k} located: {e}"));
+            assert_eq!(il.message_of(&out.codeword).unwrap(), &msg[..], "k={k} located");
+
+            // Unlocated costs two parity symbols apiece, so half as many —
+            // counted per block, since that is where the budget lives.
+            let searchable = layout.blocks * (layout.parity_per_block / 2);
+            let mut damaged = code.clone();
+            for p in 0..searchable {
+                damaged[p] = gf.add(damaged[p], 1);
+            }
+            let out = il
+                .decode(&damaged, &[])
+                .unwrap_or_else(|e| panic!("k={k} unlocated: {e}"));
+            assert_eq!(il.message_of(&out.codeword).unwrap(), &msg[..], "k={k} unlocated");
+        }
+    }
+
+    #[test]
+    fn a_burst_is_survivable_because_it_spreads_across_blocks() {
+        // Why interleaving earns its place. A run of consecutive damaged words
+        // — a skipped line — would exhaust one block's budget if blocks took
+        // contiguous slices. Interleaved, `blocks` consecutive words land one
+        // per block.
+        let il = interleaved(11);
+        let gf = il.field().clone();
+        let k = 3000; // forces multiple blocks
+        let layout = il.layout(k);
+        assert!(layout.blocks > 1, "this test needs a blocked message");
+
+        let mut rng = Lcg(0xB0157);
+        let msg: Vec<u16> = (0..k).map(|_| rng.symbol(&gf)).collect();
+        let code = il.encode(&msg).unwrap();
+
+        // A contiguous burst the size of one block's entire parity budget.
+        let burst = layout.parity_per_block;
+        let start = 500;
+        let mut damaged = code.clone();
+        let hit: Vec<usize> = (start..start + burst).collect();
+        for &p in &hit {
+            damaged[p] = 0;
+        }
+        let out = il
+            .decode(&damaged, &hit)
+            .unwrap_or_else(|e| panic!("a burst of {burst} should spread: {e}"));
+        assert_eq!(il.message_of(&out.codeword).unwrap(), &msg[..]);
+    }
+
+    #[test]
+    fn damage_past_the_rate_still_fails_loudly() {
+        let il = interleaved(11);
+        let gf = il.field().clone();
+        let k = 200usize;
+        let mut rng = Lcg(0xFA11);
+        let msg: Vec<u16> = (0..k).map(|_| rng.symbol(&gf)).collect();
+        let code = il.encode(&msg).unwrap();
+        let layout = il.layout(k);
+
+        // Every symbol of one block wrong, unlocated — far past its budget.
+        let positions = il.block_positions(k, &layout, 0);
+        let mut damaged = code.clone();
+        for &p in &positions {
+            damaged[p] = gf.add(damaged[p], 0x2A);
+        }
+        match il.decode(&damaged, &[]) {
+            Err(RsError::Uncorrectable) => {}
+            Err(e) => panic!("expected Uncorrectable, got {e}"),
+            Ok(out) => assert_eq!(
+                il.message_of(&out.codeword).unwrap(),
+                &msg[..],
+                "a decode that succeeds past the bound must still be right"
+            ),
+        }
+    }
+
+    #[test]
+    fn latin_blocks_far_later_because_its_symbols_are_wider() {
+        // 2¹⁵ gives 32767 symbols to a codeword against 2¹¹'s 2047, so Latin
+        // carries roughly sixteen times as much before it has to block.
+        let il = interleaved(15);
+        assert_eq!(il.layout(29_000).blocks, 1);
+        assert!(il.layout(30_000).blocks >= 1);
+        let gf = il.field().clone();
+        let mut rng = Lcg(0x1A71);
+        let msg: Vec<u16> = (0..40_000).map(|_| rng.symbol(&gf)).collect();
+        let code = il.encode(&msg).unwrap();
+        let out = il.decode(&code, &[]).unwrap();
+        assert_eq!(il.message_of(&out.codeword).unwrap(), &msg[..]);
     }
 
     #[test]
