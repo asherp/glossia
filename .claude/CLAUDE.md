@@ -81,7 +81,11 @@ languages that ship a `semantics.yaml`; absent → behaves exactly as before.
 - **Escape hatch**: `GLOSSIA_DISABLE_SEMANTICS=1` forces classic POS-only planning.
 - **Perf**: the sequence cache (`SequenceCache::load_with_dialect_cached`) is memoized
   process-wide, so best-of-N and repeated encodes reuse it — the cache build is the one-time
-  cost; each extra candidate is cheap (generation is ~ms warm). **Benchmark in release**;
+  cost; each extra candidate is cheap (generation is ~ms warm). Candidates are drawn
+  **concurrently** off-wasm (`draw_candidates` in `core.rs`, `std::thread::scope`): they are
+  independent by construction, share only read-only data, and are collected in seed order with
+  selection unchanged, so concurrency moves when the work happens and never what it produces —
+  the goldens are what hold that claim. **Benchmark in release**;
   debug is ~40× slower for the sequence enumeration, and always confirm the binary under test
   was actually rebuilt before trusting a measurement.
 

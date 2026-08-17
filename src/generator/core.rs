@@ -1028,6 +1028,44 @@ pub fn generate_text_best_of(
 /// Returning it lets an encoder report the counter instead of leaving callers to
 /// rediscover it.
 #[allow(clippy::too_many_arguments)]
+/// Draw the `n` best-of candidates, concurrently where the platform allows.
+///
+/// Candidates are independent by construction: each is generated from its own
+/// seed, `base_seed + k`, with its own RNG. Nothing is shared but read-only
+/// lexicon and grammar data, so drawing them at once changes only when the work
+/// happens, never what it produces — the results come back in `k` order and
+/// selection runs afterwards, exactly as it did sequentially. The golden
+/// renderings are what hold that claim: if concurrency perturbed a draw, they
+/// would move.
+///
+/// `wasm32` has no threads to spawn, so it keeps the sequential path.
+fn draw_candidates<F>(n: usize, base_seed: u64, gen_one: &F) -> Vec<(String, HashSet<String>)>
+where
+    F: Fn(u64) -> (String, HashSet<String>) + Sync,
+{
+    #[cfg(not(target_arch = "wasm32"))]
+    if n > 1 {
+        return std::thread::scope(|scope| {
+            let handles: Vec<_> = (0..n)
+                .map(|k| scope.spawn(move || gen_one(base_seed.wrapping_add(k as u64))))
+                .collect();
+            handles
+                .into_iter()
+                .map(|h| match h.join() {
+                    Ok(out) => out,
+                    // A panicked candidate must not become a silently missing
+                    // one: that would change which rendering wins.
+                    Err(payload) => std::panic::resume_unwind(payload),
+                })
+                .collect()
+        });
+    }
+
+    (0..n)
+        .map(|k| gen_one(base_seed.wrapping_add(k as u64)))
+        .collect()
+}
+
 pub fn generate_text_best_of_indexed(
     base_seed: u64,
     n_candidates: usize,
@@ -1063,8 +1101,7 @@ pub fn generate_text_best_of_indexed(
         // comparison keeps the lowest winning offset on ties, so the choice
         // is deterministic and a verifier reproduces it exactly.
         let mut best: Option<(f64, u64, (String, HashSet<String>))> = None;
-        for k in 0..n {
-            let out = gen_one(base_seed.wrapping_add(k as u64));
+        for (k, out) in draw_candidates(n, base_seed, &gen_one).into_iter().enumerate() {
             let total = out.0.split_whitespace().count().max(1);
             let density = payload.len() as f64 / total as f64;
             if best.as_ref().map_or(true, |b| density > b.0) {
@@ -1075,12 +1112,9 @@ pub fn generate_text_best_of_indexed(
         return (text, set, k);
     };
 
-    // Generate and score each candidate sequentially. (Candidates are
-    // independent and could be parallelized, but the sequence-cache memo makes
-    // candidates after the first cheap, so this stays simple for now.)
+    let drawn = draw_candidates(n, base_seed, &gen_one);
     let mut candidates: Vec<(f64, f64, u64, (String, HashSet<String>))> = Vec::with_capacity(n);
-    for k in 0..n {
-        let out = gen_one(base_seed.wrapping_add(k as u64));
+    for (k, out) in drawn.into_iter().enumerate() {
         let total = out.0.split_whitespace().count().max(1);
         let density = payload.len() as f64 / total as f64;
         let coherence = model.coherence_score(&out.0);
