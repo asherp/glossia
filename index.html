@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="b1a0d25">
+<meta name="glossia-build" content="668d508">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -920,7 +920,7 @@ footer a:hover { text-decoration: underline; }
         .demo-section { display: flex; flex-direction: column; }
         #panel-encrypt { order: -1; }
         #panel-address { order: 0; }
-        #panel-bip39, #panel-apikey, #panel-address { border-top: 1px solid var(--border); padding-top: 0.5rem; }
+        #panel-apikey, #panel-address { border-top: 1px solid var(--border); padding-top: 0.5rem; }
         /* Prose address */
         .addr-legend { text-align: center; font-family: var(--font-mono); font-size: 0.68rem;
           color: var(--text-dim); margin: -0.4rem 0 0.9rem; }
@@ -982,60 +982,6 @@ footer a:hover { text-decoration: underline; }
       </style>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
-      <div id="panel-bip39">
-        <div class="section-header">
-          <h3>BIP39 Seed Phrase</h3>
-          <p>Turn a seed phrase into a memorable madlib or latin proverb &mdash; check that either decodes into the original.</p>
-        </div>
-
-        <div class="panels">
-          <div class="panel panel-left">
-            <div class="panel-header">
-              <span class="dialect-label" id="left-label">BIP39 seed</span>
-            </div>
-            <div class="panel-body">
-              <div contenteditable="true" spellcheck="false" id="left-box" class="io-input" data-placeholder="Click &ldquo;Generate seed&rdquo;, or paste a BIP39 mnemonic&hellip;"></div>
-            </div>
-            <div class="panel-footer">
-              <button class="btn-sm" id="gen-btn" onclick="generateSeed()" title="Generate a random 12-word BIP39 seed">&#127922; Generate seed</button>
-              <div id="demo-error" class="error-msg hidden" style="padding:0;"></div>
-            </div>
-          </div>
-
-          <button class="swap-btn" id="swap-btn" onclick="toggleMode()" title="Switch between Encode and Decode" aria-label="Swap encode/decode">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
-          </button>
-
-          <div class="panel panel-right">
-            <div class="panel-header">
-              <span class="dialect-label" id="right-label">English sentences</span>
-              <div class="lang-row" id="right-langs"></div>
-            </div>
-            <div class="panel-body">
-              <div class="output-area empty" id="right-box">Output will appear here</div>
-            </div>
-            <div class="panel-footer">
-              <button class="btn-sm" id="cover-btn" onclick="toggleCover()" title="Show or hide the cover words">Hide cover</button>
-              <button class="btn-sm" id="copy-btn" onclick="copyOutput()">Copy</button>
-            </div>
-          </div>
-        </div>
-
-        <details class="demo-details" id="bip39-how">
-          <summary id="demo-hint"></summary>
-          <div class="enc-how-body">
-            <p>A 12-word BIP39 seed is 128 bits of entropy plus a checksum. Glossia weaves those
-            exact words into grammatically valid prose, filling the gaps with <strong>cover
-            words</strong> that carry no data. English shares the BIP39 wordlist, so the seed words
-            appear verbatim in the sentences; <strong>Latin</strong> and <strong>Czech</strong> map
-            the same bits onto their own wordlists (Latin's larger list packs the seed into ~9
-            words).</p>
-            <p><strong>Decoding</strong> just filters the prose against the payload wordlist to
-            recover the seed words — byte-for-byte, with no AI or approximation. Press
-            <strong>⇄</strong> to run it backwards, or hide the cover words to see the payload alone.</p>
-          </div>
-        </details>
-      </div>
 
       <!-- ─── API Key panel ───────────────────────────────────────── -->
       <div id="panel-apikey">
@@ -1382,7 +1328,6 @@ footer a:hover { text-decoration: underline; }
 <script type="module">
 import init, {
   transcode as wasmTranscode,
-  random_words as wasmRandomWords,
   get_all_dialects as wasmGetAllDialects,
   detect_dialect_from_text as wasmDetectDialect,
   get_bits_per_word as wasmGetBitsPerWord,
@@ -1402,10 +1347,8 @@ import init, {
 import { sealMessage, renderArtifact, decodeMessage, EMDASH } from './glossia-msg.js';
 
 let ready = false;
-let mode = 'encode';            // 'encode' (seed -> prose) or 'decode' (prose -> seed words)
 let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
 let detectedLang = 'english';   // SOURCE language auto-detected from the left box (both modes)
-let inputTimer = null;
 const SEED = 42n;               // fixed seed -> deterministic prose
 
 // Languages offered for the BIP39 panel. Each has a word-preserving base_n
@@ -1456,7 +1399,6 @@ function placeCaretEnd(el) {
 }
 
 // Cover-word visibility is tracked independently per demo panel.
-let coverBip = true;   // BIP39 panel
 let coverAk = true;    // API Key panel
 let coverEnc = true;   // Encrypted Message panel
 
@@ -1477,211 +1419,6 @@ function renderProse(text, set, cover) {
   if (cover) return underlineProse(text, set);
   return payloadTokens(text, set).map(t => escapeHtml(t)).join(' ');
 }
-
-// ─── Left box (contenteditable) accessors ────────────────────────────
-
-function leftText() { return document.getElementById('left-box').innerText; }
-function setLeftPlain(text) { document.getElementById('left-box').textContent = text; }
-
-function showError(msg) {
-  const e = document.getElementById('demo-error');
-  e.textContent = msg;
-  e.classList.remove('hidden');
-}
-function clearError() {
-  document.getElementById('demo-error').classList.add('hidden');
-}
-
-function setOutput(text, html) {
-  const el = document.getElementById('right-box');
-  if (!text) {
-    el.classList.add('empty');
-    el.textContent = 'Output will appear here';
-    el.dataset.plainText = '';
-    return;
-  }
-  el.classList.remove('empty');
-  el.innerHTML = (html != null) ? html : escapeHtml(text).replace(/\n/g, '<br>');
-  el.dataset.plainText = text;
-}
-
-// ─── Language buttons ────────────────────────────────────────────────
-
-function buildLangButtons() {
-  const row = document.getElementById('right-langs');
-  row.innerHTML = '';
-  for (const l of LANGS) {
-    const b = document.createElement('button');
-    b.className = 'btn-sm lang-btn';
-    b.dataset.lang = l.id;
-    b.textContent = l.label;
-    b.title = l.label + ' prose';
-    b.addEventListener('click', () => selectLang(l.id));
-    row.appendChild(b);
-  }
-}
-
-function updateLangHighlights() {
-  document.querySelectorAll('#right-langs .lang-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.lang === currentLang);
-  });
-}
-
-function selectLang(id) {
-  currentLang = id;
-  updateChrome();
-  run();
-}
-
-// Auto-detect the SOURCE language of the left box (both modes), restricted to
-// the languages this panel supports. Sets detectedLang; the TARGET language
-// (currentLang / right buttons) is left untouched.
-function detectLeftLanguage() {
-  const text = leftText().trim();
-  if (!text) return;
-  try {
-    const matches = JSON.parse(wasmDetectDialect(text));
-    if (Array.isArray(matches)) {
-      const best = matches.find(m => LANGS.some(l => l.id === m.language));
-      if (best) detectedLang = best.language;
-    }
-  } catch (e) { /* keep detected language */ }
-}
-
-// ─── Chrome (labels, hint) ───────────────────────────────────────────
-
-function updateChrome() {
-  const target = langById(currentLang);
-  const source = langById(detectedLang);
-  const genBtn = document.getElementById('gen-btn');
-  const hint = document.getElementById('demo-hint');
-
-  // Buttons live above the right box in both modes and always name the TARGET
-  // language (Google-Translate style). The left box is the SOURCE, whose
-  // language is auto-detected in both modes.
-  const srcSeedLabel = detectedLang === 'english' ? 'BIP39 seed' : (source.label + ' seed words');
-  const tgtSeedLabel = currentLang === 'english' ? 'BIP39 seed' : (target.label + ' seed words');
-  if (mode === 'encode') {
-    // bare seed words (left, source) -> prose (right, target language).
-    document.getElementById('left-label').textContent = srcSeedLabel;
-    document.getElementById('right-label').textContent = target.label + ' sentences';
-    genBtn.classList.remove('hidden');
-    hint.textContent = 'Generates a 12-word seed and weaves it into ' + target.label +
-      ' prose (payload words underlined). Pick the target language on the right; press ⇄ to decode.';
-  } else {
-    // prose (left, source auto-detected) -> seed words (right, target language).
-    document.getElementById('left-label').textContent = source.label + ' sentences (detected)';
-    document.getElementById('right-label').textContent = tgtSeedLabel;
-    genBtn.classList.add('hidden');
-    hint.textContent = 'Detected ' + source.label + ' on the left (payload words underlined); showing the seed as ' +
-      target.label + (currentLang === 'english' ? ' (BIP39).' : ' words.') +
-      ' Pick the target language on the right; press ⇄ to go back to encoding.';
-  }
-  // Cover toggle only applies to the prose output (right box in encode mode).
-  const coverBtn = document.getElementById('cover-btn');
-  if (mode === 'encode') {
-    coverBtn.classList.remove('hidden');
-    coverBtn.textContent = coverBip ? 'Hide cover' : 'Show cover';
-  } else {
-    coverBtn.classList.add('hidden');
-  }
-  updateLangHighlights();
-}
-
-// ─── Core encode / decode ────────────────────────────────────────────
-
-// Extract the payload words actually present in a piece of prose, in its own
-// language (source==target), so they can be underlined.
-function prosePayloadSet(proseText, langId) {
-  const l = langById(langId);
-  try {
-    const r = JSON.parse(wasmTranscode(proseText, 'transcode from ' + l.source + ' into ' + l.rawTarget, SEED));
-    if (r.error) return new Set();
-    return normSet((r.output || '').split(/\s+/).filter(Boolean));
-  } catch (e) { return new Set(); }
-}
-
-// Re-render the left box with payload words underlined (decode: left holds prose).
-function underlineLeft(proseText) {
-  const set = prosePayloadSet(proseText, detectedLang);
-  const el = document.getElementById('left-box');
-  const focused = (document.activeElement === el);
-  el.innerHTML = underlineProse(proseText, set);
-  if (focused) placeCaretEnd(el);
-}
-
-function run() {
-  if (!ready) return;
-  clearError();
-  const text = leftText().trim();
-  if (!text) { setOutput(''); return; }
-
-  // currentLang is the TARGET (right buttons); detectedLang is the SOURCE
-  // (auto-detected from the left box). Encode and decode are mirror transcodes.
-  const src = langById(detectedLang);
-  const tgt = langById(currentLang);
-  const meta = (mode === 'encode')
-    ? 'transcode from ' + src.rawTarget + ' into ' + tgt.source   // bare seed words -> prose
-    : 'transcode from ' + src.source + ' into ' + tgt.rawTarget;  // prose -> bare seed words
-
-  try {
-    const result = JSON.parse(wasmTranscode(text, meta, SEED));
-    if (result.error) { showError(result.error); setOutput(''); return; }
-    const out = (result.output || '').trim();
-    if (mode === 'encode') {
-      // Right box holds the prose — underline payload words, honor cover toggle.
-      const set = normSet(result.payload_words || []);
-      setOutput(coverBip ? out : payloadOnlyText(out, set), renderProse(out, set, coverBip));
-    } else {
-      // Right box holds bare seed words (no underline); left box holds the
-      // prose — underline its payload words.
-      setOutput(out);
-      underlineLeft(text);
-    }
-  } catch (e) {
-    showError(e.message || String(e));
-    setOutput('');
-  }
-}
-
-// ─── Actions (called from inline onclick) ─────────────────────────────
-
-window.generateSeed = function() {
-  if (!ready) return;
-  if (mode !== 'encode') { mode = 'encode'; }
-  clearError();
-  try {
-    const words = JSON.parse(wasmRandomWords(12, 'english', 'bip39', BigInt(Date.now())));
-    if (words.error) { showError(words.error); return; }
-    setLeftPlain(words.join(' '));
-    detectLeftLanguage();   // a freshly generated seed detects as English
-    updateChrome();
-    run();
-  } catch (e) {
-    showError(e.message || String(e));
-  }
-};
-
-window.toggleMode = function() {
-  // Move the current output into the input box, then flip direction.
-  const out = document.getElementById('right-box').dataset.plainText || '';
-  mode = (mode === 'encode') ? 'decode' : 'encode';
-  setLeftPlain(out);
-  detectLeftLanguage();   // pick up the source language of whatever's now on the left
-  updateChrome();
-  run();
-};
-
-window.copyOutput = function() {
-  const el = document.getElementById('right-box');
-  navigator.clipboard.writeText(el.dataset.plainText || '').catch(() => {});
-};
-
-window.toggleCover = function() {
-  coverBip = !coverBip;
-  run();          // re-encode from the (stable) seed and re-render per coverBip
-  updateChrome();
-};
 
 // ═══ API Key panel ═══════════════════════════════════════════════════
 //
@@ -2107,8 +1844,16 @@ window.encGenPassword = function() {
   const bpw = encBitsPerWord(ENC_PASS_LANG) || 15;
   const count = Math.max(1, Math.ceil(ENC_PASS_TARGET_BITS / bpw));
   try {
-    const words = JSON.parse(wasmRandomWords(count, ENC_PASS_LANG.language, ENC_PASS_LANG.wordlist, BigInt(Date.now())));
-    if (words.error) { encShowError(words.error); return; }
+    // Draw the passphrase from the platform CSPRNG and map those bytes
+    // straight onto payload words. random_words() cannot be used here: it
+    // expands a u64 seed, so whatever the word count, the result would carry at
+    // most 64 bits — and it was previously seeded from Date.now(), which is
+    // fewer than 30 bits of real uncertainty and predictable besides.
+    const bytes = crypto.getRandomValues(new Uint8Array(Math.ceil(ENC_PASS_TARGET_BITS / 8)));
+    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const r = JSON.parse(wasmEncodeRawBaseN(hex, ENC_PASS_LANG.language, ENC_PASS_LANG.wordlist, '', 0n));
+    if (r.error) { encShowError(r.error); return; }
+    const words = r.payload_words;
     document.getElementById('enc-pass').value = words.join(' ');
     encShowEntropy(words.length);
     encRun();   // re-encrypt under the new password
@@ -3192,17 +2937,6 @@ async function startup() {
     document.getElementById('loading').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    buildLangButtons();
-    document.getElementById('left-box').addEventListener('input', () => {
-      clearTimeout(inputTimer);
-      inputTimer = setTimeout(() => {
-        detectLeftLanguage();   // re-detect the source language as the user edits/pastes
-        updateChrome();
-        run();
-      }, 250);
-    });
-    updateChrome();
-    generateSeed();
 
     // Prose Bitcoin address panel
     try { addrInit(); } catch (e) { console.error('address panel failed to start:', e); }
