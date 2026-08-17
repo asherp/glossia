@@ -1,0 +1,449 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Dialect Calculus - Glossia Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">8.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html" class="active"><strong aria-hidden="true">9.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">10.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">11.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">12.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">13.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">14.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">15.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">16.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">17.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">18.</strong> Whitepaper</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Glossia Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asherp/glossia" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="dialect-calculus"><a class="header" href="#dialect-calculus">Dialect Calculus</a></h1>
+<p>Glossia's type system and CCG combinators don't just compose words into sentences — they compose <em>dialects into pipelines</em>. This chapter develops the <strong>dialect calculus</strong>: a typed lambda calculus where dialects are types and encoding operations are terms.</p>
+<h2 id="motivation"><a class="header" href="#motivation">Motivation</a></h2>
+<p>Glossia already supports translation between languages (see <a href="./how-it-works.html#glossia-translation">How It Works</a>). The bitstream is the common intermediate representation:</p>
+<pre><code>Source Language Text → Binary Data (bits) → Target Language Text
+</code></pre>
+<p>But a "language" is actually three independent choices fused together:</p>
+<div class="table-wrapper"><table><thead><tr><th>Axis</th><th>Examples</th><th>What it determines</th></tr></thead><tbody>
+<tr><td><strong>Input format</strong></td><td>hex (Nostr), base64 (PGP), raw bytes (BIP39)</td><td>How bits are packed into wordlist indices</td></tr>
+<tr><td><strong>Vocabulary</strong></td><td><code>payload.yaml</code>, <code>payload_base58.yaml</code></td><td>Which words carry data (and bits per word)</td></tr>
+<tr><td><strong>Output grammar</strong></td><td><code>latin/body</code>, <code>english/prose</code>, <code>cs/sig</code></td><td>Syntactic shape of the output</td></tr>
+</tbody></table>
+</div>
+<p>Current dialects like <code>cs/sig_nostr</code> fuse all three: hex input, base16 vocabulary, and ASCII armor grammar. But you should be able to mix freely:</p>
+<ul>
+<li>Encode a <strong>Nostr signature</strong> (hex) as <strong>Latin prose</strong></li>
+<li>Convert a <strong>PGP message</strong> from ASCII-armored base64 into <strong>English body text</strong></li>
+<li>Transcode <strong>Latin prose</strong> into <strong>English prose</strong> directly</li>
+</ul>
+<p>The dialect calculus makes this composition type-safe.</p>
+<h2 id="dialects-as-types"><a class="header" href="#dialects-as-types">Dialects as types</a></h2>
+<p>Recall Glossia's Montague Grammar type system:</p>
+<ul>
+<li><code>e</code> — Entity type</li>
+<li><code>t</code> — Truth type (a valid sentence / proposition)</li>
+<li><code>A -&gt; B</code> — Function type</li>
+<li><code>Refined(r, A)</code> — Refined type (type <code>A</code> with refinement tag <code>r</code>)</li>
+</ul>
+<p>At the <strong>object level</strong>, <code>e</code> is an individual thing and <code>t</code> is a sentence about things. At the <strong>dialect level</strong>, we reinterpret:</p>
+<ul>
+<li><code>e</code> — a data representation (hex string, base64 string, Latin text, English text, raw bytes)</li>
+<li><code>t</code> — a valid encoded output (data successfully encoded in some dialect)</li>
+</ul>
+<p>The <code>Refined</code> type distinguishes dialect entities:</p>
+<pre><code>Refined("latin/body", e)      -- Latin prose as data representation
+Refined("english/body", e)    -- English prose as data representation
+Refined("hex", e)             -- hex string
+Refined("base64", e)          -- base64 string
+Refined("nostr/sig", e)       -- Nostr Schnorr signature (refines hex)
+Refined("pgp/msg", e)         -- PGP message (refines base64)
+Refined("bits", e)            -- raw bitstream (universal intermediate)
+</code></pre>
+<h2 id="pos-tags-as-dialect-operations"><a class="header" href="#pos-tags-as-dialect-operations">POS tags as dialect operations</a></h2>
+<p>Every POS tag already has a Montague type. The dialect calculus reinterprets each type as an operation on data representations:</p>
+<div class="table-wrapper"><table><thead><tr><th>POS</th><th>Type</th><th>Object-level meaning</th><th>Dialect-level meaning</th></tr></thead><tbody>
+<tr><td><strong>N</strong></td><td><code>e -&gt; t</code></td><td>predicate over entities</td><td><strong>Encoder</strong>: given a data representation, produce valid encoded text</td></tr>
+<tr><td><strong>V</strong></td><td><code>e -&gt; (e -&gt; t)</code></td><td>relation between entities</td><td><strong>Transcoder</strong>: given a source, return an encoder for a target</td></tr>
+<tr><td><strong>Adj</strong></td><td><code>e -&gt; e</code></td><td>entity modifier</td><td><strong>Format transform</strong>: rewrite one representation as another (e.g., hex decode to bytes)</td></tr>
+<tr><td><strong>Det</strong></td><td><code>(e -&gt; t) -&gt; (e -&gt; t)</code></td><td>quantifier</td><td><strong>Codec modifier</strong>: wrap an encoder with a DataMode (ascii7, hex, base64)</td></tr>
+<tr><td><strong>Adv</strong></td><td><code>(e -&gt; t) -&gt; (e -&gt; t)</code></td><td>predicate modifier</td><td><strong>Pipeline modifier</strong>: wrap an encoder with logging, verification, etc.</td></tr>
+<tr><td><strong>Conj</strong></td><td><code>t -&gt; (t -&gt; t)</code></td><td>proposition connective</td><td><strong>Combiner</strong>: concatenate or interleave two encoded outputs</td></tr>
+<tr><td><strong>Prep</strong></td><td><code>e -&gt; (e -&gt; t)</code></td><td>prepositional relation</td><td><strong>Parameterized encoder</strong>: "encode X <em>into</em> Y", "decode X <em>from</em> Y"</td></tr>
+<tr><td><strong>Cop</strong></td><td><code>(e -&gt; t) -&gt; (e -&gt; t)</code></td><td>subject-predicate linker</td><td><strong>Identity wrapper</strong>: "X <em>is</em> encoded as Y"</td></tr>
+<tr><td><strong>Dot</strong></td><td><code>t</code></td><td>sentence truth value</td><td><strong>Pipeline terminator</strong>: the complete, validated output</td></tr>
+</tbody></table>
+</div>
+<h2 id="ccg-combinators-as-pipeline-algebra"><a class="header" href="#ccg-combinators-as-pipeline-algebra">CCG combinators as pipeline algebra</a></h2>
+<p>The five CCG combinators from <code>lambda_terms.rs</code> have direct dialect-level meanings:</p>
+<h3 id="b--composition-transcode"><a class="header" href="#b--composition-transcode">B — Composition (transcode)</a></h3>
+<pre><code>B f g x = f(g(x))
+</code></pre>
+<p>The B combinator is the fundamental transcoding operation. Given:</p>
+<ul>
+<li><code>decode_latin : Refined("latin/body", e) -&gt; Refined("bits", e)</code> — an <code>Adj</code> (format transform)</li>
+<li><code>encode_english : Refined("bits", e) -&gt; t</code> — an <code>N</code> (encoder)</li>
+</ul>
+<p>Their composition is:</p>
+<pre><code>B encode_english decode_latin : Refined("latin/body", e) -&gt; t
+</code></pre>
+<p>This says: "decode Latin prose to bits, then encode as English prose." It's the same <code>B N Adj</code> composition used at the object level for "the <em>big</em> (Adj) <em>house</em> (N)" — compose a modifier with a predicate.</p>
+<p>Type checking confirms it:</p>
+<pre><code>B : (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+  encode_english : Bits -&gt; t                  (b = Bits, c = t)
+  decode_latin   : LatinText -&gt; Bits          (a = LatinText, b = Bits)
+  ─────────────────────────────────────────
+  B encode_english decode_latin : LatinText -&gt; t    ✓
+</code></pre>
+<h3 id="c--flip-reverse-direction"><a class="header" href="#c--flip-reverse-direction">C — Flip (reverse direction)</a></h3>
+<pre><code>C f x y = f(y)(x)
+</code></pre>
+<p>If <code>transcode</code> has type <code>Source -&gt; Target -&gt; t</code>, then <code>C transcode</code> flips the arguments:</p>
+<pre><code>transcode        : Source -&gt; (Target -&gt; t)
+C transcode      : Target -&gt; (Source -&gt; t)
+</code></pre>
+<p>This converts "transcode <em>from</em> Latin <em>into</em> English" to "transcode <em>into</em> English <em>from</em> Latin" — the same pipeline, different argument order. The C combinator handles word-order variation at the object level (SOV vs. SVO); at the dialect level, it handles directionality.</p>
+<h3 id="t--type-raising-lift-data-to-pipeline"><a class="header" href="#t--type-raising-lift-data-to-pipeline">T — Type raising (lift data to pipeline)</a></h3>
+<pre><code>T x f = f(x)
+</code></pre>
+<p>Given concrete data <code>nostr_sig : e</code> (a specific Nostr signature), type raising produces:</p>
+<pre><code>T nostr_sig : (e -&gt; t) -&gt; t
+</code></pre>
+<p>This lifts a specific piece of data into a function that accepts <em>any</em> encoder and applies it. "Here is a Nostr signature — give me any encoder and I'll feed the data through it."</p>
+<p>At the object level, T raises a noun phrase to accept any verb phrase. At the dialect level, it raises data to accept any encoding pipeline.</p>
+<h3 id="s--distribution-fork"><a class="header" href="#s--distribution-fork">S — Distribution (fork)</a></h3>
+<pre><code>S f g x = f(x)(g(x))
+</code></pre>
+<p>The S combinator applies two functions to the same input, then combines:</p>
+<pre><code>S transcode_english transcode_latin data = transcode_english(data)(transcode_latin(data))
+</code></pre>
+<p>This encodes the same data in two formats simultaneously — useful for generating both a Latin and English version from the same bitstream.</p>
+<h3 id="i--identity-passthrough"><a class="header" href="#i--identity-passthrough">I — Identity (passthrough)</a></h3>
+<pre><code>I x = x
+</code></pre>
+<p>The identity encoder: data passes through unchanged. Useful as a default when no transformation is needed.</p>
+<h2 id="worked-example-nostr-signature-in-latin"><a class="header" href="#worked-example-nostr-signature-in-latin">Worked example: Nostr signature in Latin</a></h2>
+<p>"Encode a hex Nostr signature as Latin prose."</p>
+<h3 id="step-1-assign-dialect-types"><a class="header" href="#step-1-assign-dialect-types">Step 1: Assign dialect types</a></h3>
+<pre><code>nostr_sig    : Refined("nostr/sig", e)                    -- the data (a Pron)
+hex_decode   : Refined("hex", e) -&gt; Refined("bits", e)    -- hex → bytes (an Adj)
+encode_latin : Refined("bits", e) -&gt; t                    -- bytes → Latin (an N)
+hex_mode     : (e -&gt; t) -&gt; (e -&gt; t)                       -- DataMode::Hex (a Det)
+</code></pre>
+<h3 id="step-2-build-the-pipeline"><a class="header" href="#step-2-build-the-pipeline">Step 2: Build the pipeline</a></h3>
+<pre><code>hex_mode(B encode_latin hex_decode)(nostr_sig) : t
+</code></pre>
+<p>Reading inside-out:</p>
+<ol>
+<li><code>hex_decode</code> transforms the hex representation to bits (<code>Adj : e -&gt; e</code>)</li>
+<li><code>B encode_latin hex_decode</code> composes the Latin encoder after the decoder (<code>B N Adj : e -&gt; t</code>)</li>
+<li><code>hex_mode(...)</code> wraps the composed encoder with the hex DataMode (<code>Det(N) : e -&gt; t</code>)</li>
+<li>Apply to <code>nostr_sig</code> to get the final output (<code>(e -&gt; t)(e) : t</code>)</li>
+</ol>
+<h3 id="step-3-type-checking"><a class="header" href="#step-3-type-checking">Step 3: Type checking</a></h3>
+<pre><code>hex_mode : (e -&gt; t) -&gt; (e -&gt; t)         -- Det
+B encode_latin hex_decode : e -&gt; t       -- composed N
+hex_mode(B encode_latin hex_decode) : e -&gt; t
+nostr_sig : e
+─────────────────────────────────
+hex_mode(B encode_latin hex_decode)(nostr_sig) : t   ✓
+</code></pre>
+<p>The type checker proves this pipeline is well-formed: the output is a valid encoding (<code>t</code>).</p>
+<h2 id="worked-example-latin-to-english-transcoding"><a class="header" href="#worked-example-latin-to-english-transcoding">Worked example: Latin to English transcoding</a></h2>
+<p>"Read Latin prose and output English prose."</p>
+<pre><code>decode_latin   : Refined("latin/body", e) -&gt; Refined("bits", e)     -- Adj
+encode_english : Refined("bits", e) -&gt; t                             -- N
+
+transcode = B encode_english decode_latin
+          : Refined("latin/body", e) -&gt; t
+</code></pre>
+<p>This is a single <code>B N Adj</code> application — the same combinator that composes adjectives with nouns in ordinary Montague Grammar.</p>
+<h2 id="worked-example-pgp-message-in-english"><a class="header" href="#worked-example-pgp-message-in-english">Worked example: PGP message in English</a></h2>
+<p>"Convert a PGP base64 message into English body text."</p>
+<pre><code>pgp_msg        : Refined("pgp/msg", e)                              -- Pron
+base64_decode  : Refined("base64", e) -&gt; Refined("bits", e)         -- Adj
+encode_english : Refined("bits", e) -&gt; t                             -- N
+base64_mode    : (e -&gt; t) -&gt; (e -&gt; t)                                -- Det
+
+base64_mode(B encode_english base64_decode)(pgp_msg) : t
+</code></pre>
+<h2 id="the-bitstream-as-zero-object"><a class="header" href="#the-bitstream-as-zero-object">The bitstream as zero object</a></h2>
+<p>Every dialect <code>D</code> that carries payload is isomorphic to the bitstream:</p>
+<pre><code>encode_D : Bits -&gt; D
+decode_D : D -&gt; Bits
+decode_D . encode_D = id_Bits
+encode_D . decode_D = id_D
+</code></pre>
+<p>This means every morphism between dialects factors through bits:</p>
+<pre><code>hom(D1, D2) = {encode_D2 . decode_D1}
+</code></pre>
+<p>In category-theoretic terms, <code>Bits</code> is a <strong>zero object</strong> in the category of dialects — every dialect has exactly one morphism to and from it. The B combinator computes these factored morphisms.</p>
+<p>This is why Glossia translation is always lossless and commutative (see <a href="./how-it-works.html#bijectivity">Bijectivity</a>):</p>
+<pre><code>A -&gt; B -&gt; C  =  A -&gt; C
+</code></pre>
+<p>The dialect calculus makes this algebraic structure explicit.</p>
+<h2 id="datamode-as-a-natural-transformation"><a class="header" href="#datamode-as-a-natural-transformation">DataMode as a natural transformation</a></h2>
+<p>The four DataModes (<code>Bytes8</code>, <code>Ascii7</code>, <code>Base64</code>, <code>Hex</code>) are not encoders themselves — they are <strong>natural transformations</strong> between encoding functors.</p>
+<p>A DataMode <code>m</code> transforms any encoder <code>enc : e -&gt; t</code> into a modified encoder <code>m(enc) : e -&gt; t</code> that pre-processes the input. In the dialect calculus, this is exactly the <code>Det</code> type:</p>
+<pre><code>Det : (e -&gt; t) -&gt; (e -&gt; t)
+</code></pre>
+<p>The naturality condition says: applying a DataMode and then transcoding gives the same result as transcoding and then applying the DataMode. This holds because DataModes operate on the bits, which are invariant under transcoding:</p>
+<pre><code>B (m(encode_B)) decode_A  =  m(B encode_B decode_A)
+</code></pre>
+<h2 id="connection-to-curry-howard"><a class="header" href="#connection-to-curry-howard">Connection to Curry-Howard</a></h2>
+<p>The <a href="https://en.wikipedia.org/wiki/Curry%E2%80%93Howard_correspondence">Curry-Howard correspondence</a> is the observation that <strong>types are propositions</strong> and <strong>programs are proofs</strong>. A function of type <code>A -&gt; B</code> doesn't just transform data — it <em>proves</em> that <code>A</code> implies <code>B</code>. Type-checking a program is the same as verifying a proof. If the types don't line up, the "proof" is invalid — you've asserted something that doesn't follow.</p>
+<p>This isn't a metaphor. Curry noticed in 1934 that combinator types match axiom schemes of intuitionistic logic. Howard made it precise in 1969: natural deduction proofs correspond exactly to typed lambda terms. Every logical connective has a computational counterpart — conjunction is pairing, disjunction is tagged union, implication is function abstraction. See Philip Wadler's <a href="https://homepages.inf.ed.ac.uk/wadler/papers/propositions-as-types/propositions-as-types.pdf">Propositions as Types</a> for an accessible treatment of the full story.</p>
+<p>The dialect calculus inherits this correspondence directly. Each column below is the <em>same</em> formal object seen from three angles:</p>
+<div class="table-wrapper"><table><thead><tr><th>Lambda calculus</th><th>Logic</th><th>Dialect calculus</th></tr></thead><tbody>
+<tr><td>Type <code>A -&gt; B</code></td><td>Proposition "A implies B"</td><td>"Given data in format A, I can produce format B"</td></tr>
+<tr><td>Term <code>f : A -&gt; B</code></td><td>Proof of "A implies B"</td><td>A concrete encoder/decoder</td></tr>
+<tr><td>Application <code>f(x)</code></td><td>Modus ponens</td><td>Running the pipeline on data</td></tr>
+<tr><td>Composition <code>B f g</code></td><td>Transitivity of implication</td><td>Transcoding via intermediate representation</td></tr>
+<tr><td><code>t</code> (truth)</td><td>Theorem</td><td>Valid encoded output exists</td></tr>
+<tr><td>Type error</td><td>Contradiction</td><td>Incompatible pipeline (wrong wordlist, wrong DataMode)</td></tr>
+</tbody></table>
+</div>
+<h3 id="what-this-buys-us"><a class="header" href="#what-this-buys-us">What this buys us</a></h3>
+<p><strong>1. Type-checking is proof verification.</strong> When the dialect calculus type-checks a pipeline like</p>
+<pre><code>hex_mode(B encode_latin hex_decode)(nostr_sig) : t
+</code></pre>
+<p>it is simultaneously verifying a <em>proof</em> that "given a Nostr hex signature and a hex decoder and a Latin encoder, a valid Latin encoding exists." If any component has the wrong type — say you accidentally pass a Latin decoder where a hex decoder is expected — the proof fails. The type system catches the error before any data flows.</p>
+<p><strong>2. Composition is transitivity.</strong> The <code>B</code> combinator computes <code>B f g x = f(g(x))</code>. Logically, if <code>g</code> proves <code>A =&gt; B</code> and <code>f</code> proves <code>B =&gt; C</code>, then <code>B f g</code> proves <code>A =&gt; C</code>. This is why transcoding works: <code>decode_latin</code> proves "Latin implies Bits" and <code>encode_english</code> proves "Bits implies English", so their composition proves "Latin implies English." The proof factors through the bitstream, just as the data does.</p>
+<p><strong>3. Uninhabited types mean impossible pipelines.</strong> If no term of type <code>Refined("hex", e) -&gt; Refined("latin/body", e)</code> exists (because there's no direct hex-to-Latin transform), then the corresponding proposition "hex implies Latin" has no proof. You <em>must</em> factor through <code>Bits</code> — and the type system forces you to make this explicit by composing <code>B encode_latin hex_decode</code>.</p>
+<p><strong>4. The zero object is the tautology.</strong> <code>Bits</code> being a zero object (every dialect has exactly one morphism to and from it) means that <code>Bits =&gt; D</code> and <code>D =&gt; Bits</code> are both provable for every dialect <code>D</code>. In logical terms, <code>Bits</code> is equivalent to every well-formed dialect — it's the canonical witness that all lossless encodings preserve the same information.</p>
+<h2 id="meta-grammar"><a class="header" href="#meta-grammar">Meta-grammar</a></h2>
+<p>The meta-language for dialect pipelines uses the <strong>same CFG</strong> as the object language. A pipeline specification is a sentence in the meta-grammar:</p>
+<pre><code>S  -&gt; NP VP Dot
+NP -&gt; Det N              "the hex encoder"
+NP -&gt; Adj N              "the Latin decoder"
+VP -&gt; V NP               "transcodes into English"
+VP -&gt; V PP               "encoded from Latin"
+PP -&gt; Prep NP            "from Latin" / "into English"
+</code></pre>
+<p>The semantic derivation of this meta-sentence IS the pipeline specification. The same type-driven grammar that validates "the cat sees the dog" also validates "the hex decoder transcodes into Latin prose."</p>
+<p>This self-similarity — the meta-language having the same grammar as the object language — is not a coincidence. It follows from the fact that both levels use the same type algebra (<code>e</code>, <code>t</code>, <code>-&gt;</code>, <code>Refined</code>). The grammar is a free algebra over these types; lifting the interpretation of <code>e</code> and <code>t</code> lifts the entire grammar.</p>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<div class="table-wrapper"><table><thead><tr><th>Concept</th><th>Object level (words → sentences)</th><th>Dialect level (formats → pipelines)</th></tr></thead><tbody>
+<tr><td><code>e</code></td><td>Individual entity</td><td>Data in some representation</td></tr>
+<tr><td><code>t</code></td><td>Valid sentence</td><td>Valid encoded output</td></tr>
+<tr><td><code>N : e -&gt; t</code></td><td>Noun (predicate)</td><td>Encoder</td></tr>
+<tr><td><code>V : e -&gt; (e -&gt; t)</code></td><td>Verb (relation)</td><td>Transcoder</td></tr>
+<tr><td><code>Adj : e -&gt; e</code></td><td>Adjective (modifier)</td><td>Format transform (decode)</td></tr>
+<tr><td><code>Det : (e -&gt; t) -&gt; (e -&gt; t)</code></td><td>Determiner (quantifier)</td><td>DataMode (codec modifier)</td></tr>
+<tr><td><code>Conj : t -&gt; (t -&gt; t)</code></td><td>Conjunction</td><td>Output combiner</td></tr>
+<tr><td><code>B f g</code></td><td>Compose modifier + predicate</td><td>Transcode (decode then encode)</td></tr>
+<tr><td><code>C f</code></td><td>Flip argument order</td><td>Reverse pipeline direction</td></tr>
+<tr><td><code>T x</code></td><td>Type-raise entity</td><td>Lift data to accept any encoder</td></tr>
+<tr><td><code>S f g</code></td><td>Distribute over argument</td><td>Fork: encode same data two ways</td></tr>
+<tr><td><code>Refined(r, A)</code></td><td>Language-specific feature</td><td>Dialect identity</td></tr>
+</tbody></table>
+</div>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="grammar.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="language-support.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="grammar.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="language-support.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
