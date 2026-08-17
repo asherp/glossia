@@ -1,0 +1,431 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Image Codec - Glossia Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">8.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">9.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">10.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">11.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html" class="active"><strong aria-hidden="true">12.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">13.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">14.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">15.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">16.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">17.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">18.</strong> Whitepaper</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Glossia Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asherp/glossia" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="glossia-image-codec"><a class="header" href="#glossia-image-codec">Glossia Image Codec</a></h1>
+<p>A color-space codec that encodes arbitrary byte payloads into images. Each visual element (Voronoi cell, pixel, mosaic tile) carries information in its <strong>color</strong>, not its position. The codec operates natively in CIELAB perceptual color space.</p>
+<p>Like the rest of Glossia, this is a readable encoding, not steganography: the payload is not hidden in the image, it <em>is</em> the image's colors. Anyone with the palette can decode it directly.</p>
+<h2 id="core-idea"><a class="header" href="#core-idea">Core idea</a></h2>
+<p>A color palette defines a 1D curve $\gamma$ through CIELAB. At each palette point, a 2D constellation grid in the normal plane encodes additional bits. Every pixel color decomposes into:</p>
+<ul>
+<li><strong>Tangential position</strong> on $\gamma$ → identifies the payload word (which palette color)</li>
+<li><strong>Normal-plane displacement</strong> → encodes the sequence position (which occurrence of that word)</li>
+</ul>
+<p>The rendering (Voronoi, grid, brush strokes, mosaic) is purely aesthetic. All information lives in the <strong>multiset of colors</strong>.</p>
+<h2 id="architecture"><a class="header" href="#architecture">Architecture</a></h2>
+<pre><code>palette.yaml          Control points in CIELAB (viridis_approx, warm, cool)
+        |
+        v
+  PaletteCurve        Cubic spline, arc-length reparameterized
+        |
+        v
+  BishopFrame          Rotation-minimizing {T, U1, U2} via double-reflection
+        |
+        v
+  ConstellationMap     Per-color M_i x M_i grids sized to local tube radius
+        |
+        v
+  encode / decode      Payload words &lt;-&gt; CIELAB colors
+        |
+        v
+  RSEncoder            Reed-Solomon byte-level error correction (optional)
+        |
+        v
+  render / capture     Voronoi SVG, pixel grid, any visual form
+</code></pre>
+<h2 id="geometric-components"><a class="header" href="#geometric-components">Geometric components</a></h2>
+<h3 id="palette-curve-palettecurve"><a class="header" href="#palette-curve-palettecurve">Palette curve (<code>PaletteCurve</code>)</a></h3>
+<p>A cubic spline through K control points in CIELAB, reparameterized by arc length so that $|\gamma'(s)| \approx 1$. N palette colors are equally spaced along $\gamma$:</p>
+<p>$$c_i = \gamma!\left(\frac{i \cdot L}{N-1}\right), \quad i = 0, \ldots, N-1$$</p>
+<p>where $L$ is the total arc length.</p>
+<p>For viridis_approx with N=16: L = 137.9, palette spacing = 9.2 CIELAB units.</p>
+<h3 id="bishop-frame-bishopframe"><a class="header" href="#bishop-frame-bishopframe">Bishop frame (<code>BishopFrame</code>)</a></h3>
+<p>An orthonormal frame ${T(s), U_1(s), U_2(s)}$ propagated along $\gamma$ via the double-reflection method (Wang et al. 2008). Unlike the Frenet frame, the Bishop frame is smooth through inflection points and has no torsion-induced twist.</p>
+<p>$U_1(0)$ is initialized to the Frenet normal at the curve start.</p>
+<h3 id="tube-radius-compute_tube_radius"><a class="header" href="#tube-radius-compute_tube_radius">Tube radius (<code>compute_tube_radius</code>)</a></h3>
+<p>At each palette point, ray-march outward along $\pm U_1, \pm U_2$ (and intermediate angles) until the sRGB gamut boundary is hit. The minimum over all angles gives $r(s_i)$ -- the radius of the largest inscribed disk in the normal plane that stays within displayable colors.</p>
+<p>For viridis_approx: $r$ ranges from 17.8 (bright end) to 59.5 (dark end).</p>
+<h3 id="constellation-constellation-constellationmap"><a class="header" href="#constellation-constellation-constellationmap">Constellation (<code>Constellation</code>, <code>ConstellationMap</code>)</a></h3>
+<p>At palette point $c_i$, an $M_i \times M_i$ grid in $\text{span}{U_1(s_i), U_2(s_i)}$:</p>
+<p>$$\text{point}(a, b) = c_i + \alpha_a \cdot U_1(s_i) + \alpha_b \cdot U_2(s_i)$$</p>
+<p>$$\alpha_a = \left(a - \frac{M_i - 1}{2}\right) \cdot \varepsilon, \quad a = 0, \ldots, M_i - 1$$</p>
+<p>where $M_i = \lfloor 2 r(s_i) / \varepsilon \rfloor + 1$ and $\varepsilon$ is the grid spacing (default: 2.3 CIELAB, the just-noticeable difference).</p>
+<p>Each grid point encodes a sequence position $j = a \cdot M_i + b$, giving $M_i^2$ positions per palette color. The <code>ConstellationMap</code> holds one <code>Constellation</code> per palette color, exploiting the variable tube radius so fat-tube regions carry more data.</p>
+<h3 id="bits-per-cell"><a class="header" href="#bits-per-cell">Bits per cell</a></h3>
+<p>$$\text{bits/cell} = \log_2 N + 2 \log_2 M_{\min}$$</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">$\varepsilon$</th><th style="text-align: center">$M_{\min}$</th><th style="text-align: center">bits/cell (N=16)</th><th style="text-align: center">$\sigma_{95}$ single pixel</th></tr></thead><tbody>
+<tr><td style="text-align: center">2.3</td><td style="text-align: center">16</td><td style="text-align: center">12</td><td style="text-align: center">0.4</td></tr>
+<tr><td style="text-align: center">5.0</td><td style="text-align: center">7</td><td style="text-align: center">10</td><td style="text-align: center">0.9</td></tr>
+<tr><td style="text-align: center">10.0</td><td style="text-align: center">4</td><td style="text-align: center">8</td><td style="text-align: center">1.8</td></tr>
+<tr><td style="text-align: center">15.0</td><td style="text-align: center">3</td><td style="text-align: center">7</td><td style="text-align: center">2.7</td></tr>
+</tbody></table>
+</div>
+<h2 id="encoding--decoding"><a class="header" href="#encoding--decoding">Encoding / decoding</a></h2>
+<h3 id="encode"><a class="header" href="#encode">Encode</a></h3>
+<p>For the $i$-th payload word with value $w$:</p>
+<ol>
+<li>Look up palette point: $s_w = w \cdot L / (N-1)$</li>
+<li>Get base color: $c_w = \gamma(s_w)$</li>
+<li>Assign sequence position $j$ (the $j$-th occurrence of word $w$)</li>
+<li>Map to displacement: $(a, b) = (j \mathbin{/} M_w,; j \bmod M_w)$, then $(\alpha_1, \alpha_2)$</li>
+<li>Pixel color: $c_w + \alpha_1 U_1(s_w) + \alpha_2 U_2(s_w)$</li>
+</ol>
+<h3 id="decode-geometric"><a class="header" href="#decode-geometric">Decode (geometric)</a></h3>
+<p>For each pixel color $x$ in CIELAB:</p>
+<ol>
+<li>Project onto $\gamma$: find $s^* = \arg\min_s |x - \gamma(s)|$</li>
+<li>Snap to palette: $w = \text{round}(s^* \cdot (N-1) / L)$</li>
+<li>Decompose residual: $\delta = x - c_w$, then $\alpha_1 = \delta \cdot U_1$, $\alpha_2 = \delta \cdot U_2$</li>
+<li>Snap to grid: $(a, b) = \text{round}(\alpha / \varepsilon + (M-1)/2)$</li>
+<li>Recover position: $j = a M + b$</li>
+</ol>
+<h2 id="noise-model-and-the-varepsilon--sigma-relationship"><a class="header" href="#noise-model-and-the-varepsilon--sigma-relationship">Noise model and the $\varepsilon / \sigma$ relationship</a></h2>
+<p>The grid spacing $\varepsilon$ sets the decision boundary at $\varepsilon / 2$. For a cell to decode correctly, the noise must not push the color past this boundary in either normal-plane axis.</p>
+<p>For 2D Gaussian noise with per-axis $\sigma$:</p>
+<p>$$P(\text{correct cell}) = \left[\text{erf}!\left(\frac{\varepsilon}{2\sqrt{2},\sigma}\right)\right]^2$$</p>
+<p>For 99% cell accuracy: $\varepsilon \geq 5.6 \cdot \sigma$.</p>
+<h3 id="spatial-averaging"><a class="header" href="#spatial-averaging">Spatial averaging</a></h3>
+<p>When a visual element (Voronoi cell, tile) spans $P$ screen pixels, the decoder can average all pixels in the region to reduce noise:</p>
+<p>$$\sigma_{\text{eff}} = \frac{\sigma_{\text{raw}}}{\sqrt{P}}$$</p>
+<p>$$\sigma_{95,\text{eff}} = \frac{\varepsilon}{5.6} \cdot \sqrt{P}$$</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">Image size</th><th style="text-align: center">Cells</th><th style="text-align: center">px/cell</th><th style="text-align: center">$\sqrt{P}$</th><th style="text-align: center">$\sigma_{95,\text{eff}}$ ($\varepsilon=2.3$)</th><th style="text-align: center">$\sigma_{95,\text{eff}}$ ($\varepsilon=15$)</th></tr></thead><tbody>
+<tr><td style="text-align: center">100x100</td><td style="text-align: center">64</td><td style="text-align: center">156</td><td style="text-align: center">12</td><td style="text-align: center">5.1</td><td style="text-align: center">33.5</td></tr>
+<tr><td style="text-align: center">400x400</td><td style="text-align: center">64</td><td style="text-align: center">2500</td><td style="text-align: center">50</td><td style="text-align: center">20.5</td><td style="text-align: center">133.9</td></tr>
+<tr><td style="text-align: center">800x800</td><td style="text-align: center">64</td><td style="text-align: center">10000</td><td style="text-align: center">100</td><td style="text-align: center">41.1</td><td style="text-align: center">267.9</td></tr>
+</tbody></table>
+</div>
+<p>QR code reference: $\sigma_{95} \approx 18$ (B/W threshold at $\Delta L^* \approx 50$, 4 px/module).</p>
+<p>At 400x400 with $\varepsilon = 2.3$, we exceed QR's noise tolerance while using 10-20x fewer visual elements.</p>
+<h2 id="reed-solomon-error-correction-rsencoder"><a class="header" href="#reed-solomon-error-correction-rsencoder">Reed-Solomon error correction (<code>RSEncoder</code>)</a></h2>
+<p>Wraps the parametric encoder with RS codes over GF(256) for fair comparison against QR codes (which use RS internally).</p>
+<pre><code>payload bytes -&gt; RS encode (+ parity) -&gt; bitstream -&gt; pack into cells
+cells -&gt; unpack -&gt; RS decode (correct errors) -&gt; payload bytes
+</code></pre>
+<p>Bits are packed into cells using the <strong>minimum</strong> constellation size ($M_{\min}$) for uniform bit packing:</p>
+<ul>
+<li>word_bits = $\log_2 N$</li>
+<li>pos_bits = $2 \log_2 M_{\min}$</li>
+<li>bits/cell = word_bits + pos_bits</li>
+</ul>
+<p>The joint decoder searches all $N$ palette colors per cell to find the $(w, j)$ pair with minimum residual. This is necessary because large constellation displacements can push a pixel closer to an adjacent palette color's base than to its own.</p>
+<h3 id="32-byte-nostr-pubkey-voronoi-vs-qr"><a class="header" href="#32-byte-nostr-pubkey-voronoi-vs-qr">32-byte Nostr pubkey: Voronoi vs QR</a></h3>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">Config</th><th style="text-align: center">Elements</th><th style="text-align: center">bits/cell</th><th style="text-align: center">$\sigma_{95,\text{eff}}$ (400x400)</th></tr></thead><tbody>
+<tr><td style="text-align: left">QR-L V2 (25x25)</td><td style="text-align: center">625 modules</td><td style="text-align: center">1</td><td style="text-align: center">18</td></tr>
+<tr><td style="text-align: left">Voronoi, N=16, $\varepsilon$=2.3, 50% ECC</td><td style="text-align: center">32 cells</td><td style="text-align: center">12</td><td style="text-align: center">110</td></tr>
+<tr><td style="text-align: left">Voronoi, N=16, $\varepsilon$=15, 50% ECC</td><td style="text-align: center">64 cells</td><td style="text-align: center">7</td><td style="text-align: center">134</td></tr>
+<tr><td style="text-align: left">Voronoi, N=16, $\varepsilon$=30, 50% ECC</td><td style="text-align: center">64 cells</td><td style="text-align: center">6</td><td style="text-align: center">268</td></tr>
+</tbody></table>
+</div>
+<h2 id="topological-decoders-spectral_decoderpy"><a class="header" href="#topological-decoders-spectral_decoderpy">Topological decoders (<code>spectral_decoder.py</code>)</a></h2>
+<p>Two rendering-agnostic decoders that use only color values, no spatial coordinates.</p>
+<h3 id="rips-filtration-decoder"><a class="header" href="#rips-filtration-decoder">Rips filtration decoder</a></h3>
+<p>Implements 0-dimensional persistent homology on colors projected onto $\gamma$:</p>
+<ol>
+<li>Project each color onto $\gamma$ → arc-length value $s_i$</li>
+<li>Build Vietoris-Rips filtration: grow connection radius, track $\beta_0$ (connected components)</li>
+<li><strong>Persistence gap</strong> separates within-word merges ($\varepsilon \approx 0$) from between-word merges ($\varepsilon \approx$ palette spacing)</li>
+<li>Cut at the gap → connected components = palette word groups</li>
+<li>Hungarian matching maps components to word indices</li>
+</ol>
+<p>For clean data: persistence gap = 9.194 (exactly the palette spacing), 16 components detected, perfect round-trip.</p>
+<p>The persistence gap is the <strong>topological analogue of the eigengap</strong> in spectral clustering. Both detect the natural cluster scale, but persistence does it via filtration (scanning all scales) rather than requiring a kernel bandwidth.</p>
+<h3 id="spectral-decoder"><a class="header" href="#spectral-decoder">Spectral decoder</a></h3>
+<p>Normalized graph Laplacian on the 1D arc-length similarity graph:</p>
+<ol>
+<li>Project colors onto $\gamma$ → $s_i$ values</li>
+<li>Gaussian similarity: $W_{ij} = \exp(-|s_i - s_j|^2 / \sigma^2)$, with $\sigma = 0.4 \times$ palette spacing</li>
+<li>Normalized Laplacian: $L_{\text{sym}} = I - D^{-1/2} W D^{-1/2}$</li>
+<li>Eigengap determines $k$ (number of distinct words)</li>
+<li>K-means in spectral embedding → cluster assignments</li>
+</ol>
+<p>In the continuous limit ($n \to \infty$), $L_{\text{sym}}$ converges to the weighted Laplace-Beltrami operator $\Delta_\rho$, whose eigenfunctions partition color space along low-density separators.</p>
+<h3 id="why-project-onto-gamma-first"><a class="header" href="#why-project-onto-gamma-first">Why project onto $\gamma$ first?</a></h3>
+<p>At $\varepsilon = 2.3$, constellation displacements (up to 83 CIELAB) exceed palette spacing (9.2 CIELAB). Colors from adjacent palette words overlap in raw CIELAB. Clustering in 3D fails.</p>
+<p>But the displacements are <strong>purely normal</strong> to $\gamma$ (by construction). Projecting onto $\gamma$ collapses the normal component, leaving only the tangential coordinate where palette words are well-separated. The projection is the key insight: it transforms a 3D overlapping problem into a 1D well-separated one.</p>
+<h3 id="noise-sweep-results-per-pixel-no-spatial-averaging"><a class="header" href="#noise-sweep-results-per-pixel-no-spatial-averaging">Noise sweep results (per-pixel, no spatial averaging)</a></h3>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: center">$\sigma$</th><th style="text-align: center">Geometric</th><th style="text-align: center">Rips</th><th style="text-align: center">Spectral</th></tr></thead><tbody>
+<tr><td style="text-align: center">0</td><td style="text-align: center">100%</td><td style="text-align: center">100%</td><td style="text-align: center">92.5%</td></tr>
+<tr><td style="text-align: center">0.5</td><td style="text-align: center">100%</td><td style="text-align: center">99.9%</td><td style="text-align: center">89.6%</td></tr>
+<tr><td style="text-align: center">1.0</td><td style="text-align: center">99.0%</td><td style="text-align: center">70.0%</td><td style="text-align: center">87.8%</td></tr>
+<tr><td style="text-align: center">3.0</td><td style="text-align: center">82.6%</td><td style="text-align: center">22.8%</td><td style="text-align: center">65.0%</td></tr>
+</tbody></table>
+</div>
+<p>The geometric decoder wins per-pixel because it uses full 3D + constellation snapping. The Rips decoder is exact for clean data but fragile to noise (the 1D projection loses information). The spectral decoder is more noise-robust than Rips due to its global graph structure.</p>
+<p>With spatial averaging, the topological decoders become dominant: averaging thousands of pixels per cell drives $\sigma_{\text{eff}} \to 0$, restoring the clean-data regime where Rips achieves 100%.</p>
+<h2 id="rendering"><a class="header" href="#rendering">Rendering</a></h2>
+<p>The rendering is <strong>decoupled from encoding</strong>. Any spatial layout that assigns one color to each visual element works:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">Rendering</th><th style="text-align: center">Spatial info needed?</th><th style="text-align: left">Decoder</th></tr></thead><tbody>
+<tr><td style="text-align: left">Voronoi diagram</td><td style="text-align: center">seed positions</td><td style="text-align: left">geometric or topological</td></tr>
+<tr><td style="text-align: left">Pixel grid</td><td style="text-align: center">row-major order</td><td style="text-align: left">geometric</td></tr>
+<tr><td style="text-align: left">Mosaic tiles</td><td style="text-align: center">none</td><td style="text-align: left">topological</td></tr>
+<tr><td style="text-align: left">Brush strokes</td><td style="text-align: center">none</td><td style="text-align: left">topological</td></tr>
+<tr><td style="text-align: left">Color-graded photo</td><td style="text-align: center">none</td><td style="text-align: left">topological + segmentation</td></tr>
+</tbody></table>
+</div>
+<p>The Flask app (<code>app.py</code>) demonstrates Voronoi rendering with interactive controls for $\varepsilon$, palette, cell count, and environmental simulation (noise, brightness, color temperature, saturation).</p>
+<h2 id="environment-simulation"><a class="header" href="#environment-simulation">Environment simulation</a></h2>
+<p>The app simulates four perturbation channels, all native to CIELAB:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">Channel</th><th style="text-align: left">CIELAB operation</th><th style="text-align: left">Physical source</th></tr></thead><tbody>
+<tr><td style="text-align: left">Noise $\sigma$</td><td style="text-align: left">Gaussian on all 3 axes</td><td style="text-align: left">Sensor noise, quantization</td></tr>
+<tr><td style="text-align: left">Brightness</td><td style="text-align: left">$L^*$ offset</td><td style="text-align: left">Exposure, ambient light</td></tr>
+<tr><td style="text-align: left">Color temp</td><td style="text-align: left">$b^<em>$ shift + $0.15 \cdot a^</em>$</td><td style="text-align: left">Tungsten / shade / daylight</td></tr>
+<tr><td style="text-align: left">Saturation</td><td style="text-align: left">Chroma scaling ($a^<em>, b^</em>$)</td><td style="text-align: left">Display gamut, distance</td></tr>
+</tbody></table>
+</div>
+<h2 id="file-reference"><a class="header" href="#file-reference">File reference</a></h2>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">File</th><th style="text-align: left">Purpose</th></tr></thead><tbody>
+<tr><td style="text-align: left"><code>parametric_encoding.py</code></td><td style="text-align: left">Core library: curve, frame, constellation, encode/decode</td></tr>
+<tr><td style="text-align: left"><code>rs_encoding.py</code></td><td style="text-align: left">Reed-Solomon wrapper, QR comparison, noise sweep</td></tr>
+<tr><td style="text-align: left"><code>spectral_decoder.py</code></td><td style="text-align: left">Rips filtration and spectral decoders</td></tr>
+<tr><td style="text-align: left"><code>app.py</code></td><td style="text-align: left">Flask demo with Voronoi rendering and environment simulation</td></tr>
+<tr><td style="text-align: left"><code>visualize_encoding.py</code></td><td style="text-align: left">Voronoi seed generation and image rendering</td></tr>
+<tr><td style="text-align: left"><code>noise_analysis.py</code></td><td style="text-align: left">Noise sweep and capacity frontier plots</td></tr>
+<tr><td style="text-align: left"><code>sweep_params.py</code></td><td style="text-align: left">Parameter space sweep for optimal (N, $\varepsilon$, ECC) configs</td></tr>
+<tr><td style="text-align: left"><code>test_parametric.py</code></td><td style="text-align: left">Round-trip, gamut, separation, noise, capacity tests</td></tr>
+<tr><td style="text-align: left"><code>palette.yaml</code></td><td style="text-align: left">CIELAB control points for palette curves</td></tr>
+</tbody></table>
+</div>
+<h2 id="key-invariants"><a class="header" href="#key-invariants">Key invariants</a></h2>
+<ol>
+<li>
+<p><strong>Constellation displacements are normal to $\gamma$</strong>: by construction, $\alpha_1 U_1 + \alpha_2 U_2 \perp T$. This ensures the curve projection recovers word identity exactly (clean data).</p>
+</li>
+<li>
+<p><strong>Tube radius bounds the constellation</strong>: $M_i = \lfloor 2r(s_i)/\varepsilon \rfloor + 1$ guarantees all constellation points are within the sRGB gamut.</p>
+</li>
+<li>
+<p><strong>Persistence gap = palette spacing</strong>: the Rips filtration's largest gap in death times equals $L/(N-1)$, the arc-length spacing between adjacent palette colors. This is a geometric invariant of the encoding, independent of the specific payload.</p>
+</li>
+<li>
+<p><strong>Spatial averaging multiplies noise tolerance by $\sqrt{P}$</strong>: a cell with $P$ pixels has effective noise $\sigma/\sqrt{P}$, giving $\sigma_{95,\text{eff}} = (\varepsilon/5.6) \cdot \sqrt{P}$.</p>
+</li>
+<li>
+<p><strong>Rendering is arbitrary</strong>: information lives in the multiset of colors, not spatial layout. The topological decoders formalize this via the Vietoris-Rips complex on color space.</p>
+</li>
+</ol>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="tools.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="email-dialect.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="tools.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="email-dialect.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>

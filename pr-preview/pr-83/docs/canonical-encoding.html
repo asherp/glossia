@@ -1,0 +1,387 @@
+<!DOCTYPE HTML>
+<html lang="en" class="navy" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Canonical Encoding - Glossia Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "navy";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('navy')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html" class="active"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">8.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">9.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">10.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">11.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">12.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">13.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">14.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">15.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">16.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">17.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">18.</strong> Whitepaper</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Glossia Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/asherp/glossia" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="canonical-encoding"><a class="header" href="#canonical-encoding">Canonical Encoding</a></h1>
+<p><code>canonical_encode</code> and <code>canonical_decode</code> are the stability contract of the
+library: one payload has exactly one prose form, and that form stays valid
+across library releases. Everything else in the API is free to evolve;
+canonical artifacts are not.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use glossia::{canonical_encode, canonical_decode};
+
+let payload: Vec&lt;u8&gt; = /* any bytes */;
+let text = canonical_encode(&amp;payload, "english", "bip39")?;
+
+let d = canonical_decode(&amp;text, "english", "bip39")?;
+assert_eq!(d.payload, payload);
+assert!(d.verified);   // the wording matches the canonical re-render
+<span class="boring">}</span></code></pre></pre>
+<p>From WASM the same pair is exposed as <code>canonical_encode(payload_hex, language, wordlist)</code> and <code>canonical_decode(text, language, wordlist)</code>, returning JSON.</p>
+<h2 id="how-it-works"><a class="header" href="#how-it-works">How it works</a></h2>
+<p>Encoding prefixes the payload with a <strong>version byte</strong>, packs
+<code>[version | payload]</code> into payload words with the self-describing <code>bitpack</code>
+codec, and renders cover prose seeded from a checksum of those exact bytes. The
+seed makes the <em>wording</em> carry the checksum: change any payload bit and the
+whole paragraph re-renders differently, which is what makes damage visible to
+someone reading the text.</p>
+<p>Decoding filters the text against the payload wordlist, unpacks the version
+byte, and verifies by re-rendering the payload <strong>under the rules of the version
+the artifact carries</strong> — not the current ones — and comparing wording.
+Comparison is over normalized alphanumeric tokens, so punctuation spacing,
+case, and surrounding markup are formatting, not damage.</p>
+<h2 id="versioning-how-rendering-improves-without-breaking-artifacts"><a class="header" href="#versioning-how-rendering-improves-without-breaking-artifacts">Versioning: how rendering improves without breaking artifacts</a></h2>
+<p>Each version freezes a <code>VersionRules</code>: the best-of budget, the dialect, and
+which languages render with a semantic model. <code>rules_for(version)</code> is the
+registry; a library at version <em>n</em> keeps the rules for every version ≤ <em>n</em>.</p>
+<p>Version 1: <code>best_of: 4</code>, dialect <code>body</code>, semantics for English only.</p>
+<p>The worked example: today Latin and Czech have no <code>semantics.yaml</code>, so v1
+renders them with POS-only planning. When a Latin semantics model ships later,
+it gets <strong>version 2</strong> with Latin added to <code>semantics_languages</code> — new artifacts
+are written at v2, and every v1 artifact keeps verifying because its version
+byte selects the v1 rules, under which the Latin model does not exist.</p>
+<p>A version byte the library does not recognize is refused by name
+(<code>UnsupportedVersion</code>), not reported as damage: the artifact is from a newer
+release and this build cannot verify it.</p>
+<h2 id="error-correction-v3"><a class="header" href="#error-correction-v3">Error correction (v3)</a></h2>
+<p>v1 and v2 can <em>detect</em> damage. v3 <strong>repairs</strong> it, by appending Reed–Solomon
+parity to the packed words.</p>
+<p>The symbol is a <strong>payload word</strong>, not a byte. Every shipped payload wordlist is
+a power of two, so a word's index is a field element — GF(2¹¹) for English,
+Czech and German, GF(2¹⁵) for Latin — and one mistranscribed word is exactly one
+wrong symbol. Computing parity over the bytes instead would make an 11-bit word
+straddle two or three byte boundaries, so a single fault would cost two or three
+symbols to repair. This is why parity sits in <code>VersionRules</code> beside the
+envelope rather than inside it: v3 seals exactly the bytes v2 does, and the
+parity is added a layer later, over the words those bytes packed into.</p>
+<p><strong>Parity is pinned to the version</strong>, not passed per call: <code>V3_PARITY</code> is one
+symbol per eight, never fewer than four. A parameter would have to be declared
+somewhere the decoder could read before decoding — costing a symbol, the very
+thing parity is counted in — and it would make an artifact's word count depend
+on a caller's choice rather than on its payload.</p>
+<p>It is a <strong>rate</strong>, not a count, because payloads here are not bounded — a whole
+transaction, a mail body. A fixed count thins to nothing across that range:
+four words is generous protection for a 19-word address and negligible for a
+1000-word transaction. One in eight is the rate of RS(255,223). Below 32
+message words the floor binds instead, so an address or a hash costs exactly
+the four words it would have under a fixed budget.</p>
+<div class="table-wrapper"><table><thead><tr><th>payload</th><th>words</th><th>parity</th><th>located</th><th>unlocated</th></tr></thead><tbody>
+<tr><td>20 B hash160</td><td>19</td><td>4 (floor)</td><td>17%</td><td>8%</td></tr>
+<tr><td>32 B program</td><td>27</td><td>4 (floor)</td><td>13%</td><td>6%</td></tr>
+<tr><td>1 KB</td><td>745</td><td>94</td><td>11%</td><td>6%</td></tr>
+</tbody></table>
+</div>
+<h3 id="blocking"><a class="header" href="#blocking">Blocking</a></h3>
+<p>A codeword cannot exceed the field's multiplicative group — 2047 symbols in
+GF(2¹¹), 32767 in GF(2¹⁵). Since a symbol is a word, that caps a single
+codeword at about 2.8 KB of English. Payloads run past it, so longer messages
+are spread across several codewords.</p>
+<p>Message symbol <em>i</em> goes to block <em>i</em> mod <em>blocks</em>, so a run of consecutive
+damaged words lands one symbol in each block rather than concentrating in one.
+Transcription damage is often exactly that shape — a skipped line, a garbled
+clause — and interleaving costs nothing: it changes only which word position a
+symbol occupies, not how many there are. The message stays in its own order at
+the front and every block's parity follows, so the encoding is still
+systematic.</p>
+<h3 id="located-damage-costs-half"><a class="header" href="#located-damage-costs-half">Located damage costs half</a></h3>
+<p>The bound is <code>2·errors + erasures ≤ parity</code>. An <em>error</em> is a wrong symbol at an
+unknown position; an <em>erasure</em> is a known-bad position. So v3 repairs about
+<strong>12%</strong> of an artifact's words when it is told where they are, and <strong>6%</strong> when
+it must find them — or, at the floor, four located and two found.</p>
+<p>Being told is what the alignment layer is for. Decoding filters prose against
+the wordlist, so damage does not stay put: a payload word mangled <em>off</em> the
+wordlist never reaches the harvest at all — the sequence is simply one shorter
+and every later word has slid up a slot — and a cover word mangled <em>onto</em> it
+arrives as a symbol nobody sent. No positional code survives that unaided.</p>
+<p><code>align(received, rendered, markup, is_payload)</code> compares received prose against
+its expected rendering and returns <code>payload_slots</code>: one entry per word the
+rendering expected, holding what arrived there or <code>None</code> where nothing usable
+did. That is a codeword of known length with its holes marked, which is exactly
+what the decoder wants.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use glossia::{align, canonical_decode_slots_fixed, canonical_encode_fixed};
+
+let text = canonical_encode_fixed(&amp;payload, "english", "bip39")?;
+// ... transcription damages the prose ...
+let a = align(&amp;damaged, &amp;candidate_rendering, None, &amp;is_payload);
+let d = canonical_decode_slots_fixed(&amp;a.payload_slots, "english", "bip39", payload.len())?;
+assert_eq!(d.payload, payload);
+assert!(!d.repaired.is_empty());   // which words were corrected
+<span class="boring">}</span></code></pre></pre>
+<p>Alignment needs a candidate to render from, so it cannot bootstrap: a decode
+whose payload damage fails the checksum has nothing to compare against. What it
+does is turn a <em>candidate</em> into a verdict with positions attached — the position
+an error-correcting decoder is in once it has something to propose.</p>
+<h3 id="corrections-are-reported-never-silent"><a class="header" href="#corrections-are-reported-never-silent">Corrections are reported, never silent</a></h3>
+<p><code>CanonicalDecoded::repaired</code> lists the word positions parity corrected. Non-empty
+means the payload is a <em>correction</em>: those words did not say what the artifact
+was written with. The correction is backed by the envelope's crc32, but a caller
+should surface it rather than apply it silently — a reader who mis-copied a word
+is better told which one.</p>
+<p>Damage past the bound returns an error rather than a best effort, and every
+repair is checked by recomputing the syndromes over the corrected word. A
+decoder that hands back its best guess is how a burst beyond the bound becomes a
+valid-looking wrong answer.</p>
+<h2 id="what-a-shipped-version-freezes"><a class="header" href="#what-a-shipped-version-freezes">What a shipped version freezes</a></h2>
+<p>Verification-by-re-render makes the whole rendering path part of the format.
+Once a canonical version has shipped, for its languages:</p>
+<ul>
+<li><strong>Grammar, dialect config, and cover wordlists</strong> must not change in place.
+Cover appends change RNG draws and therefore renderings, so even an
+append-only cover change needs a new version if canonical artifacts exist.</li>
+<li><strong><code>semantics.yaml</code></strong> for languages in <code>semantics_languages</code> is frozen —
+regenerating English's model is a v2, not an edit.</li>
+<li><strong>The RNG</strong> is pinned to ChaCha12 (<code>CoverRng</code>, see <code>tests/rng_pinning.rs</code>).</li>
+<li><strong><code>GLOSSIA_DISABLE_SEMANTICS</code> is ignored</strong> by the canonical path — an
+environment variable must not change what an artifact looks like.</li>
+<li><strong>The parity, the field, and the generator polynomial</strong> for a version that
+spends parity. RS symbols are payload words like any other, so any of those
+moving moves the prose.</li>
+</ul>
+<p><code>tests/canonical.rs</code> pins exact golden renderings per language. A golden test
+failing means a change re-rendered a shipped version's artifacts; the fix is a
+new version entry, never an updated golden.
+<code>examples/canonical_probe.rs</code> prints the renderings for pinning a new
+version's goldens.</p>
+<h2 id="the-address-format-uses-it"><a class="header" href="#the-address-format-uses-it">The address format uses it</a></h2>
+<p>The prose Bitcoin address panel (<code>web/index.html</code>) is the first consumer: an
+address's program bytes go through <code>canonical_encode</code>, so a 20-byte hash160 is
+17 words (version byte + pad word included) and a 32-byte witness program is
+25. The panel's checker builds on <code>canonical_encode_traced</code> (grammatical-role
+annotations), <code>canonical_decode_raw</code> (repair-search candidates without a
+verify render), and the <code>canonical_text</code> returned by <code>canonical_decode</code>
+(wording diff without a second generation). The opcode glyphs remain page-side
+markup around the canonical prose.</p>
+<h2 id="when-not-to-use-it"><a class="header" href="#when-not-to-use-it">When not to use it</a></h2>
+<p>Callers that need their own seeds, packing, or best-of policy — or prose that
+deliberately is not stable across releases — should use the unversioned seams
+(<code>encode_words_into_language</code>, <code>ZoneGenerator</code>, <code>checksum_seed</code>). Those are
+deliberately flexible; the canonical pair is deliberately rigid.</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="how-it-works.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="prose-quality.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="how-it-works.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="prose-quality.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+
+
+    </div>
+    </body>
+</html>
