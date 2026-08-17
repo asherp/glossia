@@ -85,7 +85,12 @@ languages that ship a `semantics.yaml`; absent → behaves exactly as before.
   **concurrently** off-wasm (`draw_candidates` in `core.rs`, `std::thread::scope`): they are
   independent by construction, share only read-only data, and are collected in seed order with
   selection unchanged, so concurrency moves when the work happens and never what it produces —
-  the goldens are what hold that claim. **Benchmark in release**;
+  the goldens are what hold that claim. The hot encode-path maps (`PayloadTok.allowed`,
+  `word_slot_pos`, the `usize` placement maps) use **FxHash** rather than SipHash — their keys
+  are internal (a 14-variant enum, slot indices), never caller text, so FxHash's lack of
+  DoS resistance costs nothing here. Safe by construction, not just by test: std's hasher is
+  randomly seeded per process, so any output depending on iteration order would already make
+  encoding nondeterministic across runs. **Benchmark in release**;
   debug is ~40× slower for the sequence enumeration, and always confirm the binary under test
   was actually rebuilt before trusting a measurement.
 

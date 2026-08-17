@@ -1,3 +1,4 @@
+use rustc_hash::{FxHashMap, FxHashSet};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
 use crate::CoverRng;
 use std::collections::{HashMap, HashSet};
@@ -170,9 +171,9 @@ pub fn max_subsequence_embedding(
     payload: &[PayloadTok],
     payload_start: usize,
     j: usize,
-) -> Option<HashMap<usize, usize>> {
+) -> Option<FxHashMap<usize, usize>> {
     if j == 0 {
-        return Some(HashMap::new());
+        return Some(FxHashMap::default());
     }
     
     if payload_start + j > payload.len() {
@@ -199,7 +200,7 @@ pub fn max_subsequence_embedding(
     }
     
     // Greedy matching: try to place each payload word in order
-    let mut placement = HashMap::new();
+    let mut placement = FxHashMap::default();
     let mut payload_idx = payload_start;
     let mut slot_idx_in_word_slots = 0;
     
@@ -236,7 +237,7 @@ pub fn plan_sentence<R: Rng>(
     payload_start: usize,
     require_prefix: bool,
     semantics: Option<&SemanticModel>,
-) -> Option<(Vec<Pos>, Vec<Option<String>>, HashMap<usize, usize>, usize)> {
+) -> Option<(Vec<Pos>, Vec<Option<String>>, FxHashMap<usize, usize>, usize)> {
     let sequences = cache.get(start_symbol, k)?;
 
     if sequences.is_empty() {
@@ -251,7 +252,7 @@ pub fn plan_sentence<R: Rng>(
     // Compute the set of POS tags needed by the remaining payload words.
     // We only need to look at payload[payload_start..] since those are the words
     // we're trying to embed.
-    let payload_pos_needed: HashSet<Pos> = payload[payload_start..]
+    let payload_pos_needed: FxHashSet<Pos> = payload[payload_start..]
         .iter()
         .flat_map(|tok| tok.allowed.iter().copied())
         .collect();
@@ -299,7 +300,7 @@ pub fn plan_sentence<R: Rng>(
         // identical to the pre-semantics behavior in that case. Semantics only
         // re-weights among candidates at this fixed j, so it never reduces the
         // number of payload words embedded (density is unaffected).
-        let mut candidates: Vec<(usize, HashMap<usize, usize>, f64)> = Vec::new();
+        let mut candidates: Vec<(usize, FxHashMap<usize, usize>, f64)> = Vec::new();
         let mut total_prob: f64 = 0.0;
 
         for (original_idx, seq_prob) in filtered_with_indices.iter() {
@@ -326,7 +327,7 @@ pub fn plan_sentence<R: Rng>(
         // (If all weights are zero, fall back to uniform.)
         if total_prob > 0.0 {
             let mut r = rng.gen::<f64>() * total_prob;
-            let mut last: Option<(usize, HashMap<usize, usize>)> = None;
+            let mut last: Option<(usize, FxHashMap<usize, usize>)> = None;
 
             for (idx, placement, w) in candidates.iter() {
                 last = Some((*idx, placement.clone()));
@@ -360,7 +361,7 @@ pub(crate) fn generate_fallback_sentence(
     payload_start: usize,
     mode: GenerationMode,
     grammar: &crate::grammar::Grammar,
-) -> Option<(Vec<Pos>, Vec<Option<String>>, HashMap<usize, usize>)> {
+) -> Option<(Vec<Pos>, Vec<Option<String>>, FxHashMap<usize, usize>)> {
     if payload_start >= payload.len() {
         return None;
     }
@@ -474,7 +475,7 @@ pub(crate) fn generate_fallback_sentence(
     };
     
     let refinements = vec![None; slots.len()];
-    let mut forced = HashMap::new();
+    let mut forced = FxHashMap::default();
     forced.insert(slot_idx, payload_start);
 
     Some((slots, refinements, forced))
@@ -518,7 +519,7 @@ fn semantic_cover_noun_sel<'a>(
     i: usize,
     gov_verb: Option<&str>,
     payload: &[PayloadTok],
-    forced_placements: Option<&HashMap<usize, usize>>,
+    forced_placements: Option<&FxHashMap<usize, usize>>,
 ) -> Option<&'a Sel> {
     // subject of an adjacent forced payload verb
     if slots.get(i + 1) == Some(&Pos::V) {
@@ -552,7 +553,7 @@ pub fn fill_slots<R: Rng>(
     payload_i: &mut usize,
     prev_words: &[&str],
     expected_first_pos: Option<Pos>,
-    forced_placements: Option<&HashMap<usize, usize>>,
+    forced_placements: Option<&FxHashMap<usize, usize>>,
     payload_only_mode: bool,
     prime_constraint_enabled: bool,
     dot_is_punctuation: bool,
@@ -659,7 +660,7 @@ pub fn fill_slots_traced<R: Rng>(
     payload_i: &mut usize,
     prev_words: &[&str],
     _expected_first_pos: Option<Pos>,
-    forced_placements: Option<&HashMap<usize, usize>>,
+    forced_placements: Option<&FxHashMap<usize, usize>>,
     payload_only_mode: bool,
     prime_constraint_enabled: bool,
     dot_is_punctuation: bool,

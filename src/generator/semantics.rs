@@ -14,6 +14,7 @@
 //! punctuation and other verbs). This mirrors the offline prototype in
 //! `experiments/semantic_planner/`.
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use crate::generator::types::PayloadTok;
 use crate::types::Pos;
 use serde::Deserialize;
@@ -234,7 +235,7 @@ impl SemanticModel {
     fn nearest_payload_noun(
         &self,
         slots: &[Pos],
-        placement: &HashMap<usize, usize>,
+        placement: &FxHashMap<usize, usize>,
         payload: &[PayloadTok],
         from: usize,
         forward: bool,
@@ -269,7 +270,7 @@ impl SemanticModel {
     pub fn placement_score(
         &self,
         slots: &[Pos],
-        placement: &HashMap<usize, usize>,
+        placement: &FxHashMap<usize, usize>,
         payload: &[PayloadTok],
     ) -> f64 {
         let mut score = 1.0f64;
@@ -339,7 +340,7 @@ frames:
         // exist has subj: any -> no penalty regardless of subject class
         let slots = vec![Pos::N, Pos::V, Pos::Dot];
         let payload = vec![tok("clock", Pos::N), tok("exist", Pos::V)];
-        let mut placement = HashMap::new();
+        let mut placement = FxHashMap::default();
         placement.insert(0, 0);
         placement.insert(1, 1);
         assert_eq!(m.placement_score(&slots, &placement, &payload), 1.0);
@@ -351,7 +352,7 @@ frames:
         // "clock discover ..." — discover wants animate subject, clock is thing.
         let slots = vec![Pos::N, Pos::V, Pos::N, Pos::Dot];
         let payload = vec![tok("clock", Pos::N), tok("discover", Pos::V), tok("idea", Pos::N)];
-        let mut p = HashMap::new();
+        let mut p = FxHashMap::default();
         p.insert(0, 0);
         p.insert(1, 1);
         p.insert(2, 2);
@@ -366,7 +367,7 @@ frames:
         // "captain discover idea" — animate subject, obj any -> fully coherent.
         let slots = vec![Pos::N, Pos::V, Pos::N, Pos::Dot];
         let payload = vec![tok("captain", Pos::N), tok("discover", Pos::V), tok("idea", Pos::N)];
-        let mut p = HashMap::new();
+        let mut p = FxHashMap::default();
         p.insert(0, 0);
         p.insert(1, 1);
         p.insert(2, 2);
@@ -379,7 +380,7 @@ frames:
         // "engine process idea" — process accepts agentive; must NOT be penalized.
         let slots = vec![Pos::N, Pos::V, Pos::N, Pos::Dot];
         let payload = vec![tok("engine", Pos::N), tok("process", Pos::V), tok("idea", Pos::N)];
-        let mut p = HashMap::new();
+        let mut p = FxHashMap::default();
         p.insert(0, 0);
         p.insert(1, 1);
         p.insert(2, 2);
@@ -392,7 +393,7 @@ frames:
         // verb slot not in placement (cover verb) -> no scoring, score 1.0
         let slots = vec![Pos::N, Pos::V, Pos::Dot];
         let payload = vec![tok("clock", Pos::N)];
-        let mut p = HashMap::new();
+        let mut p = FxHashMap::default();
         p.insert(0, 0); // only the noun is a payload word
         assert_eq!(m.placement_score(&slots, &p, &payload), 1.0);
     }
@@ -422,7 +423,7 @@ frames:
             tok("discover", Pos::V),
         ];
         // Not a fully realistic placement, but exercises the floor.
-        let mut p = HashMap::new();
+        let mut p = FxHashMap::default();
         p.insert(0, 0);
         p.insert(1, 1);
         p.insert(3, 2);
