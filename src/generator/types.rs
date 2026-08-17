@@ -1,3 +1,4 @@
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use rand::{seq::SliceRandom, Rng};
@@ -34,7 +35,7 @@ pub enum HighlightMode {
 #[derive(Clone, Debug)]
 pub struct PayloadTok {
     pub word: String,
-    pub allowed: HashSet<Pos>,
+    pub allowed: FxHashSet<Pos>,
 }
 
 impl PayloadTok {

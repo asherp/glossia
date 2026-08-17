@@ -1,3 +1,4 @@
+use rustc_hash::{FxHashMap, FxHashSet};
 use rand::Rng;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -63,7 +64,7 @@ pub struct SequenceWithProbability {
     pub probability: f64,
     /// Precomputed set of POS tags in word slots (excluding Dot, Prefix, Aux, Cop, To).
     /// Used by plan_sentence to skip sequences that can't embed any remaining payload words.
-    pub word_slot_pos: HashSet<Pos>,
+    pub word_slot_pos: FxHashSet<Pos>,
 }
 
 impl SequenceWithProbability {
