@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+use std::sync::OnceLock;
 use regex::Regex;
 use crate::types::Pos;
 use crate::generator::types::{PayloadTok, GenerationMode};
@@ -66,24 +68,34 @@ pub fn capitalize(s: &str) -> String {
 /// Supports both alphabetic words (BIP39) and numeric words (primes, etc.).
 /// Strip ANSI escape codes (e.g., \x1b[1m, \x1b[0m), highlighting bars (|), and punctuation.
 pub fn normalize_token_for_bip39(s: &str) -> String {
-    let mut result = s.to_string();
-    
-    // Remove ANSI escape codes: ESC[ followed by digits and 'm'
-    // Pattern: \x1b[ or ESC[ followed by optional digits and 'm'
-    result = Regex::new(r"\x1b\[[0-9;]*m")
-        .unwrap()
-        .replace_all(&result, "")
-        .to_string();
-    
-    // Remove highlighting bars
-    result = result.replace('|', "");
-    
+    // The ANSI pattern is compiled once for the process, not once per token.
+    // This function runs per word on the generation path, and building the
+    // regex here cost about a fifth of an encode — the compile dwarfs the match
+    // it was compiled for.
+    static ANSI: OnceLock<Regex> = OnceLock::new();
+
+    // Both decorations are rare: colour codes and highlight bars are added by
+    // display code, and the words this is asked about are overwhelmingly plain.
+    // Checking first keeps the common token free of a regex pass and of the
+    // allocation a replacement would make.
+    let mut t: Cow<'_, str> = if s.as_bytes().contains(&0x1b) {
+        let re = ANSI.get_or_init(|| {
+            Regex::new(r"\x1b\[[0-9;]*m").expect("the ANSI pattern is a literal")
+        });
+        Cow::Owned(re.replace_all(s, "").into_owned())
+    } else {
+        Cow::Borrowed(s)
+    };
+
+    if t.contains('|') {
+        let bare = t.replace('|', "");
+        t = Cow::Owned(bare);
+    }
+
     // Strip leading/trailing punctuation/quotes, but preserve alphanumeric content
-    result = result.trim()
+    t.trim()
         .trim_matches(|c: char| !c.is_ascii_alphanumeric())
-        .to_lowercase();
-    
-    result
+        .to_lowercase()
 }
 
 /// Check if a word starts with a vowel sound (needed for a/an selection).
