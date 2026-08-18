@@ -131,8 +131,34 @@ by re-rendering **under that version's frozen rules** (`rules_for` registry: bes
 dialect, which languages use semantics) — so rendering improvements ship as new versions
 and old artifacts keep verifying. v1: best_of=4, dialect `body`, semantics=english only.
 
+**Error correction (v3, `src/rs.rs` + `src/gf.rs` + `src/align.rs`)**: v3 appends Reed–Solomon
+parity to the *packed words*, with a **payload word as the symbol** — every shipped payload
+wordlist is a power of two, so a word index is a field element (GF(2¹¹) english/czech/german,
+GF(2¹⁵) latin) and one mistranscribed word is one wrong symbol. Parity therefore lives in
+`VersionRules` beside the envelope, not inside it: v3 seals exactly v2's bytes and adds parity
+a layer later. **Parity is pinned per version** and is a RATE, not a count (`V3_PARITY = {floor: 4, divisor: 8}`
+— one symbol per eight, never fewer than four); never a call parameter, since a parameter would
+cost a symbol to declare and would make word count depend on the caller rather than the payload.
+A count cannot serve unbounded payloads (whole transactions, mail bodies): four words is generous
+for a 19-word address and negligible for a 1000-word transaction. Below 32 message words the floor
+binds, so addresses and hashes cost the same four words they always did. Bound is
+`2·errors + erasures ≤ parity`: ~12% of words repaired if *located*, ~6% if the decoder must find
+them. **Blocking** (`Interleaved` in `src/rs.rs`) is mandatory, not an optimization — a codeword
+cannot exceed the field's group (2047 in GF(2¹¹) ≈ 2.8 KB of English), so without it v3 hard-fails
+above that size while v2 succeeds. Message symbol `i` goes to block `i % blocks`, so a burst
+(a skipped line) spreads one symbol per block instead of exhausting one. Located positions come from `align()` (`payload_slots` /
+`erasures`), which is required because decoding filters against the wordlist — a word mangled
+*off* the list vanishes from the harvest and shifts every later slot; one mangled *onto* it
+arrives as a symbol nobody sent. Alignment cannot bootstrap (it needs a candidate to render
+from). Corrections are reported in `CanonicalDecoded::repaired`, never applied silently; damage
+past the bound errors rather than guessing, and every repair is re-verified against the
+syndromes. Decode tries `FRAMINGS` — `(envelope, parity)` pairs — and reports the error that
+got **furthest** through the pipeline, since getting past the crc32 is evidence and failing
+before it is not.
+
 **Freeze discipline**: verification-by-re-render makes everything the renderer reads part
-of the format. For languages with shipped canonical artifacts, grammar/dialect/cover data
+of the format. For a parity-spending version this also freezes the parity, the field, and the
+generator polynomial — RS symbols are payload words, so any of those moving moves the prose. For languages with shipped canonical artifacts, grammar/dialect/cover data
 and the version's semantics.yaml must not change in place — even cover *appends* change
 RNG draws. Any such change = new version entry + `CANONICAL_VERSION` bump.
 `tests/canonical.rs` pins exact golden renderings (english/latin/czech); a golden failure

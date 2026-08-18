@@ -78,14 +78,58 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use crate::align::{align, Alignment};
 use crate::codec::{
-    checksum_seed, crc32, decode_base_n, decode_base_n_fixed, encode_base_n, normalize_token,
-    payload_tokens,
+    checksum_seed, crc32, decode_base_n, decode_base_n_fixed, encode_base_n, payload_tokens,
 };
+use crate::merkle::WordlistTree;
 use crate::pipeline::{cached_payload_tree, prepare_words_encode, resolve_wordlist_name};
+use crate::rs::Interleaved;
 
 /// The version new canonical artifacts are written at.
-pub const CANONICAL_VERSION: u8 = 2;
+pub const CANONICAL_VERSION: u8 = 3;
+
+/// How much Reed–Solomon parity a version spends, as a rate rather than a count.
+///
+/// Pinned to the version, like everything else the renderer reads. What a
+/// version must fix is that an artifact's word count follows from its payload
+/// length and from nothing else — not that it follows by a constant. A formula
+/// satisfies that as fully as a number does, and a constant does not survive
+/// arbitrary length: four words of protection is generous for a 19-word address
+/// and negligible for a 1000-word transaction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ParityRules {
+    /// Parity never falls below this, however short the payload.
+    pub floor: usize,
+    /// At least one parity symbol per this many message symbols.
+    pub divisor: usize,
+}
+
+/// v3's parity: one symbol per eight, never fewer than four.
+///
+/// Pinned to the version rather than offered as a parameter. A parameter would
+/// have to be declared somewhere the decoder can read before it has decoded —
+/// costing a symbol, the very thing parity is counted in — and it would make an
+/// artifact's word count depend on a caller's choice rather than on its payload.
+///
+/// **The rate.** One in eight gives, via `2·errors + erasures ≤ parity`, about
+/// 12% of the words repairable when [`crate::align`] locates them and 6% when
+/// the decoder must find them. Payloads here are not bounded — a whole
+/// transaction, a mail body — and a fixed count would thin to nothing across
+/// that range: four words is generous protection for a 19-word address and
+/// negligible for a 1000-word transaction. A rate holds its meaning at every
+/// length, and 1/8 is the rate of RS(255,223), which is well-trodden ground.
+///
+/// **The floor.** Below 32 message words the floor binds, so an address, a
+/// hash160 or a witness program costs exactly the four words it would have cost
+/// under a fixed budget — the short artifacts this format was first sized for
+/// are unaffected by the rate.
+///
+/// Measured in English: a 20-byte hash160 runs 19 → 23 words, a 32-byte program
+/// 27 → 31, a 128-byte payload 97 → 110, a 1 KB payload 745 → 839. Latin packs
+/// 15 bits to a word rather than 11, so it needs fewer words for the same bytes
+/// and pays the same rate on a smaller base.
+pub const V3_PARITY: ParityRules = ParityRules { floor: 4, divisor: 8 };
 
 /// The byte↔word packing for the length-parameterized entry points. The caller
 /// states the payload's byte count, so no padding word is needed at all. Only
@@ -184,7 +228,20 @@ impl Envelope {
 /// actually declare that framing. A v2 artifact read as v1 yields a version
 /// byte from the middle of a payload, which all but never lands on a
 /// registered `VersionLeading` version.
-const ENVELOPES: &[Envelope] = &[Envelope::PayloadLeading, Envelope::VersionLeading];
+/// The `(framing, parity)` combinations a decoder tries, most recent first.
+///
+/// Both halves have to be guessed before the version that states them can be
+/// read, and both are caught by the same thing: v2 and later carry a crc32, so a
+/// wrong guess fails it with probability 1 − 2⁻³² rather than producing a
+/// plausible payload. v1 has no checksum, which is exactly why it is tried last.
+///
+/// v3 and v2 share a framing and differ only in parity, so the pair is what
+/// distinguishes them — the envelope alone no longer identifies a version.
+const FRAMINGS: &[(Envelope, Option<ParityRules>)] = &[
+    (Envelope::PayloadLeading, Some(V3_PARITY)),
+    (Envelope::PayloadLeading, None),
+    (Envelope::VersionLeading, None),
+];
 
 /// The rendering rules a canonical version freezes.
 ///
@@ -207,8 +264,21 @@ pub struct VersionRules {
     pub semantics_languages: &'static [&'static str],
     /// How this version frames its payload. Unlike the other fields, the
     /// decoder must determine this BEFORE it knows the version — see
-    /// [`Envelope`] and [`ENVELOPES`].
+    /// [`Envelope`] and [`FRAMINGS`].
     pub envelope: Envelope,
+    /// Reed–Solomon parity symbols appended to the packed words, or 0 for a
+    /// version that carries none.
+    ///
+    /// This sits beside `envelope` rather than inside it because it is not a
+    /// byte framing at all: v3 seals exactly the bytes v2 does, and the parity
+    /// is added a layer later, over the WORDS those bytes packed into. That is
+    /// the whole point of the choice of field — a symbol is a word, so one
+    /// mistranscribed word is one wrong symbol rather than the two or three
+    /// byte faults it would be if parity were computed before packing.
+    ///
+    /// Like `envelope`, the decoder must guess this before it can read the
+    /// version that states it, so it too is part of a framing candidate.
+    pub parity: Option<ParityRules>,
 }
 
 static V1: VersionRules = VersionRules {
@@ -218,6 +288,7 @@ static V1: VersionRules = VersionRules {
     // therefore frozen: regenerating it requires a new canonical version.
     semantics_languages: &["english"],
     envelope: Envelope::VersionLeading,
+    parity: None,
 };
 
 static V2: VersionRules = VersionRules {
@@ -225,6 +296,22 @@ static V2: VersionRules = VersionRules {
     dialect: "body",
     semantics_languages: &["english"],
     envelope: Envelope::PayloadLeading,
+    parity: None,
+};
+
+/// v3: v2's bytes exactly, with Reed–Solomon parity over the packed words.
+///
+/// Nothing about the byte framing or the rendering rules moves — the same
+/// envelope, the same fluency budget, the same dialect, the same semantics. The
+/// only difference is [`V3_PARITY`] parity words riding after the payload, which
+/// is why a v2 artifact and a v3 artifact of the same payload share their
+/// opening words and diverge only in length.
+static V3: VersionRules = VersionRules {
+    best_of: 4,
+    dialect: "body",
+    semantics_languages: &["english"],
+    envelope: Envelope::PayloadLeading,
+    parity: Some(V3_PARITY),
 };
 
 /// The frozen rules for a canonical version, or `None` if this library release
@@ -248,6 +335,7 @@ pub fn rules_for(version: u8) -> Option<&'static VersionRules> {
     match version {
         1 => Some(&V1),
         2 => Some(&V2),
+        3 => Some(&V3),
         _ => None,
     }
 }
@@ -299,6 +387,24 @@ impl fmt::Display for CanonicalError {
 
 impl std::error::Error for CanonicalError {}
 
+/// How far the received prose confirmed the payload it decoded to.
+///
+/// The third state #76 names — outright failure — is the `Err` half of the
+/// decode result, not a variant here: a decode that could not name a version or
+/// whose checksum did not hold produces no payload to render a verdict on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verdict {
+    /// The wording is the canonical rendering of the payload. Because the cover
+    /// seed is a checksum of the encoded bytes, a wrong payload re-renders the
+    /// whole paragraph differently — so matching wording is a check on the
+    /// bytes, not merely on the prose.
+    Verified,
+    /// The payload decoded and its checksum held, but the wording is not the
+    /// canonical rendering. The cover took transcription damage, or the text
+    /// was produced some other way. The payload still stands on its crc32.
+    Unverified,
+}
+
 /// Result of [`canonical_decode`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CanonicalDecoded {
@@ -306,11 +412,38 @@ pub struct CanonicalDecoded {
     pub version: u8,
     /// The payload bytes (version byte stripped).
     pub payload: Vec<u8>,
+    /// Whether the wording confirms the payload, and if not, how far it fell
+    /// short. Reaching this type at all means the envelope's checksum held, so
+    /// [`Verdict::Unverified`] is "the bytes are right and the prose carrying
+    /// them is damaged", not "the bytes are doubtful".
+    pub verdict: Verdict,
+    /// Where the received wording and the canonical rendering diverge, with the
+    /// damage mapped onto payload slots. Empty of damage exactly when
+    /// [`Verdict::Verified`].
+    ///
+    /// This is what a checker UI marks up, and what an error-correcting decoder
+    /// takes its erasure positions from: [`Alignment::payload_slots`] is the
+    /// received symbols in the rendering's own coordinates, so a dropped or
+    /// spurious word does not shift everything after it.
+    pub alignment: Alignment,
+    /// Word positions Reed–Solomon parity repaired on the way to this payload,
+    /// ascending. Empty under a version carrying no parity, and empty under one
+    /// that does when the prose arrived intact.
+    ///
+    /// Non-empty means the payload below is a *correction*, not a transcription:
+    /// these words did not say what the artifact was written with. A caller
+    /// surfacing a repair should show it rather than apply it silently — the
+    /// correction is backed by the envelope's crc32, but a reader who mis-copied
+    /// a word is better told which one.
+    pub repaired: Vec<usize>,
     /// Whether the received wording matches the canonical re-render for this
     /// payload and version, compared as normalized alphanumeric tokens — so
     /// punctuation spacing and surrounding markup are formatting, not damage.
     /// `false` means the payload decoded but the prose is not the canonical
     /// rendering of it: transcription damage, or text produced some other way.
+    ///
+    /// Retained as the flat form of [`Verdict`]; `verified == (verdict ==
+    /// Verdict::Verified)`.
     pub verified: bool,
     /// The canonical rendering of the decoded payload — the reference the
     /// verification compared against. Verification computes it anyway, and a
@@ -382,6 +515,98 @@ pub fn canonical_encode_fixed_at(
     encode_canonical_with(payload, language, wordlist, version, FIXED_ENVELOPE_CODEC)
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// Parity, over the words
+// ═══════════════════════════════════════════════════════════════════════
+//
+// A payload word's index in the wordlist IS a field element, because every
+// shipped payload wordlist is a power of two. So the parity is computed over
+// the words rather than over the bytes they packed from, and one mistranscribed
+// word costs exactly one symbol. Computed before packing, an 11-bit word
+// straddles two or three byte boundaries and a single fault would cost two or
+// three symbols of parity to repair.
+
+/// Word indices as field elements.
+fn symbols_of(words: &[String], tree: &WordlistTree) -> Result<Vec<u16>, CanonicalError> {
+    words
+        .iter()
+        .map(|w| {
+            let i = tree
+                .position(w)
+                .ok_or_else(|| CanonicalError::Decode(format!("{w:?} is not a payload word")))?;
+            u16::try_from(i).map_err(|_| {
+                CanonicalError::Decode(format!("word index {i} exceeds the symbol width"))
+            })
+        })
+        .collect()
+}
+
+/// Field elements back to words.
+fn words_of(symbols: &[u16], tree: &WordlistTree) -> Result<Vec<String>, CanonicalError> {
+    let words = tree.words();
+    symbols
+        .iter()
+        .map(|&s| {
+            words
+                .get(s as usize)
+                .cloned()
+                .ok_or_else(|| CanonicalError::Decode(format!("symbol {s} is not a word")))
+        })
+        .collect()
+}
+
+/// Append this version's parity words. A version spending none is a no-op, so
+/// v1 and v2 pass through untouched and their renderings cannot move.
+fn append_parity(
+    words: Vec<String>,
+    tree: &WordlistTree,
+    parity: Option<ParityRules>,
+) -> Result<Vec<String>, CanonicalError> {
+    let Some(rules) = parity else {
+        return Ok(words);
+    };
+    let il = Interleaved::for_wordlist_len(tree.len(), rules.floor, rules.divisor)
+        .map_err(|e| CanonicalError::Encode(e.to_string()))?;
+    let symbols = symbols_of(&words, tree)?;
+    let codeword = il
+        .encode(&symbols)
+        .map_err(|e| CanonicalError::Encode(e.to_string()))?;
+    words_of(&codeword, tree)
+}
+
+/// Repair what parity allows, then strip it, returning the message words and
+/// the positions that were repaired.
+///
+/// `erasures` names positions already known bad — from [`crate::align`], which
+/// recovers them by comparing against a candidate's re-render. Supplying them
+/// halves their cost: `2·errors + erasures ≤ parity`. Passing none is valid and
+/// leaves the code correcting up to `parity / 2` faults it must locate itself.
+fn take_parity(
+    words: &[String],
+    tree: &WordlistTree,
+    parity: Option<ParityRules>,
+    erasures: &[usize],
+) -> Result<(Vec<String>, Vec<usize>), CanonicalError> {
+    let Some(rules) = parity else {
+        return Ok((words.to_vec(), Vec::new()));
+    };
+    let il = Interleaved::for_wordlist_len(tree.len(), rules.floor, rules.divisor)
+        .map_err(|e| CanonicalError::Decode(e.to_string()))?;
+    let symbols = symbols_of(words, tree)?;
+    let corrected = il
+        .decode(&symbols, erasures)
+        .map_err(|e| CanonicalError::Decode(e.to_string()))?;
+    let message = il
+        .message_of(&corrected.codeword)
+        .ok_or_else(|| CanonicalError::Decode("word count belongs to no message".into()))?;
+    let message = words_of(message, tree)?;
+    let mut repaired = corrected.errors;
+    repaired.extend(corrected.erasures);
+    repaired.sort_unstable();
+    repaired.dedup();
+    Ok((message, repaired))
+}
+
 /// The shared encode body: seal the envelope, pack it with `codec`, render.
 fn encode_canonical_with(
     payload: &[u8],
@@ -401,6 +626,7 @@ fn encode_canonical_with(
         .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
     let words = encode_base_n(&bytes, &tree, codec)
         .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
+    let words = append_parity(words, &tree, rules.parity)?;
 
     render_canonical(&words, &bytes, language, wl, rules)
 }
@@ -412,10 +638,10 @@ pub fn canonical_decode(
     language: &str,
     wordlist: &str,
 ) -> Result<CanonicalDecoded, CanonicalError> {
-    let (version, payload) = canonical_decode_raw(text, language, wordlist)?;
+    let (version, payload, repaired) =
+        decode_canonical_with(text, language, wordlist, None, &[])?;
     let reference = canonical_encode_at(&payload, language, wordlist, version)?;
-    let verified = same_wording(text, &reference);
-    Ok(CanonicalDecoded { version, payload, verified, canonical_text: reference })
+    judge(text, reference, version, payload, repaired, language, wordlist)
 }
 
 /// Decode prose written by [`canonical_encode_fixed`], given the payload's byte
@@ -429,10 +655,108 @@ pub fn canonical_decode_fixed(
     wordlist: &str,
     payload_len: usize,
 ) -> Result<CanonicalDecoded, CanonicalError> {
-    let (version, payload) = canonical_decode_raw_fixed(text, language, wordlist, payload_len)?;
+    canonical_decode_fixed_repaired(text, language, wordlist, payload_len, &[])
+}
+
+/// [`canonical_decode_fixed`], told which word positions are already known bad.
+///
+/// This is where the two halves meet. [`crate::align`] recovers positions by
+/// comparing received prose against a candidate's re-render, and a located fault
+/// costs parity half what an unlocated one does — so `2·errors + erasures ≤
+/// parity` lets [`V3_PARITY`] repair four words it is told about where it could
+/// only find two on its own.
+///
+/// Positions index the harvested payload-word sequence, parity words included,
+/// which is the coordinate system [`Alignment::payload_slots`] is already in.
+/// Where a word was mangled off the wordlist entirely it is absent from the
+/// harvest, so the text alone cannot carry the position — use
+/// [`canonical_decode_slots_fixed`] with the alignment's slots instead.
+pub fn canonical_decode_fixed_repaired(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+    erasures: &[usize],
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let (version, payload, repaired) =
+        decode_canonical_with(text, language, wordlist, Some(payload_len), erasures)?;
     let reference = canonical_encode_fixed_at(&payload, language, wordlist, version)?;
-    let verified = same_wording(text, &reference);
-    Ok(CanonicalDecoded { version, payload, verified, canonical_text: reference })
+    judge(text, reference, version, payload, repaired, language, wordlist)
+}
+
+/// Decode from aligned payload slots rather than from prose.
+///
+/// `slots` is [`Alignment::payload_slots`]: one entry per payload word the
+/// rendering expected, holding what arrived there or `None` where nothing
+/// usable did. Taking slots rather than text is what makes a word mangled OFF
+/// the wordlist repairable — such a word never reaches the harvest, so its
+/// position exists only in the alignment, and passing prose would lose it.
+///
+/// Every `None` becomes an erasure. The placeholder written into the gap is
+/// never read: the decoder zeroes erased positions before computing syndromes.
+pub fn canonical_decode_slots_fixed(
+    slots: &[Option<String>],
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let wl = resolve_wordlist_name(language, wordlist);
+    let tree = cached_payload_tree(language, wl)
+        .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
+    let filler = tree
+        .words()
+        .first()
+        .ok_or_else(|| CanonicalError::Decode("empty wordlist".into()))?;
+
+    let erasures: Vec<usize> = slots
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.is_none())
+        .map(|(i, _)| i)
+        .collect();
+    let text = slots
+        .iter()
+        .map(|s| s.as_deref().unwrap_or(filler.as_str()))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    canonical_decode_fixed_repaired(&text, language, wordlist, payload_len, &erasures)
+}
+
+/// Align received text against its canonical re-render and assemble the verdict.
+///
+/// The alignment subsumes the old boolean comparison: the wording matches
+/// exactly when every position aligned as [`crate::align::Op::Same`], so
+/// `verified` is read off the alignment rather than computed a second way. That
+/// keeps one answer where there were two, and it means an unverified result
+/// arrives with the reason attached instead of only the fact.
+fn judge(
+    text: &str,
+    reference: String,
+    version: u8,
+    payload: Vec<u8>,
+    repaired: Vec<usize>,
+    language: &str,
+    wordlist: &str,
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let wl = resolve_wordlist_name(language, wordlist);
+    let tree = cached_payload_tree(language, wl)
+        .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
+    let payload_set: HashSet<String> = tree.words().iter().map(|w| w.to_lowercase()).collect();
+
+    let alignment = align(text, &reference, None, |w| payload_set.contains(w));
+    let verified = alignment.is_clean();
+    let verdict = if verified { Verdict::Verified } else { Verdict::Unverified };
+
+    Ok(CanonicalDecoded {
+        version,
+        payload,
+        verdict,
+        alignment,
+        repaired,
+        verified,
+        canonical_text: reference,
+    })
 }
 
 /// The decode half alone: payload words → version byte + payload bytes, with the
@@ -448,7 +772,7 @@ pub fn canonical_decode_raw(
     language: &str,
     wordlist: &str,
 ) -> Result<(u8, Vec<u8>), CanonicalError> {
-    decode_canonical_with(text, language, wordlist, None)
+    decode_canonical_with(text, language, wordlist, None, &[]).map(|(v, p, _)| (v, p))
 }
 
 /// [`canonical_decode_raw`] for the fixed packing, given the payload byte count.
@@ -458,24 +782,31 @@ pub fn canonical_decode_raw_fixed(
     wordlist: &str,
     payload_len: usize,
 ) -> Result<(u8, Vec<u8>), CanonicalError> {
-    decode_canonical_with(text, language, wordlist, Some(payload_len))
+    decode_canonical_with(text, language, wordlist, Some(payload_len), &[])
+        .map(|(v, p, _)| (v, p))
 }
 
 /// The shared decode body. `payload_len` present selects the fixed packing and
 /// states how many bytes to expect; absent selects the self-describing one.
 ///
 /// The fixed packing exists only under [`Envelope::PayloadLeading`], so a stated
-/// length pins the framing and there is nothing to search. Without one, each
-/// framing in [`ENVELOPES`] is tried in turn and the first that both unpacks and
-/// names a version declaring that same framing wins. The error reported on total
-/// failure is the FIRST framing's, since that is the one a current artifact was
-/// meant to be.
+/// length rules that framing in — but not the parity, which still has to be
+/// guessed. Each candidate in [`FRAMINGS`] is tried in turn and the first that
+/// unpacks and names a version declaring that same framing AND that same parity
+/// wins. The error reported on total failure is the FIRST candidate's, since
+/// that is the one a current artifact was meant to be.
+///
+/// `erasures` names word positions already known bad, which lets parity repair
+/// twice as many of them; see [`take_parity`]. Empty is always valid.
+///
+/// Returns the version, the payload, and which word positions parity repaired.
 fn decode_canonical_with(
     text: &str,
     language: &str,
     wordlist: &str,
     payload_len: Option<usize>,
-) -> Result<(u8, Vec<u8>), CanonicalError> {
+    erasures: &[usize],
+) -> Result<(u8, Vec<u8>, Vec<usize>), CanonicalError> {
     let wl = resolve_wordlist_name(language, wordlist);
     let tree = cached_payload_tree(language, wl)
         .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
@@ -487,46 +818,83 @@ fn decode_canonical_with(
         return Err(CanonicalError::NoPayloadWords);
     }
 
-    if let Some(n) = payload_len {
-        let envelope = Envelope::PayloadLeading;
-        let bytes = decode_base_n_fixed(
-            &words,
-            &tree,
-            FIXED_ENVELOPE_CODEC,
-            n + envelope.overhead(),
-        )
-        .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
-        // The checksum runs before the version lookup on purpose: damaged words
-        // are far likelier than an artifact from the future, so a mangled
-        // paragraph should report itself as mangled rather than as an
-        // unsupported version it never claimed.
-        let (version, payload) = envelope.open(&bytes)?;
-        let rules = rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
-        if rules.envelope != envelope {
-            return Err(CanonicalError::NoFixedForm(version));
-        }
-        return Ok((version, payload));
-    }
+    // How far a framing candidate got before it failed. A later stage is a
+    // better diagnosis, because reaching it means everything before it held.
+    const STAGE_PARITY: u8 = 0;
+    const STAGE_UNPACK: u8 = 1;
+    const STAGE_CHECKSUM: u8 = 2;
+    const STAGE_VERSION: u8 = 3;
 
-    let mut first_error = None;
-    for &envelope in ENVELOPES {
-        let attempt = decode_base_n(&words, &tree, envelope.codec())
-            .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))
-            .and_then(|bytes| envelope.open(&bytes))
-            .and_then(|(version, payload)| {
-                let rules =
-                    rules_for(version).ok_or(CanonicalError::UnsupportedVersion(version))?;
-                // A version only vouches for the framing it declares. Without
-                // this the v1 attempt would accept any artifact whose seventh
-                // byte happened to read 1 or 2.
-                if rules.envelope != envelope {
-                    return Err(CanonicalError::UnsupportedVersion(version));
-                }
-                Ok((version, payload))
-            });
+    let mut first_error: Option<(u8, CanonicalError)> = None;
+    for &(envelope, parity) in FRAMINGS {
+        // The fixed packing exists only under `PayloadLeading`, so a stated
+        // length rules out the other framing entirely — but not the other
+        // parity, which still has to be tried.
+        if payload_len.is_some() && envelope != Envelope::PayloadLeading {
+            continue;
+        }
+
+        let attempt = (|| {
+            // Parity comes off first: it was added last, over the words, so
+            // everything below this line sees exactly the word sequence a
+            // parity-less version would have produced.
+            let (message, repaired) =
+                take_parity(&words, &tree, parity, erasures).map_err(|e| (STAGE_PARITY, e))?;
+            let bytes = match payload_len {
+                Some(n) => decode_base_n_fixed(
+                    &message,
+                    &tree,
+                    FIXED_ENVELOPE_CODEC,
+                    n + envelope.overhead(),
+                ),
+                None => decode_base_n(&message, &tree, envelope.codec()),
+            }
+            .map_err(|e| (STAGE_UNPACK, CanonicalError::Decode(format!("{:?}", e))))?;
+
+            // The checksum runs before the version lookup on purpose: damaged
+            // words are far likelier than an artifact from the future, so a
+            // mangled paragraph should report itself as mangled rather than as
+            // an unsupported version it never claimed.
+            let (version, payload) = envelope.open(&bytes).map_err(|e| (STAGE_CHECKSUM, e))?;
+            let rules = rules_for(version)
+                .ok_or((STAGE_VERSION, CanonicalError::UnsupportedVersion(version)))?;
+            // A version only vouches for the framing it declares, parity
+            // included. Without this the v1 attempt would accept any artifact
+            // whose seventh byte happened to read 1 or 2, and the v2 attempt
+            // would accept a v3 artifact whose parity it had silently eaten.
+            if rules.envelope != envelope {
+                return Err((
+                    STAGE_VERSION,
+                    if payload_len.is_some() {
+                        CanonicalError::NoFixedForm(version)
+                    } else {
+                        CanonicalError::UnsupportedVersion(version)
+                    },
+                ));
+            }
+            if rules.parity != parity {
+                return Err((STAGE_VERSION, CanonicalError::UnsupportedVersion(version)));
+            }
+            Ok((version, payload, repaired))
+        })();
+
         match attempt {
             Ok(found) => return Ok(found),
-            Err(e) => first_error.get_or_insert(e),
+            Err((stage, e)) => {
+                // Keep the error that got FURTHEST, not the one that came first.
+                //
+                // With one framing this distinction did not exist. With three,
+                // the newest is tried first and fails earliest on an older
+                // artifact, so reporting the first would bury the diagnosis: a
+                // paragraph claiming an unknown version would be described as
+                // one whose parity did not check, which is both less true and
+                // less useful. Getting past the crc32 is real evidence about
+                // what the bytes are; failing before it is not. Ties go to the
+                // earlier candidate, which is the more current version.
+                if first_error.as_ref().is_none_or(|&(s, _)| stage > s) {
+                    first_error = Some((stage, e));
+                }
+            }
         };
     }
     // Unknown version, or nothing that framed cleanly: the payload words may
@@ -534,7 +902,7 @@ fn decode_canonical_with(
     // version's rules. Refusing outright is the honest answer —
     // "unverifiable" from a canonical decoder would be indistinguishable from
     // damage.
-    Err(first_error.expect("ENVELOPES is never empty"))
+    Err(first_error.expect("FRAMINGS is never empty").1)
 }
 
 /// Canonical encode with placements: the current-version rendering plus where
@@ -578,6 +946,7 @@ fn encode_traced_with(
         .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
     let words = encode_base_n(&bytes, &tree, codec)
         .map_err(|e| CanonicalError::Encode(format!("{:?}", e)))?;
+    let words = append_parity(words, &tree, rules.parity)?;
 
     let (toks, payload_word_set, gen) = prepare_render(&words, language, wl, rules)?;
     let seed = checksum_seed(&bytes, 0);
@@ -647,14 +1016,3 @@ fn render_canonical(
     Ok(text)
 }
 
-/// Wording equality over normalized alphanumeric tokens: word-exact,
-/// punctuation- and markup-insensitive.
-fn same_wording(a: &str, b: &str) -> bool {
-    let norm = |s: &str| -> Vec<String> {
-        s.split_whitespace()
-            .map(normalize_token)
-            .filter(|t| !t.is_empty())
-            .collect()
-    };
-    norm(a) == norm(b)
-}

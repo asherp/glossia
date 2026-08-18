@@ -7,6 +7,9 @@ pub mod grammar;
 pub mod generator;
 pub mod merkle;
 pub mod codec;
+pub mod gf;
+pub mod rs;
+pub mod align;
 pub mod canonical;
 pub mod pipeline;
 pub mod scale;
@@ -86,9 +89,12 @@ pub use pipeline::{Pipeline, Endpoint, Verb, PipelineError, encode_into_language
 pub use canonical::{
     canonical_decode, canonical_decode_fixed, canonical_decode_raw, canonical_decode_raw_fixed,
     canonical_encode, canonical_encode_at, canonical_encode_fixed, canonical_encode_fixed_at,
-    canonical_encode_fixed_traced, canonical_encode_traced, rules_for,
-    CanonicalDecoded, CanonicalError, Envelope, VersionRules, CANONICAL_VERSION,
+    canonical_decode_fixed_repaired, canonical_decode_slots_fixed,
+    canonical_encode_fixed_traced, canonical_encode_traced, rules_for, ParityRules, V3_PARITY,
+    CanonicalDecoded, CanonicalError, Envelope, Verdict, VersionRules, CANONICAL_VERSION,
 };
+
+pub use align::{align, AlignedToken, Alignment, Op};
 
 #[cfg(feature = "native")]
 use nlprule::{Tokenizer, Rules};
