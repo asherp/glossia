@@ -62,6 +62,23 @@ jobs:
             exit 1
           fi
 
+      # Publishing is irreversible -- crates.io permanently refuses to re-publish
+      # a version -- so the suite runs here rather than trusting master's last CI
+      # run. The two are not equivalent: dependencies resolve at job time, and a
+      # semver-compatible bump between the merge and the tag would not have been
+      # tested by anything. That matters more here than in most crates, because
+      # verification-by-re-render makes generator behaviour part of the format:
+      # drift moves every rendering while the version byte still claims
+      # compatibility, and the goldens are what catch it.
+      - name: Test
+        run: cargo test --workspace
+
+      # The wasm module ships in the published crate but is behind a feature
+      # `--workspace` does not enable, so its exports would otherwise reach
+      # crates.io untested.
+      - name: Test wasm exports
+        run: cargo test --features wasm --test wasm_exports
+
       # The library must publish first; glossia-cli depends on it. `cargo publish`
       # waits for the new version to appear in the index before returning, so the
       # CLI publish that follows can resolve it.

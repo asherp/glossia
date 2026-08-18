@@ -7,6 +7,7 @@
 
 use rand::{seq::SliceRandom, Rng, SeedableRng};
 use glossia::CoverRng;
+#[cfg(test)]
 use glossia::FxHashMap;
 use std::collections::{HashMap, HashSet};
 use std::env;
