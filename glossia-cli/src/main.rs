@@ -7,6 +7,7 @@
 
 use rand::{seq::SliceRandom, Rng, SeedableRng};
 use glossia::CoverRng;
+use glossia::FxHashMap;
 use std::collections::{HashMap, HashSet};
 use std::env;
 use glossia::types::Pos;
@@ -2447,7 +2448,7 @@ mod tests {
             .with_words(Pos::Adj, &["clear", "simple"])
             .with_words(Pos::N, &["user", "note"]);
 
-        let mut forced: HashMap<usize, usize> = HashMap::new();
+        let mut forced: FxHashMap<usize, usize> = FxHashMap::default();
         forced.insert(2, 0);
 
         let mut rng = ZeroRng::default();
@@ -2889,7 +2890,7 @@ mod tests {
 
         let slots = vec![Pos::Det, Pos::N, Pos::Dot];
         let refinements = vec![Some("indef".to_string()), None, None];
-        let mut forced: HashMap<usize, usize> = HashMap::new();
+        let mut forced: FxHashMap<usize, usize> = FxHashMap::default();
         forced.insert(1, 0); // Force "apple" into N slot
 
         let mut rng = CoverRng::seed_from_u64(42);
@@ -2916,7 +2917,7 @@ mod tests {
 
         let slots = vec![Pos::Det, Pos::N, Pos::Dot];
         let refinements = vec![Some("indef".to_string()), None, None];
-        let mut forced: HashMap<usize, usize> = HashMap::new();
+        let mut forced: FxHashMap<usize, usize> = FxHashMap::default();
         forced.insert(1, 0); // Force "basket" into N slot
 
         let mut rng = CoverRng::seed_from_u64(42);

@@ -36,6 +36,17 @@ pub type CoverRng = rand_chacha::ChaCha12Rng;
 pub use types::Pos;
 pub use grammar::{Grammar, SequenceWithProbability, DialectConfig};
 
+/// The map type the generator's forced-placement arguments are keyed with.
+///
+/// Re-exported because it appears in public signatures (`fill_slots` and
+/// `generate_text_with_original_payload` both take
+/// `Option<&FxHashMap<usize, usize>>`), and a caller cannot build an argument
+/// for a type the crate does not name. Without this every consumer has to
+/// depend on `rustc-hash` directly and keep its version in step with ours, for
+/// what is otherwise an internal choice of hasher — the keys here are slot
+/// indices, never caller text, which is why FxHash is sound for them.
+pub use rustc_hash::FxHashMap;
+
 // Re-export generator types and functions
 pub use generator::{
     GenerationMode, SentenceLengthMode, PayloadTok, Lexicon,
