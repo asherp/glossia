@@ -1,13 +1,70 @@
 /* @ts-self-types="./glossia.d.ts" */
 
 /**
+ * Align received prose against the rendering it should have been, without
+ * decoding either.
+ *
+ * This is the half that locates damage. Decoding filters prose against the
+ * wordlist, so damage does not stay put: a payload word mangled off the
+ * wordlist never arrives, and a cover word mangled onto it arrives as a symbol
+ * nobody sent. Alignment puts both back in the rendering's own coordinates,
+ * producing a codeword of known length with its holes marked.
+ *
+ * It cannot bootstrap: `rendered` must be a candidate rendering to compare
+ * against, which a caller gets from its own (often memoized) encode of a
+ * payload it already has. That is the checking case — confirming a
+ * transcription of something on the page — not the recovering-from-nothing
+ * case.
+ *
+ * Returns JSON `{ tokens, matched, payload_slots, erasures, spurious, clean,
+ * payload_intact }` or `{ error }`.
+ * @param {string} received
+ * @param {string} rendered
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function align_prose(received, rendered, language, wordlist) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(received, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(rendered, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len3 = WASM_VECTOR_LEN;
+        wasm.align_prose(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred5_0 = r0;
+        deferred5_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred5_0, deferred5_1, 1);
+    }
+}
+
+/**
  * Decode canonical prose and verify it by re-rendering under the rules of the
  * version byte the artifact carries — not the current version, so artifacts
  * from older canonical versions keep verifying. `canonical_text` is the
  * reference rendering the verification compared against, so a checker can
  * diff wording without generating again.
  *
- * Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+ * `repaired` names the word positions Reed–Solomon parity corrected on the way
+ * to this payload — empty under a version carrying none, and empty under v3
+ * when the prose arrived intact. Non-empty means the payload is a *correction*
+ * rather than a transcription, so a UI should show it rather than apply it
+ * silently: the bytes are backed by the envelope's crc32, but a reader who
+ * mis-copied a word is better told which one.
+ *
+ * Returns JSON
+ * `{ version, payload_hex, verified, canonical_text, repaired, alignment }` or
  * `{ error }`.
  * @param {string} text
  * @param {string} language
@@ -42,7 +99,13 @@ export function canonical_decode(text, language, wordlist) {
  * re-rendering. `payload_len` is the payload's byte count, the envelope's own
  * bytes excluded.
  *
- * Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+ * See `canonical_decode` for what `repaired` means. This entry finds damage on
+ * its own, so it repairs within `2·errors ≤ parity` — half what it manages when
+ * told where the damage is. `canonical_decode_fixed_repaired` and
+ * `canonical_decode_slots_fixed` are the entries that get told.
+ *
+ * Returns JSON
+ * `{ version, payload_hex, verified, canonical_text, repaired, alignment }` or
  * `{ error }`.
  * @param {string} text
  * @param {string} language
@@ -70,6 +133,53 @@ export function canonical_decode_fixed(text, language, wordlist, payload_len) {
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * `canonical_decode_fixed`, told which payload-word positions are already known
+ * bad.
+ *
+ * A located fault costs parity half what an unlocated one does — `2·errors +
+ * erasures ≤ parity` — so this repairs twice the damage the plain entry can.
+ * `erasures_json` is a JSON array of positions into the harvested payload-word
+ * sequence, parity words included, which is the coordinate system
+ * `alignment.payload_slots` is already in. An empty array is always valid.
+ *
+ * A word mangled *off* the wordlist never reaches the harvest at all, so the
+ * text alone cannot carry its position — that damage needs
+ * `canonical_decode_slots_fixed`, which takes the slots rather than the prose.
+ *
+ * Returns the same JSON as `canonical_decode_fixed`, or `{ error }`.
+ * @param {string} text
+ * @param {string} language
+ * @param {string} wordlist
+ * @param {number} payload_len
+ * @param {string} erasures_json
+ * @returns {string}
+ */
+export function canonical_decode_fixed_repaired(text, language, wordlist, payload_len, erasures_json) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(text, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(erasures_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len3 = WASM_VECTOR_LEN;
+        wasm.canonical_decode_fixed_repaired(retptr, ptr0, len0, ptr1, len1, ptr2, len2, payload_len, ptr3, len3);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred5_0 = r0;
+        deferred5_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred5_0, deferred5_1, 1);
     }
 }
 
@@ -130,6 +240,49 @@ export function canonical_decode_raw_fixed(text, language, wordlist, payload_len
         const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
         const len2 = WASM_VECTOR_LEN;
         wasm.canonical_decode_raw_fixed(retptr, ptr0, len0, ptr1, len1, ptr2, len2, payload_len);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * Decode from aligned payload slots rather than from prose.
+ *
+ * `slots_json` is a JSON array holding, per payload word the rendering
+ * expected, the word that arrived there or `null` where nothing usable did —
+ * exactly the `alignment.payload_slots` this module's decode entries and
+ * `align_prose` return. Every `null` becomes an erasure.
+ *
+ * Taking slots rather than text is what makes a word mangled *off* the
+ * wordlist repairable. Such a word never arrives in the harvest, so the
+ * sequence comes up one short and every later word slides into the wrong slot;
+ * the position survives only in the alignment. Passing prose would lose it.
+ *
+ * Returns the same JSON as `canonical_decode_fixed`, or `{ error }`.
+ * @param {string} slots_json
+ * @param {string} language
+ * @param {string} wordlist
+ * @param {number} payload_len
+ * @returns {string}
+ */
+export function canonical_decode_slots_fixed(slots_json, language, wordlist, payload_len) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(slots_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_decode_slots_fixed(retptr, ptr0, len0, ptr1, len1, ptr2, len2, payload_len);
         var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
         var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
         deferred4_0 = r0;
