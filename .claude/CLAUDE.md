@@ -156,6 +156,19 @@ syndromes. Decode tries `FRAMINGS` — `(envelope, parity)` pairs — and report
 got **furthest** through the pipeline, since getting past the crc32 is evidence and failing
 before it is not.
 
+**Reaching the repair path from a browser** (`src/wasm.rs`): `align_prose` locates damage
+against a candidate rendering, `canonical_decode_slots_fixed` decodes from the slots it
+returns, and `canonical_decode_fixed_repaired` takes positions a caller already knows. Every
+decode entry now carries `repaired` and `alignment` beside the payload. The two shapes are
+one contract — `alignment.payload_slots` is exactly what `canonical_decode_slots_fixed`
+parses, `null` holes included — so a page aligns, shows the damage, and hands the slots back
+without reshaping anything in JavaScript. Taking slots rather than prose is what makes a word
+mangled *off* the wordlist repairable at all; passing text would lose the position. Arguments
+that cross from JS are parsed into `{ error, kind }` rather than panicking, since a panic in
+wasm aborts the module for the whole page. `tests/wasm_exports.rs` covers the boundary and is
+gated on the `wasm` feature, which CI's `cargo test --workspace` does not enable — run it with
+`cargo test --features wasm`.
+
 **Freeze discipline**: verification-by-re-render makes everything the renderer reads part
 of the format. For a parity-spending version this also freezes the parity, the field, and the
 generator polynomial — RS symbols are payload words, so any of those moving moves the prose. For languages with shipped canonical artifacts, grammar/dialect/cover data

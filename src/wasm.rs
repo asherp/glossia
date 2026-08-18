@@ -1511,13 +1511,77 @@ fn traced_json(
     }
 }
 
+/// Shared JSON shaping for an [`crate::align::Alignment`].
+///
+/// `payload_slots` carries `null` where nothing usable arrived, which is the
+/// same hole `canonical_decode_slots_fixed` reads back — so a caller can align,
+/// show the damage, and feed the slots straight to the erasure decoder without
+/// reshaping anything in JavaScript.
+fn alignment_json(a: &crate::align::Alignment) -> serde_json::Value {
+    use crate::align::Op;
+    let tokens: Vec<serde_json::Value> = a
+        .tokens
+        .iter()
+        .map(|t| {
+            serde_json::json!({
+                "op": match t.op {
+                    Op::Same => "same",
+                    Op::Sub => "sub",
+                    Op::Insert => "insert",
+                    Op::Delete => "delete",
+                },
+                "received": t.received,
+                "received_index": t.received_index,
+                "expected": t.expected,
+                "expected_index": t.expected_index,
+                "payload_index": t.payload_index,
+                "received_is_payload": t.received_is_payload,
+            })
+        })
+        .collect();
+    serde_json::json!({
+        "tokens": tokens,
+        "matched": a.matched,
+        "payload_slots": a.payload_slots,
+        "erasures": a.erasures,
+        "spurious": a.spurious,
+        "clean": a.is_clean(),
+        "payload_intact": a.payload_intact(),
+    })
+}
+
+/// Shared JSON shaping for a [`crate::canonical::CanonicalDecoded`].
+///
+/// One shape across every fixed-packing decode entry, so a caller can switch
+/// from the plain decode to an erasure-fed one without reading the result
+/// differently.
+fn decoded_json(d: &crate::canonical::CanonicalDecoded) -> String {
+    serde_json::json!({
+        "version": d.version,
+        "payload_hex": codec::hex_encode(&d.payload),
+        "verified": d.verified,
+        "canonical_text": d.canonical_text,
+        "repaired": d.repaired,
+        "alignment": alignment_json(&d.alignment),
+    })
+    .to_string()
+}
+
 /// Decode canonical prose and verify it by re-rendering under the rules of the
 /// version byte the artifact carries — not the current version, so artifacts
 /// from older canonical versions keep verifying. `canonical_text` is the
 /// reference rendering the verification compared against, so a checker can
 /// diff wording without generating again.
 ///
-/// Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+/// `repaired` names the word positions Reed–Solomon parity corrected on the way
+/// to this payload — empty under a version carrying none, and empty under v3
+/// when the prose arrived intact. Non-empty means the payload is a *correction*
+/// rather than a transcription, so a UI should show it rather than apply it
+/// silently: the bytes are backed by the envelope's crc32, but a reader who
+/// mis-copied a word is better told which one.
+///
+/// Returns JSON
+/// `{ version, payload_hex, verified, canonical_text, repaired, alignment }` or
 /// `{ error }`.
 #[wasm_bindgen]
 pub fn canonical_decode(text: &str, language: &str, wordlist: &str) -> String {
@@ -1527,6 +1591,8 @@ pub fn canonical_decode(text: &str, language: &str, wordlist: &str) -> String {
             "payload_hex": codec::hex_encode(&d.payload),
             "verified": d.verified,
             "canonical_text": d.canonical_text,
+            "repaired": d.repaired,
+            "alignment": alignment_json(&d.alignment),
         })
         .to_string(),
         Err(e) => canonical_error_json(e),
@@ -1586,7 +1652,13 @@ pub fn canonical_encode_fixed_traced(payload_hex: &str, language: &str, wordlist
 /// re-rendering. `payload_len` is the payload's byte count, the envelope's own
 /// bytes excluded.
 ///
-/// Returns JSON `{ version, payload_hex, verified, canonical_text }` or
+/// See `canonical_decode` for what `repaired` means. This entry finds damage on
+/// its own, so it repairs within `2·errors ≤ parity` — half what it manages when
+/// told where the damage is. `canonical_decode_fixed_repaired` and
+/// `canonical_decode_slots_fixed` are the entries that get told.
+///
+/// Returns JSON
+/// `{ version, payload_hex, verified, canonical_text, repaired, alignment }` or
 /// `{ error }`.
 #[wasm_bindgen]
 pub fn canonical_decode_fixed(
@@ -1596,15 +1668,125 @@ pub fn canonical_decode_fixed(
     payload_len: usize,
 ) -> String {
     match crate::canonical::canonical_decode_fixed(text, language, wordlist, payload_len) {
-        Ok(d) => serde_json::json!({
-            "version": d.version,
-            "payload_hex": codec::hex_encode(&d.payload),
-            "verified": d.verified,
-            "canonical_text": d.canonical_text,
-        })
-        .to_string(),
+        Ok(d) => decoded_json(&d),
         Err(e) => canonical_error_json(e),
     }
+}
+
+/// `canonical_decode_fixed`, told which payload-word positions are already known
+/// bad.
+///
+/// A located fault costs parity half what an unlocated one does — `2·errors +
+/// erasures ≤ parity` — so this repairs twice the damage the plain entry can.
+/// `erasures_json` is a JSON array of positions into the harvested payload-word
+/// sequence, parity words included, which is the coordinate system
+/// `alignment.payload_slots` is already in. An empty array is always valid.
+///
+/// A word mangled *off* the wordlist never reaches the harvest at all, so the
+/// text alone cannot carry its position — that damage needs
+/// `canonical_decode_slots_fixed`, which takes the slots rather than the prose.
+///
+/// Returns the same JSON as `canonical_decode_fixed`, or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_fixed_repaired(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+    erasures_json: &str,
+) -> String {
+    let erasures: Vec<usize> = match serde_json::from_str(erasures_json) {
+        Ok(e) => e,
+        Err(e) => {
+            return serde_json::json!({
+                "error": format!("erasures must be a JSON array of positions: {}", e),
+                "kind": "bad_erasures",
+            })
+            .to_string()
+        }
+    };
+    match crate::canonical::canonical_decode_fixed_repaired(
+        text,
+        language,
+        wordlist,
+        payload_len,
+        &erasures,
+    ) {
+        Ok(d) => decoded_json(&d),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
+/// Decode from aligned payload slots rather than from prose.
+///
+/// `slots_json` is a JSON array holding, per payload word the rendering
+/// expected, the word that arrived there or `null` where nothing usable did —
+/// exactly the `alignment.payload_slots` this module's decode entries and
+/// `align_prose` return. Every `null` becomes an erasure.
+///
+/// Taking slots rather than text is what makes a word mangled *off* the
+/// wordlist repairable. Such a word never arrives in the harvest, so the
+/// sequence comes up one short and every later word slides into the wrong slot;
+/// the position survives only in the alignment. Passing prose would lose it.
+///
+/// Returns the same JSON as `canonical_decode_fixed`, or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_slots_fixed(
+    slots_json: &str,
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> String {
+    let slots: Vec<Option<String>> = match serde_json::from_str(slots_json) {
+        Ok(s) => s,
+        Err(e) => {
+            return serde_json::json!({
+                "error": format!("slots must be a JSON array of words or nulls: {}", e),
+                "kind": "bad_slots",
+            })
+            .to_string()
+        }
+    };
+    match crate::canonical::canonical_decode_slots_fixed(&slots, language, wordlist, payload_len) {
+        Ok(d) => decoded_json(&d),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
+/// Align received prose against the rendering it should have been, without
+/// decoding either.
+///
+/// This is the half that locates damage. Decoding filters prose against the
+/// wordlist, so damage does not stay put: a payload word mangled off the
+/// wordlist never arrives, and a cover word mangled onto it arrives as a symbol
+/// nobody sent. Alignment puts both back in the rendering's own coordinates,
+/// producing a codeword of known length with its holes marked.
+///
+/// It cannot bootstrap: `rendered` must be a candidate rendering to compare
+/// against, which a caller gets from its own (often memoized) encode of a
+/// payload it already has. That is the checking case — confirming a
+/// transcription of something on the page — not the recovering-from-nothing
+/// case.
+///
+/// Returns JSON `{ tokens, matched, payload_slots, erasures, spurious, clean,
+/// payload_intact }` or `{ error }`.
+#[wasm_bindgen]
+pub fn align_prose(received: &str, rendered: &str, language: &str, wordlist: &str) -> String {
+    let wl = crate::pipeline::resolve_wordlist_name(language, wordlist);
+    let payload_words = match load_payload_words_for_wordlist(language, wl) {
+        Ok(w) => w,
+        Err(e) => {
+            return serde_json::json!({ "error": e.to_string(), "kind": "decode" }).to_string()
+        }
+    };
+    // The same predicate the decode harvest uses. It must be the same one: a
+    // slot exists in `payload_slots` exactly where the rendering put a payload
+    // word, so a looser or stricter test here would shift every slot after the
+    // first disagreement.
+    let payload_set: HashSet<String> =
+        payload_words.iter().map(|w| w.to_lowercase()).collect();
+    let alignment = crate::align::align(received, rendered, None, |w| payload_set.contains(w));
+    alignment_json(&alignment).to_string()
 }
 
 /// The fixed decode half alone: no verification re-render, checksum still
