@@ -2,7 +2,15 @@
 /target/
 **/*.rs.bk
 *.pdb
-Cargo.lock
+
+# Cargo.lock IS tracked. The stock Rust template ignores it on the old
+# libraries-do-not-commit-it rule, but this workspace publishes a binary
+# (glossia-cli), Cargo now recommends committing it for every project, and
+# it ships inside the published .crate either way -- so leaving it untracked
+# only meant shipping a resolution nobody had tested. It matters more here
+# than most: verification-by-re-render makes generator behaviour part of the
+# format, so a semver-compatible dependency bump can move every rendering,
+# which is the same hazard the explicit ChaCha12 pin guards on its own axis.
 
 # IDE
 .idea/
