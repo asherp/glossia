@@ -1083,6 +1083,86 @@ byte selects the v1 rules, under which the Latin model does not exist.</p>
 <p>A version byte the library does not recognize is refused by name
 (<code>UnsupportedVersion</code>), not reported as damage: the artifact is from a newer
 release and this build cannot verify it.</p>
+<h2 id="error-correction-v3"><a class="header" href="#error-correction-v3">Error correction (v3)</a></h2>
+<p>v1 and v2 can <em>detect</em> damage. v3 <strong>repairs</strong> it, by appending Reed–Solomon
+parity to the packed words.</p>
+<p>The symbol is a <strong>payload word</strong>, not a byte. Every shipped payload wordlist is
+a power of two, so a word's index is a field element — GF(2¹¹) for English,
+Czech and German, GF(2¹⁵) for Latin — and one mistranscribed word is exactly one
+wrong symbol. Computing parity over the bytes instead would make an 11-bit word
+straddle two or three byte boundaries, so a single fault would cost two or three
+symbols to repair. This is why parity sits in <code>VersionRules</code> beside the
+envelope rather than inside it: v3 seals exactly the bytes v2 does, and the
+parity is added a layer later, over the words those bytes packed into.</p>
+<p><strong>Parity is pinned to the version</strong>, not passed per call: <code>V3_PARITY</code> is one
+symbol per eight, never fewer than four. A parameter would have to be declared
+somewhere the decoder could read before decoding — costing a symbol, the very
+thing parity is counted in — and it would make an artifact's word count depend
+on a caller's choice rather than on its payload.</p>
+<p>It is a <strong>rate</strong>, not a count, because payloads here are not bounded — a whole
+transaction, a mail body. A fixed count thins to nothing across that range:
+four words is generous protection for a 19-word address and negligible for a
+1000-word transaction. One in eight is the rate of RS(255,223). Below 32
+message words the floor binds instead, so an address or a hash costs exactly
+the four words it would have under a fixed budget.</p>
+<div class="table-wrapper"><table><thead><tr><th>payload</th><th>words</th><th>parity</th><th>located</th><th>unlocated</th></tr></thead><tbody>
+<tr><td>20 B hash160</td><td>19</td><td>4 (floor)</td><td>17%</td><td>8%</td></tr>
+<tr><td>32 B program</td><td>27</td><td>4 (floor)</td><td>13%</td><td>6%</td></tr>
+<tr><td>1 KB</td><td>745</td><td>94</td><td>11%</td><td>6%</td></tr>
+</tbody></table>
+</div>
+<h3 id="blocking"><a class="header" href="#blocking">Blocking</a></h3>
+<p>A codeword cannot exceed the field's multiplicative group — 2047 symbols in
+GF(2¹¹), 32767 in GF(2¹⁵). Since a symbol is a word, that caps a single
+codeword at about 2.8 KB of English. Payloads run past it, so longer messages
+are spread across several codewords.</p>
+<p>Message symbol <em>i</em> goes to block <em>i</em> mod <em>blocks</em>, so a run of consecutive
+damaged words lands one symbol in each block rather than concentrating in one.
+Transcription damage is often exactly that shape — a skipped line, a garbled
+clause — and interleaving costs nothing: it changes only which word position a
+symbol occupies, not how many there are. The message stays in its own order at
+the front and every block's parity follows, so the encoding is still
+systematic.</p>
+<h3 id="located-damage-costs-half"><a class="header" href="#located-damage-costs-half">Located damage costs half</a></h3>
+<p>The bound is <code>2·errors + erasures ≤ parity</code>. An <em>error</em> is a wrong symbol at an
+unknown position; an <em>erasure</em> is a known-bad position. So v3 repairs about
+<strong>12%</strong> of an artifact's words when it is told where they are, and <strong>6%</strong> when
+it must find them — or, at the floor, four located and two found.</p>
+<p>Being told is what the alignment layer is for. Decoding filters prose against
+the wordlist, so damage does not stay put: a payload word mangled <em>off</em> the
+wordlist never reaches the harvest at all — the sequence is simply one shorter
+and every later word has slid up a slot — and a cover word mangled <em>onto</em> it
+arrives as a symbol nobody sent. No positional code survives that unaided.</p>
+<p><code>align(received, rendered, markup, is_payload)</code> compares received prose against
+its expected rendering and returns <code>payload_slots</code>: one entry per word the
+rendering expected, holding what arrived there or <code>None</code> where nothing usable
+did. That is a codeword of known length with its holes marked, which is exactly
+what the decoder wants.</p>
+<pre><pre class="playground"><code class="language-rust"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use glossia::{align, canonical_decode_slots_fixed, canonical_encode_fixed};
+
+let text = canonical_encode_fixed(&amp;payload, "english", "bip39")?;
+// ... transcription damages the prose ...
+let a = align(&amp;damaged, &amp;candidate_rendering, None, &amp;is_payload);
+let d = canonical_decode_slots_fixed(&amp;a.payload_slots, "english", "bip39", payload.len())?;
+assert_eq!(d.payload, payload);
+assert!(!d.repaired.is_empty());   // which words were corrected
+<span class="boring">}</span></code></pre></pre>
+<p>Alignment needs a candidate to render from, so it cannot bootstrap: a decode
+whose payload damage fails the checksum has nothing to compare against. What it
+does is turn a <em>candidate</em> into a verdict with positions attached — the position
+an error-correcting decoder is in once it has something to propose.</p>
+<h3 id="corrections-are-reported-never-silent"><a class="header" href="#corrections-are-reported-never-silent">Corrections are reported, never silent</a></h3>
+<p><code>CanonicalDecoded::repaired</code> lists the word positions parity corrected. Non-empty
+means the payload is a <em>correction</em>: those words did not say what the artifact
+was written with. The correction is backed by the envelope's crc32, but a caller
+should surface it rather than apply it silently — a reader who mis-copied a word
+is better told which one.</p>
+<p>Damage past the bound returns an error rather than a best effort, and every
+repair is checked by recomputing the syndromes over the corrected word. A
+decoder that hands back its best guess is how a burst beyond the bound becomes a
+valid-looking wrong answer.</p>
 <h2 id="what-a-shipped-version-freezes"><a class="header" href="#what-a-shipped-version-freezes">What a shipped version freezes</a></h2>
 <p>Verification-by-re-render makes the whole rendering path part of the format.
 Once a canonical version has shipped, for its languages:</p>
@@ -1095,6 +1175,9 @@ regenerating English's model is a v2, not an edit.</li>
 <li><strong>The RNG</strong> is pinned to ChaCha12 (<code>CoverRng</code>, see <code>tests/rng_pinning.rs</code>).</li>
 <li><strong><code>GLOSSIA_DISABLE_SEMANTICS</code> is ignored</strong> by the canonical path — an
 environment variable must not change what an artifact looks like.</li>
+<li><strong>The parity, the field, and the generator polynomial</strong> for a version that
+spends parity. RS symbols are payload words like any other, so any of those
+moving moves the prose.</li>
 </ul>
 <p><code>tests/canonical.rs</code> pins exact golden renderings per language. A golden test
 failing means a change re-rendered a shipped version's artifacts; the fix is a
