@@ -170,8 +170,12 @@ def main():
     )
     with open(out, "w") as f:
         f.write(header)
+        # Quote every scalar. Unquoted, the words "no", "on", "off" and "yes"
+        # are YAML booleans, and a strict parser (serde_yaml on the Rust side)
+        # rejects the file rather than reading them as the words they are.
         yaml.safe_dump({"stress": stress, "rhyme": rhyme, "heuristic": heur},
-                       f, default_flow_style=True, width=100, sort_keys=True)
+                       f, default_flow_style=True, width=100, sort_keys=True,
+                       default_style='"')
     print(f"\nwrote {os.path.relpath(out, ROOT)} "
           f"({len(stress)} words, {os.path.getsize(out) / 1024:.0f} KB)")
 

@@ -190,6 +190,35 @@ grammar:
   #
   # If payload_wordlist / cover_wordlist are omitted, both default to "default".
   dialects:
+    # ── Verse dialects ────────────────────────────────────────────────
+    # These declare only a `meter:`; with no `rules:` of their own they
+    # inherit the base (body) grammar unchanged, so a verse rendering is
+    # ordinary Glossia prose that has been *filled* to scan rather than a
+    # different grammar. Payload words and their order are untouched, so
+    # decoding is the same filter-against-the-wordlist it always was.
+    #
+    # Costs, measured against this grammar in experiments/prosody/:
+    # syllable-counted lines cost no density at all, stress meter ~10%.
+    verse:
+      # Decasyllabic lines, stress free. The cheap one.
+      meter:
+        lines: [10]
+        stress: free
+    haiku:
+      # 5/7/5, cycling. A short payload becomes one haiku, a longer one a
+      # renga — the pattern simply repeats.
+      meter:
+        lines: [5, 7, 5]
+        stress: free
+    blank:
+      # Blank verse: iambic pentameter, unrhymed. `lenient` is the standard
+      # reading of "does it scan" — no primary stress on a weak beat.
+      # Monosyllables float, as they do in English verse.
+      meter:
+        lines: [10]
+        stress: lenient
+        rise: true
+
     subject:
       # Base subject dialect — no prefix. Use subject_re or subject_fwd for Re:/Fwd:.
       # Prefix routing is handled by auto-detection in the pipeline layer:

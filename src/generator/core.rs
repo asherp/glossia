@@ -237,6 +237,9 @@ pub fn plan_sentence<R: Rng>(
     payload_start: usize,
     require_prefix: bool,
     semantics: Option<&SemanticModel>,
+    meter: Option<(&crate::generator::prosody::ProsodyLex,
+                   &crate::generator::prosody::MeterSpec,
+                   crate::generator::prosody::MeterState)>,
 ) -> Option<(Vec<Pos>, Vec<Option<String>>, FxHashMap<usize, usize>, usize)> {
     let sequences = cache.get(start_symbol, k)?;
 
@@ -310,6 +313,25 @@ pub fn plan_sentence<R: Rng>(
                 payload_start,
                 j,
             ) {
+                // Metrical filter: drop shapes the meter cannot survive from
+                // where the line currently stands. This runs INSIDE the j loop,
+                // so it only ever chooses among shapes that embed the same
+                // number of payload words — density stays primary, and a shape
+                // is never rejected in favour of a less dense one. If no shape
+                // at this j scans, the loop falls to j-1 exactly as it would
+                // have if the grammar had offered nothing.
+                if let Some((plex, spec, state)) = meter {
+                    let forced = |slot_idx: usize| -> Option<String> {
+                        placement.get(&slot_idx).map(|&pi| payload[pi].word.clone())
+                    };
+                    let feas = crate::generator::prosody::feasible_states(
+                        plex, spec, &seq_prob.sequence, &seq_prob.refinements, &forced, true,
+                    );
+                    let here = crate::generator::prosody::wrap(state, spec.lines.len());
+                    if !feas[0].contains(&here) {
+                        continue;
+                    }
+                }
                 let score = semantics
                     .map(|m| m.placement_score(&seq_prob.sequence, &placement, payload))
                     .unwrap_or(1.0);
@@ -538,6 +560,30 @@ fn semantic_cover_noun_sel<'a>(
     None
 }
 
+/// Move the meter past a word that has been committed to the output.
+///
+/// Prefers the reading that keeps the sentence completable; falls back to the
+/// word's primary pronunciation when the meter has already been broken (a
+/// payload word that would not scan is placed anyway), so the state stays
+/// meaningful for the lines that follow.
+fn advance_meter(
+    meter: &mut Option<crate::generator::prosody::MeterCtx<'_>>,
+    feas: Option<&Vec<rustc_hash::FxHashSet<crate::generator::prosody::MeterState>>>,
+    slot_idx: usize,
+    word: &str,
+) {
+    let Some(m) = meter.as_mut() else { return };
+    let st = *m.state;
+    let syl = feas
+        .and_then(|f| f.get(slot_idx + 1))
+        .and_then(|next| {
+            crate::generator::prosody::fitting_syllables(m.plex, m.spec, word, st, next)
+        })
+        .or_else(|| m.plex.model().syllables(word))
+        .unwrap_or(1);
+    *m.state = crate::generator::prosody::advance(st, syl, m.spec);
+}
+
 /// Fill a slot stream with cover words + payload words (in-order).
 /// Returns words vector.
 /// `prev_words` are the last few words from the previous sentence (if any), to prevent repetition across sentences.
@@ -563,6 +609,10 @@ pub fn fill_slots<R: Rng>(
         rng, lex, slots, refinements, payload, payload_i, prev_words, expected_first_pos,
         forced_placements, payload_only_mode, prime_constraint_enabled, dot_is_punctuation,
         agreement,
+        // No meter: `fill_slots` is the untraced convenience wrapper, used where
+        // no verse form is in play. Metered generation goes through
+        // `fill_slots_traced` directly so the line state can survive the call.
+        None,
     )
     .0
 }
@@ -665,7 +715,22 @@ pub fn fill_slots_traced<R: Rng>(
     prime_constraint_enabled: bool,
     dot_is_punctuation: bool,
     agreement: Option<&crate::generator::agreement::Agreement>,
+    mut meter: Option<crate::generator::prosody::MeterCtx<'_>>,
 ) -> (Vec<String>, Vec<Option<(Pos, Option<usize>)>>) {
+    // Where the meter can still finish from, per slot. Computed once for the
+    // sentence so the forward walk can commit to each word without backtracking:
+    // without it a cover word that fits locally can leave the line unfinishable.
+    let feas = meter.as_ref().map(|m| {
+        let forced = |slot_idx: usize| -> Option<String> {
+            forced_placements
+                .and_then(|fp| fp.get(&slot_idx))
+                .and_then(|&pi| payload.get(pi))
+                .map(|t| t.word.clone())
+        };
+        crate::generator::prosody::feasible_states(
+            m.plex, m.spec, slots, refinements, &forced, dot_is_punctuation,
+        )
+    });
     let mut trace: Vec<Option<(Pos, Option<usize>)>> = Vec::new();
     let mut out: Vec<String> = Vec::new();
     // Slot / refinement of each emitted token in `out` (Dot slots that only
@@ -736,6 +801,7 @@ pub fn fill_slots_traced<R: Rng>(
             emitted_slots.push(slot);
             emitted_refs.push(ref_tag.map(|s| s.to_string()));
             used_payload_indices.insert(idx);
+            advance_meter(&mut meter, feas.as_ref(), i, &payload[idx].word);
             update_gov_verb(&mut gov_verb, slot, &payload[idx].word);
             if forced_placements.is_none() {
                 *payload_i += 1;
@@ -859,6 +925,30 @@ pub fn fill_slots_traced<R: Rng>(
             lex.pick_cover_refined(rng, slot, ref_tag, &recent_words)
         };
 
+        // Meter-aware cover selection. The meter filters the SAME candidate list
+        // ordinary selection draws from — it never reaches for a word the slot's
+        // POS and refinement would not have allowed anyway. The pick made above
+        // is kept when it already fits, so agreement, semantics and refinement
+        // logic still decide whenever the meter has no opinion. When nothing in
+        // the list fits, that pick stands and the line breaks: cover words yield
+        // to grammar, and everything yields to the payload.
+        let cover_word = match (meter.as_ref(), feas.as_ref()) {
+            (Some(m), Some(feas)) => {
+                let (plex, spec, st) = (m.plex, m.spec, *m.state);
+                let next = &feas[i + 1];
+                let fits = |w: &str| {
+                    crate::generator::prosody::fitting_syllables(plex, spec, w, st, next).is_some()
+                };
+                if cover_word.is_empty() || fits(&cover_word) {
+                    cover_word
+                } else {
+                    lex.pick_cover_filtered(rng, slot, &recent_words, fits)
+                        .unwrap_or(cover_word)
+                }
+            }
+            _ => cover_word,
+        };
+
         // An empty pick means the language has no cover words for this POS at
         // all — Latin's open classes live almost entirely in its payload list,
         // so its cover has no nouns, verbs or adjectives. Omit the slot rather
@@ -867,6 +957,7 @@ pub fn fill_slots_traced<R: Rng>(
         if cover_word.is_empty() {
             continue;
         }
+        advance_meter(&mut meter, feas.as_ref(), i, &cover_word);
         update_gov_verb(&mut gov_verb, slot, &cover_word);
         out.push(cover_word);
         trace.push(Some((slot, None)));
@@ -1097,6 +1188,44 @@ pub fn generate_text_best_of_indexed(
         let (text, set) = gen_one(base_seed);
         return (text, set, 0);
     }
+    // Metered dialects rank by "does it scan" inside the density band, before
+    // coherence. A candidate is never chosen over a denser one — density stays
+    // primary, exactly as it is for coherence — but among equally dense drafts
+    // the one whose lines come out whole wins. This is the lever the offline
+    // measurements identified: per-draw scanning is roughly even odds, so a
+    // handful of draws makes a scanning rendering the norm rather than the
+    // exception. Kept in its own branch so that a dialect with no meter takes
+    // the two paths below completely unchanged.
+    if let Some((spec, plex)) = grammar_dialect
+        .and_then(|d| crate::grammar::DialectConfig::from_language_dialect_cached(language, d).ok())
+        .and_then(|c| c.meter().cloned())
+        .zip(lex.prosody().cloned())
+    {
+        let coherence = lex.semantics();
+        let mut candidates: Vec<(f64, bool, f64, u64, (String, HashSet<String>))> =
+            Vec::with_capacity(n);
+        for (k, out) in draw_candidates(n, base_seed, &gen_one).into_iter().enumerate() {
+            let toks: Vec<String> =
+                out.0.split_whitespace().map(|w| w.to_string()).collect();
+            let density = payload.len() as f64 / toks.len().max(1) as f64;
+            let scans = crate::generator::prosody::scans_text(&toks, plex.model(), &spec);
+            let coh = coherence.map(|m| m.coherence_score(&out.0)).unwrap_or(0.0);
+            candidates.push((density, scans, coh, k as u64, out));
+        }
+        let max_density = candidates.iter().map(|c| c.0).fold(f64::MIN, f64::max);
+        let best = candidates
+            .into_iter()
+            .filter(|c| c.0 >= max_density - DENSITY_TOL)
+            // Lowest offset breaks a tie, so a verifier reproduces the choice.
+            .max_by(|a, b| {
+                a.1.cmp(&b.1)
+                    .then(a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal))
+                    .then(b.3.cmp(&a.3))
+            })
+            .expect("at least one candidate generated");
+        return (best.4 .0, best.4 .1, best.3);
+    }
+
     let Some(model) = lex.semantics() else {
         // No coherence model — select purely by density. Strictly-greater
         // comparison keeps the lowest winning offset on ties, so the choice
@@ -1199,6 +1328,18 @@ pub fn generate_text_traced<R: Rng>(
     // Note: In merkle mode, this includes Merkle words too, but we check against original_payload_set
     // for sentence validation.
     let payload_set: HashSet<String> = payload.iter().map(|t| t.word.to_lowercase()).collect();
+
+    // Verse dialects only. Two things must both be present for a single line of
+    // prosody code to run: the dialect declares `meter:`, and the language ships
+    // a `prosody.yaml` that the pipeline attached to the lexicon. Every dialect
+    // shipping today declares no meter, so `meter_spec` is None, every `meter`
+    // argument below is None, and generation is byte-for-byte what it was —
+    // which is what keeps the canonical goldens valid.
+    let meter_spec = grammar_dialect
+        .and_then(|d| crate::grammar::DialectConfig::from_language_dialect_cached(language, d).ok())
+        .and_then(|c| c.meter().cloned());
+    // Lines run across sentence boundaries, so this state outlives each sentence.
+    let mut meter_state = crate::generator::prosody::MeterState::default();
 
     // Where each payload word lands. Accumulated per sentence with a running token
     // offset so `token_index` refers to the final joined text.
@@ -1366,6 +1507,8 @@ pub fn generate_text_traced<R: Rng>(
                     current_payload_i,
                     want_prefix,
                     lex.semantics(),
+                    meter_spec.as_ref().zip(lex.prosody())
+                        .map(|(spec, plex)| (plex.as_ref(), spec, meter_state)),
                 ) {
                     planned = Some((slots, refinements, forced_placements, j));
                     break; // Found a plan, use it
@@ -1393,6 +1536,8 @@ pub fn generate_text_traced<R: Rng>(
                         current_payload_i,
                         false,  // Don't require prefix in fallback
                         lex.semantics(),
+                        meter_spec.as_ref().zip(lex.prosody())
+                            .map(|(spec, plex)| (plex.as_ref(), spec, meter_state)),
                     ) {
                         planned = Some((slots, refinements, forced_placements, j));
                         break;
@@ -1449,6 +1594,10 @@ pub fn generate_text_traced<R: Rng>(
                 prime_constraint_enabled,
                 grammar.dot_is_punctuation(),
                 agreement_ref,
+                meter_spec.as_ref().zip(lex.prosody())
+                    .map(|(spec, plex)| crate::generator::prosody::MeterCtx {
+                        plex, spec, state: &mut meter_state,
+                    }),
             );
             // Record where each payload word landed in this sentence.
             {
@@ -1552,6 +1701,10 @@ pub fn generate_text_traced<R: Rng>(
                 prime_constraint_enabled,
                 &cache,
                 agreement_ref,
+                meter_spec.as_ref().zip(lex.prosody())
+                    .map(|(spec, plex)| crate::generator::prosody::MeterCtx {
+                        plex, spec, state: &mut meter_state,
+                    }),
             );
             return (t, ps, pl);
         }
@@ -1656,6 +1809,8 @@ pub fn generate_text_traced<R: Rng>(
                 payload_i,
                 false,  // Body mode never requires prefix
                 lex.semantics(),
+                meter_spec.as_ref().zip(lex.prosody())
+                    .map(|(spec, plex)| (plex.as_ref(), spec, meter_state)),
             ) {
                 planned = Some((slots, refinements, forced_placements, j));
                 break; // Found a plan, use it
@@ -1683,6 +1838,8 @@ pub fn generate_text_traced<R: Rng>(
                     payload_i,
                     false,  // Body mode never requires prefix
                     lex.semantics(),
+                    meter_spec.as_ref().zip(lex.prosody())
+                        .map(|(spec, plex)| (plex.as_ref(), spec, meter_state)),
                 ) {
                     planned = Some((slots, refinements, forced_placements, j));
                     break;
@@ -1721,6 +1878,8 @@ pub fn generate_text_traced<R: Rng>(
                             payload_i,
                             false,  // Body mode never requires prefix
                             lex.semantics(),
+                            meter_spec.as_ref().zip(lex.prosody())
+                                .map(|(spec, plex)| (plex.as_ref(), spec, meter_state)),
                         ) {
                             if verbose {
                                 let grammar_str: Vec<String> = slots.iter().map(|pos| pos.to_string()).collect();
@@ -1785,6 +1944,10 @@ pub fn generate_text_traced<R: Rng>(
             prime_constraint_enabled,
             grammar.dot_is_punctuation(),
             agreement_ref,
+            meter_spec.as_ref().zip(lex.prosody())
+                .map(|(spec, plex)| crate::generator::prosody::MeterCtx {
+                    plex, spec, state: &mut meter_state,
+                }),
         );
         // Record where each payload word landed in this sentence.
         {
@@ -1966,6 +2129,7 @@ fn generate_text_segmented<R: Rng>(
     prime_constraint_enabled: bool,
     cache: &SequenceCache,
     agreement: Option<&crate::generator::agreement::Agreement>,
+    mut meter: Option<crate::generator::prosody::MeterCtx<'_>>,
 ) -> (String, HashSet<String>, Vec<Placement>) {
     use super::utils::normalize_token_for_bip39;
 
@@ -2079,6 +2243,7 @@ fn generate_text_segmented<R: Rng>(
                 payload_i,
                 false, // Body mode never requires prefix
                 lex.semantics(),
+                meter.as_ref().map(|m| (m.plex, m.spec, *m.state)),
             ) {
                 // Check if forced placements include our payload words
                 let places_our_payload = forced_placements.values().any(|&idx| {
@@ -2113,6 +2278,7 @@ fn generate_text_segmented<R: Rng>(
                     payload_i,
                     false,
                     lex.semantics(),
+                    meter.as_ref().map(|m| (m.plex, m.spec, *m.state)),
                 ) {
                     let places_our_payload = forced_placements.values().any(|&idx| {
                         payload_indices_in_segment.contains(&idx)
@@ -2171,6 +2337,9 @@ fn generate_text_segmented<R: Rng>(
             prime_constraint_enabled,
             grammar.dot_is_punctuation(),
             agreement,
+            meter.as_mut().map(|m| crate::generator::prosody::MeterCtx {
+                plex: m.plex, spec: m.spec, state: &mut *m.state,
+            }),
         );
 
         // Update payload_i to reflect what was actually used

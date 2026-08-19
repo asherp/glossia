@@ -2357,7 +2357,7 @@ mod tests {
         ];
         
         // Plan for k=5 (should fit at least 2 words, maybe 3)
-        let result = plan_sentence(&mut rng, &cache, "S", 5, &payload, 0, false, None);
+        let result = plan_sentence(&mut rng, &cache, "S", 5, &payload, 0, false, None, None);
         assert!(result.is_some());
         let (slots, _refs, forced_placements, j) = result.unwrap();
         assert!(j >= 1, "Should embed at least 1 word");

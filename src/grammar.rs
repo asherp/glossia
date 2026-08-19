@@ -119,6 +119,10 @@ pub struct DialectConfig {
     /// When present, the payload wordlist is derived at runtime from the base
     /// chromatic payload filtered by the scale's interval pattern.
     scale: Option<ScaleDefinition>,
+    /// Optional verse form. Present only for dialects that declare `meter:`,
+    /// which is what switches the prosody layer on at all — every dialect
+    /// without one generates exactly as it did before prosody existed.
+    meter: Option<crate::generator::prosody::MeterSpec>,
 }
 
 impl DialectConfig {
@@ -156,6 +160,7 @@ impl DialectConfig {
         let grammar = Grammar::from_language_dialect(language, dialect)?;
         let (mut payload_wl, payload_language, cover_wl) = Self::parse_wordlist_refs(language, dialect);
         let scale = Self::parse_scale_ref(language, dialect);
+        let meter = Self::parse_meter_ref(language, dialect);
 
         // If this dialect has a scale definition, derive the payload wordlist
         // from the base chromatic payload and inject it into the cache.
@@ -182,6 +187,7 @@ impl DialectConfig {
             cover_wl,
             payload_language,
             scale,
+            meter,
         })
     }
 
@@ -198,6 +204,11 @@ impl DialectConfig {
     /// Payload wordlist profile name (e.g., "default", "hp", "bip39").
     pub fn payload_wordlist(&self) -> &str {
         &self.payload_wl
+    }
+
+    /// Verse form, if this dialect declares one.
+    pub fn meter(&self) -> Option<&crate::generator::prosody::MeterSpec> {
+        self.meter.as_ref()
     }
 
     /// Scale definition, if this dialect derives its payload from interval patterns.
@@ -378,6 +389,67 @@ impl DialectConfig {
     ///
     /// Walks the dialect inheritance chain (via `parent:`) to find a scale definition.
     /// Returns `None` if no scale is defined anywhere in the chain.
+    /// Parse the `meter:` block of a dialect, inheriting from `parent:` when the
+    /// dialect does not declare its own. Mirrors `parse_scale_ref`.
+    fn parse_meter_ref(
+        language: &str,
+        dialect: &str,
+    ) -> Option<crate::generator::prosody::MeterSpec> {
+        if dialect == "body" {
+            return None;
+        }
+
+        fn extract_meter(
+            dialects: &serde_yaml::Value,
+            dialect: &str,
+        ) -> Option<crate::generator::prosody::MeterSpec> {
+            let dialect_data = dialects.get(dialect)?;
+            if let Some(v) = dialect_data.get("meter") {
+                if let Some(spec) = crate::generator::prosody::MeterSpec::from_yaml(v) {
+                    return Some(spec);
+                }
+            }
+            dialect_data.get("parent")
+                .and_then(|p| p.as_str())
+                .and_then(|parent| extract_meter(dialects, parent))
+        }
+
+        let yaml_content = crate::generator::data::get_embedded_yaml(
+            &format!("{}/grammar.yaml", language),
+        ).or_else(|| match language {
+            "latin" => Some(include_str!("../languages/latin/grammar.yaml")),
+            "english" => Some(include_str!("../languages/english/grammar.yaml")),
+            _ => None,
+        });
+
+        if let Some(content) = yaml_content {
+            if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(content) {
+                if let Some(dialects) = doc.get("grammar").and_then(|g| g.get("dialects")) {
+                    if let Some(m) = extract_meter(dialects, dialect) {
+                        return Some(m);
+                    }
+                }
+            }
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            if let Some(content) = crate::generator::data::find_language_file(language, "grammar.yaml")
+                .and_then(|path| std::fs::read_to_string(&path).ok())
+            {
+                if let Ok(doc) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
+                    if let Some(dialects) = doc.get("grammar").and_then(|g| g.get("dialects")) {
+                        if let Some(m) = extract_meter(dialects, dialect) {
+                            return Some(m);
+                        }
+                    }
+                }
+            }
+        }
+
+        None
+    }
+
     fn parse_scale_ref(language: &str, dialect: &str) -> Option<ScaleDefinition> {
         if dialect == "body" {
             return None;
