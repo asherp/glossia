@@ -21,7 +21,8 @@ does.
 | file | what it is |
 |------|------------|
 | `build_prosody.py` | CMUdict → `data/prosody_<lang>_<profile>.yaml`: syllables, stress, rhyme key per word, with a `heuristic` list naming every word it had to guess |
-| `measure.py` | scores a candidate dump against seven verse forms; prints hit rate vs N, density cost, and which of the two constraints is doing the blocking |
+| `measure.py` | scores a candidate dump against eleven verse forms; prints hit rate vs N, density cost, and which of the two constraints is doing the blocking |
+| `anatomy.py` | why stress meter fails where syllable counting succeeds — it is not the vocabulary |
 | `show.py` | prints laid-out specimens, because "does it scan" and "is it readable" are different questions |
 | `../../examples/prosody_candidates.rs` | the Rust side: dumps K candidates per payload as TSV |
 
@@ -32,6 +33,7 @@ python3 build_prosody.py english bip39
 cargo run --release --example prosody_candidates 40 64 > /tmp/candidates.tsv
 python3 measure.py /tmp/candidates.tsv
 python3 show.py /tmp/candidates.tsv blank-tail 5
+python3 anatomy.py /tmp/candidates.tsv
 ```
 
 Needs `pyyaml` and `cmudict`.
@@ -48,10 +50,9 @@ guessing enters the data.
 | payload (bip39) | 1.711 | 40.9% | 48.0% | 10.2% | 4.9% |
 | cover | 1.421 | 62.5% | 33.4% | 3.9% | 3.8% |
 
-The stress distribution is the load-bearing number: **`10` (trochaic) is 32.6%
-of payload words and `01` (iambic) only 11.4%.** English content words fall;
-iambic meter rises. A payload is mostly content words, so iambic pentameter is
-fighting the vocabulary from the first syllable.
+The stress distribution looks alarming for rising meter — **`10` (falling) is
+32.6% of payload words, `01` (rising) only 11.4%** — but see Result 4: that
+turns out not to be what blocks iambic verse.
 
 ## Result 2 — syllable-counted verse is free; stress meter is not reachable
 
@@ -82,9 +83,8 @@ change to `VersionRules` and a layout pass, not a density sacrifice.
 **Stress meter is out of reach by rejection sampling.** Strict iambic
 pentameter never once appeared in 10,240 draws at 32 and 64 bytes, and 0–15% of
 payloads found one at 16–20 bytes even at N=64. Trochaic — which the wordlist
-should favour — only reaches 20%. The exponent is the problem: every additional
-line is another independent chance to fail, so hit rate collapses with payload
-size exactly where a poetry dialect would be most impressive.
+should favour — only reaches 20%, which is the first sign that the vocabulary
+is not the explanation.
 
 ## Result 3 — where the failures actually come from
 
@@ -108,6 +108,49 @@ syllable counts can fill **to the line boundary** — needing two more syllables
 and picking a two-syllable cover word of the right POS — instead of filling
 blind and checking afterwards. That converts both probabilities toward 1 and is
 where the real engineering should go.
+
+## Result 4 — why stress meter is different in kind
+
+`anatomy.py`. The tempting explanation is the one above: the wordlist falls,
+iambic meter rises. It is wrong, and it matters, because acting on it would
+send the work toward trochaic dialects that fail just as hard.
+
+**Words are not the obstacle.** Only **3 of 1440** polysyllables (0.2%) cannot
+scan at *some* starting parity. A trochee is a perfect iamb when it starts on
+the beat — *the DON-key* is da-DUM da. Individual words fit fine.
+
+**Position is the obstacle.** A word's metrical role is not a property of the
+word; it is fixed by the cumulative syllable count of everything before it. So
+every polysyllable is one more constraint on a running parity, and the
+constraints form a chain. Syllable counting constrains a *sum*, once per line
+break; stress constrains a *position*, once per polysyllabic word:
+
+| bytes | syllables | line breaks (syllabic constraints) | polysyllables (metrical constraints) | P(blank-tail) | P(iambic-tail) |
+|---|---|---|---|---|---|
+| 16 | 38.1 | 2.8 | 9.2 | 40.1% | 0.31% |
+| 20 | 40.3 | 3.0 | 9.7 | 49.9% | 0.31% |
+| 32 | 66.0 | 5.6 | 16.6 | 24.5% | **0.00%** |
+| 64 | 123.3 | 11.3 | 31.0 | 10.3% | **0.00%** |
+
+Each constraint is roughly a coin flip, and stress imposes about three times as
+many — 2⁻⁹ against 2⁻³ at 16 bytes, which is the measured 0.31% against 40%.
+
+**And the repairs behave differently.** A syllable miscount is fixable *locally*
+at the break: spend a two-syllable cover word instead of a one-syllable one and
+nothing upstream changes. A parity error is not local — fixing it flips the beat
+for every word after it, so repairs interact, and where two payload
+polysyllables sit adjacent their relative parity is fixed by the payload itself
+and no cover choice can touch it. Adjacent payload words are exactly what high
+density produces, so stress meter is in *direct tension with density* in a way
+syllable counting is not. That is visible in the cost columns: 12–32% for the
+iambic rows against 3–6% for `blank-tail`.
+
+**Rhyme is a third thing again**, and more tractable than its reputation: it is
+a lexical choice at a single position, constructible whenever the line-final
+slot is cover. 62% of cover words have a cover rhyme partner. But only **40% of
+payload words have any cover word that rhymes with them**, so a line ending on
+payload — which density wants — is unrhymable three times in five. Couplets fail
+mostly because their *meter* half is already at zero, not their rhyme half.
 
 ## Specimens
 
@@ -142,8 +185,13 @@ where its constituents end.
 1. Ship syllable-counted dialects (`lines`, `blank`, `haiku`/`renga`). They are
    reachable now, at no density cost against what v1 ships, using machinery
    that already exists.
-2. Do not ship a stress-meter dialect on rejection sampling. Either drop it or
-   pay for a syllable- and stress-aware cover filler first — and re-measure,
-   because that filler changes the numbers above completely.
-3. Build the filler before the dialects if either is to scale past ~32 bytes.
-   At 64 bytes the boundary lottery alone is 2.3%.
+2. Do not ship a stress-meter dialect (iambic, couplets). Rejection sampling
+   cannot reach it, and a filler cannot rescue it either — the parity chain is
+   global, and adjacent payload polysyllables are unfixable at any N.
+3. Build the syllable-aware filler before the dialects if either is to scale
+   past ~32 bytes. At 64 bytes the boundary lottery alone is 2.3%.
+4. Worth measuring next, and not in the original plan: **rhymed syllabic verse**
+   — equal-syllable lines that rhyme, with no stress requirement. Both halves
+   are constructible rather than lucky, so unlike the couplet it may actually be
+   reachable. It needs the filler to prefer cover words at line-final position,
+   which is a scoring preference, not a new mechanism.
