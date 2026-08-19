@@ -24,6 +24,8 @@ does.
 | `measure.py` | scores a candidate dump against eleven verse forms; prints hit rate vs N, density cost, and which of the two constraints is doing the blocking |
 | `anatomy.py` | why stress meter fails where syllable counting succeeds — it is not the vocabulary |
 | `construct.py` | the other regime: cover words placed left to right *for the meter*, density unconstrained. Everything the filtering regime cannot reach becomes reachable |
+| `joint.py` | the honest version of that: the real CFG's slots, one cover word satisfying POS **and** meter at once |
+| `../../examples/prosody_skeletons.rs` | dumps the grammar's own skeleton inventory — POS, refinements, probability — so `joint.py` invents nothing about what the grammar allows |
 | `show.py` | prints laid-out specimens, because "does it scan" and "is it readable" are different questions |
 | `../../examples/prosody_candidates.rs` | the Rust side: dumps K candidates per payload as TSV |
 
@@ -36,6 +38,8 @@ python3 measure.py /tmp/candidates.tsv
 python3 show.py /tmp/candidates.tsv blank-tail 5
 python3 anatomy.py /tmp/candidates.tsv
 python3 construct.py /tmp/candidates.tsv iambic --show
+cargo run --release --example prosody_skeletons english body 12 > /tmp/skeletons.tsv
+python3 joint.py /tmp/skeletons.tsv /tmp/candidates.tsv iambic --show
 ```
 
 Needs `pyyaml` and `cmudict`.
@@ -207,6 +211,63 @@ Conj — each offer both 1- and 2-syllable choices, which is exactly the parity
 lever. The monosyllable-only POS (Modal, Cop, Aux, To) contribute a *known*
 syllable rather than a choice, so they are predictable rather than obstructive.
 
+## Result 6 — inside the real grammar, syllabic verse is free and stress meter works
+
+`construct.py` left one question open: it ignored the grammar. `joint.py` closes
+it. The skeletons are the CFG's own (`prosody_skeletons.rs` dumps them: POS,
+refinements, grammar probability), payload words are seated into POS-compatible
+slots the way the generator seats them, and the filler must satisfy the slot's
+POS *and* the meter with the same word. Both regimes consider the same number of
+shapes and pick the one seating the most payload — the density-primary rule — so
+the only difference is whether the meter gets a say.
+
+| form | regime | built (16/20/32/64 B) | scans | density (16/32 B) |
+|---|---|---|---|---|
+| syllabic 10 | today | 98 / 100 / 95 / 68% | 25 / 25 / 20 / 0% | 0.460 / 0.443 |
+| syllabic 10 | **joint** | 98 / 100 / 95 / 68% | **98 / 100 / 95 / 68%** | 0.450 / 0.455 |
+| renga 5/7/5 | today | 98 / 100 / 95 / 68% | 12 / 8 / 5 / 0% | 0.460 / 0.443 |
+| renga 5/7/5 | **joint** | 98 / 100 / 95 / 68% | **98 / 100 / 95 / 68%** | 0.433 / 0.443 |
+| iambic | today | 98 / 100 / 95 / 68% | **0%** everywhere | 0.460 / 0.443 |
+| iambic | **joint** | 85 / 95 / 78 / 38% | 100% of what builds | 0.411 / 0.419 |
+| trochaic | **joint** | 90 / 98 / 90 / —% | 100% of what builds | 0.417 / 0.419 |
+
+**Syllable-counted verse costs nothing.** Identical build rate, identical
+density, and it scans every time instead of one time in five. The cover slots
+the grammar already hands out carry enough syllable choice to satisfy the line
+lengths; steering them spends no extra words.
+
+**Stress meter works too, at about 10% of the density.** Not the 0% of the
+filtering regime — 78–95% of payloads up to 32 bytes, scanning every time it
+builds. It does thin out at 64 bytes (38%), and this rig has no best-of-N on
+top, which the real generator would.
+
+A specimen, grammar-constrained, iambic, unedited:
+
+```
+an donkey occupy advice unless
+mosquito after our medium
+abandon. those abandon living our
+ability for an affair with lens.
+```
+
+### What the rig does not claim
+
+Its absolute densities (0.41–0.46) sit below the shipped generator's (0.60–0.67)
+because the Python seating model is simpler than `plan_sentence` — it draws
+shapes and keeps the one seating the most payload, where the real planner scores
+embeddability directly. That weakness applies equally to both regimes, so the
+*comparison* holds and the absolute numbers should not be quoted as forecasts.
+
+### The data this needs
+
+Exactly the markup the semantics layer already models: annotate both wordlists,
+payload and cover, so the filler can ask for **a word of this POS with this many
+syllables**. `prosody.yaml` as built here is already that file — one entry per
+word, the stress string doing double duty since its length *is* the syllable
+count. The filler's index is `(POS, refinement, syllables, parity) -> words`,
+and parity is derived from the stress string rather than stored, so nothing new
+has to be maintained beyond what `build_prosody.py` already emits.
+
 ## Specimens
 
 Real output, unedited, from `show.py`:
@@ -248,7 +309,8 @@ where its constituents end.
    (the boundary lottery is 2.3% at 64 bytes) and it is the only thing that
    reaches stress meter at all.
 4. Build it as a *joint* filler — grammar and meter choosing the same cover word
-   — rather than a prosody pass bolted onto the existing one. The slot inventory
-   says the two constraints fit in one budget; a second pass would pay twice.
+   — rather than a prosody pass bolted onto the existing one. Result 6 measures
+   this against the real CFG: syllabic verse costs no density at all, stress
+   meter about 10%.
 5. Use the lenient scansion rule. The strict one fails 40–85% of the time and is
    stricter than English verse actually is.
