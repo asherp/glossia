@@ -23,6 +23,7 @@ does.
 | `build_prosody.py` | CMUdict → `data/prosody_<lang>_<profile>.yaml`: syllables, stress, rhyme key per word, with a `heuristic` list naming every word it had to guess |
 | `measure.py` | scores a candidate dump against eleven verse forms; prints hit rate vs N, density cost, and which of the two constraints is doing the blocking |
 | `anatomy.py` | why stress meter fails where syllable counting succeeds — it is not the vocabulary |
+| `construct.py` | the other regime: cover words placed left to right *for the meter*, density unconstrained. Everything the filtering regime cannot reach becomes reachable |
 | `show.py` | prints laid-out specimens, because "does it scan" and "is it readable" are different questions |
 | `../../examples/prosody_candidates.rs` | the Rust side: dumps K candidates per payload as TSV |
 
@@ -34,6 +35,7 @@ cargo run --release --example prosody_candidates 40 64 > /tmp/candidates.tsv
 python3 measure.py /tmp/candidates.tsv
 python3 show.py /tmp/candidates.tsv blank-tail 5
 python3 anatomy.py /tmp/candidates.tsv
+python3 construct.py /tmp/candidates.tsv iambic --show
 ```
 
 Needs `pyyaml` and `cmudict`.
@@ -152,6 +154,59 @@ payload words have any cover word that rhymes with them**, so a line ending on
 payload — which density wants — is unrhymable three times in five. Couplets fail
 mostly because their *meter* half is already at zero, not their rhyme half.
 
+## Result 5 — the filtering regime was the wrong question
+
+Everything above measures meter as a **filter**: the generator places cover
+words for grammar and semantics, and prosody judges the result. Drop that. Let
+density go free and place cover words left to right *for the meter* —
+`construct.py` — and every form becomes reachable, verified independently
+against `measure.py`'s fitter rather than the constructor's own bookkeeping:
+
+| form | built | scans | payload recovered | density | notes |
+|---|---|---|---|---|---|
+| iambic pentameter | **100%** | 100% | 100% | 0.633–0.669 | |
+| trochaic tetrameter | **100%** | 100% | 100% | 0.636–0.719 | |
+| couplets (iambic + rhyme) | **100%** | 100% | 100% | 0.552–0.595 | 97–100% of couplets rhyme |
+| rhymed syllabic (8-syl) | **100%** | 100% | 100% | 0.647–0.713 | |
+| syllabic (10-syl lines) | **100%** | 100% | 100% | 0.834–0.898 | |
+| renga (5/7/5) | **100%** | 100% | 100% | 0.799–0.865 | |
+| iambic, *strict* rule | 15–60% | — | — | 0.665–0.693 | see below |
+
+Why it flips: **a monosyllable is metrically flexible, so inserting one always
+scans and always flips the parity.** Parity is therefore repairable at every
+junction for the price of one word. The filtering regime failed not because the
+chain is unsolvable but because its junctions had already been spent on grammar
+— there was nothing left to pay with. Buying them back costs a third of the
+words, which is roughly what the generator already spends on cover anyway.
+
+The one failure, `iambic-str`, is the rule that forbids an unstressed syllable
+of a polysyllable on a strong beat. Real English verse breaks that constantly;
+the lenient rule (no primary stress on a weak beat) is the standard one, and it
+builds every time.
+
+### The caveat this does not clear
+
+`construct.py` ignores the grammar. Its output scans and decodes, and it is not
+English:
+
+```
+lean donkey deep advice mosquito nor
+abandon tend abandon bill breast see
+```
+
+It spends its whole cover budget on meter and none on syntax. So those
+densities are an upper bound, not a forecast. What the table *does* establish is
+that the metrical constraint is constructible and cheap in syllables — which
+turns the open question from "is meter possible" into "can the same cover words
+serve grammar and meter at once".
+
+The slot inventory says they probably can. Every cover POS has words that scan
+at **both** parities, so no slot type can ever block the meter, and the eight
+POS that carry real content or structure — N, V, Adj, Adv, Det, Prep, Pron,
+Conj — each offer both 1- and 2-syllable choices, which is exactly the parity
+lever. The monosyllable-only POS (Modal, Cop, Aux, To) contribute a *known*
+syllable rather than a choice, so they are predictable rather than obstructive.
+
 ## Specimens
 
 Real output, unedited, from `show.py`:
@@ -185,13 +240,15 @@ where its constituents end.
 1. Ship syllable-counted dialects (`lines`, `blank`, `haiku`/`renga`). They are
    reachable now, at no density cost against what v1 ships, using machinery
    that already exists.
-2. Do not ship a stress-meter dialect (iambic, couplets). Rejection sampling
-   cannot reach it, and a filler cannot rescue it either — the parity chain is
-   global, and adjacent payload polysyllables are unfixable at any N.
-3. Build the syllable-aware filler before the dialects if either is to scale
-   past ~32 bytes. At 64 bytes the boundary lottery alone is 2.3%.
-4. Worth measuring next, and not in the original plan: **rhymed syllabic verse**
-   — equal-syllable lines that rhyme, with no stress requirement. Both halves
-   are constructible rather than lucky, so unlike the couplet it may actually be
-   reachable. It needs the filler to prefer cover words at line-final position,
-   which is a scoring preference, not a new mechanism.
+2. Do not ship a stress-meter dialect **as a filter over candidates** — no N is
+   large enough. Stress meter has to be *constructed*, and when it is, it works
+   every time (Result 5). Couplets included.
+3. The filler is therefore not an optimisation, it is the whole feature. Build
+   it before any dialect: it is what makes syllabic forms scale past ~32 bytes
+   (the boundary lottery is 2.3% at 64 bytes) and it is the only thing that
+   reaches stress meter at all.
+4. Build it as a *joint* filler — grammar and meter choosing the same cover word
+   — rather than a prosody pass bolted onto the existing one. The slot inventory
+   says the two constraints fit in one budget; a second pass would pay twice.
+5. Use the lenient scansion rule. The strict one fails 40–85% of the time and is
+   stricter than English verse actually is.
