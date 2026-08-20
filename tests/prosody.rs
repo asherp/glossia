@@ -122,6 +122,41 @@ fn layout_reproduces_the_lines_the_filler_built() {
     );
 }
 
+/// What a CLI user sees: `--dialect haiku` has to come out as lines of the right
+/// length, not as one paragraph. This is the claim the printer rests on.
+#[test]
+fn a_verse_dialect_lays_out_as_lines_of_the_declared_length() {
+    let m = model();
+    let spec = MeterSpec { lines: vec![5, 7, 5], mode: StressMode::Free, rise: true };
+    let mut exact = 0;
+    let trials = 8;
+    for nonce in 0..trials {
+        let words = payload_words(12, nonce + 40);
+        let text = encode("haiku", &words, nonce.wrapping_mul(2_654_435_761));
+        let toks: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
+        let lines = layout(&toks, &m, &spec);
+        assert!(lines.len() >= 3, "a 12-word payload spans several lines: {lines:?}");
+        // Every line but the last must hit its syllable count exactly. The last
+        // is allowed to come up short: a text ends where the payload ends, not
+        // where the stanza does.
+        let full: Vec<usize> = lines[..lines.len() - 1]
+            .iter()
+            .map(|l| {
+                l.split_whitespace()
+                    .map(|w| m.syllables(w).unwrap_or(1))
+                    .sum()
+            })
+            .collect();
+        if full.iter().enumerate().all(|(i, &n)| n == spec.lines[i % spec.lines.len()]) {
+            exact += 1;
+        }
+    }
+    assert!(
+        exact * 2 >= trials,
+        "only {exact}/{trials} layouts had exact lines — the printer and the filler disagree"
+    );
+}
+
 #[test]
 fn prosody_data_covers_the_wordlists_it_has_to() {
     let m = model();

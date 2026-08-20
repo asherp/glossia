@@ -426,12 +426,21 @@ pub fn layout(words: &[String], model: &ProsodyModel, spec: &MeterSpec) -> Vec<S
     let mut cur: Vec<&str> = Vec::new();
     let mut state = MeterState::default();
     for w in words {
-        let syl = model
-            .variants(w)
-            .map(|v| v[0].len())
-            .unwrap_or(1);
-        cur.push(w.as_str());
         let len = spec.line_len(state.line);
+        // A word with more than one pronunciation was placed under whichever
+        // reading fit — "our" is one syllable or two, and the filler took the one
+        // the line needed. Read it back the same way, preferring the variant that
+        // completes the line exactly, then any that fits, and only then the
+        // primary. Reading the primary unconditionally would break lines a
+        // syllable away from where the filler built them.
+        let vars = model.variants_or_flex(w);
+        let syl = vars
+            .iter()
+            .map(|p| p.len())
+            .find(|&n| state.off + n == len)
+            .or_else(|| vars.iter().map(|p| p.len()).find(|&n| state.off + n < len))
+            .unwrap_or_else(|| vars[0].len());
+        cur.push(w.as_str());
         if state.off + syl >= len {
             lines.push(cur.join(" "));
             cur.clear();
@@ -546,6 +555,23 @@ mod tests {
         assert_eq!(m.syllables("Donkey."), Some(2), "case and punctuation normalized");
         assert_eq!(m.rhyme_key("donkey"), Some("AONGKIY"));
         assert_eq!(m.syllables("nonesuch"), None);
+    }
+
+    #[test]
+    fn layout_reads_a_word_the_way_the_filler_placed_it() {
+        // "our" is one syllable or two. The filler takes whichever the line
+        // needs; reading back the primary unconditionally would cut the line a
+        // syllable early.
+        let m = ProsodyModel::from_yaml_str(
+            "stress: {\"our\": \"1|10\", \"a\": \"1\", \"bb\": \"10\"}\nrhyme: {}",
+        )
+        .unwrap();
+        let words: Vec<String> = ["a", "our", "a", "bb"].iter().map(|s| s.to_string()).collect();
+        // Line of 3: "a"(1) + "our" must be read as 2 to land exactly.
+        assert_eq!(
+            layout(&words, &m, &spec(&[3], StressMode::Free)),
+            vec!["a our", "a bb"],
+        );
     }
 
     #[test]

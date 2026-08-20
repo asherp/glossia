@@ -141,8 +141,15 @@ byte-for-byte as it did, which is what keeps the canonical goldens valid.
   `anatomy.py` why it fails, `construct.py` free construction, `joint.py` against the
   real CFG) plus `examples/prosody_candidates.rs`, `examples/prosody_skeletons.rs`,
   `examples/verse_demo.rs`.
-- **Gotcha**: `build.rs` embeds only **git-tracked** YAML, so a new `prosody.yaml` is
-  invisible until `git add`ed — it silently loads as `None`.
+- **CLI**: `glossia --dialect haiku <words>` prints verse — output breaks on the meter
+  instead of `--width`, and `--best-of` defaults to 4 (an explicit flag still wins).
+  The CLI builds its **own** Lexicon rather than going through `build_zone_generator`,
+  so it needs its own `with_prosody` attach; without it a verse dialect silently emits
+  body prose that the printer merely chops into lines.
+- **Gotchas**: `build.rs` embeds only **git-tracked** YAML, so a new `prosody.yaml` is
+  invisible until `git add`ed — it silently loads as `None`. And `layout` must pick the
+  same pronunciation variant the filler committed to (prefer the one completing the line),
+  or printed breaks land a syllable off from the meter that was built.
 
 ## Per-call caches (use the `_cached` variants in hot paths)
 

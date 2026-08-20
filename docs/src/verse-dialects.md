@@ -11,17 +11,48 @@ that lost or gained a word.
 
 ## Using one
 
-A verse dialect is an ordinary dialect:
+A verse dialect is an ordinary dialect. Feed it a mnemonic and a poem comes out:
+
+```
+$ glossia --dialect haiku legal winner thank yellow zoo zebra youth wrist wrap world work word
+
+Our ally is
+legal. Winner thank our
+yellow zoo. Zebra
+may get youth. Wrist wrap
+a world work to word.
+```
+
+Three ship for English:
 
 ```bash
 glossia --dialect verse   ...   # ten-syllable lines
-glossia --dialect haiku   ...   # 5 / 7 / 5, cycling
+glossia --dialect haiku   ...   # 5 / 7 / 5, repeating for longer payloads
 glossia --dialect blank   ...   # iambic pentameter
 ```
 
+Two things differ from a prose dialect, both automatic. Output breaks on the
+**meter** rather than at `--width` columns — a verse dialect ignores `--width`.
+And `--best-of` defaults to **4** instead of 1, because whether a rendering's
+lines come out whole is the tie-break among equally dense candidates, so a
+single draw leaves it to chance. An explicit `--best-of` always wins; raise it
+if you want a better poem and can spare the time.
+
 Decoding is unchanged, because nothing about the payload changed: filter the
 words against the payload wordlist and read them in order. A verse rendering
-decodes with exactly the code that decodes prose.
+decodes with exactly the code that decodes prose:
+
+```
+$ glossia --from-ascii "meet me at dawn" --dialect haiku
+Ability hope
+clinic to fringe. Dolphin stone
+tea. Mother set our
+magic lottery.
+Good may arm to swear.
+
+$ ... | glossia --decode
+meet me at dawn
+```
 
 ## What it costs
 

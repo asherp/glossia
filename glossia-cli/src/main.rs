@@ -369,7 +369,13 @@ fn print_usage(program_name: &str) {
     eprintln!("                          subject: Short sentences, may include prefixes (Re:, Fwd:, etc.)");
     eprintln!("                          body: Longer sentences, no prefixes");
     eprintln!("                          payload_only: Use only payload words, no cover words");
+    eprintln!("                          Verse dialects (English), printed as lines rather than");
+    eprintln!("                          wrapped prose, and defaulting to --best-of 4:");
+    eprintln!("                            verse: ten-syllable lines");
+    eprintln!("                            haiku: 5/7/5, repeating for longer payloads");
+    eprintln!("                            blank: iambic pentameter");
     eprintln!("  --width <N>              Fixed width for line wrapping (default: 80)");
+    eprintln!("                          Ignored by verse dialects, which break on the meter");
     eprintln!("  --delimiter <str>        Delimiter between words in payload_only mode (default: \" \")");
     eprintln!("  --highlight-payload <mode>      Highlight payload words: 'none' (default), 'bars' (| |), or color name");
     eprintln!("                          Colors: black, red, green, yellow, blue, magenta, cyan, white");
@@ -443,7 +449,7 @@ fn print_usage(program_name: &str) {
     eprintln!("  {} -l image --random 20 | {} --render-image - -o out.svg", program_name, program_name);
 }
 
-fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, usize, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>), String> {
+fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Option<u64>, usize, usize, bool, HighlightMode, GenerationMode, String, String, bool, bool, usize, usize, bool, bool, SentenceLengthMode, usize, String, bool, bool, bool, Option<HighlightMode>, String, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>), String> {
     let args: Vec<String> = env::args().collect();
     let program_name = args[0].clone();
 
@@ -458,6 +464,9 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
     let mut seed: Option<u64> = None;
     let mut variations = 1;
     let mut best_of: usize = 1;
+    // Whether --best-of was given, so a verse dialect's higher default never
+    // overrides a number the caller actually asked for.
+    let mut best_of_explicit = false;
     let mut highlight_mode = HighlightMode::None;
     let mut generation_mode = GenerationMode::Body;
     let mut dialect_name = "body".to_string();
@@ -591,6 +600,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
                 }
                 best_of = args[i + 1].parse()
                     .map_err(|_| format!("Invalid number for --best-of: {}", args[i + 1]))?;
+                best_of_explicit = true;
                 i += 2;
             }
             "--variations" => {
@@ -822,7 +832,7 @@ fn parse_args() -> Result<(Vec<String>, Option<usize>, Option<String>, bool, Opt
         };
     }
     
-    Ok((words, random_count, ascii_input, verbose, seed, variations, best_of, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output))
+    Ok((words, random_count, ascii_input, verbose, seed, variations, best_of, best_of_explicit, highlight_mode, generation_mode, dialect_name, language, language_was_explicit, show_grammar, k_min, k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output))
 }
 
 /// Get the wordlist file path for a given language.
@@ -1218,7 +1228,7 @@ fn main() {
         return;
     }
 
-    let (mut words, random_count, ascii_input, verbose, seed, variations, best_of, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output) = match parse_args() {
+    let (mut words, random_count, ascii_input, verbose, seed, variations, mut best_of, best_of_explicit, highlight_mode, generation_mode, dialect_name, mut language, language_was_explicit, show_grammar, mut k_min, mut k_max, k_min_explicit, k_max_explicit, length_mode, width, delimiter, merkle_mode, demerkle_mode, decode_mode, merkle_highlight_mode, wordlist, meta_instruction, pipeline_into, pipeline_from, render_image, render_output) = match parse_args() {
         Ok(args) => args,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -1227,6 +1237,19 @@ fn main() {
             std::process::exit(1);
         }
     };
+
+    // A verse dialect draws its quality from best-of-N: whether a rendering's
+    // lines come out whole is the tie-break among equally dense candidates, so
+    // one draw leaves it to chance. Measured at best_of=4, `verse` scans 90% of
+    // the time; at 1 it is closer to a coin flip. Only a default — an explicit
+    // --best-of always wins.
+    if !best_of_explicit
+        && glossia::grammar::DialectConfig::from_language_dialect_cached(&language, &dialect_name)
+            .map(|cfg| cfg.meter().is_some())
+            .unwrap_or(false)
+    {
+        best_of = 4;
+    }
 
     // ── Pipeline mode ────────────────────────────────────────────────────
     // --meta, --into, or --from flags route through Pipeline, bypassing
@@ -1852,6 +1875,20 @@ fn main() {
         None => lex,
     };
 
+    // Attach the prosody index for verse dialects, so the filler can satisfy the
+    // meter with the same cover word the grammar wanted. Without this the meter
+    // is never consulted and a verse dialect emits ordinary prose that the
+    // printer merely breaks into lines. Attached after the cover words, since
+    // the index is built from them.
+    let lex = match glossia::grammar::DialectConfig::from_language_dialect_cached(&language, &dialect_name)
+        .ok()
+        .filter(|cfg| cfg.meter().is_some())
+        .and_then(|_| glossia::generator::data::load_prosody_cached(&language))
+    {
+        Some(model) => lex.with_prosody(model),
+        None => lex,
+    };
+
     let input_word_count = if merkle_mode {
         words.len()  // Original payload word count
     } else {
@@ -2170,17 +2207,35 @@ fn main() {
         }
     }
 
-    // Word wrap the output to specified width
+    // A verse dialect breaks its lines where the meter says, not where the
+    // terminal runs out of columns. The generator already built the text to a
+    // line pattern; wrapping it at `--width` would throw that structure away and
+    // show the reader a justified paragraph. A dialect with no `meter:` keeps
+    // the ordinary column wrap.
+    let verse = glossia::grammar::DialectConfig::from_language_dialect_cached(&language, &dialect_name)
+        .ok()
+        .and_then(|cfg| cfg.meter().cloned())
+        .zip(glossia::generator::data::load_prosody_cached(&language));
+    let render = |t: &str| -> String {
+        match &verse {
+            Some((spec, model)) => {
+                let toks: Vec<String> = t.split_whitespace().map(|s| s.to_string()).collect();
+                glossia::generator::prosody::layout(&toks, model, spec).join("\n")
+            }
+            None => word_wrap(t, width),
+        }
+    };
+
     if variations > 1 {
         for (i, vtext) in valid_variation_texts.iter().enumerate() {
             if i > 0 {
                 println!();
                 println!();
             }
-            println!("{}", word_wrap(vtext, width));
+            println!("{}", render(vtext));
         }
     } else {
-        println!("{}", word_wrap(&text, width));
+        println!("{}", render(&text));
     }
 
     // Calculate detailed statistics from the best text
