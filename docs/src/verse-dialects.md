@@ -35,8 +35,9 @@ Two things differ from a prose dialect, both automatic. Output breaks on the
 **meter** rather than at `--width` columns — a verse dialect ignores `--width`.
 And `--best-of` defaults to **4** instead of 1, because whether a rendering's
 lines come out whole is the tie-break among equally dense candidates, so a
-single draw leaves it to chance. An explicit `--best-of` always wins; raise it
-if you want a better poem and can spare the time.
+single draw leaves it to chance. An explicit `--best-of` always wins. Raising it
+to 8–12 buys a better poem; past that the CLI's memory use climbs steeply, which
+is a pre-existing property of `--best-of` rather than anything about verse.
 
 Decoding is unchanged, because nothing about the payload changed: filter the
 words against the payload wordlist and read them in order. A verse rendering

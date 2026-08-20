@@ -21,6 +21,7 @@ The payload is meant to be *seen and decoded*. The mission is to make ciphertext
 - **POS-tagged payload embedding**: Embeds BIP39 words based on their part-of-speech tags
 - **SFW cover lexicon**: Uses a safe-for-work lexicon that excludes all BIP39 words
 - **Adaptive sentence length**: Adjusts sentence complexity based on remaining payload tokens
+- **Verse dialects**: Renders a payload as metrical poetry — haiku, blank verse, dactyls — with the same decoding
 - **Word frequency analysis**: Tool to generate word lists from frequency data with POS tags
 
 ## Installation
@@ -112,6 +113,31 @@ $ glossia abandon ability able about above absent
 ```
 The abandon may see the ability to each able ears about above. Guy may absent.
 ```
+
+**Render a mnemonic as poetry**
+
+```bash
+$ glossia --dialect haiku --seed 42 legal winner thank yellow zoo zebra youth wrist wrap world work word
+```
+
+```
+The legal winner
+thank yellow. Zoo get zebra
+to a youth wrist to
+wrap via its world
+work. Word may row.
+```
+
+English ships five verse dialects — `syllabic` (ten-syllable lines), `haiku` (5/7/5), `iambic` (blank verse), `dactyl` and `anapest` (tetrameter). Output breaks on the meter rather than at `--width`, and `--best-of` defaults to 4.
+
+Verse is not a separate encoding: payload words and their order are untouched, so a poem decodes with exactly the command that decodes prose.
+
+```bash
+$ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
+meet me at dawn
+```
+
+A line that does not scan is a line that lost or gained a word — meter is the one property of an encoding a human can check by ear. See [Verse Dialects](docs/src/verse-dialects.md) for what each form costs.
 
 **Encode an API key or secret**
 
