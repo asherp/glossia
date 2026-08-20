@@ -28,7 +28,7 @@ fn main() {
 
     println!("\n{samples} payloads x best_of={best_of}\n");
     println!("  {:>8} {:>7} {:>8} {:>9} {:>9}", "dialect", "words", "scans", "density", "lines");
-    for dialect in ["body", "verse", "haiku", "blank"] {
+    for dialect in ["body", "syllabic", "haiku", "iambic"] {
         let spec = DialectConfig::from_language_dialect_cached("english", dialect)
             .unwrap()
             .meter()
@@ -63,7 +63,7 @@ fn main() {
         );
     }
 
-    for dialect in ["verse", "haiku", "blank"] {
+    for dialect in ["syllabic", "haiku", "iambic"] {
         let spec = DialectConfig::from_language_dialect_cached("english", dialect)
             .unwrap().meter().cloned().unwrap();
         let p = payload(13, 4, &wl);

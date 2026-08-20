@@ -48,9 +48,9 @@ fn harvest(text: &str, words: &[String]) -> Vec<String> {
 #[test]
 fn verse_dialects_declare_a_meter_and_body_does_not() {
     for (dialect, lines, mode) in [
-        ("verse", vec![10], StressMode::Free),
+        ("syllabic", vec![10], StressMode::Free),
         ("haiku", vec![5, 7, 5], StressMode::Free),
-        ("blank", vec![10], StressMode::Lenient),
+        ("iambic", vec![10], StressMode::Lenient),
     ] {
         let cfg = DialectConfig::from_language_dialect("english", dialect).unwrap();
         let meter = cfg.meter().unwrap_or_else(|| panic!("{dialect} declares no meter"));
@@ -65,7 +65,7 @@ fn verse_dialects_declare_a_meter_and_body_does_not() {
 
 #[test]
 fn the_payload_survives_every_verse_dialect() {
-    for dialect in ["verse", "haiku", "blank"] {
+    for dialect in ["syllabic", "haiku", "iambic"] {
         for nonce in 0..12u64 {
             let words = payload_words(13, nonce);
             let text = encode(dialect, &words, nonce.wrapping_mul(7919));
@@ -82,7 +82,7 @@ fn the_payload_survives_every_verse_dialect() {
 fn syllable_counted_dialects_scan() {
     let m = model();
     for (dialect, spec) in [
-        ("verse", MeterSpec { lines: vec![10], mode: StressMode::Free, rise: true }),
+        ("syllabic", MeterSpec { lines: vec![10], mode: StressMode::Free, rise: true }),
         ("haiku", MeterSpec { lines: vec![5, 7, 5], mode: StressMode::Free, rise: true }),
     ] {
         let mut scanned = 0;

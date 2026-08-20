@@ -126,8 +126,8 @@ byte-for-byte as it did, which is what keeps the canonical goldens valid.
   - Carried on `Lexicon` via `with_prosody` (attach **after** cover words — the index is
     built from them); loaded with `data::load_prosody_cached`.
 - **Declaring one** (`grammar.yaml`, no `rules:` so the base grammar is inherited):
-  `meter: {lines: [10], stress: lenient, rise: true}`. English ships `verse` (10-syllable),
-  `haiku` (5/7/5), `blank` (iambic pentameter).
+  `meter: {lines: [10], stress: lenient, rise: true}`. English ships `syllabic` (10-syllable),
+  `haiku` (5/7/5), `iambic` (iambic pentameter, i.e. blank verse).
 - **Measured** (50 payloads, best_of=4, vs `body` at 0.581 density): verse 90% scanning
   at −1.9% density, haiku 68% at −3.8%, blank 78% at −13.6%.
 - **Why building beats filtering**: as a filter over finished candidates, strict iambic

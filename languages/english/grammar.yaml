@@ -199,7 +199,11 @@ grammar:
     #
     # Costs, measured against this grammar in experiments/prosody/:
     # syllable-counted lines cost no density at all, stress meter ~10%.
-    verse:
+    # Named for what each constrains, so the three sort by strictness:
+    # syllabic counts, iambic also fixes the beat. The literary name for the
+    # latter is "blank verse", but "blank" describes its absent *rhyme*, not its
+    # meter, which reads backwards next to a looser dialect called "verse".
+    syllabic:
       # Decasyllabic lines, stress free. The cheap one.
       meter:
         lines: [10]
@@ -210,8 +214,8 @@ grammar:
       meter:
         lines: [5, 7, 5]
         stress: free
-    blank:
-      # Blank verse: iambic pentameter, unrhymed. `lenient` is the standard
+    iambic:
+      # Iambic pentameter, unrhymed — blank verse. `lenient` is the standard
       # reading of "does it scan" — no primary stress on a weak beat.
       # Monosyllables float, as they do in English verse.
       meter:

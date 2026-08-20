@@ -371,9 +371,9 @@ fn print_usage(program_name: &str) {
     eprintln!("                          payload_only: Use only payload words, no cover words");
     eprintln!("                          Verse dialects (English), printed as lines rather than");
     eprintln!("                          wrapped prose, and defaulting to --best-of 4:");
-    eprintln!("                            verse: ten-syllable lines");
-    eprintln!("                            haiku: 5/7/5, repeating for longer payloads");
-    eprintln!("                            blank: iambic pentameter");
+    eprintln!("                            syllabic: ten-syllable lines");
+    eprintln!("                            haiku:    5/7/5, repeating for longer payloads");
+    eprintln!("                            iambic:   iambic pentameter (blank verse)");
     eprintln!("  --width <N>              Fixed width for line wrapping (default: 80)");
     eprintln!("                          Ignored by verse dialects, which break on the meter");
     eprintln!("  --delimiter <str>        Delimiter between words in payload_only mode (default: \" \")");

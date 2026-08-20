@@ -26,9 +26,9 @@ a world work to word.
 Three ship for English:
 
 ```bash
-glossia --dialect verse   ...   # ten-syllable lines
-glossia --dialect haiku   ...   # 5 / 7 / 5, repeating for longer payloads
-glossia --dialect blank   ...   # iambic pentameter
+glossia --dialect syllabic ...  # ten-syllable lines
+glossia --dialect haiku    ...  # 5 / 7 / 5, repeating for longer payloads
+glossia --dialect iambic   ...  # iambic pentameter (what literature calls blank verse)
 ```
 
 Two things differ from a prose dialect, both automatic. Output breaks on the
@@ -62,9 +62,9 @@ same way:
 | dialect | form | lines scan | density | vs `body` |
 |---|---|---|---|---|
 | `body` | — | 34% | 0.581 | — |
-| `verse` | 10 syllables | **90%** | 0.570 | −1.9% |
+| `syllabic` | 10 syllables | **90%** | 0.570 | −1.9% |
 | `haiku` | 5 / 7 / 5 | **68%** | 0.559 | −3.8% |
-| `blank` | iambic pentameter | **78%** | 0.502 | −13.6% |
+| `iambic` | iambic pentameter | **78%** | 0.502 | −13.6% |
 
 Syllable counting is nearly free. Stress meter costs about an eighth of the
 density — the price of a filler that must satisfy the beat as well as the line.
@@ -103,7 +103,7 @@ ordinary Glossia prose that has been *filled* to scan — not a different gramma
 
 ```yaml
   dialects:
-    blank:
+    iambic:
       meter:
         lines: [10]        # syllables per line, cycling
         stress: lenient    # free | lenient | strict
