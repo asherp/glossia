@@ -126,10 +126,18 @@ byte-for-byte as it did, which is what keeps the canonical goldens valid.
   - Carried on `Lexicon` via `with_prosody` (attach **after** cover words — the index is
     built from them); loaded with `data::load_prosody_cached`.
 - **Declaring one** (`grammar.yaml`, no `rules:` so the base grammar is inherited):
-  `meter: {lines: [10], stress: lenient, rise: true}`. English ships `syllabic` (10-syllable),
-  `haiku` (5/7/5), `iambic` (iambic pentameter, i.e. blank verse).
-- **Measured** (50 payloads, best_of=4, vs `body` at 0.581 density): verse 90% scanning
-  at −1.9% density, haiku 68% at −3.8%, blank 78% at −13.6%.
+  `meter: {lines: [10], stress: lenient, foot: iamb}`. `foot` is a repeating beat pattern
+  read modulo its own length (`iamb | trochee | anapest | dactyl | amphibrach`), so duple
+  and triple feet are one mechanism; lines must be a whole number of feet when stress is
+  enforced, and a block that breaks that parses as *no meter*. `rise:` still works as the
+  old iamb/trochee shorthand. English ships `syllabic` (10-syllable), `haiku` (5/7/5),
+  `iambic` (blank verse), `anapest` and `dactyl` (tetrameter, 12 syllables).
+- **Measured** (50 payloads, best_of=4, vs `body` at 0.581 density): syllabic 90% scanning
+  at −1.9% density, haiku 68% at −3.8%, iambic 78% at −13.6%, dactyl 84% at −17.9%,
+  anapest 44% at −22.0%. **Dactyl beats iamb** — English content words fall (a third of the
+  payload list scans `10`, a ninth `01`), so a falling foot takes them at the head of every
+  foot where a rising one can only use them off the beat. Scan rate and density trade
+  against each other via the cover budget; read both columns together.
 - **Why building beats filtering**: as a filter over finished candidates, strict iambic
   pentameter appears **zero** times in 10,240 renderings. Not the vocabulary — only 3 of
   1440 polysyllables cannot scan at some position. A word's position is fixed by the

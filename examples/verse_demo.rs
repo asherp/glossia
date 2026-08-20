@@ -28,7 +28,7 @@ fn main() {
 
     println!("\n{samples} payloads x best_of={best_of}\n");
     println!("  {:>8} {:>7} {:>8} {:>9} {:>9}", "dialect", "words", "scans", "density", "lines");
-    for dialect in ["body", "syllabic", "haiku", "iambic"] {
+    for dialect in ["body", "syllabic", "haiku", "iambic", "anapest", "dactyl"] {
         let spec = DialectConfig::from_language_dialect_cached("english", dialect)
             .unwrap()
             .meter()
@@ -43,10 +43,11 @@ fn main() {
             words += toks.len();
             // A meterless dialect is scored against blank verse's line length so
             // the columns are comparable — that is the "today" baseline.
-            let against = spec.clone().unwrap_or(glossia::generator::prosody::MeterSpec {
-                lines: vec![10],
-                mode: glossia::generator::prosody::StressMode::Free,
-                rise: true,
+            let against = spec.clone().unwrap_or_else(|| {
+                glossia::generator::prosody::MeterSpec::iambic(
+                    vec![10],
+                    glossia::generator::prosody::StressMode::Free,
+                )
             });
             if scans_text(&toks, &model, &against) {
                 scanned += 1;
@@ -63,7 +64,7 @@ fn main() {
         );
     }
 
-    for dialect in ["syllabic", "haiku", "iambic"] {
+    for dialect in ["syllabic", "haiku", "iambic", "anapest", "dactyl"] {
         let spec = DialectConfig::from_language_dialect_cached("english", dialect)
             .unwrap().meter().cloned().unwrap();
         let p = payload(13, 4, &wl);

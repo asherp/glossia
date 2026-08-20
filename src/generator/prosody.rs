@@ -53,13 +53,28 @@ impl StressMode {
 
 /// A verse form: line lengths in syllables (cycling), and how stress must sit.
 ///
-/// `rise` picks which parity carries the beat — `true` for rising feet (iambic,
-/// da-DUM), `false` for falling (trochaic, DUM-da).
+/// `foot` is the repeating beat pattern, one entry per syllable, `true` where
+/// the beat falls: `[false, true]` is an iamb (da-DUM), `[false, false, true]`
+/// an anapest (da-da-DUM). Duple and triple feet are the same machinery — the
+/// beat is read modulo the foot's length rather than by parity.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct MeterSpec {
     pub lines: Vec<usize>,
     pub mode: StressMode,
-    pub rise: bool,
+    pub foot: Vec<bool>,
+}
+
+/// The named feet a dialect may declare. Anything expressible as a repeating
+/// strong/weak pattern fits; these are the ones English verse actually uses.
+fn parse_foot(name: &str) -> Option<Vec<bool>> {
+    match name {
+        "iamb" | "iambic" => Some(vec![false, true]),           // da-DUM
+        "trochee" | "trochaic" => Some(vec![true, false]),      // DUM-da
+        "anapest" | "anapaest" | "anapestic" => Some(vec![false, false, true]), // da-da-DUM
+        "dactyl" | "dactylic" => Some(vec![true, false, false]), // DUM-da-da
+        "amphibrach" => Some(vec![false, true, false]),          // da-DUM-da
+        _ => None,
+    }
 }
 
 impl MeterSpec {
@@ -68,14 +83,31 @@ impl MeterSpec {
         self.lines[line % self.lines.len()]
     }
 
+    /// Is the syllable at position `pos` of a line a beat?
+    pub fn is_beat(&self, pos: usize) -> bool {
+        self.foot[pos % self.foot.len()]
+    }
+
+    /// An iambic spec, the common case and the one tests reach for.
+    pub fn iambic(lines: Vec<usize>, mode: StressMode) -> MeterSpec {
+        MeterSpec { lines, mode, foot: vec![false, true] }
+    }
+
     /// Parse the `meter:` block of a dialect in `grammar.yaml`:
     ///
     /// ```yaml
     /// meter:
     ///   lines: [5, 7, 5]     # syllables per line, cycling
-    ///   stress: lenient      # free | lenient | strict   (default free)
-    ///   rise: true           # true = iambic, false = trochaic (default true)
+    ///   stress: lenient      # free | lenient | strict           (default free)
+    ///   foot: anapest        # iamb | trochee | anapest | dactyl | amphibrach
     /// ```
+    ///
+    /// `rise: true|false` is accepted as the older shorthand for iamb/trochee.
+    ///
+    /// Returns `None` — meaning "no meter", so the dialect renders as prose —
+    /// when the block is unusable: no line lengths, an unknown foot, or a line
+    /// that is not a whole number of feet while a stress rule is in force. That
+    /// last one would otherwise silently truncate the final foot of every line.
     pub fn from_yaml(value: &serde_yaml::Value) -> Option<MeterSpec> {
         let map = value.as_mapping()?;
         let lines: Vec<usize> = map
@@ -93,11 +125,20 @@ impl MeterSpec {
             .and_then(|v| v.as_str())
             .and_then(StressMode::parse)
             .unwrap_or_default();
-        let rise = map
-            .get(serde_yaml::Value::from("rise"))
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
-        Some(MeterSpec { lines, mode, rise })
+        let foot = match map.get(serde_yaml::Value::from("foot")).and_then(|v| v.as_str()) {
+            Some(name) => parse_foot(name)?,
+            None => {
+                let rise = map
+                    .get(serde_yaml::Value::from("rise"))
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true);
+                if rise { vec![false, true] } else { vec![true, false] }
+            }
+        };
+        if mode != StressMode::Free && lines.iter().any(|n| n % foot.len() != 0) {
+            return None;
+        }
+        Some(MeterSpec { lines, mode, foot })
     }
 }
 
@@ -126,7 +167,7 @@ pub fn scans(pat: &[u8], off: usize, spec: &MeterSpec) -> bool {
         return true;
     }
     for (i, &d) in pat.iter().enumerate() {
-        let strong = ((off + i) % 2 == 1) == spec.rise;
+        let strong = spec.is_beat(off + i);
         match d {
             b'1' if !strong => return false,
             b'0' if strong && spec.mode == StressMode::Strict => return false,
@@ -483,7 +524,7 @@ mod tests {
     use super::*;
 
     fn spec(lines: &[usize], mode: StressMode) -> MeterSpec {
-        MeterSpec { lines: lines.to_vec(), mode, rise: true }
+        MeterSpec::iambic(lines.to_vec(), mode)
     }
 
     #[test]
@@ -525,18 +566,70 @@ mod tests {
     }
 
     #[test]
+    fn triple_feet_put_the_beat_every_third_syllable() {
+        let anapest = MeterSpec {
+            lines: vec![12],
+            mode: StressMode::Lenient,
+            foot: parse_foot("anapest").unwrap(),
+        };
+        // da-da-DUM: only positions 2, 5, 8, 11 carry the beat.
+        for pos in 0..12 {
+            assert_eq!(anapest.is_beat(pos), pos % 3 == 2, "anapest beat at {pos}");
+        }
+        // A trochee ("10") can only sit where its stressed syllable lands on a
+        // beat, which in triple time is one position in three.
+        assert!(scans(b"10", 2, &anapest));
+        assert!(!scans(b"10", 0, &anapest));
+        assert!(!scans(b"10", 1, &anapest));
+
+        let dactyl = MeterSpec {
+            lines: vec![12],
+            mode: StressMode::Lenient,
+            foot: parse_foot("dactyl").unwrap(),
+        };
+        for pos in 0..12 {
+            assert_eq!(dactyl.is_beat(pos), pos % 3 == 0, "dactyl beat at {pos}");
+        }
+        // A three-syllable falling word is exactly one dactyl.
+        assert!(scans(b"100", 0, &dactyl));
+        assert!(!scans(b"100", 1, &dactyl));
+    }
+
+    #[test]
+    fn a_line_must_be_a_whole_number_of_feet_when_stress_matters() {
+        // Ten syllables is five iambs but three anapests and a limp.
+        let bad: serde_yaml::Value =
+            serde_yaml::from_str("lines: [10]\nstress: lenient\nfoot: anapest").unwrap();
+        assert!(MeterSpec::from_yaml(&bad).is_none());
+
+        let good: serde_yaml::Value =
+            serde_yaml::from_str("lines: [12]\nstress: lenient\nfoot: anapest").unwrap();
+        assert!(MeterSpec::from_yaml(&good).is_some());
+
+        // Syllable counting has no feet to divide, so any line length is fine.
+        let free: serde_yaml::Value =
+            serde_yaml::from_str("lines: [5, 7, 5]\nstress: free\nfoot: anapest").unwrap();
+        assert!(MeterSpec::from_yaml(&free).is_some());
+
+        let unknown: serde_yaml::Value =
+            serde_yaml::from_str("lines: [12]\nfoot: limerick").unwrap();
+        assert!(MeterSpec::from_yaml(&unknown).is_none(), "an unknown foot is not a meter");
+    }
+
+    #[test]
     fn meter_spec_parses_and_defaults() {
+        // `rise:` still parses as the shorthand it always was.
         let v: serde_yaml::Value =
-            serde_yaml::from_str("lines: [5, 7, 5]\nstress: lenient\nrise: false").unwrap();
+            serde_yaml::from_str("lines: [8]\nstress: lenient\nrise: false").unwrap();
         let m = MeterSpec::from_yaml(&v).unwrap();
-        assert_eq!(m.lines, vec![5, 7, 5]);
+        assert_eq!(m.lines, vec![8]);
         assert_eq!(m.mode, StressMode::Lenient);
-        assert!(!m.rise);
+        assert_eq!(m.foot, vec![true, false], "rise: false is a trochee");
 
         let v: serde_yaml::Value = serde_yaml::from_str("lines: [10]").unwrap();
         let m = MeterSpec::from_yaml(&v).unwrap();
         assert_eq!(m.mode, StressMode::Free, "stress is free unless asked for");
-        assert!(m.rise);
+        assert_eq!(m.foot, vec![false, true], "iamb is the default foot");
 
         let v: serde_yaml::Value = serde_yaml::from_str("stress: lenient").unwrap();
         assert!(MeterSpec::from_yaml(&v).is_none(), "no lines, no meter");

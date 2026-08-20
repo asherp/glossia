@@ -65,9 +65,25 @@ same way:
 | `syllabic` | 10 syllables | **90%** | 0.570 | −1.9% |
 | `haiku` | 5 / 7 / 5 | **68%** | 0.559 | −3.8% |
 | `iambic` | iambic pentameter | **78%** | 0.502 | −13.6% |
+| `dactyl` | dactylic tetrameter | **84%** | 0.477 | −17.9% |
+| `anapest` | anapestic tetrameter | **44%** | 0.453 | −22.0% |
 
-Syllable counting is nearly free. Stress meter costs about an eighth of the
-density — the price of a filler that must satisfy the beat as well as the line.
+Syllable counting is nearly free. Stress meter costs between an eighth and a
+fifth of the density — the price of a filler that must satisfy the beat as well
+as the line.
+
+The ordering among the stress meters is not the obvious one. Triple time ought
+to be harder than duple, since only one position in three carries a beat, and
+anapests bear that out at 44%. But **dactyls scan more often than iambs** —
+because English content words fall. A third of the payload wordlist scans `10`
+against a ninth scanning `01`, and a dactylic foot (`DUM-da-da`) takes those
+words at the head of every foot, where an iambic line can only use them off the
+beat. The falling foot runs with the vocabulary; the rising foot argues with it.
+
+Scan rate and density trade against each other, so read both columns together:
+a form that spends more cover words buys more freedom to fix the beat. `dactyl`
+scans more often than `iambic` *and* costs more density, which is the same
+mechanism seen from either end.
 
 ## How it works
 
@@ -107,7 +123,7 @@ ordinary Glossia prose that has been *filled* to scan — not a different gramma
       meter:
         lines: [10]        # syllables per line, cycling
         stress: lenient    # free | lenient | strict
-        rise: true         # true = iambic, false = trochaic
+        foot: iamb         # iamb | trochee | anapest | dactyl | amphibrach
 ```
 
 `stress: free` counts syllables only. `lenient` additionally forbids a primary
@@ -115,6 +131,17 @@ stress on a weak beat — the standard reading of "does it scan", and the one
 English verse observes; monosyllables float, as they do in practice. `strict`
 also forbids an unstressed syllable of a polysyllable on a strong beat, which is
 stricter than real verse and fails far more often.
+
+`foot` is a repeating beat pattern read modulo its own length, so duple and
+triple feet are the same machinery. Line lengths must be a whole number of feet
+whenever a stress rule is in force — ten syllables is five iambs but three
+anapests and a limp — and a `meter:` block that breaks that rule is treated as
+no meter at all. (`rise: true|false` still parses, as the older shorthand for
+iamb and trochee.)
+
+Because line lengths cycle, forms built from unequal lines need no extra
+machinery. Common metre is `lines: [8, 6, 8, 6]` with `foot: iamb`; iambic
+tetrameter is `lines: [8]`; an alexandrine is `lines: [12]`.
 
 A dialect with no `meter:` never loads the prosody data and generates exactly as
 it did before verse dialects existed.

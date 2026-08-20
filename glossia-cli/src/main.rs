@@ -374,6 +374,8 @@ fn print_usage(program_name: &str) {
     eprintln!("                            syllabic: ten-syllable lines");
     eprintln!("                            haiku:    5/7/5, repeating for longer payloads");
     eprintln!("                            iambic:   iambic pentameter (blank verse)");
+    eprintln!("                            dactyl:   dactylic tetrameter");
+    eprintln!("                            anapest:  anapestic tetrameter");
     eprintln!("  --width <N>              Fixed width for line wrapping (default: 80)");
     eprintln!("                          Ignored by verse dialects, which break on the meter");
     eprintln!("  --delimiter <str>        Delimiter between words in payload_only mode (default: \" \")");

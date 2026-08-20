@@ -82,8 +82,8 @@ fn the_payload_survives_every_verse_dialect() {
 fn syllable_counted_dialects_scan() {
     let m = model();
     for (dialect, spec) in [
-        ("syllabic", MeterSpec { lines: vec![10], mode: StressMode::Free, rise: true }),
-        ("haiku", MeterSpec { lines: vec![5, 7, 5], mode: StressMode::Free, rise: true }),
+        ("syllabic", MeterSpec::iambic(vec![10], StressMode::Free)),
+        ("haiku", MeterSpec::iambic(vec![5, 7, 5], StressMode::Free)),
     ] {
         let mut scanned = 0;
         let trials = 12;
@@ -109,7 +109,7 @@ fn syllable_counted_dialects_scan() {
 #[test]
 fn layout_reproduces_the_lines_the_filler_built() {
     let m = model();
-    let spec = MeterSpec { lines: vec![5, 7, 5], mode: StressMode::Free, rise: true };
+    let spec = MeterSpec::iambic(vec![5, 7, 5], StressMode::Free);
     let words = payload_words(13, 3);
     let text = encode("haiku", &words, 424_242);
     let toks: Vec<String> = text.split_whitespace().map(|s| s.to_string()).collect();
@@ -127,7 +127,7 @@ fn layout_reproduces_the_lines_the_filler_built() {
 #[test]
 fn a_verse_dialect_lays_out_as_lines_of_the_declared_length() {
     let m = model();
-    let spec = MeterSpec { lines: vec![5, 7, 5], mode: StressMode::Free, rise: true };
+    let spec = MeterSpec::iambic(vec![5, 7, 5], StressMode::Free);
     let mut exact = 0;
     let trials = 8;
     for nonce in 0..trials {

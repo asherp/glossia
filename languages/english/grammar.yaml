@@ -221,7 +221,22 @@ grammar:
       meter:
         lines: [10]
         stress: lenient
-        rise: true
+        foot: iamb
+    anapest:
+      # Anapestic tetrameter: four da-da-DUMs. The galloping metre of
+      # "'Twas the night before Christmas". A line is 4 x 3 syllables.
+      meter:
+        lines: [12]
+        stress: lenient
+        foot: anapest
+    dactyl:
+      # Dactylic tetrameter: four DUM-da-das. Falling triple time.
+      # (Classical dactylic hexameter is a different animal — quantitative,
+      # with spondee substitution — and would need vowel-length data.)
+      meter:
+        lines: [12]
+        stress: lenient
+        foot: dactyl
 
     subject:
       # Base subject dialect — no prefix. Use subject_re or subject_fwd for Re:/Fwd:.
