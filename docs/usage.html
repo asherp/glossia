@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html" class="active"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">8.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">9.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">10.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">11.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">12.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">13.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">14.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">15.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">16.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">17.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">18.</strong> Whitepaper</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html" class="active"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="verse-dialects.html"><strong aria-hidden="true">8.</strong> Verse Dialects</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">9.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">10.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">11.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">12.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">13.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">14.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">15.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">16.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">17.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">18.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">19.</strong> Whitepaper</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -199,8 +199,64 @@
 <tr><td><code>body</code> (default)</td><td><code>natural</code></td><td>Longer sentences, natural prose. Best for email body text.</td></tr>
 <tr><td><code>subject</code></td><td><code>compact</code></td><td>Short sentences, may include prefixes (Re:, Fwd:). Best for subject lines.</td></tr>
 <tr><td><code>payload_only</code></td><td>N/A</td><td>Output only payload words, no cover words.</td></tr>
+<tr><td><code>syllabic</code></td><td><code>natural</code></td><td>Verse: ten-syllable lines.</td></tr>
+<tr><td><code>haiku</code></td><td><code>natural</code></td><td>Verse: 5/7/5, repeating for longer payloads.</td></tr>
+<tr><td><code>iambic</code></td><td><code>natural</code></td><td>Verse: iambic pentameter (blank verse).</td></tr>
+<tr><td><code>dactyl</code></td><td><code>natural</code></td><td>Verse: dactylic tetrameter.</td></tr>
+<tr><td><code>anapest</code></td><td><code>natural</code></td><td>Verse: anapestic tetrameter.</td></tr>
 </tbody></table>
 </div>
+<h2 id="poetry"><a class="header" href="#poetry">Poetry</a></h2>
+<p>The verse dialects render the same payload as metrical lines. Feed in a
+mnemonic, get a poem:</p>
+<pre><code>$ glossia --dialect haiku --seed 42 legal winner thank yellow zoo zebra youth wrist wrap world work word
+
+The legal winner
+thank yellow. Zoo get zebra
+to a youth wrist to
+wrap via its world
+work. Word may row.
+</code></pre>
+<p>(Every example here passes <code>--seed</code> so it reproduces; without one, each run
+picks fresh cover words and you get a different poem from the same payload.)</p>
+<p>The same twelve words in the other forms:</p>
+<pre><code>$ glossia --dialect syllabic ...        $ glossia --dialect iambic ...
+
+The legal winner thank yellow. Zoo get  A legal winner thank rub. Yellow see
+zebra to a youth wrist to wrap via      zoo via zebra. Its youth wrist wrap world.
+its world work. Word may row.           The work may word out.
+
+$ glossia --dialect dactyl ...
+
+Tire is legal to winner. Thank yellow zoo
+via pop. Zebra are youth to wrist. Wrap is world
+per work. Word set lip.
+</code></pre>
+<p>Two flags behave differently for a verse dialect, both automatically:</p>
+<ul>
+<li>Output breaks on the <strong>meter</strong>, so <code>--width</code> is ignored.</li>
+<li><code>--best-of</code> defaults to <strong>4</strong> rather than 1, because whether the lines come
+out whole is the tie-break among equally dense candidates. An explicit
+<code>--best-of</code> always wins. Raising it to 8–12 buys a better poem; beyond that
+the CLI's memory use grows sharply (a pre-existing limit of <code>--best-of</code>, not
+specific to verse).</li>
+</ul>
+<p>Poetry is not a separate encoding. Payload words and their order are untouched,
+so a poem decodes with exactly the command that decodes prose:</p>
+<pre><code>$ glossia --from-ascii "meet me at dawn" --dialect haiku --seed 11
+Ability hope
+clinic to fringe. Dolphin stone
+tea. Mother set our
+magic lottery.
+Good may arm to swear.
+
+$ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
+meet me at dawn
+</code></pre>
+<p>Not every rendering scans — a payload word that will not fit its line is placed
+anyway rather than dropped, since the payload always wins. See
+<a href="./verse-dialects.html">Verse Dialects</a> for what each form costs in density, how
+to declare your own, and why the meter is built rather than filtered for.</p>
 <h3 id="length-modes"><a class="header" href="#length-modes">Length Modes</a></h3>
 <p>The <code>--length-mode</code> flag controls how sentence length is chosen:</p>
 <ul>
@@ -245,7 +301,8 @@
 <div class="table-wrapper"><table><thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>--k-min &lt;N&gt;</code></td><td>3</td><td>Minimum sentence length in POS slots (including Dot)</td></tr>
 <tr><td><code>--k-max &lt;N&gt;</code></td><td>20</td><td>Maximum sentence length in POS slots (including Dot)</td></tr>
-<tr><td><code>--width &lt;N&gt;</code></td><td>80</td><td>Line wrapping width</td></tr>
+<tr><td><code>--width &lt;N&gt;</code></td><td>80</td><td>Line wrapping width (ignored by verse dialects, which break on the meter)</td></tr>
+<tr><td><code>--best-of &lt;N&gt;</code></td><td>1, or 4 for verse</td><td>Sample N renderings, keep the best</td></tr>
 <tr><td><code>--delimiter &lt;str&gt;</code></td><td><code>" "</code></td><td>Delimiter between words in <code>payload_only</code> mode</td></tr>
 <tr><td><code>--seed &lt;N&gt;</code></td><td>random</td><td>Seed for deterministic generation</td></tr>
 </tbody></table>
@@ -266,6 +323,7 @@ Options:
   --decode                  Decode words back to bytes
   --dialect &lt;dialect&gt;       body (default), subject, or payload_only
                           Can include language: latin-body, english-subject, cs-nip04
+                          Verse (English): syllabic, haiku, iambic, dactyl, anapest
   --length-mode &lt;mode&gt;      compact or natural
   --highlight-payload &lt;mode&gt;  none, bars, or color name/code
   --highlight-merkle &lt;mode&gt;   Merkle word highlighting

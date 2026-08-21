@@ -88,7 +88,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html" class="active">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">8.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">9.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">10.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">11.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">12.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">13.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">14.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">15.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">16.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">17.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">18.</strong> Whitepaper</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html" class="active">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="verse-dialects.html"><strong aria-hidden="true">8.</strong> Verse Dialects</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">9.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">10.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">11.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">12.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">13.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">14.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">15.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">16.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">17.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">18.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">19.</strong> Whitepaper</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -194,6 +194,7 @@
 <li><strong>POS-tagged payload embedding</strong>: Embeds BIP39 words based on their part-of-speech tags</li>
 <li><strong>SFW cover lexicon</strong>: Uses a safe-for-work lexicon that excludes all BIP39 words</li>
 <li><strong>Adaptive sentence length</strong>: Adjusts sentence complexity based on remaining payload tokens</li>
+<li><strong>Verse dialects</strong>: Renders a payload as metrical poetry — haiku, blank verse, dactyls — with the same decoding</li>
 <li><strong>Word frequency analysis</strong>: Tool to generate word lists from frequency data with POS tags</li>
 </ul>
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
@@ -251,6 +252,21 @@ Shield get bamboo. Pie own way. Yellow is set.
 </code></pre>
 <pre><code>The abandon may see the ability to each able ears about above. Guy may absent.
 </code></pre>
+<p><strong>Render a mnemonic as poetry</strong></p>
+<pre><code class="language-bash">$ glossia --dialect haiku --seed 42 legal winner thank yellow zoo zebra youth wrist wrap world work word
+</code></pre>
+<pre><code>The legal winner
+thank yellow. Zoo get zebra
+to a youth wrist to
+wrap via its world
+work. Word may row.
+</code></pre>
+<p>English ships five verse dialects — <code>syllabic</code> (ten-syllable lines), <code>haiku</code> (5/7/5), <code>iambic</code> (blank verse), <code>dactyl</code> and <code>anapest</code> (tetrameter). Output breaks on the meter rather than at <code>--width</code>, and <code>--best-of</code> defaults to 4.</p>
+<p>Verse is not a separate encoding: payload words and their order are untouched, so a poem decodes with exactly the command that decodes prose.</p>
+<pre><code class="language-bash">$ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
+meet me at dawn
+</code></pre>
+<p>A line that does not scan is a line that lost or gained a word — meter is the one property of an encoding a human can check by ear. See <a href="docs/src/verse-dialects.html">Verse Dialects</a> for what each form costs.</p>
 <p><strong>Encode an API key or secret</strong></p>
 <pre><code class="language-bash">$ glossia --from-ascii "sk_live_51H3ll0W0r1d" --seed 0
 </code></pre>

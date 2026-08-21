@@ -89,7 +89,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">8.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">9.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">10.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">11.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">12.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">13.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">14.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">15.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">16.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">17.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">18.</strong> Whitepaper</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="introduction.html">Introduction</a></li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-start.html"><strong aria-hidden="true">2.</strong> Quick Start</a></li><li class="chapter-item expanded "><a href="usage.html"><strong aria-hidden="true">3.</strong> Usage</a></li><li class="chapter-item expanded "><a href="examples.html"><strong aria-hidden="true">4.</strong> Examples</a></li><li class="chapter-item expanded "><a href="how-it-works.html"><strong aria-hidden="true">5.</strong> How It Works</a></li><li class="chapter-item expanded "><a href="canonical-encoding.html"><strong aria-hidden="true">6.</strong> Canonical Encoding</a></li><li class="chapter-item expanded "><a href="prose-quality.html"><strong aria-hidden="true">7.</strong> Prose Quality (Semantic Planning)</a></li><li class="chapter-item expanded "><a href="verse-dialects.html"><strong aria-hidden="true">8.</strong> Verse Dialects</a></li><li class="chapter-item expanded "><a href="grammar.html"><strong aria-hidden="true">9.</strong> Grammar</a></li><li class="chapter-item expanded "><a href="dialect-calculus.html"><strong aria-hidden="true">10.</strong> Dialect Calculus</a></li><li class="chapter-item expanded "><a href="language-support.html"><strong aria-hidden="true">11.</strong> Language Support</a></li><li class="chapter-item expanded "><a href="tools.html"><strong aria-hidden="true">12.</strong> Tools</a></li><li class="chapter-item expanded "><a href="image-codec.html"><strong aria-hidden="true">13.</strong> Image Codec</a></li><li class="chapter-item expanded "><a href="email-dialect.html"><strong aria-hidden="true">14.</strong> Email Dialect</a></li><li class="chapter-item expanded "><a href="nostr-seal.html"><strong aria-hidden="true">15.</strong> Nostr Seal</a></li><li class="chapter-item expanded "><a href="bulletin-board.html"><strong aria-hidden="true">16.</strong> Bulletin Board</a></li><li class="chapter-item expanded "><a href="project-structure.html"><strong aria-hidden="true">17.</strong> Project Structure</a></li><li class="chapter-item expanded "><a href="deployment.html"><strong aria-hidden="true">18.</strong> Deployment & CI</a></li><li class="chapter-item expanded "><a href="whitepaper.html"><strong aria-hidden="true">19.</strong> Whitepaper</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle">
                 <div class="sidebar-resize-indicator"></div>
@@ -195,6 +195,7 @@
 <li><strong>POS-tagged payload embedding</strong>: Embeds BIP39 words based on their part-of-speech tags</li>
 <li><strong>SFW cover lexicon</strong>: Uses a safe-for-work lexicon that excludes all BIP39 words</li>
 <li><strong>Adaptive sentence length</strong>: Adjusts sentence complexity based on remaining payload tokens</li>
+<li><strong>Verse dialects</strong>: Renders a payload as metrical poetry — haiku, blank verse, dactyls — with the same decoding</li>
 <li><strong>Word frequency analysis</strong>: Tool to generate word lists from frequency data with POS tags</li>
 </ul>
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
@@ -252,6 +253,21 @@ Shield get bamboo. Pie own way. Yellow is set.
 </code></pre>
 <pre><code>The abandon may see the ability to each able ears about above. Guy may absent.
 </code></pre>
+<p><strong>Render a mnemonic as poetry</strong></p>
+<pre><code class="language-bash">$ glossia --dialect haiku --seed 42 legal winner thank yellow zoo zebra youth wrist wrap world work word
+</code></pre>
+<pre><code>The legal winner
+thank yellow. Zoo get zebra
+to a youth wrist to
+wrap via its world
+work. Word may row.
+</code></pre>
+<p>English ships five verse dialects — <code>syllabic</code> (ten-syllable lines), <code>haiku</code> (5/7/5), <code>iambic</code> (blank verse), <code>dactyl</code> and <code>anapest</code> (tetrameter). Output breaks on the meter rather than at <code>--width</code>, and <code>--best-of</code> defaults to 4.</p>
+<p>Verse is not a separate encoding: payload words and their order are untouched, so a poem decodes with exactly the command that decodes prose.</p>
+<pre><code class="language-bash">$ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
+meet me at dawn
+</code></pre>
+<p>A line that does not scan is a line that lost or gained a word — meter is the one property of an encoding a human can check by ear. See <a href="docs/src/verse-dialects.html">Verse Dialects</a> for what each form costs.</p>
 <p><strong>Encode an API key or secret</strong></p>
 <pre><code class="language-bash">$ glossia --from-ascii "sk_live_51H3ll0W0r1d" --seed 0
 </code></pre>
@@ -564,8 +580,64 @@ Cricket see the gloom to army. The rid purpose already board the rid mosquito.
 <tr><td><code>body</code> (default)</td><td><code>natural</code></td><td>Longer sentences, natural prose. Best for email body text.</td></tr>
 <tr><td><code>subject</code></td><td><code>compact</code></td><td>Short sentences, may include prefixes (Re:, Fwd:). Best for subject lines.</td></tr>
 <tr><td><code>payload_only</code></td><td>N/A</td><td>Output only payload words, no cover words.</td></tr>
+<tr><td><code>syllabic</code></td><td><code>natural</code></td><td>Verse: ten-syllable lines.</td></tr>
+<tr><td><code>haiku</code></td><td><code>natural</code></td><td>Verse: 5/7/5, repeating for longer payloads.</td></tr>
+<tr><td><code>iambic</code></td><td><code>natural</code></td><td>Verse: iambic pentameter (blank verse).</td></tr>
+<tr><td><code>dactyl</code></td><td><code>natural</code></td><td>Verse: dactylic tetrameter.</td></tr>
+<tr><td><code>anapest</code></td><td><code>natural</code></td><td>Verse: anapestic tetrameter.</td></tr>
 </tbody></table>
 </div>
+<h2 id="poetry"><a class="header" href="#poetry">Poetry</a></h2>
+<p>The verse dialects render the same payload as metrical lines. Feed in a
+mnemonic, get a poem:</p>
+<pre><code>$ glossia --dialect haiku --seed 42 legal winner thank yellow zoo zebra youth wrist wrap world work word
+
+The legal winner
+thank yellow. Zoo get zebra
+to a youth wrist to
+wrap via its world
+work. Word may row.
+</code></pre>
+<p>(Every example here passes <code>--seed</code> so it reproduces; without one, each run
+picks fresh cover words and you get a different poem from the same payload.)</p>
+<p>The same twelve words in the other forms:</p>
+<pre><code>$ glossia --dialect syllabic ...        $ glossia --dialect iambic ...
+
+The legal winner thank yellow. Zoo get  A legal winner thank rub. Yellow see
+zebra to a youth wrist to wrap via      zoo via zebra. Its youth wrist wrap world.
+its world work. Word may row.           The work may word out.
+
+$ glossia --dialect dactyl ...
+
+Tire is legal to winner. Thank yellow zoo
+via pop. Zebra are youth to wrist. Wrap is world
+per work. Word set lip.
+</code></pre>
+<p>Two flags behave differently for a verse dialect, both automatically:</p>
+<ul>
+<li>Output breaks on the <strong>meter</strong>, so <code>--width</code> is ignored.</li>
+<li><code>--best-of</code> defaults to <strong>4</strong> rather than 1, because whether the lines come
+out whole is the tie-break among equally dense candidates. An explicit
+<code>--best-of</code> always wins. Raising it to 8–12 buys a better poem; beyond that
+the CLI's memory use grows sharply (a pre-existing limit of <code>--best-of</code>, not
+specific to verse).</li>
+</ul>
+<p>Poetry is not a separate encoding. Payload words and their order are untouched,
+so a poem decodes with exactly the command that decodes prose:</p>
+<pre><code>$ glossia --from-ascii "meet me at dawn" --dialect haiku --seed 11
+Ability hope
+clinic to fringe. Dolphin stone
+tea. Mother set our
+magic lottery.
+Good may arm to swear.
+
+$ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
+meet me at dawn
+</code></pre>
+<p>Not every rendering scans — a payload word that will not fit its line is placed
+anyway rather than dropped, since the payload always wins. See
+<a href="./verse-dialects.html">Verse Dialects</a> for what each form costs in density, how
+to declare your own, and why the meter is built rather than filtered for.</p>
 <h3 id="length-modes"><a class="header" href="#length-modes">Length Modes</a></h3>
 <p>The <code>--length-mode</code> flag controls how sentence length is chosen:</p>
 <ul>
@@ -610,7 +682,8 @@ Cricket see the gloom to army. The rid purpose already board the rid mosquito.
 <div class="table-wrapper"><table><thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead><tbody>
 <tr><td><code>--k-min &lt;N&gt;</code></td><td>3</td><td>Minimum sentence length in POS slots (including Dot)</td></tr>
 <tr><td><code>--k-max &lt;N&gt;</code></td><td>20</td><td>Maximum sentence length in POS slots (including Dot)</td></tr>
-<tr><td><code>--width &lt;N&gt;</code></td><td>80</td><td>Line wrapping width</td></tr>
+<tr><td><code>--width &lt;N&gt;</code></td><td>80</td><td>Line wrapping width (ignored by verse dialects, which break on the meter)</td></tr>
+<tr><td><code>--best-of &lt;N&gt;</code></td><td>1, or 4 for verse</td><td>Sample N renderings, keep the best</td></tr>
 <tr><td><code>--delimiter &lt;str&gt;</code></td><td><code>" "</code></td><td>Delimiter between words in <code>payload_only</code> mode</td></tr>
 <tr><td><code>--seed &lt;N&gt;</code></td><td>random</td><td>Seed for deterministic generation</td></tr>
 </tbody></table>
@@ -631,6 +704,7 @@ Options:
   --decode                  Decode words back to bytes
   --dialect &lt;dialect&gt;       body (default), subject, or payload_only
                           Can include language: latin-body, english-subject, cs-nip04
+                          Verse (English): syllabic, haiku, iambic, dactyl, anapest
   --length-mode &lt;mode&gt;      compact or natural
   --highlight-payload &lt;mode&gt;  none, bars, or color name/code
   --highlight-merkle &lt;mode&gt;   Merkle word highlighting
@@ -1269,6 +1343,156 @@ not perfect, and because the layer is soft, an occasional mis-classification onl
 slightly nudges word choice — it never affects correctness or decoding. See
 <code>experiments/semantic_planner/</code> in the repository for the dataset and the tools
 that regenerate it.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="verse-dialects"><a class="header" href="#verse-dialects">Verse Dialects</a></h1>
+<p>Glossia can render a payload as metrical verse — lines of a fixed syllable
+count, optionally scanning as iambic pentameter. The lines are real: a reader
+can hear when one is wrong.</p>
+<p>That is the point. Glossia is a readable encoding, and the properties it sells
+are <em>readable, speakable, transcribable, verifiable</em>. Meter is the only one of
+those a human can check without a machine. A line that does not scan is a line
+that lost or gained a word.</p>
+<h2 id="using-one"><a class="header" href="#using-one">Using one</a></h2>
+<p>A verse dialect is an ordinary dialect. Feed it a mnemonic and a poem comes out:</p>
+<pre><code>$ glossia --dialect haiku legal winner thank yellow zoo zebra youth wrist wrap world work word
+
+Our ally is
+legal. Winner thank our
+yellow zoo. Zebra
+may get youth. Wrist wrap
+a world work to word.
+</code></pre>
+<p>Three ship for English:</p>
+<pre><code class="language-bash">glossia --dialect syllabic ...  # ten-syllable lines
+glossia --dialect haiku    ...  # 5 / 7 / 5, repeating for longer payloads
+glossia --dialect iambic   ...  # iambic pentameter (what literature calls blank verse)
+</code></pre>
+<p>Two things differ from a prose dialect, both automatic. Output breaks on the
+<strong>meter</strong> rather than at <code>--width</code> columns — a verse dialect ignores <code>--width</code>.
+And <code>--best-of</code> defaults to <strong>4</strong> instead of 1, because whether a rendering's
+lines come out whole is the tie-break among equally dense candidates, so a
+single draw leaves it to chance. An explicit <code>--best-of</code> always wins. Raising it
+to 8–12 buys a better poem; past that the CLI's memory use climbs steeply, which
+is a pre-existing property of <code>--best-of</code> rather than anything about verse.</p>
+<p>Decoding is unchanged, because nothing about the payload changed: filter the
+words against the payload wordlist and read them in order. A verse rendering
+decodes with exactly the code that decodes prose:</p>
+<pre><code>$ glossia --from-ascii "meet me at dawn" --dialect haiku
+Ability hope
+clinic to fringe. Dolphin stone
+tea. Mother set our
+magic lottery.
+Good may arm to swear.
+
+$ ... | glossia --decode
+meet me at dawn
+</code></pre>
+<h2 id="what-it-costs"><a class="header" href="#what-it-costs">What it costs</a></h2>
+<p>Measured over 50 payloads at <code>best_of=4</code>, against the <code>body</code> dialect scored the
+same way:</p>
+<div class="table-wrapper"><table><thead><tr><th>dialect</th><th>form</th><th>lines scan</th><th>density</th><th>vs <code>body</code></th></tr></thead><tbody>
+<tr><td><code>body</code></td><td>—</td><td>34%</td><td>0.581</td><td>—</td></tr>
+<tr><td><code>syllabic</code></td><td>10 syllables</td><td><strong>90%</strong></td><td>0.570</td><td>−1.9%</td></tr>
+<tr><td><code>haiku</code></td><td>5 / 7 / 5</td><td><strong>68%</strong></td><td>0.559</td><td>−3.8%</td></tr>
+<tr><td><code>iambic</code></td><td>iambic pentameter</td><td><strong>78%</strong></td><td>0.502</td><td>−13.6%</td></tr>
+<tr><td><code>dactyl</code></td><td>dactylic tetrameter</td><td><strong>84%</strong></td><td>0.477</td><td>−17.9%</td></tr>
+<tr><td><code>anapest</code></td><td>anapestic tetrameter</td><td><strong>44%</strong></td><td>0.453</td><td>−22.0%</td></tr>
+</tbody></table>
+</div>
+<p>Syllable counting is nearly free. Stress meter costs between an eighth and a
+fifth of the density — the price of a filler that must satisfy the beat as well
+as the line.</p>
+<p>The ordering among the stress meters is not the obvious one. Triple time ought
+to be harder than duple, since only one position in three carries a beat, and
+anapests bear that out at 44%. But <strong>dactyls scan more often than iambs</strong> —
+because English content words fall. A third of the payload wordlist scans <code>10</code>
+against a ninth scanning <code>01</code>, and a dactylic foot (<code>DUM-da-da</code>) takes those
+words at the head of every foot, where an iambic line can only use them off the
+beat. The falling foot runs with the vocabulary; the rising foot argues with it.</p>
+<p>Scan rate and density trade against each other, so read both columns together:
+a form that spends more cover words buys more freedom to fix the beat. <code>dactyl</code>
+scans more often than <code>iambic</code> <em>and</em> costs more density, which is the same
+mechanism seen from either end.</p>
+<h2 id="how-it-works-4"><a class="header" href="#how-it-works-4">How it works</a></h2>
+<p>Three rules, in order of precedence:</p>
+<ol>
+<li><strong>The payload is untouchable.</strong> Payload words and their order are fixed
+before any of this runs. A payload word that will not scan where it lands is
+placed anyway and the line breaks. Meter never removes, reorders, or
+substitutes a payload word, which is why decoding is unaffected.</li>
+<li><strong>Cover words carry the meter.</strong> The generator already spends about a third
+of its words on cover. A verse dialect spends the same words differently:
+at each cover slot it asks the wordlist for a word of the slot's POS <em>and</em> a
+syllable count that keeps the line completable.</li>
+<li><strong>Best-of-N picks the winner.</strong> Density stays primary; among equally dense
+drafts, the one whose lines came out whole wins.</li>
+</ol>
+<p>The mechanism that makes this work at all is small: <strong>a monosyllable is
+metrically flexible</strong>, so placing one always scans and always flips the parity
+of everything after it. Parity is therefore repairable at any slot offering both
+a one- and a two-syllable word — and every content-bearing POS in the cover list
+offers both.</p>
+<p>Before committing to a word, the filler runs a backward pass over the sentence's
+slots to find which metrical positions can still finish. Without it, a cover
+word that fits locally can leave the line unfinishable; with it, the forward
+walk never backtracks.</p>
+<h2 id="declaring-one"><a class="header" href="#declaring-one">Declaring one</a></h2>
+<p>A dialect becomes a verse dialect by declaring a <code>meter:</code> in <code>grammar.yaml</code>.
+With no <code>rules:</code> of its own it inherits the base grammar, so verse output is
+ordinary Glossia prose that has been <em>filled</em> to scan — not a different grammar:</p>
+<pre><code class="language-yaml">  dialects:
+    iambic:
+      meter:
+        lines: [10]        # syllables per line, cycling
+        stress: lenient    # free | lenient | strict
+        foot: iamb         # iamb | trochee | anapest | dactyl | amphibrach
+</code></pre>
+<p><code>stress: free</code> counts syllables only. <code>lenient</code> additionally forbids a primary
+stress on a weak beat — the standard reading of "does it scan", and the one
+English verse observes; monosyllables float, as they do in practice. <code>strict</code>
+also forbids an unstressed syllable of a polysyllable on a strong beat, which is
+stricter than real verse and fails far more often.</p>
+<p><code>foot</code> is a repeating beat pattern read modulo its own length, so duple and
+triple feet are the same machinery. Line lengths must be a whole number of feet
+whenever a stress rule is in force — ten syllables is five iambs but three
+anapests and a limp — and a <code>meter:</code> block that breaks that rule is treated as
+no meter at all. (<code>rise: true|false</code> still parses, as the older shorthand for
+iamb and trochee.)</p>
+<p>Because line lengths cycle, forms built from unequal lines need no extra
+machinery. Common metre is <code>lines: [8, 6, 8, 6]</code> with <code>foot: iamb</code>; iambic
+tetrameter is <code>lines: [8]</code>; an alexandrine is <code>lines: [12]</code>.</p>
+<p>A dialect with no <code>meter:</code> never loads the prosody data and generates exactly as
+it did before verse dialects existed.</p>
+<h2 id="the-data"><a class="header" href="#the-data">The data</a></h2>
+<p><code>languages/&lt;lang&gt;/prosody.yaml</code> annotates both wordlists — payload and cover —
+the way <code>semantics.yaml</code> does. English's is built from CMUdict by
+<code>experiments/prosody/build_prosody.py</code>, which covers 2047 of 2048 BIP39 payload
+words without hand-annotation:</p>
+<pre><code class="language-yaml">stress: {"donkey": "10", "record": "010|100", ...}
+rhyme:  {"donkey": "AONGKIY", ...}
+</code></pre>
+<p>The stress string does double duty: one digit per syllable, so <strong>its length is
+the syllable count</strong>. A <code>|</code> separates pronunciation variants, which are free
+slack for the fitter — <em>record</em> is both RE-cord and re-CORD. The filler's index
+is <code>(POS, refinement, syllables, parity) → words</code>, with parity derived from the
+stress string rather than stored.</p>
+<p>Like <code>semantics.yaml</code>, the file annotates an existing wordlist rather than
+defining one, so it is regenerable rather than append-only — <strong>except</strong> that a
+canonical version naming the language freezes it, since verification re-renders.</p>
+<h2 id="why-not-rejection-sampling"><a class="header" href="#why-not-rejection-sampling">Why not rejection sampling</a></h2>
+<p>The obvious approach — generate normally, keep the drafts that happen to scan —
+does not work for stress meter, and the measurements are in
+<code>experiments/prosody/</code>. Over 10,240 candidate renderings, strict iambic
+pentameter appeared <strong>zero</strong> times at 32 and 64 bytes.</p>
+<p>The reason is not the vocabulary. Only 3 of 1440 polysyllabic words cannot scan
+at <em>some</em> position: a trochee is a perfect iamb when it starts on the beat.
+The reason is that a word's metrical position is fixed by the cumulative
+syllable count of everything before it, so every polysyllable is one more
+constraint on a running parity — about three times as many constraints as
+syllable counting imposes, each roughly a coin flip.</p>
+<p>Those constraints are not unsatisfiable, though. They are unsatisfiable <em>by
+filtering</em>, because filtering arrives after the cover words have already been
+spent on grammar. Building for the meter instead of filtering for it is what
+turns 0% into 78%.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="grammar"><a class="header" href="#grammar">Grammar</a></h1>
 <p>Glossia uses a two-layer grammar system: a <strong>context-free grammar (CFG)</strong> layer that generates POS tag sequences, and a <strong>type-driven layer</strong> based on Montague Grammar that constrains POS slots via lambda calculus.</p>
 <h2 id="grammar-files-1"><a class="header" href="#grammar-files-1">Grammar Files</a></h2>
