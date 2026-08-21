@@ -71,6 +71,11 @@ pub struct Lexicon {
     /// every language without a `semantics.yaml`) makes planning behave exactly
     /// as before. Never affects which payload words are placed or their order.
     semantics: Option<Arc<SemanticModel>>,
+    /// Optional prosody index, attached only when the active dialect declares a
+    /// `meter:`. `None` — every dialect that ships today — leaves generation
+    /// byte-for-byte unchanged. Like semantics, it never affects which payload
+    /// words are placed or their order.
+    prosody: Option<Arc<crate::generator::prosody::ProsodyLex>>,
 }
 
 impl Lexicon {
@@ -82,6 +87,7 @@ impl Lexicon {
             refined_cover: HashMap::new(),
             refined_payload: HashMap::new(),
             semantics: None,
+            prosody: None,
         }
     }
 
@@ -89,6 +95,25 @@ impl Lexicon {
     pub fn with_semantics(mut self, model: Arc<SemanticModel>) -> Self {
         self.semantics = Some(model);
         self
+    }
+
+    /// Attach prosody data, indexing the cover words by the stress patterns
+    /// available at each (POS, refinement) slot.
+    ///
+    /// Call this last: the index is built from the cover words already loaded,
+    /// so attaching before them would index nothing.
+    pub fn with_prosody(mut self, model: Arc<crate::generator::prosody::ProsodyModel>) -> Self {
+        self.prosody = Some(Arc::new(crate::generator::prosody::ProsodyLex::new(
+            model,
+            &self.by_pos,
+            &self.refined_cover,
+        )));
+        self
+    }
+
+    /// The attached prosody index, if any.
+    pub fn prosody(&self) -> Option<&Arc<crate::generator::prosody::ProsodyLex>> {
+        self.prosody.as_ref()
     }
 
     /// Detach the semantic model, forcing classic POS-only planning. The

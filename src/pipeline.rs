@@ -1623,6 +1623,16 @@ pub fn build_zone_generator(
         lex = lex.with_semantics(model);
     }
 
+    // Optional prosody index, attached only when this dialect declares a verse
+    // form. Attached *after* the cover words, since the index is built from
+    // them. A dialect with no `meter:` never loads the file, so the cost is
+    // paid only by the dialects that spend it.
+    if dialect_config.meter().is_some() {
+        if let Some(model) = crate::generator::data::load_prosody_cached(language) {
+            lex = lex.with_prosody(model);
+        }
+    }
+
     // 3. Grammar-derived sentence parameters.
     let min_k = grammar.min_sentence_length().unwrap_or(5);
     // CS-style grammars (dot_is_punctuation=false) need exact k sizing because the

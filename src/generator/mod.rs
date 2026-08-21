@@ -5,6 +5,7 @@ pub mod cache;
 pub mod utils;
 pub mod agreement;
 pub mod semantics;
+pub mod prosody;
 
 // Re-export public API items
 pub use types::{PayloadTok, Lexicon, GenerationMode, SentenceLengthMode};

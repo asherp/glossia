@@ -35,6 +35,74 @@ The `--dialect` flag selects the sentence generation style. It can include the l
 | `body` (default) | `natural` | Longer sentences, natural prose. Best for email body text. |
 | `subject` | `compact` | Short sentences, may include prefixes (Re:, Fwd:). Best for subject lines. |
 | `payload_only` | N/A | Output only payload words, no cover words. |
+| `syllabic` | `natural` | Verse: ten-syllable lines. |
+| `haiku` | `natural` | Verse: 5/7/5, repeating for longer payloads. |
+| `iambic` | `natural` | Verse: iambic pentameter (blank verse). |
+| `dactyl` | `natural` | Verse: dactylic tetrameter. |
+| `anapest` | `natural` | Verse: anapestic tetrameter. |
+
+## Poetry
+
+The verse dialects render the same payload as metrical lines. Feed in a
+mnemonic, get a poem:
+
+```
+$ glossia --dialect haiku --seed 42 legal winner thank yellow zoo zebra youth wrist wrap world work word
+
+The legal winner
+thank yellow. Zoo get zebra
+to a youth wrist to
+wrap via its world
+work. Word may row.
+```
+
+(Every example here passes `--seed` so it reproduces; without one, each run
+picks fresh cover words and you get a different poem from the same payload.)
+
+The same twelve words in the other forms:
+
+```
+$ glossia --dialect syllabic ...        $ glossia --dialect iambic ...
+
+The legal winner thank yellow. Zoo get  A legal winner thank rub. Yellow see
+zebra to a youth wrist to wrap via      zoo via zebra. Its youth wrist wrap world.
+its world work. Word may row.           The work may word out.
+
+$ glossia --dialect dactyl ...
+
+Tire is legal to winner. Thank yellow zoo
+via pop. Zebra are youth to wrist. Wrap is world
+per work. Word set lip.
+```
+
+Two flags behave differently for a verse dialect, both automatically:
+
+- Output breaks on the **meter**, so `--width` is ignored.
+- `--best-of` defaults to **4** rather than 1, because whether the lines come
+  out whole is the tie-break among equally dense candidates. An explicit
+  `--best-of` always wins. Raising it to 8–12 buys a better poem; beyond that
+  the CLI's memory use grows sharply (a pre-existing limit of `--best-of`, not
+  specific to verse).
+
+Poetry is not a separate encoding. Payload words and their order are untouched,
+so a poem decodes with exactly the command that decodes prose:
+
+```
+$ glossia --from-ascii "meet me at dawn" --dialect haiku --seed 11
+Ability hope
+clinic to fringe. Dolphin stone
+tea. Mother set our
+magic lottery.
+Good may arm to swear.
+
+$ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
+meet me at dawn
+```
+
+Not every rendering scans — a payload word that will not fit its line is placed
+anyway rather than dropped, since the payload always wins. See
+[Verse Dialects](./verse-dialects.md) for what each form costs in density, how
+to declare your own, and why the meter is built rather than filtered for.
 
 ### Length Modes
 
@@ -105,7 +173,8 @@ $ glossia --random 12 --variations 3 --seed 0
 |------|---------|-------------|
 | `--k-min <N>` | 3 | Minimum sentence length in POS slots (including Dot) |
 | `--k-max <N>` | 20 | Maximum sentence length in POS slots (including Dot) |
-| `--width <N>` | 80 | Line wrapping width |
+| `--width <N>` | 80 | Line wrapping width (ignored by verse dialects, which break on the meter) |
+| `--best-of <N>` | 1, or 4 for verse | Sample N renderings, keep the best |
 | `--delimiter <str>` | `" "` | Delimiter between words in `payload_only` mode |
 | `--seed <N>` | random | Seed for deterministic generation |
 
@@ -128,6 +197,7 @@ Options:
   --decode                  Decode words back to bytes
   --dialect <dialect>       body (default), subject, or payload_only
                           Can include language: latin-body, english-subject, cs-nip04
+                          Verse (English): syllabic, haiku, iambic, dactyl, anapest
   --length-mode <mode>      compact or natural
   --highlight-payload <mode>  none, bars, or color name/code
   --highlight-merkle <mode>   Merkle word highlighting
