@@ -26,6 +26,15 @@ The payload is meant to be *seen and decoded*. The mission is to make ciphertext
 
 ## Installation
 
+### Install from crates.io
+
+```bash
+cargo install glossia-cli
+```
+
+The published release, and the shortest path if you already have a Rust
+toolchain. Note the binary is named `glossia`, not `glossia-cli`.
+
 ### Install from Source
 
 ```bash

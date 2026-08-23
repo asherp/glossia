@@ -1,5 +1,15 @@
 # Installation
 
+## From crates.io
+
+```bash
+cargo install glossia-cli
+```
+
+This installs the most recent published release. It is the shortest path if you
+already have a Rust toolchain — no clone, no checkout. Note that the binary is
+named `glossia`, while the crate providing it is `glossia-cli`.
+
 ## From Source
 
 ```bash
