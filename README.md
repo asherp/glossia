@@ -26,6 +26,33 @@ The payload is meant to be *seen and decoded*. The mission is to make ciphertext
 
 ## Installation
 
+### Download a Prebuilt Binary
+
+Each release attaches a `glossia` binary — no Rust toolchain needed. Pick the
+archive matching your platform from the
+[latest release](https://github.com/asherp/glossia/releases/latest):
+
+| Platform | Asset |
+|---|---|
+| Linux x86_64 (glibc 2.35+) | `x86_64-unknown-linux-gnu.tar.gz` |
+| Linux x86_64 (static, any distro) | `x86_64-unknown-linux-musl.tar.gz` |
+| macOS Apple silicon | `aarch64-apple-darwin.tar.gz` |
+| macOS Intel | `x86_64-apple-darwin.tar.gz` |
+| Windows x86_64 | `x86_64-pc-windows-msvc.zip` |
+
+```bash
+# Linux x86_64 — substitute the release you want for v0.6.0
+name=glossia-v0.6.0-x86_64-unknown-linux-gnu
+base=https://github.com/asherp/glossia/releases/download/v0.6.0
+curl -LO "$base/$name.tar.gz" -LO "$base/$name.tar.gz.sha256"
+sha256sum -c "$name.tar.gz.sha256"
+tar xzf "$name.tar.gz"
+sudo install "$name/glossia" /usr/local/bin/
+```
+
+The macOS binaries are unsigned, so Gatekeeper quarantines them on first run:
+`xattr -d com.apple.quarantine glossia` clears it.
+
 ### Install from crates.io
 
 ```bash
