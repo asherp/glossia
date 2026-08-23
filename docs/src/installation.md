@@ -1,5 +1,56 @@
 # Installation
 
+## From a Release Binary
+
+Each release attaches a prebuilt `glossia` binary, which is the only install
+path that does not want a Rust toolchain. Download the archive for your
+platform from the
+[releases page](https://github.com/asherp/glossia/releases/latest):
+
+| Platform | Asset suffix |
+|---|---|
+| Linux x86_64 (glibc 2.35+) | `x86_64-unknown-linux-gnu.tar.gz` |
+| Linux x86_64 (static, any distro) | `x86_64-unknown-linux-musl.tar.gz` |
+| macOS Apple silicon | `aarch64-apple-darwin.tar.gz` |
+| macOS Intel | `x86_64-apple-darwin.tar.gz` |
+| Windows x86_64 | `x86_64-pc-windows-msvc.zip` |
+
+```bash
+# Substitute the release you want for v0.6.0
+name=glossia-v0.6.0-x86_64-unknown-linux-gnu
+base=https://github.com/asherp/glossia/releases/download/v0.6.0
+curl -LO "$base/$name.tar.gz" -LO "$base/$name.tar.gz.sha256"
+sha256sum -c "$name.tar.gz.sha256"
+tar xzf "$name.tar.gz"
+sudo install "$name/glossia" /usr/local/bin/
+```
+
+Every archive ships a `.sha256` beside it, holding the same
+`sha256sum`/`shasum -a 256` line format on all platforms.
+
+Two platform notes:
+
+- **macOS**: the binaries are unsigned, so Gatekeeper quarantines them on first
+  run. `xattr -d com.apple.quarantine glossia` clears it.
+- **Linux**: the glibc build is compiled on Ubuntu 22.04, so it runs on glibc
+  2.35 and newer. On anything older — or on a musl distro such as Alpine — take
+  the static musl build instead. The musl allocator is slower under
+  allocation-heavy encoding, which is why both are published rather than only
+  the portable one.
+
+Language data (wordlists, grammars, prosody) is embedded in the binary, so a
+single file is the whole install.
+
+## From crates.io
+
+```bash
+cargo install glossia-cli
+```
+
+This installs the most recent published release. It is the shortest path if you
+already have a Rust toolchain — no clone, no checkout. Note that the binary is
+named `glossia`, while the crate providing it is `glossia-cli`.
+
 ## From Source
 
 ```bash
