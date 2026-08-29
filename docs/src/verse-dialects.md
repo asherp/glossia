@@ -86,6 +86,11 @@ a form that spends more cover words buys more freedom to fix the beat. `dactyl`
 scans more often than `iambic` *and* costs more density, which is the same
 mechanism seen from either end.
 
+Density here is per *word*. Per **syllable** — the unit that matters for reading
+aloud — the same forms cost 4.34 (`body`) down to 3.43 (`anapest`) bits per
+syllable, and the ordering is unchanged. See
+[Bits per Syllable](./bits-per-syllable.md).
+
 ## How it works
 
 Three rules, in order of precedence:

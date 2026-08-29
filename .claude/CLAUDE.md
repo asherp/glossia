@@ -159,6 +159,33 @@ byte-for-byte as it did, which is what keeps the canonical goldens valid.
   same pronunciation variant the filler committed to (prefer the one completing the line),
   or printed breaks land a syllable off from the meter that was built.
 
+## Bits per syllable (the speakable-density metric)
+
+Word density is the generator's unit; **syllables** are the human's — speech runs at a
+roughly constant syllable rate, so bits/syllable is bits/second. `examples/bits_per_syllable.rs`
+measures it (release only: debug embeds English alone). English syllable counts come from
+`prosody.yaml` (CMUdict); other languages fall back to a vowel-group heuristic scored at
+94.9% exact / 0.051 mean abs error against CMUdict, which is the error bar on their rows.
+The rig reproduces the verse-dialect densities exactly, so it is cross-checked against
+`experiments/prosody/`.
+
+- **English**: bare BIP39 6.43 → `body` 4.34 → `syllabic` 4.25 → `iambic` 3.72 → `anapest` 3.43.
+  Cover words are *shorter* than payload words (1.472 vs 1.711 syl/word), so prose spends
+  42% of its words but only 32% of its syllables on cover.
+- **vs character encodings**: `body` (4.34) beats hex (3.56), base64 (4.00), base58 (3.91)
+  under naive letter names and loses to base32 (4.57) / bech32 (4.44); under NATO spelling
+  it beats everything by 1.6–1.8×, because a payload word is its own phonetic distinguisher
+  and pays no spelling-alphabet tax.
+- **Wordlist frontier**: bigger is not denser. 837 of BIP39's 2048 words are monosyllables,
+  so a 512-word monosyllabic list would carry **9.00** bits/syllable vs BIP39's 6.43; latin's
+  32768-word list carries 15 bits/word yet only 4.24 bits/syllable (3.54 syl/word). A list
+  only pays for its size if word length grows slower than log2(N). Not a proposal to change
+  BIP39 (fixed externally, append-only here) — the number to size a *new* list against.
+- **Artifacts**: canonical v3 keeps 56% (16 B) → 68% (32 B) of the raw prose rate; the
+  envelope (40 bits) and the 4-word parity floor amortize with payload size.
+
+Full write-up in `docs/src/bits-per-syllable.md`.
+
 ## Per-call caches (use the `_cached` variants in hot paths)
 
 Everything the encode path loads is a pure function of `(language, dialect, wordlist)`,

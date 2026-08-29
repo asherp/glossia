@@ -10,6 +10,7 @@
 - [Canonical Encoding](./canonical-encoding.md)
 - [Prose Quality (Semantic Planning)](./prose-quality.md)
 - [Verse Dialects](./verse-dialects.md)
+- [Bits per Syllable](./bits-per-syllable.md)
 - [Grammar](./grammar.md)
 - [Dialect Calculus](./dialect-calculus.md)
 - [Language Support](./language-support.md)
