@@ -112,6 +112,66 @@ therefore detectable, which is what the v3 error correction builds on (see
 [Canonical Encoding](./canonical-encoding.md)). A mistyped hex character is still
 a perfectly valid hex character.
 
+## Worked example: one address, said out loud
+
+Rates divided into a payload size are easy to get wrong, and a reader can check
+a count. So: the BIP173 P2WPKH test vector, one 20-byte witness program, in every
+rendering anyone actually uses.
+
+```bash
+cargo run --release --example address_syllables
+```
+
+```
+bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4
+```
+
+| rendering | carries | units | syl | expected | vs bech32 |
+|---|---|---|---|---|---|
+| **plain letter names** | | | | | |
+| bech32 address | 160b + 30b checksum | 42 ch | 49 | 47 | 1.00× |
+| base58check (legacy) | 160b + 32b checksum | 34 ch | 51 | 50 | 1.04× |
+| hex | 160b | 40 ch | 42 | 45 | 0.86× |
+| base32 | 160b | 32 ch | 34 | 35 | **0.69×** |
+| base64 | 160b | 28 ch | 42 | 42 | 0.86× |
+| **NATO spelling alphabet** | | | | | |
+| bech32 address | 160b + 30b checksum | 42 ch | 76 | 78 | 1.55× |
+| base58check (legacy) | 160b + 32b checksum | 34 ch | 78 | 80 | 1.59× |
+| hex | 160b | 40 ch | 52 | 60 | 1.06× |
+| base32 | 160b | 32 ch | 65 | 63 | 1.33× |
+| base64 | 160b | 28 ch | 68 | 65 | 1.39× |
+| **as words** | | | | | |
+| bip39 words (bare) | 160b | 16 w | **29** | — | **0.59×** |
+| glossia `body` prose | 160b | 28 w | 42 | — | 0.86× |
+| glossia canonical v3 | 160b + crc32 + parity | 43 w | 63 | — | 1.29× |
+
+`syl` is the exact count for this address; `expected` is the mean over random
+20-byte programs, since one address is a single draw on its digit-to-letter mix.
+This hex string is 60% digits, which are cheap, so its 42 undercounts a typical
+45 — and 52 against an expected 60 under NATO, where only the letters get more
+expensive. Read the two columns together.
+
+Three things fall out.
+
+**The bare mnemonic is the cheapest way to say 160 bits, by a lot.** Sixteen
+BIP39 words, 29 syllables — 41% less than reading the address itself, and less
+than half what the address costs spelled robustly. Nothing here beats it.
+
+**Glossia prose costs what hex costs, and reads as English.** 42 syllables
+against hex's 42 (expected 45), 14% cheaper than the address. Only base32 is
+cheaper, and only when spelled naively — the mode where `p`, `t`, `v`, `d`, `c`,
+`e`, `g` and `3` all rhyme. Say base32 robustly and it goes to 65 while prose
+stays at 42, because prose has no NATO column to pay.
+
+**Every checksum-carrying row is more expensive, and that is the honest
+comparison.** The three cheap rows — hex, base32, base64 — carry no integrity at
+all: mistranscribe one character and you get a different valid-looking 160 bits.
+Against the two rows that do detect errors, canonical v3 at 63 syllables sits
+below bech32's NATO 76 and base58's 78 while carrying *correction* rather than
+detection: a crc32 plus Reed–Solomon parity that repairs ~6% of words unaided.
+Against bech32 said naively (49) it costs 29% more, which buys repair rather than
+a "that address is wrong, start over".
+
 ## The wordlist frontier
 
 A wordlist of 2^m words carries m bits per word, so bits/word is free to grow.
