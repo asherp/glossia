@@ -1,5 +1,15 @@
 # Quick Start
 
+## Install
+
+```bash
+cargo install glossia-cli
+```
+
+The binary is named `glossia`, while the crate providing it is `glossia-cli`.
+For a prebuilt binary (no Rust toolchain) or a build from source, see
+[Installation](./installation.md).
+
 ## Embed BIP39 Words in Prose
 
 Provide words directly as arguments:

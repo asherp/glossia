@@ -173,7 +173,7 @@ $ glossia --from-ascii "meet me at dawn" --dialect haiku | glossia --decode
 meet me at dawn
 ```
 
-A line that does not scan is a line that lost or gained a word — meter is the one property of an encoding a human can check by ear. See [Verse Dialects](docs/src/verse-dialects.md) for what each form costs.
+A line that does not scan is a line that lost or gained a word — meter is the one property of an encoding a human can check by ear. See [Verse Dialects](https://glossia.io/docs/verse-dialects.html) for what each form costs.
 
 **Encode an API key or secret**
 
