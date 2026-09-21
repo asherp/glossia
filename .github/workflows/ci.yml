@@ -30,3 +30,8 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --verbose
+
+      # The camera reader's snapping and deskew logic is plain JavaScript with
+      # no engine or WASM dependency; Node is on the runner already.
+      - name: Web unit tests
+        run: node --test web/test_scan.mjs

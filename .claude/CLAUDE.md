@@ -159,6 +159,28 @@ byte-for-byte as it did, which is what keeps the canonical goldens valid.
   same pronunciation variant the filler committed to (prefer the one completing the line),
   or printed breaks land a syllable off from the meter that was built.
 
+## Camera reader (`web/glossia-scan.js`)
+
+The QR-reader half: photograph a paragraph, decode it. OCR (Tesseract.js, loaded on
+demand from the jsDelivr CDN, one worker per language) → **vocabulary snapping** → the
+transcription is handed to a panel exactly as pasted text, so decoding and verification
+are untouched. See `docs/src/scanning.md`.
+
+- **Snapping is conservative by design**: a token is replaced only by the *unique* nearest
+  vocabulary word within an edit budget by length (≤3 letters never, 4–5 one edit, 6+
+  two); ties and low-confidence reads are kept as read so an aligner sees a hole rather
+  than a wrong word. The decoders' verification catches what snapping gets wrong.
+- **Deskew is not optional**: Tesseract's layout analysis finds nothing past ~2° of skew,
+  so `prepareImage` straightens by projection profile (±8°) before recognizing.
+- **Surface form is preserved** (`surfaceForm`): canonical verification compares wording
+  exactly, so capitals and trailing punctuation the recognizer saw are kept.
+- The engine sits behind `recognize(worker, image) → [{ text, confidence, bbox, line }]`;
+  swapping it (e.g. for a Rust `ocrs` build) touches nothing else.
+- Tests: `node --test web/test_scan.mjs` (pure functions, no engine, runs in CI). Under
+  Node the module uses the package's own worker path; only the browser takes the CDN one.
+- The address panel's word counts (`ADDR_WORD_COUNT`) follow canonical v3: 24 words for
+  20 bytes, 32 for 32 (envelope + pad + four parity). They must move with any version bump.
+
 ## Per-call caches (use the `_cached` variants in hot paths)
 
 Everything the encode path loads is a pure function of `(language, dialect, wordlist)`,
