@@ -979,6 +979,40 @@ footer a:hover { text-decoration: underline; }
         .enc-how-body p:last-child { margin-bottom: 0; }
         .enc-how-body strong { color: var(--accent); }
         .enc-how-body a { color: var(--accent); }
+        /* ── Scan: photograph a paragraph, decode it ── */
+        .scan-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: flex-start;
+          justify-content: center; padding: 5vh 1rem 2rem; background: rgba(8,9,14,0.6);
+          backdrop-filter: blur(3px); overflow-y: auto; }
+        .scan-dialog { width: 100%; max-width: 760px; background: var(--surface); border: 1px solid var(--border);
+          border-radius: 12px; box-shadow: 0 16px 48px rgba(0,0,0,0.35); padding: 1rem 1.1rem 1.1rem; text-align: left; }
+        .scan-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+        .scan-head h3 { margin: 0; font-size: 1rem; }
+        .scan-hint { font-size: 0.76rem; line-height: 1.55; color: var(--text-dim); margin: 0 0 0.7rem; }
+        .scan-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.7rem; }
+        .scan-row label { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: var(--text-dim); }
+        .scan-row select { font-size: 0.75rem; padding: 0.3rem 0.4rem; }
+        .scan-file-btn { cursor: pointer; }
+        .scan-file-btn input { display: none; }
+        .scan-stage { position: relative; min-height: 180px; max-height: 360px; border: 1px dashed var(--border);
+          border-radius: 8px; background: var(--surface-alt); display: flex; align-items: center; justify-content: center;
+          overflow: hidden; }
+        .scan-stage.drop { border-color: var(--accent); }
+        .scan-stage video, .scan-stage canvas { max-width: 100%; max-height: 360px; display: block; }
+        .scan-empty { font-size: 0.78rem; color: var(--text-dim); text-align: center; padding: 1rem; line-height: 1.6; }
+        .scan-progress { min-height: 1.2rem; margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); }
+        .scan-result { margin-top: 0.6rem; }
+        .scan-summary { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); margin-bottom: 0.4rem; }
+        .scan-legend { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 0.4rem; display: flex; gap: 0.9rem; flex-wrap: wrap; }
+        .scan-tokens { font-size: 0.92rem; line-height: 1.75; padding: 0.6rem 0.75rem; border: 1px solid var(--border);
+          border-radius: 8px; background: var(--surface-alt); max-height: 200px; overflow-y: auto; }
+        .scan-tok { border-radius: 3px; padding: 0 1px; }
+        .scan-snapped { background: rgba(245,158,11,0.18); border-bottom: 2px solid #f59e0b; cursor: help; }
+        .scan-unknown { background: rgba(239,68,68,0.14); border-bottom: 2px dotted var(--error); cursor: help; }
+        .scan-legend .scan-tok { padding: 0 4px; }
+        .scan-text { width: 100%; box-sizing: border-box; margin-top: 0.6rem; min-height: 90px; resize: vertical;
+          font-family: var(--font-sans); font-size: 0.85rem; line-height: 1.5; }
+        .scan-actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap; align-items: center; }
+        .scan-actions .scan-note { font-size: 0.72rem; color: var(--text-dim); }
       </style>
 
       <!-- ─── BIP39 panel ─────────────────────────────────────────── -->
@@ -1000,6 +1034,7 @@ footer a:hover { text-decoration: underline; }
             </div>
             <div class="panel-footer">
               <button class="btn-sm" id="ak-gen-btn" onclick="akGenerate()" title="Generate a realistic sk- API key">&#127922; Generate key</button>
+              <button class="btn-sm" onclick="scanOpen('ak')" title="Photograph a printed Glossia paragraph (or pick a photo / screenshot) and decode it">&#128247; Scan</button>
               <div id="ak-error" class="error-msg hidden" style="padding:0;"></div>
             </div>
           </div>
@@ -1059,6 +1094,7 @@ footer a:hover { text-decoration: underline; }
                    data-placeholder="Paste a bc1&hellip; / 1&hellip; / 3&hellip; address"></div>
             </div>
             <div class="panel-footer">
+              <button class="btn-sm" onclick="scanOpen('addr')" title="Photograph a printed Glossia paragraph (or pick a photo / screenshot) and decode it">&#128247; Scan</button>
               <div id="addr-error" class="error-msg hidden" style="padding:0;"></div>
             </div>
           </div>
@@ -1100,7 +1136,8 @@ footer a:hover { text-decoration: underline; }
             <span class="addr-glyph">&#8982;</span> OP_HASH160, <span class="addr-glyph">&#8801;</span>
             OP_EQUALVERIFY, <span class="addr-glyph">&#8711;</span> OP_CHECKSIG). Glossia encodes only the
             part that carries entropy &mdash; the 20- or 32-byte program &mdash; which is
-            <strong>17 words</strong> for a hash160 address and <strong>25</strong> for a 32-byte one.</p>
+            <strong>24 words</strong> for a hash160 address and <strong>32</strong> for a 32-byte one (four of them
+            Reed&ndash;Solomon parity, so a misread word can be corrected).</p>
             <p><strong>&#9450;</strong> and <strong>&#9312;</strong> are worth a note: Unicode counts them
             as <em>alphanumeric</em>, so the decoder&rsquo;s token trim does not strip them. Written flush
             against an address word they would hide it entirely. They are safe here because the format
@@ -1166,6 +1203,7 @@ footer a:hover { text-decoration: underline; }
             </div>
             <div class="panel-footer">
               <button class="btn-sm" id="enc-gen-btn" onclick="encSample()" title="Insert a random sample quote">&#127922; Random quote</button>
+              <button class="btn-sm" onclick="scanOpen('enc')" title="Photograph a printed Glossia paragraph (or pick a photo / screenshot) and decode it">&#128247; Scan</button>
               <div id="enc-error" class="error-msg hidden" style="padding:0;"></div>
             </div>
           </div>
@@ -1325,6 +1363,64 @@ footer a:hover { text-decoration: underline; }
   </footer>
 </div>
 
+<!-- ─── Scan modal: photograph a Glossia paragraph, decode it ─────────── -->
+<div id="scan-modal" class="scan-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="scan-title">
+  <div class="scan-dialog">
+    <div class="scan-head">
+      <h3 id="scan-title">Scan a paragraph</h3>
+      <button class="btn-sm" onclick="scanClose()" aria-label="Close">&#10005;</button>
+    </div>
+    <p class="scan-hint">
+      Point the camera at a printed or on-screen Glossia paragraph, or choose a photo, a screenshot, or paste one.
+      The text is read on your device by Tesseract OCR and checked against the Glossia vocabulary before it is decoded;
+      the image never leaves your browser. The reader&rsquo;s language data (a few MB) is fetched once from a CDN.
+    </p>
+    <div class="scan-row">
+      <label>Language
+        <select id="scan-lang">
+          <option value="english">English</option>
+          <option value="latin">Latin</option>
+          <option value="czech">Czech</option>
+          <option value="german">German</option>
+        </select>
+      </label>
+      <label id="scan-type-wrap" class="hidden" title="A photographed address usually loses its opcode glyphs; say which script it locks so they can be put back">Script
+        <select id="scan-type">
+          <option value="P2WPKH">P2WPKH (bc1q&hellip;, 24 words)</option>
+          <option value="P2TR">P2TR (bc1p&hellip;, 32 words)</option>
+          <option value="P2WSH">P2WSH (bc1q&hellip;, 32 words)</option>
+          <option value="P2PKH">P2PKH (1&hellip;)</option>
+          <option value="P2SH">P2SH (3&hellip;)</option>
+        </select>
+      </label>
+      <label class="btn-sm scan-file-btn">&#128193; Choose photo<input type="file" id="scan-file" accept="image/*"></label>
+      <button class="btn-sm" id="scan-cam-btn" onclick="scanCamera()">&#128247; Camera</button>
+      <button class="btn-sm primary hidden" id="scan-snap-btn" onclick="scanCapture()">Capture</button>
+    </div>
+    <div class="scan-stage" id="scan-stage">
+      <video id="scan-video" class="hidden" playsinline muted autoplay></video>
+      <canvas id="scan-preview" class="hidden"></canvas>
+      <div class="scan-empty" id="scan-empty">Drop an image here, paste one, choose a photo, or open the camera.<br>
+        Fill the frame with the paragraph, straight-on, in good light.</div>
+    </div>
+    <div class="scan-progress" id="scan-progress"></div>
+    <div id="scan-error" class="error-msg hidden" style="padding:0.4rem 0 0;"></div>
+    <div class="scan-result hidden" id="scan-result">
+      <div class="scan-summary" id="scan-summary"></div>
+      <div class="scan-legend">
+        <span><span class="scan-tok scan-snapped">word</span> corrected to a vocabulary word</span>
+        <span><span class="scan-tok scan-unknown">word</span> unsure &mdash; kept as read; hover for candidates</span>
+      </div>
+      <div class="scan-tokens" id="scan-tokens"></div>
+      <textarea class="scan-text" id="scan-text" spellcheck="false" aria-label="Transcription (editable)"></textarea>
+      <div class="scan-actions">
+        <button class="primary" onclick="scanUse()">Use this text</button>
+        <span class="scan-note">Fix any unsure word above before using it; the decoder verifies the result and says if it is wrong.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import init, {
   transcode as wasmTranscode,
@@ -1345,6 +1441,8 @@ import init, {
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
 import { sealMessage, renderArtifact, decodeMessage, EMDASH } from './glossia-msg.js';
+// Camera / photo reader (Tesseract OCR + vocabulary snapping), loaded on demand.
+import { scanImage, buildVocab, surfaceForm, OCR_LANGS } from './glossia-scan.js';
 
 let ready = false;
 let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
@@ -1983,11 +2081,13 @@ const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_S
 // the value the fluency sweep chose). One address, one prose — and the version
 // byte means the rules can evolve without re-rendering existing artifacts.
 //
-// Word counts follow from the packing: 1 pad word + ceil(8·(nBytes+1)/11).
-// The version byte and pad word cost two words over the old slack-packed
-// layout on a hash160 address; that is the price of a self-describing format.
-const ADDR_WORD_COUNT = { 20: 17, 32: 25 };
-const ADDR_BYTES_FOR_COUNT = { 17: 20, 25: 32 };
+// Word counts follow from the packing under canonical v3: the envelope is the
+// version byte, the program and a crc32, packed as 1 pad word +
+// ceil(8·(nBytes+5)/11), plus the version's four Reed–Solomon parity words.
+// (v1's 17/25 stopped matching the renderer when v3 shipped, and a stale
+// count makes every address "unreadable" before a single word is checked.)
+const ADDR_WORD_COUNT = { 20: 24, 32: 32 };
+const ADDR_BYTES_FOR_COUNT = { 24: 20, 32: 32 };
 const ADDR_PRESETS = [
   { label: 'P2WPKH', addr: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4' },
   { label: 'P2TR',   addr: 'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9' },
@@ -2402,7 +2502,7 @@ async function addrDecodeRun() {
   // A fixed-length address has a fixed word count, so the count picks the size.
   const words = addrHarvest(text);
   const nBytes = ADDR_BYTES_FOR_COUNT[words.length];
-  if (!nBytes) return fail(`${words.length} address words — a prose address has 17 or 25`);
+  if (!nBytes) return fail(`${words.length} address words — a prose address has 24 or 32`);
   const type = addrTypeFromGlyphs(text, nBytes);
   if (!type) return fail('no opcode symbol, so the script type is unknown');
   const res = addrRead(text, nBytes);
@@ -2927,6 +3027,209 @@ window.addrToggle = addrToggle;
 window.addrToggleRoles = addrToggleRoles;
 window.addrCopy = addrCopy;
 
+// ─── Scan: photograph a paragraph, decode it ─────────────────────────
+// The camera half of the codec — what a QR reader is to a QR code. The reading
+// (Tesseract OCR in a web worker, then snapping each token to the Glossia
+// vocabulary) lives in glossia-scan.js; this drives the modal and hands the
+// transcription to whichever panel asked for it, exactly as if it had been
+// pasted, so every panel decodes and verifies a scan the way it does typed text.
+const SCAN_WORDLIST = { english: 'bip39', latin: 'default', czech: 'default', german: 'default' };
+const SCAN_BOX = { ak: 'ak-left-box', addr: 'addr-input', enc: 'enc-left-box' };
+const scanVocabs = new Map();
+function scanVocab(lang) {
+  if (!scanVocabs.has(lang)) {
+    const wl = SCAN_WORDLIST[lang];
+    scanVocabs.set(lang, buildVocab([...JSON.parse(wasmGetPayloadWords(lang, wl)), ...JSON.parse(wasmGetCoverWords(lang, wl))]));
+  }
+  return scanVocabs.get(lang);
+}
+let scanTarget = null;    // which panel opened the modal: 'ak' | 'addr' | 'enc'
+let scanStream = null;    // live camera stream while the viewfinder is open
+let scanBusy = false;
+const $s = id => document.getElementById(id);
+
+window.scanOpen = function(target) {
+  if (!ready) return;
+  scanTarget = target;
+  const guess = target === 'ak' ? akDetLang : target === 'enc' ? encDetLang : 'english';
+  $s('scan-lang').value = SCAN_WORDLIST[guess] ? guess : 'english';
+  $s('scan-type-wrap').classList.toggle('hidden', target !== 'addr');
+  scanReset();
+  $s('scan-modal').classList.remove('hidden');
+};
+window.scanClose = function() {
+  scanStopCamera();
+  $s('scan-modal').classList.add('hidden');
+};
+function scanReset() {
+  scanStopCamera();
+  $s('scan-result').classList.add('hidden');
+  $s('scan-error').classList.add('hidden');
+  $s('scan-preview').classList.add('hidden');
+  $s('scan-empty').classList.remove('hidden');
+  $s('scan-progress').textContent = '';
+}
+function scanError(msg) {
+  const el = $s('scan-error');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function scanProgress(status, frac) {
+  $s('scan-progress').textContent = status
+    ? status + (frac > 0 && frac < 1 ? ' ' + Math.round(frac * 100) + '%' : '') + '…'
+    : '';
+}
+
+async function scanRun(source) {
+  if (scanBusy) return;
+  scanBusy = true;
+  const lang = $s('scan-lang').value;
+  $s('scan-result').classList.add('hidden');
+  $s('scan-error').classList.add('hidden');
+  scanProgress('loading reader', 0);
+  try {
+    const res = await scanImage(source, { vocab: scanVocab(lang), ocrLang: OCR_LANGS[lang], onProgress: scanProgress });
+    scanShowPreview(res.canvas);
+    scanRenderResult(res);
+    if (!res.summary.words) scanError('No text found. Fill the frame with the paragraph and try again.');
+  } catch (e) {
+    scanError('Could not read the image: ' + (e && e.message ? e.message : e));
+  } finally {
+    scanProgress('', 0);
+    scanBusy = false;
+  }
+}
+function scanShowPreview(canvas) {
+  const pv = $s('scan-preview');
+  pv.width = canvas.width; pv.height = canvas.height;
+  pv.getContext('2d').drawImage(canvas, 0, 0);
+  pv.classList.remove('hidden');
+  $s('scan-empty').classList.add('hidden');
+}
+function scanRenderResult(res) {
+  const box = $s('scan-tokens');
+  box.innerHTML = '';
+  let line = -1;
+  for (const t of res.tokens) {
+    if (t.status === 'junk') continue;
+    if (t.line !== line) { if (line >= 0) box.appendChild(document.createElement('br')); line = t.line; }
+    const span = document.createElement('span');
+    span.className = 'scan-tok scan-' + t.status;
+    span.textContent = surfaceForm(t);
+    if (t.status === 'snapped') span.title = 'read “' + t.raw + '”, corrected to “' + t.word + '”';
+    else if (t.status === 'unknown') span.title = t.candidates.length
+      ? 'read “' + t.raw + '” — could be ' + t.candidates.join(' / ')
+      : 'read “' + t.raw + '” — not a vocabulary word';
+    box.appendChild(span);
+    box.appendChild(document.createTextNode(' '));
+  }
+  $s('scan-text').value = res.text;
+  const n = res.summary;
+  $s('scan-summary').textContent = n.words + ' words · ' + n.exact + ' read · ' + n.snapped + ' corrected · ' +
+    n.unknown + ' unsure' + (res.skew ? ' · straightened ' + res.skew + '°' : '');
+  $s('scan-result').classList.remove('hidden');
+}
+
+// Hand the transcription to the panel, in its decode direction.
+window.scanUse = function() {
+  const text = $s('scan-text').value.trim();
+  if (!text) return;
+  const target = scanTarget;
+  scanClose();
+  if (target === 'ak') {
+    akMode = 'decode';
+    akClearError();
+    akSetLeftPlain(text);
+    akDetectLeftLang();
+    akRun();
+  } else if (target === 'enc') {
+    encMode = 'decode';
+    encClearError();
+    encSetLeftPlain(text);
+    encDetectLeftLang();
+    encRun();
+  } else if (target === 'addr') {
+    // A camera does not read the opcode glyphs, so put back the ones the chosen
+    // script declares — unless the transcription already leads with a glyph.
+    const type = $s('scan-type').value;
+    const hasGlyph = [...(text.split(/\s+/)[0] || '')].some(c => ADDR_MARKUP.has(c));
+    const artifact = hasGlyph ? text
+      : [addrGlyphs(type, 'lead'), text.replace(/\s+/g, ' '), addrGlyphs(type, 'trail')].filter(Boolean).join(' ');
+    if (addrMode !== 'decode') { addrMode = 'decode'; addrApplyMode(); }
+    document.querySelectorAll('#addr-picker .lang-btn').forEach(x => x.classList.remove('active'));
+    $s('addr-input').textContent = artifact;
+    addrUpdate();
+  }
+  const box = $s(SCAN_BOX[target]);
+  if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+};
+
+// Live viewfinder: rear camera when there is one, a frame captured on demand.
+window.scanCamera = async function() {
+  scanReset();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    return scanError('This browser offers no camera here; choose a photo instead.');
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: false,
+    });
+  } catch (e) {
+    return scanError('Camera unavailable (' + (e && e.message ? e.message : e) + '); choose a photo instead.');
+  }
+  const v = $s('scan-video');
+  v.srcObject = scanStream;
+  try { await v.play(); } catch (e) { /* autoplay attribute covers it */ }
+  v.classList.remove('hidden');
+  $s('scan-empty').classList.add('hidden');
+  $s('scan-snap-btn').classList.remove('hidden');
+};
+window.scanCapture = function() {
+  const v = $s('scan-video');
+  if (!v.videoWidth) return;
+  const frame = document.createElement('canvas');
+  frame.width = v.videoWidth; frame.height = v.videoHeight;
+  frame.getContext('2d').drawImage(v, 0, 0);
+  scanStopCamera();
+  scanRun(frame);
+};
+function scanStopCamera() {
+  if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+  const v = $s('scan-video');
+  v.srcObject = null;
+  v.classList.add('hidden');
+  $s('scan-snap-btn').classList.add('hidden');
+}
+
+function scanInit() {
+  $s('scan-file').addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) { scanReset(); scanRun(f); }
+  });
+  const stage = $s('scan-stage');
+  stage.addEventListener('dragover', e => { e.preventDefault(); stage.classList.add('drop'); });
+  stage.addEventListener('dragleave', () => stage.classList.remove('drop'));
+  stage.addEventListener('drop', e => {
+    e.preventDefault(); stage.classList.remove('drop');
+    const f = [...(e.dataTransfer.files || [])].find(x => x.type.startsWith('image/'));
+    if (f) { scanReset(); scanRun(f); }
+  });
+  // A screenshot on the clipboard, pasted anywhere while the modal is open.
+  document.addEventListener('paste', e => {
+    if ($s('scan-modal').classList.contains('hidden')) return;
+    if (document.activeElement === $s('scan-text')) return;
+    const f = [...((e.clipboardData && e.clipboardData.files) || [])].find(x => x.type.startsWith('image/'));
+    if (f) { e.preventDefault(); scanReset(); scanRun(f); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !$s('scan-modal').classList.contains('hidden')) scanClose();
+  });
+  $s('scan-modal').addEventListener('click', e => { if (e.target === $s('scan-modal')) scanClose(); });
+}
+// Exposed for the browser test harness.
+window.scanRun = scanRun;
+
 // ─── Startup ─────────────────────────────────────────────────────────
 
 async function startup() {
@@ -2940,6 +3243,8 @@ async function startup() {
 
     // Prose Bitcoin address panel
     try { addrInit(); } catch (e) { console.error('address panel failed to start:', e); }
+    // Scan modal (camera / photo -> any panel's decode input)
+    try { scanInit(); } catch (e) { console.error('scan failed to start:', e); }
 
     // API Key panel
     akBuildButtons();
