@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; }
+  body {
+    font-family: 'DejaVu Sans', system-ui, sans-serif;
+    background:
+      radial-gradient(1100px 620px at 82% -12%, rgba(124,108,240,.24), transparent 60%),
+      radial-gradient(900px 560px at 6% 118%, rgba(59,130,246,.14), transparent 60%),
+      #0f1117;
+    color: #e4e4e7;
+    position: relative;
+    overflow: hidden;
+  }
+  .frame { position: absolute; inset: 44px; border: 1px solid #2a2d3a; border-radius: 22px; }
+  .pad { position: absolute; inset: 44px; padding: 62px 84px; display: flex; flex-direction: column; }
+
+  .top { display: flex; align-items: center; gap: 18px; }
+  .mark {
+    width: 52px; height: 52px; border-radius: 13px; flex: 0 0 auto;
+    background: linear-gradient(135deg, #7c6cf0, #3b82f6);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 30px -8px rgba(124,108,240,.7);
+  }
+  .mark svg { width: 30px; height: 30px; fill: #0f1117; }
+  .brand { font-family: 'DejaVu Sans Mono', monospace; font-size: 25px; font-weight: 700; letter-spacing: .30em; text-transform: uppercase; color: #e4e4e7; }
+
+  .headline { margin-top: auto; font-size: 68px; line-height: 1.05; font-weight: 700; letter-spacing: -.015em; color: #f4f4f6; }
+  .headline .em { color: #9488f5; }
+  .sub { margin-top: 22px; font-size: 28px; line-height: 1.4; color: #9497a4; max-width: 940px; }
+
+  .strip {
+    margin-top: 34px; display: flex; align-items: center; gap: 20px;
+    font-family: 'DejaVu Sans Mono', monospace; font-size: 20px;
+  }
+  .chip { color: #6d707e; }
+  .arrow { color: #7c6cf0; font-size: 23px; }
+  .prose { color: #c7c3e8; font-style: italic; }
+
+  .foot { margin-top: auto; padding-top: 28px; display: flex; justify-content: space-between; align-items: baseline; font-family: 'DejaVu Sans Mono', monospace; font-size: 20px; color: #6d707e; }
+  .foot .url { color: #9488f5; letter-spacing: .02em; }
+</style>
+</head>
+<body>
+  <div class="frame"></div>
+  <div class="pad">
+    <div class="top">
+      <span class="mark"><svg viewBox="0 0 24 24"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg></span>
+      <span class="brand">Glossia</span>
+    </div>
+
+    <h1 class="headline">Machine data,<br><span class="em">made human</span>.</h1>
+    <p class="sub">A lossless linguistic codec. Keys, hashes and encrypted messages become readable, speakable prose — with perfect round-trip fidelity.</p>
+
+    <div class="strip">
+      <span class="chip">a1b2c3d4e5f6…</span>
+      <span class="arrow">→</span>
+      <span class="prose">“the quiet auburn ledger travels north…”</span>
+    </div>
+
+    <div class="foot">
+      <span>Readable encoding · not steganography</span>
+      <span class="url">glossia.io</span>
+    </div>
+  </div>
+</body>
+</html>
