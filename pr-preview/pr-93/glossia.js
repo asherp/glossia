@@ -252,6 +252,40 @@ export function canonical_decode_raw_fixed(text, language, wordlist, payload_len
 }
 
 /**
+ * `canonical_decode_slots_fixed` for prose written by `canonical_encode` — the
+ * self-describing packing, so no length is stated. Same `slots_json` contract:
+ * a JSON array of words or `null` holes, every `null` an erasure.
+ *
+ * Returns the same JSON as `canonical_decode`, or `{ error }`.
+ * @param {string} slots_json
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function canonical_decode_slots(slots_json, language, wordlist) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(slots_json, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_decode_slots(retptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * Decode from aligned payload slots rather than from prose.
  *
  * `slots_json` is a JSON array holding, per payload word the rendering
