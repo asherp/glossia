@@ -997,7 +997,23 @@ footer a:hover { text-decoration: underline; }
           border-radius: 8px; background: var(--surface-alt); display: flex; align-items: center; justify-content: center;
           overflow: hidden; }
         .scan-stage.drop { border-color: var(--accent); }
-        .scan-stage video, .scan-stage canvas { max-width: 100%; max-height: 360px; display: block; }
+        .scan-frame { position: relative; display: inline-block; line-height: 0; max-width: 100%; }
+        .scan-frame video, .scan-frame canvas.scan-img { max-width: 100%; max-height: 360px; width: auto; height: auto; display: block; }
+        #scan-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+        .scan-live { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap;
+          margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-dim); }
+        .scan-live .ok { color: var(--success); }
+        .scan-live .warn { color: #f59e0b; }
+        .scan-live .bad { color: var(--error); }
+        .scan-c-payload-ok { border-bottom: 2px solid var(--success); }
+        .scan-c-cover-ok { }
+        .scan-c-cover-error { background: rgba(245,158,11,0.18); border-bottom: 2px solid #f59e0b; cursor: help; }
+        .scan-c-payload-repaired { background: rgba(249,115,22,0.2); border-bottom: 2px solid #f97316; cursor: help; }
+        .scan-c-payload-error { background: rgba(239,68,68,0.16); border-bottom: 2px solid var(--error); cursor: help; }
+        .scan-c-snapped { background: rgba(245,158,11,0.18); border-bottom: 2px dashed #f59e0b; cursor: help; }
+        .scan-c-unsure { background: rgba(239,68,68,0.14); border-bottom: 2px dotted var(--error); cursor: help; }
+        .scan-missing { color: #f59e0b; font-weight: 600; cursor: help; }
+        .scan-missing.payload { color: var(--error); }
         .scan-empty { font-size: 0.78rem; color: var(--text-dim); text-align: center; padding: 1rem; line-height: 1.6; }
         .scan-progress { min-height: 1.2rem; margin-top: 0.5rem; font-family: var(--font-mono); font-size: 0.72rem; color: var(--accent); }
         .scan-result { margin-top: 0.6rem; }
@@ -1398,23 +1414,35 @@ footer a:hover { text-decoration: underline; }
       <button class="btn-sm primary hidden" id="scan-snap-btn" onclick="scanCapture()">Capture</button>
     </div>
     <div class="scan-stage" id="scan-stage">
-      <video id="scan-video" class="hidden" playsinline muted autoplay></video>
-      <canvas id="scan-preview" class="hidden"></canvas>
+      <div class="scan-frame" id="scan-frame">
+        <video id="scan-video" class="hidden" playsinline muted autoplay></video>
+        <canvas id="scan-preview" class="scan-img hidden"></canvas>
+        <canvas id="scan-overlay"></canvas>
+      </div>
       <div class="scan-empty" id="scan-empty">Drop an image here, paste one, choose a photo, or open the camera.<br>
         Fill the frame with the paragraph, straight-on, in good light.</div>
+    </div>
+    <div class="scan-live hidden" id="scan-live">
+      <span id="scan-live-status"></span>
+      <button class="btn-sm hidden" id="scan-resume-btn" onclick="scanCamera()">&#9654; Resume live</button>
     </div>
     <div class="scan-progress" id="scan-progress"></div>
     <div id="scan-error" class="error-msg hidden" style="padding:0.4rem 0 0;"></div>
     <div class="scan-result hidden" id="scan-result">
       <div class="scan-summary" id="scan-summary"></div>
       <div class="scan-legend">
-        <span><span class="scan-tok scan-snapped">word</span> corrected to a vocabulary word</span>
-        <span><span class="scan-tok scan-unknown">word</span> unsure &mdash; kept as read; hover for candidates</span>
+        <span><span class="scan-tok scan-c-payload-ok">word</span> payload word</span>
+        <span><span class="scan-tok scan-c-cover-error">word</span> cover word misread &mdash; bytes unaffected</span>
+        <span><span class="scan-tok scan-c-payload-repaired">word</span> payload word corrected by parity</span>
+        <span><span class="scan-tok scan-c-payload-error">word</span> payload word wrong</span>
+        <span><span class="scan-tok scan-c-snapped">word</span> corrected to a vocabulary word</span>
+        <span><span class="scan-tok scan-c-unsure">word</span> unsure &mdash; kept as read; hover for candidates</span>
       </div>
       <div class="scan-tokens" id="scan-tokens"></div>
       <textarea class="scan-text" id="scan-text" spellcheck="false" aria-label="Transcription (editable)"></textarea>
       <div class="scan-actions">
         <button class="primary" onclick="scanUse()">Use this text</button>
+        <button class="hidden" id="scan-use-fixed-btn" onclick="scanUse(true)" title="Use the rendering the decoder verified, with every misread word corrected">Use corrected text</button>
         <span class="scan-note">Fix any unsure word above before using it; the decoder verifies the result and says if it is wrong.</span>
       </div>
     </div>
@@ -1437,12 +1465,15 @@ import init, {
   canonical_encode as wasmCanonicalEncode,
   canonical_encode_traced as wasmCanonicalEncodeTraced,
   canonical_decode_raw as wasmCanonicalDecodeRaw,
+  canonical_decode as wasmCanonicalDecode,
+  canonical_decode_slots as wasmCanonicalDecodeSlots,
+  align_prose as wasmAlignProse,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
 import { sealMessage, renderArtifact, decodeMessage, EMDASH } from './glossia-msg.js';
 // Camera / photo reader (Tesseract OCR + vocabulary snapping), loaded on demand.
-import { scanImage, buildVocab, surfaceForm, OCR_LANGS } from './glossia-scan.js';
+import { scanImage, buildVocab, surfaceForm, annotateScan, drawOverlay, OCR_LANGS } from './glossia-scan.js';
 
 let ready = false;
 let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
@@ -3039,7 +3070,8 @@ const scanVocabs = new Map();
 function scanVocab(lang) {
   if (!scanVocabs.has(lang)) {
     const wl = SCAN_WORDLIST[lang];
-    scanVocabs.set(lang, buildVocab([...JSON.parse(wasmGetPayloadWords(lang, wl)), ...JSON.parse(wasmGetCoverWords(lang, wl))]));
+    const payload = JSON.parse(wasmGetPayloadWords(lang, wl));
+    scanVocabs.set(lang, buildVocab([...payload, ...JSON.parse(wasmGetCoverWords(lang, wl))], payload));
   }
   return scanVocabs.get(lang);
 }
@@ -3063,11 +3095,15 @@ window.scanClose = function() {
 };
 function scanReset() {
   scanStopCamera();
+  scanClearOverlay();
   $s('scan-result').classList.add('hidden');
   $s('scan-error').classList.add('hidden');
   $s('scan-preview').classList.add('hidden');
+  $s('scan-live').classList.add('hidden');
+  $s('scan-resume-btn').classList.add('hidden');
   $s('scan-empty').classList.remove('hidden');
   $s('scan-progress').textContent = '';
+  scanLast = null;
 }
 function scanError(msg) {
   const el = $s('scan-error');
@@ -3080,6 +3116,25 @@ function scanProgress(status, frac) {
     : '';
 }
 
+// The canonical decoder's verdict on a scan: which boxes are payload, which
+// cover, which are wrong and whether parity corrected them. Only a canonical
+// rendering (the address panel's prose) can answer; the other panels' prose
+// carries no checksum, so their boxes show what snapping alone knows.
+function scanAnnotate(res, lang) {
+  const wl = SCAN_WORDLIST[lang];
+  const opts = {
+    decode: t => wasmCanonicalDecode(t, lang, wl),
+    decodeSlots: s => wasmCanonicalDecodeSlots(s, lang, wl),
+    align: (t, r) => wasmAlignProse(t, r, lang, wl),
+  };
+  if (scanTarget === 'addr') {
+    const type = $s('scan-type').value;
+    opts.expectedWords = ADDR_WORD_COUNT[(type === 'P2WSH' || type === 'P2TR') ? 32 : 20];
+  }
+  return annotateScan(res, opts);
+}
+let scanLast = null;   // { res, ann } of the most recent frame, for the harness and "Use corrected text"
+
 async function scanRun(source) {
   if (scanBusy) return;
   scanBusy = true;
@@ -3089,8 +3144,12 @@ async function scanRun(source) {
   scanProgress('loading reader', 0);
   try {
     const res = await scanImage(source, { vocab: scanVocab(lang), ocrLang: OCR_LANGS[lang], onProgress: scanProgress });
+    const ann = scanAnnotate(res, lang);
+    scanLast = { res, ann };
     scanShowPreview(res.canvas);
-    scanRenderResult(res);
+    scanDrawOverlay(res, ann, { width: res.canvas.width, height: res.canvas.height, scale: 1, skew: 0 });
+    scanSetLiveStatus(res, ann, false);
+    scanRenderResult(res, ann);
     if (!res.summary.words) scanError('No text found. Fill the frame with the paragraph and try again.');
   } catch (e) {
     scanError('Could not read the image: ' + (e && e.message ? e.message : e));
@@ -3104,35 +3163,94 @@ function scanShowPreview(canvas) {
   pv.width = canvas.width; pv.height = canvas.height;
   pv.getContext('2d').drawImage(canvas, 0, 0);
   pv.classList.remove('hidden');
+  $s('scan-video').classList.add('hidden');
   $s('scan-empty').classList.add('hidden');
 }
-function scanRenderResult(res) {
+// Boxes over the frame on show. `width`/`height` are the prepared frame's
+// size (what the recognizer saw); `scale`/`skew` map those boxes onto the
+// element underneath — the prepared frame itself, or the live video it was
+// scaled and straightened from.
+function scanDrawOverlay(res, ann, { width, height, scale, skew, targetW, targetH }) {
+  const ov = $s('scan-overlay');
+  ov.width = targetW || width; ov.height = targetH || height;
+  const ctx = ov.getContext('2d');
+  ctx.clearRect(0, 0, ov.width, ov.height);
+  drawOverlay(ctx, res.tokens, ann.classes, ann.missing, { width, height, scale, skew });
+}
+function scanClearOverlay() {
+  const ov = $s('scan-overlay');
+  ov.getContext('2d').clearRect(0, 0, ov.width, ov.height);
+}
+function scanVerdict(ann) {
+  const n = ann.counts;
+  if (ann.ok) {
+    const fixes = n['payload-repaired'] + ann.missing.filter(m => m.payload).length;
+    const coverErr = n['cover-error'] + ann.missing.filter(m => !m.payload).length;
+    let s = ann.verified ? '✓ payload verified' : fixes ? '✓ payload recovered — ' + fixes + ' payload word' + (fixes > 1 ? 's' : '') + ' corrected by parity' : '✓ payload verified';
+    if (coverErr) s += ' · ' + coverErr + ' cover word' + (coverErr > 1 ? 's' : '') + ' misread (bytes unaffected)';
+    if (n['payload-error']) s += ' · ' + n['payload-error'] + ' payload word' + (n['payload-error'] > 1 ? 's' : '') + ' wrong';
+    return { text: s + ' (v' + ann.version + ')', cls: ann.verified ? 'ok' : 'warn' };
+  }
+  if (scanTarget !== 'addr') {
+    return { text: 'vocabulary check only — this panel\u2019s prose carries no checksum, so press Capture and let the panel decode it', cls: '' };
+  }
+  const bad = n['unsure'] + n['snapped'];
+  return { text: 'no verified payload in view' + (bad ? ' · ' + n['unsure'] + ' unsure, ' + n['snapped'] + ' corrected' : '') + (ann.attempts > 1 ? ' · ' + ann.attempts + ' placements tried' : ''), cls: 'bad' };
+}
+function scanSetLiveStatus(res, ann, live) {
+  const v = scanVerdict(ann);
+  const el = $s('scan-live-status');
+  el.className = v.cls;
+  el.textContent = (live ? '● live · ' : '') + v.text + (res.skew ? ' · ' + res.skew + '°' : '');
+  $s('scan-live').classList.remove('hidden');
+}
+function scanRenderResult(res, ann) {
   const box = $s('scan-tokens');
   box.innerHTML = '';
+  const missingBefore = new Map();
+  for (const m of ann.missing) {
+    const k = m.before == null ? -1 : m.before;
+    if (!missingBefore.has(k)) missingBefore.set(k, []);
+    missingBefore.get(k).push(m);
+  }
+  const addMissing = ms => {
+    for (const m of ms) {
+      const span = document.createElement('span');
+      span.className = 'scan-missing' + (m.payload ? ' payload' : '');
+      span.textContent = '[+' + m.expected + ']';
+      span.title = (m.payload ? 'a payload word' : 'a cover word') + ' the page has and the scan does not' + (m.repaired ? ' — supplied by parity' : '');
+      box.appendChild(span);
+      box.appendChild(document.createTextNode(' '));
+    }
+  };
   let line = -1;
-  for (const t of res.tokens) {
-    if (t.status === 'junk') continue;
+  res.tokens.forEach((t, i) => {
+    if (t.status === 'junk') return;
     if (t.line !== line) { if (line >= 0) box.appendChild(document.createElement('br')); line = t.line; }
+    if (missingBefore.has(i)) addMissing(missingBefore.get(i));
+    const c = ann.classes[i];
     const span = document.createElement('span');
-    span.className = 'scan-tok scan-' + t.status;
+    span.className = 'scan-tok scan-c-' + c.cls;
     span.textContent = surfaceForm(t);
-    if (t.status === 'snapped') span.title = 'read “' + t.raw + '”, corrected to “' + t.word + '”';
+    if (c.note) span.title = c.note;
     else if (t.status === 'unknown') span.title = t.candidates.length
       ? 'read “' + t.raw + '” — could be ' + t.candidates.join(' / ')
       : 'read “' + t.raw + '” — not a vocabulary word';
     box.appendChild(span);
     box.appendChild(document.createTextNode(' '));
-  }
+  });
+  if (missingBefore.has(-1)) addMissing(missingBefore.get(-1));
   $s('scan-text').value = res.text;
   const n = res.summary;
   $s('scan-summary').textContent = n.words + ' words · ' + n.exact + ' read · ' + n.snapped + ' corrected · ' +
     n.unknown + ' unsure' + (res.skew ? ' · straightened ' + res.skew + '°' : '');
+  $s('scan-use-fixed-btn').classList.toggle('hidden', !(ann.ok && !ann.verified && ann.canonical_text));
   $s('scan-result').classList.remove('hidden');
 }
 
 // Hand the transcription to the panel, in its decode direction.
-window.scanUse = function() {
-  const text = $s('scan-text').value.trim();
+window.scanUse = function(corrected) {
+  const text = corrected && scanLast && scanLast.ann.canonical_text ? scanLast.ann.canonical_text : $s('scan-text').value.trim();
   if (!text) return;
   const target = scanTarget;
   scanClose();
@@ -3164,8 +3282,16 @@ window.scanUse = function() {
   if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
-// Live viewfinder: rear camera when there is one, a frame captured on demand.
+// Live viewfinder: rear camera when there is one. Frames are read continuously
+// and every recognized word is boxed over the video with the decoder's verdict
+// on it. When a canonical payload verifies, the view locks on that frame — the
+// way a QR reader locks — and the transcription is ready to use. Capture still
+// takes one frame on demand, which is the path for prose with no checksum.
+let scanLiveOn = false;
+let scanStable = { hex: null, n: 0 };   // consecutive frames agreeing on a recovered payload
+const SCAN_LOCK_FRAMES = 3;
 window.scanCamera = async function() {
+  scanStable = { hex: null, n: 0 };
   scanReset();
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
     return scanError('This browser offers no camera here; choose a photo instead.');
@@ -3181,19 +3307,80 @@ window.scanCamera = async function() {
   v.srcObject = scanStream;
   try { await v.play(); } catch (e) { /* autoplay attribute covers it */ }
   v.classList.remove('hidden');
+  $s('scan-preview').classList.add('hidden');
   $s('scan-empty').classList.add('hidden');
   $s('scan-snap-btn').classList.remove('hidden');
+  $s('scan-resume-btn').classList.add('hidden');
+  $s('scan-live-status').textContent = '● live · reading…';
+  $s('scan-live-status').className = '';
+  $s('scan-live').classList.remove('hidden');
+  scanLiveOn = true;
+  scanLiveLoop();
 };
-window.scanCapture = function() {
+function scanGrabFrame() {
   const v = $s('scan-video');
-  if (!v.videoWidth) return;
+  if (!v.videoWidth) return null;
   const frame = document.createElement('canvas');
   frame.width = v.videoWidth; frame.height = v.videoHeight;
   frame.getContext('2d').drawImage(v, 0, 0);
+  return frame;
+}
+async function scanLiveLoop() {
+  while (scanLiveOn && scanStream) {
+    const frame = scanGrabFrame();
+    if (!frame) { await new Promise(r => setTimeout(r, 100)); continue; }
+    const lang = $s('scan-lang').value;
+    let res, ann;
+    try {
+      res = await scanImage(frame, { vocab: scanVocab(lang), ocrLang: OCR_LANGS[lang], onProgress: scanBusy ? null : scanProgress });
+      scanProgress('', 0);
+      if (!scanLiveOn || !scanStream) return;
+      ann = scanAnnotate(res, lang);
+    } catch (e) {
+      scanLiveOn = false;
+      scanProgress('', 0);
+      scanError('Could not read the camera frame: ' + (e && e.message ? e.message : e));
+      return;
+    }
+    scanLast = { res, ann };
+    scanDrawOverlay(res, ann, { width: res.canvas.width, height: res.canvas.height, scale: res.scale, skew: res.skew, targetW: frame.width, targetH: frame.height });
+    scanSetLiveStatus(res, ann, true);
+    // A clean frame locks at once. A frame the decoder had to repair locks
+    // once three frames running agree on the payload: the checksum backs the
+    // bytes either way, but a few more reads give the camera a chance at a
+    // clean one before the repaired one is accepted.
+    if (ann.ok) {
+      scanStable = ann.payload_hex === scanStable.hex ? { hex: ann.payload_hex, n: scanStable.n + 1 } : { hex: ann.payload_hex, n: 1 };
+      if (ann.verified || scanStable.n >= SCAN_LOCK_FRAMES) { scanLock(res, ann); return; }
+    } else {
+      scanStable = { hex: null, n: 0 };
+    }
+    await new Promise(r => setTimeout(r, 30));   // let the video paint between reads
+  }
+}
+// Lock on a verified frame: freeze the straightened frame with its boxes, stop
+// the camera, and fill the result panel.
+function scanLock(res, ann) {
+  scanLiveOn = false;
   scanStopCamera();
+  scanShowPreview(res.canvas);
+  scanDrawOverlay(res, ann, { width: res.canvas.width, height: res.canvas.height, scale: 1, skew: 0 });
+  scanSetLiveStatus(res, ann, false);
+  $s('scan-live-status').textContent = '🔒 locked · ' + $s('scan-live-status').textContent;
+  $s('scan-resume-btn').classList.remove('hidden');
+  scanRenderResult(res, ann);
+}
+window.scanCapture = function() {
+  const frame = scanGrabFrame();
+  if (!frame) return;
+  scanLiveOn = false;
+  scanStopCamera();
+  scanClearOverlay();
+  $s('scan-resume-btn').classList.remove('hidden');
   scanRun(frame);
 };
 function scanStopCamera() {
+  scanLiveOn = false;
   if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
   const v = $s('scan-video');
   v.srcObject = null;
@@ -3229,6 +3416,7 @@ function scanInit() {
 }
 // Exposed for the browser test harness.
 window.scanRun = scanRun;
+window.scanLastResult = () => scanLast;
 
 // ─── Startup ─────────────────────────────────────────────────────────
 

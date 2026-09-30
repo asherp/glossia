@@ -210,8 +210,9 @@ function domCanvas(w, h) {
 /// so the frame is scaled into [minSide, maxSide] on its longer edge.
 ///
 /// `createCanvas(w, h)` is injectable so Node (node-canvas) can run the same
-/// pipeline the browser does. Returns { canvas, skew } — the skew in degrees
-/// that was removed.
+/// pipeline the browser does. Returns { canvas, skew, scale } — the skew in
+/// degrees that was removed and the factor the frame was scaled by, which is
+/// what maps a box on the prepared frame back onto the source.
 export async function prepareImage(source, { minSide = 1400, maxSide = 2400, contrast = true, deskew = true, createCanvas = domCanvas } = {}) {
   let bitmap = source;
   // A phone stores a portrait photo sideways plus an EXIF orientation tag;
@@ -272,7 +273,7 @@ export async function prepareImage(source, { minSide = 1400, maxSide = 2400, con
       canvas = out;
     }
   }
-  return { canvas, skew };
+  return { canvas, skew, scale };
 }
 
 // ─── vocabulary snapping ─────────────────────────────────────────────
@@ -299,7 +300,8 @@ export function normalizeToken(raw) {
 
 /// Index a word list for snapping: the set for exact lookup, and words bucketed
 /// by length so a candidate scan only touches words within the edit budget.
-export function buildVocab(words) {
+/// `payloadWords`, when given, lets a token say whether it carries bytes.
+export function buildVocab(words, payloadWords = null) {
   const set = new Set();
   const byLength = new Map();
   for (const w of words) {
@@ -309,7 +311,13 @@ export function buildVocab(words) {
     if (!byLength.has(n.length)) byLength.set(n.length, []);
     byLength.get(n.length).push(n);
   }
-  return { set, byLength, size: set.size };
+  const payload = payloadWords ? new Set(payloadWords.map((w) => w.normalize('NFC').toLowerCase())) : null;
+  return { set, byLength, payload, size: set.size };
+}
+
+function withPayload(vocab, r) {
+  r.isPayload = r.word && vocab.payload ? vocab.payload.has(r.word) : null;
+  return r;
 }
 
 /// Restricted Damerau–Levenshtein (adjacent transposition counts as one edit —
@@ -363,13 +371,13 @@ export const DEFAULT_MIN_CONFIDENCE = 30;
 /// refused for ambiguity, so a page can offer them.
 export function snapToken(raw, vocab, { confidence = 100, minConfidence = DEFAULT_MIN_CONFIDENCE } = {}) {
   const norm = normalizeToken(raw);
-  if (vocab.set.has(norm)) return { raw, norm, word: norm, status: 'exact', distance: 0, candidates: [] };
+  if (vocab.set.has(norm)) return withPayload(vocab, { raw, norm, word: norm, status: 'exact', distance: 0, candidates: [] });
   // A single letter that is not itself a word ("a" is one) is a stray mark.
-  if (norm.length < 2) return { raw, norm, word: null, status: 'junk', distance: null, candidates: [] };
+  if (norm.length < 2) return { raw, norm, word: null, status: 'junk', distance: null, candidates: [], isPayload: null };
   // Below the confidence floor the recognizer is guessing; so would we.
-  if (confidence < minConfidence) return { raw, norm, word: null, status: 'unknown', distance: null, candidates: [] };
+  if (confidence < minConfidence) return { raw, norm, word: null, status: 'unknown', distance: null, candidates: [], isPayload: null };
   const budget = snapBudget(norm.length);
-  if (budget === 0) return { raw, norm, word: null, status: 'unknown', distance: null, candidates: [] };
+  if (budget === 0) return { raw, norm, word: null, status: 'unknown', distance: null, candidates: [], isPayload: null };
   let best = budget + 1;
   let tied = [];
   for (let len = norm.length - budget; len <= norm.length + budget; len++) {
@@ -381,15 +389,16 @@ export function snapToken(raw, vocab, { confidence = 100, minConfidence = DEFAUL
       else if (d === best && d <= budget) tied.push(w);
     }
   }
-  if (best > budget) return { raw, norm, word: null, status: 'unknown', distance: null, candidates: [] };
-  if (tied.length === 1) return { raw, norm, word: tied[0], status: 'snapped', distance: best, candidates: [] };
-  return { raw, norm, word: null, status: 'unknown', distance: best, candidates: tied.sort() };
+  if (best > budget) return { raw, norm, word: null, status: 'unknown', distance: null, candidates: [], isPayload: null };
+  if (tied.length === 1) return withPayload(vocab, { raw, norm, word: tied[0], status: 'snapped', distance: best, candidates: [] });
+  return { raw, norm, word: null, status: 'unknown', distance: best, candidates: tied.sort(), isPayload: null };
 }
 
 /// Snap every recognized word. Tokens keep their `line` so the text can be
-/// re-flowed the way the page was laid out.
+/// re-flowed the way the page was laid out, and their `bbox` so verdicts can
+/// be drawn where the word sits.
 export function snapTokens(words, vocab, opts = {}) {
-  return words.map((w) => ({ ...snapToken(w.text, vocab, { ...opts, confidence: w.confidence }), line: w.line, confidence: w.confidence }));
+  return words.map((w) => ({ ...snapToken(w.text, vocab, { ...opts, confidence: w.confidence }), line: w.line, confidence: w.confidence, bbox: w.bbox || null }));
 }
 
 /// A token as it should be written down: the resolved word wearing the
@@ -436,12 +445,310 @@ export function scanSummary(tokens) {
 ///   onProgress — (status, fraction) while the engine loads and recognizes
 ///   prepare    — false to hand the source to the engine untouched
 ///
-/// Returns { text, tokens, summary, raw, canvas, skew }.
+/// Returns { text, tokens, summary, raw, canvas, skew, scale }.
 export async function scanImage(source, { vocab, ocrLang = 'eng', onProgress, prepare = true, prepareOptions, minConfidence, workerOptions, loader } = {}) {
   const worker = await getWorker(ocrLang, { onProgress, options: workerOptions, loader });
-  const prepared = prepare ? await prepareImage(source, prepareOptions) : { canvas: null, skew: 0 };
+  const prepared = prepare ? await prepareImage(source, prepareOptions) : { canvas: null, skew: 0, scale: 1 };
   if (onProgress) onProgress('recognizing text', 0);
   const raw = await recognize(worker, prepared.canvas || source);
   const tokens = snapTokens(raw.words, vocab, { minConfidence });
-  return { text: scanText(tokens), tokens, summary: scanSummary(tokens), raw, canvas: prepared.canvas, skew: prepared.skew };
+  return { text: scanText(tokens), tokens, summary: scanSummary(tokens), raw, canvas: prepared.canvas, skew: prepared.skew, scale: prepared.scale };
+}
+
+// ─── verdicts: what the canonical decoder says about each box ─────────
+//
+// A canonical rendering verifies by re-rendering from what it decodes to and
+// aligning the received text against that. The alignment is a per-token diff
+// in the decoder's own coordinates (see src/align.rs), so every recognized
+// word can be told apart as a cover word or a payload word, right or wrong,
+// and — under v3 — whether Reed–Solomon parity corrected it. That is what the
+// overlay draws. Without an alignment (a rendering that carries no checksum,
+// or damage past what parity can fix) the boxes fall back to what snapping
+// alone knows.
+
+/// Class of a recognized token, from strongest evidence to weakest:
+///   payload-ok        a payload word, matched the rendering
+///   cover-ok          a cover word, matched the rendering
+///   cover-error       a cover word misread or added — bytes unaffected
+///   payload-repaired  a payload word misread, corrected by parity
+///   payload-error     a payload word wrong, spurious, or past repair
+///   snapped           (no alignment) corrected to a vocabulary word
+///   unsure            (no alignment) not resolved to a vocabulary word
+///   junk              not a word
+export const TOKEN_CLASSES = ['payload-ok', 'cover-ok', 'cover-error', 'payload-repaired', 'payload-error', 'snapped', 'unsure', 'junk'];
+
+function fallbackClass(t) {
+  if (t.status === 'junk') return 'junk';
+  if (t.status === 'unknown') return 'unsure';
+  if (t.status === 'snapped') return 'snapped';
+  return t.isPayload ? 'payload-ok' : 'cover-ok';
+}
+
+const q = (w) => '“' + w + '”';
+
+/// Map an alignment (the `alignment` a canonical decode entry returns, or
+/// `align_prose`'s result) onto the recognized tokens. `repaired` is the list
+/// of payload slots parity corrected. Returns { classes, missing }: one
+/// { cls, note } per token, and the words the rendering had that the page did
+/// not, each anchored before the token that followed it (`before` is a token
+/// index, or null for the end of the text).
+export function classifyTokens(tokens, alignment, repaired = []) {
+  const classes = tokens.map((t) => ({ cls: fallbackClass(t), note: t.status === 'snapped' ? 'read ' + q(t.raw) + ', corrected to ' + q(t.word) : '' }));
+  const missing = [];
+  if (!alignment || !Array.isArray(alignment.tokens)) return { classes, missing };
+  // The aligner tokenizes the transcription on whitespace, and the
+  // transcription is the non-junk tokens in order — so received_index counts
+  // non-junk tokens.
+  const recv = [];
+  tokens.forEach((t, i) => { if (t.status !== 'junk') recv.push(i); });
+  const rep = new Set(repaired);
+  const al = alignment.tokens;
+  for (let k = 0; k < al.length; k++) {
+    const a = al[k];
+    if (a.op === 'delete') {
+      let next = null;
+      for (let j = k + 1; j < al.length; j++) if (al[j].received_index != null) { next = recv[al[j].received_index]; break; }
+      const isPayload = a.payload_index != null;
+      missing.push({
+        before: next == null ? null : next,
+        expected: a.expected,
+        payload: isPayload,
+        repaired: isPayload && rep.has(a.payload_index),
+      });
+      continue;
+    }
+    const ti = recv[a.received_index];
+    if (ti == null) continue;
+    const c = classes[ti];
+    const shown = surfaceForm(tokens[ti]);
+    const slotPayload = a.payload_index != null;
+    if (a.op === 'same') {
+      c.cls = slotPayload ? 'payload-ok' : 'cover-ok';
+      c.note = '';
+    } else if (a.op === 'sub') {
+      if (slotPayload) {
+        const fixed = rep.has(a.payload_index);
+        c.cls = fixed ? 'payload-repaired' : 'payload-error';
+        c.note = 'payload word: read ' + q(shown) + (fixed ? ', corrected by parity to ' : ', should be ') + q(a.expected);
+      } else {
+        c.cls = 'cover-error';
+        c.note = 'cover word: read ' + q(shown) + ', should be ' + q(a.expected) + ' — bytes unaffected';
+      }
+    } else if (a.op === 'insert') {
+      if (a.received_is_payload) {
+        c.cls = 'payload-error';
+        c.note = 'payload word ' + q(shown) + ' that the rendering does not have';
+      } else {
+        c.cls = 'cover-error';
+        c.note = 'extra word ' + q(shown) + ' — cover, bytes unaffected';
+      }
+    }
+  }
+  return { classes, missing };
+}
+
+/// Counts per class, for a status line.
+export function classSummary(classes) {
+  const n = {};
+  for (const k of TOKEN_CLASSES) n[k] = 0;
+  for (const c of classes) n[c.cls]++;
+  return n;
+}
+
+/// k-subsets of [0, n), in lexicographic order.
+function* combinations(n, k) {
+  const idx = Array.from({ length: k }, (_, i) => i);
+  if (k > n) return;
+  while (true) {
+    yield idx.slice();
+    let i = k - 1;
+    while (i >= 0 && idx[i] === n - k + i) i--;
+    if (i < 0) return;
+    idx[i]++;
+    for (let j = i + 1; j < k; j++) idx[j] = idx[j - 1] + 1;
+  }
+}
+
+/// Most attempts a hypothesis search will spend on one frame. Each is a
+/// decode plus a render, so this bounds the worst frame at a couple of seconds.
+export const MAX_HYPOTHESES = 20;
+
+/// Decode a scan through the canonical path and classify every token.
+///
+/// `decode(text)` is the plain canonical decode (JSON string in, JSON string
+/// out, as the WASM exports are); it succeeds on an intact transcription and,
+/// under v3, on one with a payload word or two misread onto the wordlist. When
+/// it fails, the search below tries the tokens snapping could not resolve as
+/// holes: a payload word mangled OFF the wordlist never reaches the harvest,
+/// so the only trace of it is an unsure box, and handing the decoder the
+/// payload sequence with a `null` there (`decodeSlots(slotsJson)`) makes it an
+/// erasure, which parity fills at half the cost of an unlocated error. With k
+/// words short and n unsure tokens there are C(n, k) placements; the first
+/// whose checksum passes wins. A caller that knows the rendering's word count
+/// passes `expectedWords` and k is exact; otherwise k runs 1, 2, 3. Either way
+/// the search stops at MAX_HYPOTHESES.
+///
+/// `align(text, renderedText)` is `align_prose`: a result from `decodeSlots`
+/// aligns the slot sequence it was given, not the transcription, so its
+/// alignment is re-taken against the transcription before it is mapped onto
+/// tokens. Without `align`, a slots result is reported but the tokens keep
+/// their snapping classes.
+///
+/// Returns { ok, verified, version, payload_hex, repaired, alignment,
+/// canonical_text, classes, missing, counts, attempts, error }.
+export function annotateScan(scan, { decode, decodeSlots, align, expectedWords } = {}) {
+  const tokens = scan.tokens;
+  let result = null, attempts = 0, error = null, fromSlots = false;
+  if (decode) {
+    attempts++;
+    const r = safeJson(decode(scan.text));
+    if (r && !r.error) result = r; else error = r ? r.error : 'decode returned nothing';
+  }
+  if (!result && decodeSlots) {
+    const live = tokens.filter((t) => t.status !== 'junk');
+    const harvested = live.filter((t) => t.isPayload).length;
+    const unsure = live.map((t, i) => (t.status === 'unknown' ? i : -1)).filter((i) => i >= 0);
+    const ks = expectedWords ? [expectedWords - harvested] : [1, 2, 3];
+    search: for (const k of ks) {
+      if (k <= 0 || k > unsure.length) continue;
+      for (const pick of combinations(unsure.length, k)) {
+        if (attempts >= MAX_HYPOTHESES) break search;
+        const holes = new Set(pick.map((i) => unsure[i]));
+        const slots = [];
+        live.forEach((t, i) => { if (holes.has(i)) slots.push(null); else if (t.isPayload) slots.push(t.word); });
+        attempts++;
+        const r = safeJson(decodeSlots(JSON.stringify(slots)));
+        if (r && !r.error) { result = r; fromSlots = true; break search; }
+        if (r && r.error) error = r.error;
+      }
+    }
+  }
+  if (!result) {
+    const { classes, missing } = classifyTokens(tokens, null);
+    return { ok: false, verified: false, classes, missing, counts: classSummary(classes), attempts, error };
+  }
+  let alignment = result.alignment;
+  if (fromSlots) {
+    alignment = null;
+    if (align && result.canonical_text) {
+      const a = safeJson(align(scan.text, result.canonical_text));
+      if (a && !a.error) alignment = a;
+    }
+    // A slots result is verified only if the transcription itself is clean,
+    // which it is not — a hole was declared in it.
+    result = { ...result, verified: alignment ? !!alignment.clean : false };
+  }
+  const { classes, missing } = classifyTokens(tokens, alignment, result.repaired || []);
+  return {
+    ok: true,
+    verified: !!result.verified,
+    version: result.version,
+    payload_hex: result.payload_hex,
+    repaired: result.repaired || [],
+    alignment,
+    canonical_text: result.canonical_text,
+    classes, missing, counts: classSummary(classes), attempts, error: null,
+  };
+}
+
+function safeJson(s) {
+  if (s == null) return null;
+  if (typeof s !== 'string') return s;
+  try { return JSON.parse(s); } catch (e) { return { error: 'bad JSON from decoder' }; }
+}
+
+// ─── overlay ─────────────────────────────────────────────────────────
+
+/// Stroke colours per class. cover-ok is drawn faintly so the eye lands on
+/// what matters; junk is not drawn.
+export const CLASS_COLORS = {
+  'payload-ok': '#22c55e',
+  'cover-ok': 'rgba(120,120,140,0.45)',
+  'cover-error': '#f59e0b',
+  'payload-repaired': '#f97316',
+  'payload-error': '#ef4444',
+  'snapped': '#f59e0b',
+  'unsure': '#ef4444',
+};
+
+/// Draw the boxes over a frame. Boxes are in the prepared frame's coordinates
+/// (`width` × `height`, the size the recognizer saw); `scale` and `skew` map
+/// them back onto a source the prepared frame was scaled and straightened
+/// from — pass the values scanImage returned to draw over the live video, or
+/// leave the defaults to draw over the prepared frame itself. Labels show the
+/// correction for every box that has one.
+export function drawOverlay(ctx, tokens, classes, missing, { width, height, scale = 1, skew = 0, labels = true } = {}) {
+  ctx.save();
+  // prepared -> source: undo the straightening about the frame's centre, then
+  // undo the scaling.
+  ctx.scale(1 / scale, 1 / scale);
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(skew * Math.PI / 180);
+  ctx.translate(-width / 2, -height / 2);
+  const unit = Math.max(1, Math.round(Math.max(width, height) / 700));   // line weight that reads at any size
+  ctx.lineJoin = 'round';
+  const boxes = [];
+  tokens.forEach((t, i) => {
+    const c = classes[i];
+    const b = t.bbox;
+    if (!b || !c || c.cls === 'junk') return;
+    boxes.push({ t, c, b });
+  });
+  for (const { t, c, b } of boxes) {
+    const color = CLASS_COLORS[c.cls];
+    if (!color) continue;
+    const pad = unit * 2;
+    const x = b.x0 - pad, y = b.y0 - pad, w = b.x1 - b.x0 + 2 * pad, h = b.y1 - b.y0 + 2 * pad;
+    ctx.lineWidth = c.cls === 'cover-ok' ? unit : unit * 2;
+    ctx.setLineDash(c.cls === 'unsure' || c.cls === 'snapped' ? [unit * 4, unit * 3] : []);
+    ctx.strokeStyle = color;
+    ctx.strokeRect(x, y, w, h);
+    if (c.cls !== 'cover-ok') {
+      ctx.fillStyle = color.startsWith('#') ? color + '22' : color;
+      ctx.fillRect(x, y, w, h);
+    }
+  }
+  ctx.setLineDash([]);
+  // Missing words: a bar where the word should have been.
+  for (const m of missing) {
+    const color = m.payload ? (m.repaired ? CLASS_COLORS['payload-repaired'] : CLASS_COLORS['payload-error']) : CLASS_COLORS['cover-error'];
+    let x, y0, y1;
+    if (m.before != null && tokens[m.before] && tokens[m.before].bbox) {
+      const b = tokens[m.before].bbox; x = b.x0 - unit * 4; y0 = b.y0; y1 = b.y1;
+    } else if (boxes.length) {
+      const b = boxes[boxes.length - 1].b; x = b.x1 + unit * 4; y0 = b.y0; y1 = b.y1;
+    } else continue;
+    ctx.lineWidth = unit * 2;
+    ctx.strokeStyle = color;
+    ctx.beginPath(); ctx.moveTo(x, y0 - unit * 2); ctx.lineTo(x, y1 + unit * 2); ctx.stroke();
+    if (labels) label(ctx, '+ ' + m.expected, x, y0, y1 - y0, color, unit);
+  }
+  if (labels) {
+    for (const { t, c, b } of boxes) {
+      let text = null;
+      if (c.cls === 'payload-repaired' || c.cls === 'payload-error' || c.cls === 'cover-error') {
+        const m = c.note.match(/(?:corrected by parity to|should be) “([^”]+)”/);
+        text = m ? '→ ' + m[1] : (c.cls === 'payload-error' ? '✗' : '+');
+      } else if (c.cls === 'snapped') {
+        text = '→ ' + t.word;
+      } else if (c.cls === 'unsure') {
+        text = '?';
+      }
+      if (text) label(ctx, text, b.x0, b.y0, b.y1 - b.y0, CLASS_COLORS[c.cls], unit);
+    }
+  }
+  ctx.restore();
+}
+
+function label(ctx, text, x, y, boxH, color, unit) {
+  const size = Math.max(10, Math.round(boxH * 0.7));
+  ctx.font = `600 ${size}px sans-serif`;
+  const w = ctx.measureText(text).width + unit * 4;
+  const h = size + unit * 3;
+  const ly = y - h - unit;
+  ctx.fillStyle = color;
+  ctx.fillRect(x, ly < 0 ? y + boxH + unit : ly, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, x + unit * 2, (ly < 0 ? y + boxH + unit : ly) + h / 2);
 }

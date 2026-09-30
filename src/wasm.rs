@@ -1753,6 +1753,29 @@ pub fn canonical_decode_slots_fixed(
     }
 }
 
+/// `canonical_decode_slots_fixed` for prose written by `canonical_encode` — the
+/// self-describing packing, so no length is stated. Same `slots_json` contract:
+/// a JSON array of words or `null` holes, every `null` an erasure.
+///
+/// Returns the same JSON as `canonical_decode`, or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_decode_slots(slots_json: &str, language: &str, wordlist: &str) -> String {
+    let slots: Vec<Option<String>> = match serde_json::from_str(slots_json) {
+        Ok(s) => s,
+        Err(e) => {
+            return serde_json::json!({
+                "error": format!("slots must be a JSON array of words or nulls: {}", e),
+                "kind": "bad_slots",
+            })
+            .to_string()
+        }
+    };
+    match crate::canonical::canonical_decode_slots(&slots, language, wordlist) {
+        Ok(d) => decoded_json(&d),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
 /// Align received prose against the rendering it should have been, without
 /// decoding either.
 ///

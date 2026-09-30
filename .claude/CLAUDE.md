@@ -174,6 +174,14 @@ are untouched. See `docs/src/scanning.md`.
   so `prepareImage` straightens by projection profile (±8°) before recognizing.
 - **Surface form is preserved** (`surfaceForm`): canonical verification compares wording
   exactly, so capitals and trailing punctuation the recognizer saw are kept.
+- **Verdict overlay** (`classifyTokens` / `annotateScan` / `drawOverlay`): the canonical
+  decode's `alignment` (per-token diff, `received_index` = non-junk OCR token order) plus
+  `repaired` classify every box — payload-ok / cover-ok / cover-error / payload-repaired /
+  payload-error, or snapped / unsure with no alignment. When the plain decode fails, unsure
+  tokens are tried as holes through `canonical_decode_slots` (the self-describing packing's
+  erasure entry, added for this; `_fixed` is the other packing), ≤ 20 placements, checksum
+  decides. Live mode boxes each camera frame and **locks** on a verified payload. Decoders are
+  passed into the module as functions, so it never imports the WASM and tests use fakes.
 - The engine sits behind `recognize(worker, image) → [{ text, confidence, bbox, line }]`;
   swapping it (e.g. for a Rust `ocrs` build) touches nothing else.
 - Tests: `node --test web/test_scan.mjs` (pure functions, no engine, runs in CI). Under

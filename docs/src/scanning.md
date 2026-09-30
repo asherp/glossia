@@ -99,6 +99,68 @@ frame a prose address. The scan dialog asks which script the address locks
 and puts the glyphs back around the transcription; the panel's own checker
 then verifies the result.
 
+## Verdicts on the frame
+
+Every recognized word is boxed over the frame, and the box says what the
+decoder concluded about it. The canonical path makes that possible: a
+canonical rendering re-renders from what it decodes to and aligns the
+received text against that (`src/align.rs`), which is a per-token diff in
+the decoder's own coordinates, and under v3 the decoder also reports which
+payload positions parity corrected. Mapped onto the recognizer's bounding
+boxes, each word falls into one class:
+
+| class | drawn as | meaning |
+|---|---|---|
+| payload word | green | carries bytes, matched the rendering |
+| cover word | faint outline | matched the rendering |
+| cover word misread | amber, `→ expected` | wording differs, bytes unaffected |
+| payload word corrected | orange, `→ expected` | misread, and Reed–Solomon parity repaired it |
+| payload word wrong | red | misread and past repair, or a payload word the rendering never had |
+| corrected to a vocabulary word | amber, dashed | snapping fixed it; no alignment to confirm |
+| unsure | red, dotted, `?` | not resolved to any word; kept as read |
+
+A word the rendering has and the frame does not is drawn as a bar where it
+should have been, with `+ word` above it. The same classes colour the
+transcription under the frame, and hovering a word shows the full note.
+
+### When the plain decode fails
+
+A payload word mangled *off* the wordlist never reaches the decoder's harvest,
+so the plain decode comes up a word short and fails. The only trace of that
+word is an unsure box. The reader therefore tries the unsure tokens as holes:
+for each placement it hands the decoder the payload sequence with a `null`
+there (`canonical_decode_slots`, the self-describing packing's erasure entry),
+which turns an unlocated fault into an erasure that parity fills at half the
+cost. With k words short and n unsure tokens there are C(n, k) placements; the
+first whose checksum passes wins, and the search stops after twenty attempts.
+When the page knows the rendering's word count (an address does), k is exact;
+otherwise it runs one, two, three.
+
+A wrong placement fails the checksum, so the search cannot invent a payload.
+What it cannot resolve stays red.
+
+### Live mode
+
+Opening the camera starts a continuous read: each frame is straightened,
+recognized, decoded and boxed over the live video, at roughly one to two
+frames a second once the engine is warm. When a canonical payload verifies,
+the view **locks** on that frame the way a QR reader locks, freezing the
+straightened frame with its boxes and filling the transcription. A frame the
+decoder had to repair locks once three frames running agree on the payload:
+the checksum backs the bytes either way, but a few more reads give the camera
+a chance at a clean one first. **Resume
+live** starts again; **Capture** takes one frame on demand, which is the path
+for prose that carries no checksum (the API key and message panels), where
+the boxes show what snapping alone knows and the panel does the decoding.
+
+Boxes are found on the prepared frame, so drawing them over the raw video
+means undoing the preparation: rotate back through the skew that was removed,
+then divide by the scale factor. `drawOverlay` takes both from `scanImage`.
+
+**Use corrected text** appears when the decoder recovered a payload from a
+damaged frame: it hands the panel the verified rendering rather than the
+transcription, with every misread word already put right.
+
 ## Measured
 
 Rendered canonical prose (English, 20-byte payloads), recognized in Node with
@@ -121,6 +183,15 @@ wrong bytes. In the browser (Chromium, Playwright) a
 2.5°-rotated render of a prose address decodes to the original address with
 the panel's verdict at **verified**, and an API key round-trips.
 
+Verdicts, in Chromium against renders of the page's own prose address,
+rotated 1.5°: a misread cover word is boxed amber with the payload verified;
+a dropped cover word is reported missing; a payload word swapped for another
+payload word is corrected by parity; a payload word rendered unreadable is
+found by the hole search on its second attempt, and two unreadable payload
+words plus one unreadable cover word on its third. In every case **Use
+corrected text** left the address panel at *verified*. Live mode, fed the
+swapped-word render through a fake camera, locked after four seconds.
+
 Recognition takes under a second per frame once the engine is loaded. The
 first scan on a device downloads the engine and its language data (a few
 megabytes) from the jsDelivr CDN; the language data is cached in IndexedDB
@@ -129,7 +200,12 @@ afterwards.
 ## Files
 
 - `web/glossia-scan.js` — the module: engine loading, image preparation,
-  snapping, transcription. The pure functions have no DOM dependency.
+  snapping, transcription, verdict classification (`classifyTokens`,
+  `annotateScan`) and the overlay (`drawOverlay`). The pure functions have no
+  DOM dependency; the decoders are passed in, so the module never imports the
+  WASM.
+- `src/canonical.rs` — `canonical_decode_slots` / `canonical_decode_repaired`,
+  the self-describing packing's erasure entries (WASM: `canonical_decode_slots`).
 - `web/test_scan.mjs` — unit tests for normalization, snapping, surface form
   and skew estimation (`node --test web/test_scan.mjs`).
 - `web/index.html` — the scan dialog and the hand-off into each panel.
