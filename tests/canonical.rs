@@ -10,7 +10,7 @@
 use glossia::align::{align, Op};
 use glossia::rs::Interleaved;
 use glossia::{
-    canonical_decode, canonical_decode_fixed, canonical_decode_slots_fixed,
+    canonical_decode, canonical_decode_fixed, canonical_decode_slots, canonical_decode_slots_fixed,
     canonical_encode, canonical_encode_at,
     canonical_encode_fixed, canonical_encode_fixed_at, canonical_encode_fixed_traced, rules_for,
     CanonicalError, Envelope, Verdict, CANONICAL_VERSION,
@@ -171,6 +171,43 @@ fn a_word_lost_off_the_wordlist_is_repaired_when_alignment_says_where() {
         .expect("a located hole is repairable");
     assert_eq!(d.payload, payload, "the payload must come back intact");
     assert_eq!(d.repaired, vec![slot]);
+}
+
+#[test]
+fn a_located_hole_is_repairable_under_the_self_describing_packing_too() {
+    // The same repair for prose written by `canonical_encode` — the packing an
+    // address or a scanned page carries, where no length is stated.
+    let payload: Vec<u8> = (0u8..20).collect();
+    let text = canonical_encode(&payload, "english", "bip39").unwrap();
+    let is_payload = payload_pred("english", "bip39");
+    let (slot, word) = a_lone_payload_word(&text, &is_payload);
+
+    let damaged = text.replacen(&format!(" {word} "), &format!(" {word}zz "), 1);
+    assert_ne!(damaged, text);
+    let a = align(&damaged, &text, None, &is_payload);
+    assert_eq!(a.erasures, vec![slot]);
+
+    let d = canonical_decode_slots(&a.payload_slots, "english", "bip39")
+        .expect("a located hole is repairable without a stated length");
+    assert_eq!(d.payload, payload);
+    assert_eq!(d.repaired, vec![slot]);
+    assert_eq!(d.version, CANONICAL_VERSION);
+
+    // A hole declared in the wrong place is not fatal: the erasure costs one
+    // parity symbol and the real fault is then found as an unlocated error
+    // (2·1 + 1 ≤ 4), so the payload still comes back — and, crucially, comes
+    // back RIGHT, because the checksum has the last word. That is what makes
+    // a hypothesis search over hole placements safe: a wrong guess costs
+    // parity, never correctness.
+    let mut wrong: Vec<Option<String>> = glossia::codec::payload_tokens(&damaged, &is_payload)
+        .into_iter()
+        .map(Some)
+        .collect();
+    wrong.insert(slot, Some(word.clone()));       // the true word back in its slot...
+    let other = (slot + 1) % wrong.len();
+    wrong[other] = None;                          // ...and a hole where nothing is wrong
+    let d = canonical_decode_slots(&wrong, "english", "bip39").expect("a misplaced hole is within budget");
+    assert_eq!(d.payload, payload, "a wrong placement can never change the bytes");
 }
 
 #[test]

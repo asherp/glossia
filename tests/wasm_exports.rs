@@ -19,10 +19,10 @@
 #![cfg(feature = "wasm")]
 
 use glossia::wasm::{
-    align_prose, canonical_decode_fixed, canonical_decode_fixed_repaired,
+    align_prose, canonical_decode_fixed, canonical_decode_fixed_repaired, canonical_decode_slots,
     canonical_decode_slots_fixed,
 };
-use glossia::{canonical_encode_fixed, cached_payload_tree};
+use glossia::{canonical_encode, canonical_encode_fixed, cached_payload_tree};
 use serde_json::Value;
 
 const LANG: &str = "english";
@@ -260,4 +260,27 @@ fn malformed_json_is_an_error_not_a_panic() {
         "some prose", LANG, WL, 20, "{}",
     ));
     assert_eq!(bad_erasures["kind"], "bad_erasures");
+}
+
+#[test]
+fn slots_decode_without_a_stated_length_repairs_a_located_hole() {
+    // The self-describing packing's erasure entry, as the camera reader calls
+    // it: no length, a JSON array with a null where a word was mangled off the
+    // wordlist, and the same result shape as canonical_decode.
+    let payload: Vec<u8> = (10u8..30).collect();
+    let text = canonical_encode(&payload, LANG, WL).unwrap();
+    let mut slots: Vec<Value> = glossia::codec::payload_tokens(&text, is_payload)
+        .into_iter()
+        .map(Value::from)
+        .collect();
+    let slot = 5;
+    slots[slot] = Value::Null;
+    let d = json(&canonical_decode_slots(&serde_json::to_string(&slots).unwrap(), LANG, WL));
+    assert_eq!(d["payload_hex"].as_str().unwrap(), glossia::codec::hex_encode(&payload));
+    assert_eq!(d["repaired"], serde_json::json!([slot]));
+    assert!(d["alignment"].is_object(), "the verdict shape must match canonical_decode");
+
+    // Malformed input is an error object, never a panic.
+    let bad = json(&canonical_decode_slots("[1, 2", LANG, WL));
+    assert_eq!(bad["kind"], "bad_slots");
 }

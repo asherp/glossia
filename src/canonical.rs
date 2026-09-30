@@ -684,22 +684,31 @@ pub fn canonical_decode_fixed_repaired(
     judge(text, reference, version, payload, repaired, language, wordlist)
 }
 
-/// Decode from aligned payload slots rather than from prose.
+/// [`canonical_decode`], told which word positions are already known bad.
 ///
-/// `slots` is [`Alignment::payload_slots`]: one entry per payload word the
-/// rendering expected, holding what arrived there or `None` where nothing
-/// usable did. Taking slots rather than text is what makes a word mangled OFF
-/// the wordlist repairable — such a word never reaches the harvest, so its
-/// position exists only in the alignment, and passing prose would lose it.
-///
-/// Every `None` becomes an erasure. The placeholder written into the gap is
-/// never read: the decoder zeroes erased positions before computing syndromes.
-pub fn canonical_decode_slots_fixed(
+/// The self-describing counterpart of [`canonical_decode_fixed_repaired`]: the
+/// packing declares its own length, so the caller supplies only the erasures.
+/// Positions index the harvested payload-word sequence, parity words included.
+pub fn canonical_decode_repaired(
+    text: &str,
+    language: &str,
+    wordlist: &str,
+    erasures: &[usize],
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let (version, payload, repaired) =
+        decode_canonical_with(text, language, wordlist, None, erasures)?;
+    let reference = canonical_encode_at(&payload, language, wordlist, version)?;
+    judge(text, reference, version, payload, repaired, language, wordlist)
+}
+
+/// Turn aligned payload slots into the text the erasure decoders read, naming
+/// the holes. The placeholder written into a hole is never read: the decoder
+/// zeroes erased positions before computing syndromes.
+fn slots_to_text(
     slots: &[Option<String>],
     language: &str,
     wordlist: &str,
-    payload_len: usize,
-) -> Result<CanonicalDecoded, CanonicalError> {
+) -> Result<(String, Vec<usize>), CanonicalError> {
     let wl = resolve_wordlist_name(language, wordlist);
     let tree = cached_payload_tree(language, wl)
         .map_err(|e| CanonicalError::Decode(format!("{:?}", e)))?;
@@ -719,8 +728,43 @@ pub fn canonical_decode_slots_fixed(
         .map(|s| s.as_deref().unwrap_or(filler.as_str()))
         .collect::<Vec<_>>()
         .join(" ");
+    Ok((text, erasures))
+}
 
+/// Decode from aligned payload slots rather than from prose.
+///
+/// `slots` is [`Alignment::payload_slots`]: one entry per payload word the
+/// rendering expected, holding what arrived there or `None` where nothing
+/// usable did. Taking slots rather than text is what makes a word mangled OFF
+/// the wordlist repairable — such a word never reaches the harvest, so its
+/// position exists only in the alignment, and passing prose would lose it.
+///
+/// Every `None` becomes an erasure. The placeholder written into the gap is
+/// never read: the decoder zeroes erased positions before computing syndromes.
+pub fn canonical_decode_slots_fixed(
+    slots: &[Option<String>],
+    language: &str,
+    wordlist: &str,
+    payload_len: usize,
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let (text, erasures) = slots_to_text(slots, language, wordlist)?;
     canonical_decode_fixed_repaired(&text, language, wordlist, payload_len, &erasures)
+}
+
+/// [`canonical_decode_slots_fixed`] for prose written by [`canonical_encode`]:
+/// the self-describing packing, so no length is stated.
+///
+/// This is the entry a reader that holds no candidate needs. A camera cannot
+/// align (alignment needs a rendering to compare against), but it can tell
+/// which tokens it failed to resolve to any word, and trying those as holes —
+/// one hypothesis per placement — turns an unlocated fault into an erasure.
+pub fn canonical_decode_slots(
+    slots: &[Option<String>],
+    language: &str,
+    wordlist: &str,
+) -> Result<CanonicalDecoded, CanonicalError> {
+    let (text, erasures) = slots_to_text(slots, language, wordlist)?;
+    canonical_decode_repaired(&text, language, wordlist, &erasures)
 }
 
 /// Align received text against its canonical re-render and assemble the verdict.

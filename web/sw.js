@@ -23,14 +23,14 @@
  * Everything here is scoped to the directory sw.js is served from, so it works
  * unchanged at the site root (glossia.io) and under a per-PR preview subpath.
  */
-const CACHE = 'glossia-shell-v5';
+const CACHE = 'glossia-shell-v6';
 
 /// App code: rebuilt with every deploy and required to agree with itself.
 function isAppCode(req, url) {
   if (req.mode === 'navigate') return true;
   const path = url.pathname;
   if (/\.(html|wasm)$/.test(path)) return true;
-  return /\/glossia(-\w+)?\.js$/.test(path);   // glossia.js, glossia-msg.js, glossia-nostr.js
+  return /\/glossia(-\w+)?\.js$/.test(path);   // glossia.js, glossia-msg.js, glossia-nostr.js, glossia-scan.js
 }
 
 // App shell, relative to the SW scope. glossia.js / glossia_bg.wasm are
@@ -45,6 +45,7 @@ const SHELL = [
   './glossia_bg.wasm',
   './glossia-msg.js',
   './glossia-nostr.js',
+  './glossia-scan.js',
   './favicon.svg',
   './manifest.webmanifest',
   './icons/glossia-icon-16.png',
