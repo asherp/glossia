@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CS Character-Level Encoding Test</title>
+    <style>
+        body {
+            font-family: 'SF Mono', Monaco, monospace;
+            padding: 20px;
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h2 { color: #4ec9b0; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .info { color: #dcdcaa; }
+        pre {
+            background: #252526;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .test-case {
+            margin: 20px 0;
+            padding: 15px;
+            background: #252526;
+            border-left: 3px solid #4ec9b0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CS Character-Level Encoding Tests</h1>
+    <p class="info">
+        CS (cryptographic signature) dialects use character-level encoding where each character
+        is a payload word. This is different from BIP39-style word encoding.
+    </p>
+
+    <div id="output">Loading WASM...</div>
+
+    <script type="module">
+        import init, {
+            encode_characters,
+            get_bits_per_word,
+            get_wordlist_size
+        } from './glossia.js';
+
+        const output = document.getElementById('output');
+
+        function log(html) {
+            output.innerHTML += html;
+        }
+
+        async function runTests() {
+            output.innerHTML = '<h2>Test Results</h2>';
+
+            // Test wordlist metadata
+            log('<div class="test-case">');
+            log('<h3>1. Wordlist Metadata</h3>');
+
+            const wordlists = ['base16', 'base58', 'base64'];
+            for (const wl of wordlists) {
+                const sizeResult = JSON.parse(get_wordlist_size('cs', wl));
+                const bitsResult = JSON.parse(get_bits_per_word('cs', wl));
+
+                log(`<strong>${wl}:</strong><br>`);
+                log(`  Size: ${sizeResult.size} characters<br>`);
+                log(`  Bits/char: ${bitsResult.bits_per_word.toFixed(2)}<br>`);
+                log(`  Power of 2: ${bitsResult.is_power_of_two ? '✓' : '✗'}<br>`);
+                if (bitsResult.note) {
+                    log(`  <span class="info">Note: ${bitsResult.note}</span><br>`);
+                }
+                log('<br>');
+            }
+            log('</div>');
+
+            // Test base16 (hex) encoding - Nostr signature
+            log('<div class="test-case">');
+            log('<h3>2. Base16 (Hex) - Nostr Signature</h3>');
+            const hexInput = "DEADBEEF1234567890ABCDEF";
+            log(`Input: <code>${hexInput}</code><br>`);
+
+            const hexResult = JSON.parse(encode_characters(
+                hexInput,
+                'cs',
+                'base16',
+                'sig_nostr',
+                42
+            ));
+
+            if (hexResult.error) {
+                log(`<span class="error">❌ Error: ${hexResult.error}</span><br>`);
+            } else {
+                log(`<strong>✓ Success</strong><br>`);
+                log(`<pre>${hexResult.encoded_text}</pre>`);
+                log(`Payload words: ${hexResult.payload_words.length}<br>`);
+                log(`Cover words: ${hexResult.stats.cover_count}<br>`);
+                log(`Data mode: ${hexResult.data_mode}<br>`);
+            }
+            log('</div>');
+
+            // Test base58 encoding - NIP-04 encrypted message
+            log('<div class="test-case">');
+            log('<h3>3. Base58 - NIP-04 Encrypted Message</h3>');
+            const base58Input = "5HueCGU8rMjxEXxiPuD5BDku4MkFqeZyd4dZ1jvhTVqvbTLvyTJ";
+            log(`Input: <code>${base58Input}</code><br>`);
+
+            const base58Result = JSON.parse(encode_characters(
+                base58Input,
+                'cs',
+                'base58',
+                'nip04',
+                100
+            ));
+
+            if (base58Result.error) {
+                log(`<span class="error">❌ Error: ${base58Result.error}</span><br>`);
+            } else {
+                log(`<strong>✓ Success</strong><br>`);
+                log(`<pre>${base58Result.encoded_text}</pre>`);
+                log(`Payload chars: ${base58Result.payload_words.length}<br>`);
+                log(`Cover words: ${base58Result.stats.cover_count}<br>`);
+            }
+            log('</div>');
+
+            // Test base64 encoding - PGP message
+            log('<div class="test-case">');
+            log('<h3>4. Base64 - PGP Encrypted Message</h3>');
+            const base64Input = "SGVsbG8gV29ybGQhIFRoaXMgaXMgYSB0ZXN0Lg==";
+            log(`Input: <code>${base64Input}</code><br>`);
+
+            const base64Result = JSON.parse(encode_characters(
+                base64Input,
+                'cs',
+                'base64',
+                'pgp',
+                200
+            ));
+
+            if (base64Result.error) {
+                log(`<span class="error">❌ Error: ${base64Result.error}</span><br>`);
+            } else {
+                log(`<strong>✓ Success</strong><br>`);
+                log(`<pre>${base64Result.encoded_text}</pre>`);
+                log(`Payload chars: ${base64Result.payload_words.length}<br>`);
+                log(`Cover words: ${base64Result.stats.cover_count}<br>`);
+            }
+            log('</div>');
+
+            // Test error case - invalid character
+            log('<div class="test-case">');
+            log('<h3>5. Error Handling - Invalid Character</h3>');
+            const invalidInput = "Hello"; // lowercase 'e' and 'l' not in base16
+            log(`Input: <code>${invalidInput}</code><br>`);
+
+            const errorResult = JSON.parse(encode_characters(
+                invalidInput,
+                'cs',
+                'base16',
+                'sig_nostr',
+                42
+            ));
+
+            if (errorResult.error) {
+                log(`<strong>✓ Correctly rejected</strong><br>`);
+                log(`<span class="error">Error: ${errorResult.error}</span><br>`);
+            } else {
+                log(`<span class="error">❌ Should have failed</span><br>`);
+            }
+            log('</div>');
+
+            log('<h2 class="success">✓ All Tests Complete</h2>');
+            log('<p class="info">Use <code>encode_characters()</code> for CS dialects instead of <code>encode()</code></p>');
+        }
+
+        init().then(runTests).catch(err => {
+            output.innerHTML = `<span class="error">Failed to load WASM: ${err}</span>`;
+        });
+    </script>
+</body>
+</html>
