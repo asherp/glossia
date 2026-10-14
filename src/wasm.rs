@@ -1637,6 +1637,31 @@ pub fn canonical_encode_fixed(payload_hex: &str, language: &str, wordlist: &str)
     }
 }
 
+/// `canonical_encode_fixed` at an EXPLICIT format version, rather than the
+/// current one — the fixed packing's half of `canonical_encode_at`.
+///
+/// Verification is by re-render, so a consumer holding a fixed-packing artifact
+/// that names an older version needs to render under *that* version's rules;
+/// with only the current-version export it could compare an old artifact
+/// against new prose and call a sound artifact unverified.
+///
+/// Returns JSON `{ encoded_text, version }` or `{ error }`.
+#[wasm_bindgen]
+pub fn canonical_encode_fixed_at(
+    payload_hex: &str,
+    language: &str,
+    wordlist: &str,
+    version: u8,
+) -> String {
+    let Some(bytes) = codec::hex_decode(payload_hex) else {
+        return serde_json::json!({ "error": "bad payload hex" }).to_string();
+    };
+    match crate::canonical::canonical_encode_fixed_at(&bytes, language, wordlist, version) {
+        Ok(text) => serde_json::json!({ "encoded_text": text, "version": version }).to_string(),
+        Err(e) => canonical_error_json(e),
+    }
+}
+
 /// `canonical_encode_fixed` with placements, for UIs that annotate the prose.
 ///
 /// Returns JSON `{ encoded_text, version, placements: [...] }` or `{ error }`.
