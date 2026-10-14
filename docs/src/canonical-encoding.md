@@ -174,13 +174,18 @@ version's goldens.
 ## The address format uses it
 
 The prose Bitcoin address panel (`web/index.html`) is the first consumer: an
-address's program bytes go through `canonical_encode`, so a 20-byte hash160 is
-17 words (version byte + pad word included) and a 32-byte witness program is
-25. The panel's checker builds on `canonical_encode_traced` (grammatical-role
-annotations), `canonical_decode_raw` (repair-search candidates without a
-verify render), and the `canonical_text` returned by `canonical_decode`
-(wording diff without a second generation). The opcode glyphs remain page-side
-markup around the canonical prose.
+address's program bytes go through `canonical_encode`, so under v3 a 20-byte
+hash160 is 24 words and a 32-byte witness program is 32 (version byte, pad
+word, crc32 envelope and four parity words included; v1 was 17 and 25, v2 20
+and 28). The panel does not restate that arithmetic: it reads the count off
+the encoder once per size and version, and takes an artifact's byte length and
+version from `canonical_decode_raw`, so a format change cannot leave the page
+expecting the wrong count. The checker builds on `canonical_encode_traced`
+(grammatical-role annotations), `canonical_decode_raw` (repair-search
+candidates without a verify render), `canonical_encode_at` (re-rendering an
+older artifact under its own version), and the `canonical_text` returned by
+`canonical_decode` (wording diff without a second generation). The opcode
+glyphs remain page-side markup around the canonical prose.
 
 ## When not to use it
 

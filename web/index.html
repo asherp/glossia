@@ -1100,7 +1100,8 @@ footer a:hover { text-decoration: underline; }
             <span class="addr-glyph">&#8982;</span> OP_HASH160, <span class="addr-glyph">&#8801;</span>
             OP_EQUALVERIFY, <span class="addr-glyph">&#8711;</span> OP_CHECKSIG). Glossia encodes only the
             part that carries entropy &mdash; the 20- or 32-byte program &mdash; which is
-            <strong>17 words</strong> for a hash160 address and <strong>25</strong> for a 32-byte one.</p>
+            <strong>24 words</strong> for a hash160 address and <strong>32</strong> for a 32-byte one
+            under the current format version, four of them error-correcting parity.</p>
             <p><strong>&#9450;</strong> and <strong>&#9312;</strong> are worth a note: Unicode counts them
             as <em>alphanumeric</em>, so the decoder&rsquo;s token trim does not strip them. Written flush
             against an address word they would hide it entirely. They are safe here because the format
@@ -1339,6 +1340,7 @@ import init, {
   get_payload_words as wasmGetPayloadWords,
   get_cover_words as wasmGetCoverWords,
   canonical_encode as wasmCanonicalEncode,
+  canonical_encode_at as wasmCanonicalEncodeAt,
   canonical_encode_traced as wasmCanonicalEncodeTraced,
   canonical_decode_raw as wasmCanonicalDecodeRaw,
 } from './glossia.js';
@@ -1983,11 +1985,25 @@ const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_S
 // the value the fluency sweep chose). One address, one prose — and the version
 // byte means the rules can evolve without re-rendering existing artifacts.
 //
-// Word counts follow from the packing: 1 pad word + ceil(8·(nBytes+1)/11).
-// The version byte and pad word cost two words over the old slack-packed
-// layout on a hash160 address; that is the price of a self-describing format.
-const ADDR_WORD_COUNT = { 20: 17, 32: 25 };
-const ADDR_BYTES_FOR_COUNT = { 17: 20, 25: 32 };
+// The word count follows from the packing, and the packing belongs to the
+// canonical layer: v1 was a version byte and the bitpack pad word, v2 added a
+// crc32 envelope, v3 added Reed–Solomon parity words. Restating that arithmetic
+// here is how the page came to expect v1's 17 words of a v3 rendering's 24 and
+// flag its own output unreadable — so the count is now read off the encoder,
+// once per size and version, and an artifact's byte length comes from what its
+// words decode to rather than from counting them.
+const ADDR_SIZES = [20, 32];          // hash160, or a 32-byte witness program
+let addrVersion = null;               // the version this build writes, learned from its first rendering
+const addrCountCache = new Map();
+function addrWordCount(nBytes, version = addrVersion) {
+  const key = `${version}:${nBytes}`;
+  if (addrCountCache.has(key)) return addrCountCache.get(key);
+  const text = addrProse(new Uint8Array(nBytes), version);
+  const count = text === null ? null : addrHarvest(text).length;
+  // A null version meant "current"; addrProse has learned which that is.
+  addrCountCache.set(`${version ?? addrVersion}:${nBytes}`, count);
+  return count;
+}
 const ADDR_PRESETS = [
   { label: 'P2WPKH', addr: 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4' },
   { label: 'P2TR',   addr: 'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9' },
@@ -1998,7 +2014,7 @@ const ADDR_PRESETS = [
 let addrWords = null;         // BIP39 wordlist, index order
 let addrIndex = null;         // word -> index
 let addrCover = null;         // the connective vocabulary, for locating misspellings
-let addrState = null;         // { program, type, artifact, placements }
+let addrState = null;         // { program, type, version, prose, artifact, placements }
 let addrShowRoles = false;
 
 const B58A = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
@@ -2115,13 +2131,18 @@ const addrUnhex = h => Uint8Array.from(h.match(/../g) || [], x => parseInt(x, 16
 
 // Decode payload words to program bytes, no verification render — the repair
 // search decodes many candidates and renders each through the memoized
-// addrProse instead. Returns null if the words do not decode, decode to a
-// different length, or carry a version this build does not know.
+// addrProse instead. The decoder reads the version byte itself, so the result
+// carries the version the words were written under beside the program: that is
+// what fixes how many words the artifact should hold and which rules re-render
+// it. Returns { program, version }, or null if the words do not decode, carry a
+// version this build does not know, or decode to a length other than `nBytes`
+// when one is stated.
 function addrDecodeWords(words, nBytes) {
   const r = JSON.parse(wasmCanonicalDecodeRaw(words.join(' '), 'english', 'bip39'));
   if (r.error) return null;
-  const prog = addrUnhex(r.payload_hex);
-  return prog.length === nBytes ? prog : null;
+  const program = addrUnhex(r.payload_hex);
+  if (nBytes !== undefined && program.length !== nBytes) return null;
+  return { program, version: r.version };
 }
 
 // An address determines its prose exactly, so the rendering is a pure function
@@ -2129,31 +2150,44 @@ function addrDecodeWords(words, nBytes) {
 // to verify, once to diff, and once per keystroke while the payload is untouched
 // (which is every edit to a cover word). Each of those is ~100ms of generation.
 // Memoize on the program.
+//
+// `version` selects the format version to render under; null means the current
+// one. An artifact names its own version, so verifying one written under an
+// older version re-renders under that version's frozen rules, which is the
+// whole promise of the version byte.
 const addrProseCache = new Map();
-function addrProse(program) {
-  const key = addrHex(program);
-  if (addrProseCache.has(key)) return addrProseCache.get(key);
-  const r = JSON.parse(wasmCanonicalEncode(key, 'english', 'bip39'));
+function addrProse(program, version = addrVersion) {
+  const hex = addrHex(program);
+  const key = v => `${v}:${hex}`;
+  if (version !== null && addrProseCache.has(key(version))) return addrProseCache.get(key(version));
+  const r = JSON.parse(version === null
+    ? wasmCanonicalEncode(hex, 'english', 'bip39')
+    : wasmCanonicalEncodeAt(hex, 'english', 'bip39', version));
+  if (version === null && !r.error) addrVersion = version = r.version;
   const text = r.error ? null : r.encoded_text;
   if (addrProseCache.size > 400) addrProseCache.clear();
-  addrProseCache.set(key, text);
+  addrProseCache.set(key(version), text);
   return text;
 }
 
 function addrRender(program, type) {
   const r = JSON.parse(wasmCanonicalEncodeTraced(addrHex(program), 'english', 'bip39'));
   if (r.error) throw new Error(r.error);
-  addrProseCache.set(addrHex(program), r.encoded_text);   // the checker will ask for this
+  addrVersion = r.version;
+  addrProseCache.set(`${r.version}:${addrHex(program)}`, r.encoded_text);   // the checker will ask for this
   const lead = addrGlyphs(type, 'lead'), trail = addrGlyphs(type, 'trail');
   return {
+    version: r.version,
     prose: r.encoded_text,
     artifact: [lead, r.encoded_text, trail].filter(Boolean).join(' '),
     placements: r.placements || [],
   };
 }
 
-// Decode + verify. Mirrors the Rust walkthrough: word count first (a fixed-length
-// address has a fixed word count), then re-render and compare.
+// Decode + verify. Mirrors the Rust walkthrough: decode, check the word count
+// (a fixed-length address has a fixed word count under a given version), then
+// re-render under that version and compare. Decoding comes first because the
+// version byte is what says how many words to expect.
 function addrRead(artifact, nBytes) {
   const toks = artifact.split(/\s+/).filter(Boolean);
   const stripMarkup = w => {
@@ -2163,11 +2197,14 @@ function addrRead(artifact, nBytes) {
     return w.slice(a, b).toLowerCase();
   };
   const harvested = toks.map(stripMarkup).filter(w => w && addrIndex.has(w));
-  const expected = ADDR_WORD_COUNT[nBytes];
+  const dec = addrDecodeWords(harvested, nBytes);
+  // Undecodable words cannot say which version they meant, so the count is
+  // judged against the current one — the version a fresh artifact carries.
+  const expected = addrWordCount(nBytes, dec ? dec.version : addrVersion);
   if (harvested.length !== expected)
     return { verdict: 'unreadable', note: `wrong number of address words (${harvested.length}, expected ${expected})` };
-  const program = addrDecodeWords(harvested, nBytes);
-  if (!program) return { verdict: 'unreadable', note: 'the address words do not decode' };
+  if (!dec) return { verdict: 'unreadable', note: 'the address words do not decode' };
+  const { program, version } = dec;
 
   // Compare against the re-render with markup removed, so spacing around a glyph
   // (⓪Insect vs ⓪ Insect) is a formatting difference rather than a failed check.
@@ -2175,17 +2212,17 @@ function addrRead(artifact, nBytes) {
                         .filter(t => t.length);
   // One render. The address determines its prose exactly, so there is nothing to
   // search over.
-  const rendered = addrProse(program);
+  const rendered = addrProse(program, version);
   if (rendered === null) return { verdict: 'unreadable', note: 'encode failed' };
   const got = rendered.split(/\s+/).filter(Boolean);
-  if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, match: 1 };
+  if (got.join(' ') === proseToks.join(' ')) return { verdict: 'verified', program, version, match: 1 };
   // Aligned, not positional: one dropped connective word should read as "one
   // word out of thirty differs", not as "everything after it differs".
   const n = Math.max(got.length, proseToks.length, 1);
   const best = addrAlign(proseToks, got).matched / n;
   return best > 0.75
-    ? { verdict: 'unverified', program, match: best }
-    : { verdict: 'mismatch', program, match: best };
+    ? { verdict: 'unverified', program, version, match: best }
+    : { verdict: 'mismatch', program, version, match: best };
 }
 
 // Locate damage WITHOUT knowing the original. The re-render is the reference:
@@ -2230,10 +2267,10 @@ function addrAlign(recv, got) {
   return { ops, matched: L[0][0] };
 }
 
-function addrDiffAgainstRerender(artifact, program) {
+function addrDiffAgainstRerender(artifact, program, version) {
   const recv = artifact.split(/\s+/).filter(Boolean).map(t =>
     [...t].filter(ch => !ADDR_MARKUP.has(ch)).join('')).filter(t => t.length);
-  const text = addrProse(program);
+  const text = addrProse(program, version);
   if (text === null) return { ops: [], rendered: [], recv };
   const got = text.split(/\s+/).filter(Boolean);
   const { ops } = addrAlign(recv, got);
@@ -2278,9 +2315,9 @@ function addrProposeRepairs(artifact, words, budgetMs = ADDR_SEARCH_MS) {
     for (const cand of addrEdit1(words[i])) {
       if (performance.now() > deadline) return hits;
       const w = words.slice(); w[i] = cand;
-      const prog = addrDecodeWords(w, addrState ? addrState.program.length : 20);
-      if (!prog) continue;
-      const text = addrProse(prog);
+      const dec = addrDecodeWords(w, addrState ? addrState.program.length : 20);
+      if (!dec) continue;
+      const text = addrProse(dec.program, dec.version);
       if (text === null) continue;
       const got = text.split(/\s+/).filter(Boolean);
       let miss = 0;
@@ -2399,10 +2436,20 @@ async function addrDecodeRun() {
   };
   if (!text) return blank();
 
-  // A fixed-length address has a fixed word count, so the count picks the size.
+  // The byte length is whatever the words decode to. The decoder reads the
+  // version byte and the envelope, so the page never counts words to guess at
+  // a size — the count only shapes the message when nothing decodes.
   const words = addrHarvest(text);
-  const nBytes = ADDR_BYTES_FOR_COUNT[words.length];
-  if (!nBytes) return fail(`${words.length} address words — a prose address has 17 or 25`);
+  const dec = words.length ? addrDecodeWords(words) : null;
+  if (!dec) {
+    const counts = ADDR_SIZES.map(n => addrWordCount(n));
+    return fail(counts.includes(words.length)
+      ? 'the address words do not decode'
+      : `${words.length} address words — a prose address has ${counts.join(' or ')}`);
+  }
+  const nBytes = dec.program.length;
+  if (!ADDR_SIZES.includes(nBytes))
+    return fail(`the words decode to ${nBytes} bytes, which is not an address program`);
   const type = addrTypeFromGlyphs(text, nBytes);
   if (!type) return fail('no opcode symbol, so the script type is unknown');
   const res = addrRead(text, nBytes);
@@ -2429,7 +2476,7 @@ async function addrEncodeRun() {
     // Structural facts a reader can act on. The checksum and the hash are machine
     // detail — surfacing them invites checking the prose against them, which is
     // the habit this format exists to remove.
-    metaEl.textContent = `${type} · ${ADDR_WORD_COUNT[program.length]} address words · ${r.prose.split(/\s+/).length} words total`;
+    metaEl.textContent = `${type} · ${addrHarvest(r.prose).length} address words · ${r.prose.split(/\s+/).length} words total`;
     document.getElementById('addr-legend').textContent = addrLegend(type);
     addrPaint(r.artifact, r.placements);
     addrSetVerdict(addrRead(r.artifact, program.length));
@@ -2568,7 +2615,9 @@ function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
   const harvestIdx = [];
   toks.forEach((t, i) => { const c = core(t); if (c && addrIndex.has(c)) { harvested.push(c); harvestIdx.push(i); } });
 
-  const expected = ADDR_WORD_COUNT[nBytes];
+  // The artifact under check is the current rendering being edited, so its
+  // word count is the one that rendering's version fixes.
+  const expected = addrWordCount(nBytes, addrState ? addrState.version : addrVersion);
 
   // ── too few address words: one has been mangled OFF the vocabulary ────
   // That is a misspelling in the strict sense — the word is not in the
@@ -2608,11 +2657,11 @@ function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
   if (harvested.length > expected) return { marks, verdict: 'long' };
 
   // ── right count: compare against the re-render ────────────────────────
-  const program = addrDecodeWords(harvested, nBytes);
-  if (!program) return { marks, verdict: 'undecodable' };
+  const dec = addrDecodeWords(harvested, nBytes);
+  if (!dec) return { marks, verdict: 'undecodable' };
   // `rendered` IS the expected wording — the diff just computed it, so asking
   // for it again was a second full generation for an answer already in hand.
-  const { ops } = addrDiffAgainstRerender(artifact, program);
+  const { ops } = addrDiffAgainstRerender(artifact, dec.program, dec.version);
   if (ops.length === 0) return { marks, verdict: 'clean' };
 
   const payloadPositions = new Set(harvestIdx);
