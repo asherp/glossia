@@ -199,6 +199,33 @@
 <li><strong>Word frequency analysis</strong>: Tool to generate word lists from frequency data with POS tags</li>
 </ul>
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<h3 id="download-a-prebuilt-binary"><a class="header" href="#download-a-prebuilt-binary">Download a Prebuilt Binary</a></h3>
+<p>Each release attaches a <code>glossia</code> binary — no Rust toolchain needed. Pick the
+archive matching your platform from the
+<a href="https://github.com/asherp/glossia/releases/latest">latest release</a>:</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Asset</th></tr></thead><tbody>
+<tr><td>Linux x86_64 (glibc 2.35+)</td><td><code>x86_64-unknown-linux-gnu.tar.gz</code></td></tr>
+<tr><td>Linux x86_64 (static, any distro)</td><td><code>x86_64-unknown-linux-musl.tar.gz</code></td></tr>
+<tr><td>macOS Apple silicon</td><td><code>aarch64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>macOS Intel</td><td><code>x86_64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>Windows x86_64</td><td><code>x86_64-pc-windows-msvc.zip</code></td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-bash"># Linux x86_64 — substitute the release you want for v0.6.0
+name=glossia-v0.6.0-x86_64-unknown-linux-gnu
+base=https://github.com/asherp/glossia/releases/download/v0.6.0
+curl -LO "$base/$name.tar.gz" -LO "$base/$name.tar.gz.sha256"
+sha256sum -c "$name.tar.gz.sha256"
+tar xzf "$name.tar.gz"
+sudo install "$name/glossia" /usr/local/bin/
+</code></pre>
+<p>The macOS binaries are unsigned, so Gatekeeper quarantines them on first run:
+<code>xattr -d com.apple.quarantine glossia</code> clears it.</p>
+<h3 id="install-from-cratesio"><a class="header" href="#install-from-cratesio">Install from crates.io</a></h3>
+<pre><code class="language-bash">cargo install glossia-cli
+</code></pre>
+<p>The published release, and the shortest path if you already have a Rust
+toolchain. Note the binary is named <code>glossia</code>, not <code>glossia-cli</code>.</p>
 <h3 id="install-from-source"><a class="header" href="#install-from-source">Install from Source</a></h3>
 <pre><code class="language-bash"># Clone the repository
 git clone https://github.com/asherp/glossia.git
@@ -468,6 +495,47 @@ glossia --random 12 --verbose --seed 0
 <li>Grammar files use Pest parser syntax - see <code>src/grammar_parser.pest</code> for the grammar definition</li>
 </ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation-1"><a class="header" href="#installation-1">Installation</a></h1>
+<h2 id="from-a-release-binary"><a class="header" href="#from-a-release-binary">From a Release Binary</a></h2>
+<p>Each release attaches a prebuilt <code>glossia</code> binary, which is the only install
+path that does not want a Rust toolchain. Download the archive for your
+platform from the
+<a href="https://github.com/asherp/glossia/releases/latest">releases page</a>:</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Asset suffix</th></tr></thead><tbody>
+<tr><td>Linux x86_64 (glibc 2.35+)</td><td><code>x86_64-unknown-linux-gnu.tar.gz</code></td></tr>
+<tr><td>Linux x86_64 (static, any distro)</td><td><code>x86_64-unknown-linux-musl.tar.gz</code></td></tr>
+<tr><td>macOS Apple silicon</td><td><code>aarch64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>macOS Intel</td><td><code>x86_64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>Windows x86_64</td><td><code>x86_64-pc-windows-msvc.zip</code></td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-bash"># Substitute the release you want for v0.6.0
+name=glossia-v0.6.0-x86_64-unknown-linux-gnu
+base=https://github.com/asherp/glossia/releases/download/v0.6.0
+curl -LO "$base/$name.tar.gz" -LO "$base/$name.tar.gz.sha256"
+sha256sum -c "$name.tar.gz.sha256"
+tar xzf "$name.tar.gz"
+sudo install "$name/glossia" /usr/local/bin/
+</code></pre>
+<p>Every archive ships a <code>.sha256</code> beside it, holding the same
+<code>sha256sum</code>/<code>shasum -a 256</code> line format on all platforms.</p>
+<p>Two platform notes:</p>
+<ul>
+<li><strong>macOS</strong>: the binaries are unsigned, so Gatekeeper quarantines them on first
+run. <code>xattr -d com.apple.quarantine glossia</code> clears it.</li>
+<li><strong>Linux</strong>: the glibc build is compiled on Ubuntu 22.04, so it runs on glibc
+2.35 and newer. On anything older — or on a musl distro such as Alpine — take
+the static musl build instead. The musl allocator is slower under
+allocation-heavy encoding, which is why both are published rather than only
+the portable one.</li>
+</ul>
+<p>Language data (wordlists, grammars, prosody) is embedded in the binary, so a
+single file is the whole install.</p>
+<h2 id="from-cratesio"><a class="header" href="#from-cratesio">From crates.io</a></h2>
+<pre><code class="language-bash">cargo install glossia-cli
+</code></pre>
+<p>This installs the most recent published release. It is the shortest path if you
+already have a Rust toolchain — no clone, no checkout. Note that the binary is
+named <code>glossia</code>, while the crate providing it is <code>glossia-cli</code>.</p>
 <h2 id="from-source"><a class="header" href="#from-source">From Source</a></h2>
 <pre><code class="language-bash"># Clone the repository
 git clone https://github.com/asherp/glossia.git
@@ -1260,13 +1328,18 @@ new version entry, never an updated golden.
 version's goldens.</p>
 <h2 id="the-address-format-uses-it"><a class="header" href="#the-address-format-uses-it">The address format uses it</a></h2>
 <p>The prose Bitcoin address panel (<code>web/index.html</code>) is the first consumer: an
-address's program bytes go through <code>canonical_encode</code>, so a 20-byte hash160 is
-17 words (version byte + pad word included) and a 32-byte witness program is
-25. The panel's checker builds on <code>canonical_encode_traced</code> (grammatical-role
-annotations), <code>canonical_decode_raw</code> (repair-search candidates without a
-verify render), and the <code>canonical_text</code> returned by <code>canonical_decode</code>
-(wording diff without a second generation). The opcode glyphs remain page-side
-markup around the canonical prose.</p>
+address's program bytes go through <code>canonical_encode</code>, so under v3 a 20-byte
+hash160 is 24 words and a 32-byte witness program is 32 (version byte, pad
+word, crc32 envelope and four parity words included; v1 was 17 and 25, v2 20
+and 28). The panel does not restate that arithmetic: it reads the count off
+the encoder once per size and version, and takes an artifact's byte length and
+version from <code>canonical_decode_raw</code>, so a format change cannot leave the page
+expecting the wrong count. The checker builds on <code>canonical_encode_traced</code>
+(grammatical-role annotations), <code>canonical_decode_raw</code> (repair-search
+candidates without a verify render), <code>canonical_encode_at</code> (re-rendering an
+older artifact under its own version), and the <code>canonical_text</code> returned by
+<code>canonical_decode</code> (wording diff without a second generation). The opcode
+glyphs remain page-side markup around the canonical prose.</p>
 <h2 id="when-not-to-use-it"><a class="header" href="#when-not-to-use-it">When not to use it</a></h2>
 <p>Callers that need their own seeds, packing, or best-of policy — or prose that
 deliberately is not stable across releases — should use the unversioned seams

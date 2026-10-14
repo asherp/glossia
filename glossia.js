@@ -403,6 +403,45 @@ export function canonical_encode_fixed(payload_hex, language, wordlist) {
 }
 
 /**
+ * `canonical_encode_fixed` at an EXPLICIT format version, rather than the
+ * current one — the fixed packing's half of `canonical_encode_at`.
+ *
+ * Verification is by re-render, so a consumer holding a fixed-packing artifact
+ * that names an older version needs to render under *that* version's rules;
+ * with only the current-version export it could compare an old artifact
+ * against new prose and call a sound artifact unverified.
+ *
+ * Returns JSON `{ encoded_text, version }` or `{ error }`.
+ * @param {string} payload_hex
+ * @param {string} language
+ * @param {string} wordlist
+ * @param {number} version
+ * @returns {string}
+ */
+export function canonical_encode_fixed_at(payload_hex, language, wordlist, version) {
+    let deferred4_0;
+    let deferred4_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(payload_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        wasm.canonical_encode_fixed_at(retptr, ptr0, len0, ptr1, len1, ptr2, len2, version);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred4_0 = r0;
+        deferred4_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
  * `canonical_encode_fixed` with placements, for UIs that annotate the prose.
  *
  * Returns JSON `{ encoded_text, version, placements: [...] }` or `{ error }`.

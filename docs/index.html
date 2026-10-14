@@ -198,6 +198,33 @@
 <li><strong>Word frequency analysis</strong>: Tool to generate word lists from frequency data with POS tags</li>
 </ul>
 <h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<h3 id="download-a-prebuilt-binary"><a class="header" href="#download-a-prebuilt-binary">Download a Prebuilt Binary</a></h3>
+<p>Each release attaches a <code>glossia</code> binary — no Rust toolchain needed. Pick the
+archive matching your platform from the
+<a href="https://github.com/asherp/glossia/releases/latest">latest release</a>:</p>
+<div class="table-wrapper"><table><thead><tr><th>Platform</th><th>Asset</th></tr></thead><tbody>
+<tr><td>Linux x86_64 (glibc 2.35+)</td><td><code>x86_64-unknown-linux-gnu.tar.gz</code></td></tr>
+<tr><td>Linux x86_64 (static, any distro)</td><td><code>x86_64-unknown-linux-musl.tar.gz</code></td></tr>
+<tr><td>macOS Apple silicon</td><td><code>aarch64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>macOS Intel</td><td><code>x86_64-apple-darwin.tar.gz</code></td></tr>
+<tr><td>Windows x86_64</td><td><code>x86_64-pc-windows-msvc.zip</code></td></tr>
+</tbody></table>
+</div>
+<pre><code class="language-bash"># Linux x86_64 — substitute the release you want for v0.6.0
+name=glossia-v0.6.0-x86_64-unknown-linux-gnu
+base=https://github.com/asherp/glossia/releases/download/v0.6.0
+curl -LO "$base/$name.tar.gz" -LO "$base/$name.tar.gz.sha256"
+sha256sum -c "$name.tar.gz.sha256"
+tar xzf "$name.tar.gz"
+sudo install "$name/glossia" /usr/local/bin/
+</code></pre>
+<p>The macOS binaries are unsigned, so Gatekeeper quarantines them on first run:
+<code>xattr -d com.apple.quarantine glossia</code> clears it.</p>
+<h3 id="install-from-cratesio"><a class="header" href="#install-from-cratesio">Install from crates.io</a></h3>
+<pre><code class="language-bash">cargo install glossia-cli
+</code></pre>
+<p>The published release, and the shortest path if you already have a Rust
+toolchain. Note the binary is named <code>glossia</code>, not <code>glossia-cli</code>.</p>
 <h3 id="install-from-source"><a class="header" href="#install-from-source">Install from Source</a></h3>
 <pre><code class="language-bash"># Clone the repository
 git clone https://github.com/asherp/glossia.git

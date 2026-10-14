@@ -321,13 +321,18 @@ new version entry, never an updated golden.
 version's goldens.</p>
 <h2 id="the-address-format-uses-it"><a class="header" href="#the-address-format-uses-it">The address format uses it</a></h2>
 <p>The prose Bitcoin address panel (<code>web/index.html</code>) is the first consumer: an
-address's program bytes go through <code>canonical_encode</code>, so a 20-byte hash160 is
-17 words (version byte + pad word included) and a 32-byte witness program is
-25. The panel's checker builds on <code>canonical_encode_traced</code> (grammatical-role
-annotations), <code>canonical_decode_raw</code> (repair-search candidates without a
-verify render), and the <code>canonical_text</code> returned by <code>canonical_decode</code>
-(wording diff without a second generation). The opcode glyphs remain page-side
-markup around the canonical prose.</p>
+address's program bytes go through <code>canonical_encode</code>, so under v3 a 20-byte
+hash160 is 24 words and a 32-byte witness program is 32 (version byte, pad
+word, crc32 envelope and four parity words included; v1 was 17 and 25, v2 20
+and 28). The panel does not restate that arithmetic: it reads the count off
+the encoder once per size and version, and takes an artifact's byte length and
+version from <code>canonical_decode_raw</code>, so a format change cannot leave the page
+expecting the wrong count. The checker builds on <code>canonical_encode_traced</code>
+(grammatical-role annotations), <code>canonical_decode_raw</code> (repair-search
+candidates without a verify render), <code>canonical_encode_at</code> (re-rendering an
+older artifact under its own version), and the <code>canonical_text</code> returned by
+<code>canonical_decode</code> (wording diff without a second generation). The opcode
+glyphs remain page-side markup around the canonical prose.</p>
 <h2 id="when-not-to-use-it"><a class="header" href="#when-not-to-use-it">When not to use it</a></h2>
 <p>Callers that need their own seeds, packing, or best-of policy — or prose that
 deliberately is not stable across releases — should use the unversioned seams
