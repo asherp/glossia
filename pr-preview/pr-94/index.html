@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="8b802bd">
+<meta name="glossia-build" content="0c5c174">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -440,7 +440,7 @@ section.how-it-works {
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 420px;
+  max-width: 460px;
   margin: 1.5rem auto;
   padding: 1.5rem 1rem;
   background: var(--surface);
@@ -460,6 +460,38 @@ section.how-it-works {
   background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: 6px;
+}
+/* The optional layers hang off the stage they steer rather than sitting in the
+   chain, because the payload does not pass through them: they bias which
+   skeleton is drawn and which COVER words fill the slots the payload left
+   empty. Drawing them inline would say a reader's bytes go through semantics,
+   which is exactly the thing that is not true — and the reason a semantically
+   planned rendering and a verse one decode with the same code. */
+.pipeline .layers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.45rem;
+}
+.pipeline .layer {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.pipeline .aside {
+  display: block;
+  margin-top: 0.5rem;
+  max-width: 23rem;
+  /* Sans, where every other label is mono: this is the one row that is a
+     sentence rather than a stage name, and monospace prose reads as code. */
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--text-dim);
 }
 .pipeline .arrow {
   width: 1px;
@@ -1314,7 +1346,15 @@ footer a:hover { text-decoration: underline; }
         <div class="arrow" aria-hidden="true"></div>
         <div class="step data">Payload tokens</div>
         <div class="arrow" aria-hidden="true"></div>
-        <div class="step">CFG + Montague types</div>
+        <div class="step">CFG + Montague types
+          <span class="layers">
+            <span class="layer">semantic planning</span>
+            <span class="layer">meter</span>
+            <span class="layer">best-of-N</span>
+          </span>
+          <span class="aside">These choose cover words and sentence shapes only. Payload
+            words and their order never change, so verse decodes with the same code as prose.</span>
+        </div>
         <div class="arrow" aria-hidden="true"></div>
         <div class="step data">Prose</div>
       </div>
