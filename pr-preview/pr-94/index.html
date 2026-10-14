@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="bb1b0fa">
+<meta name="glossia-build" content="7630628">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -1102,6 +1102,12 @@ footer a:hover { text-decoration: underline; }
             part that carries entropy &mdash; the 20- or 32-byte program &mdash; which is
             <strong>24 words</strong> for a hash160 address and <strong>32</strong> for a 32-byte one
             under the current format version, four of them error-correcting parity.</p>
+            <p><strong>P2PK</strong> is the odd one out, and is entered as a raw public key rather than
+            an address: the script pays straight to a key, so there is no base58 or bech32 spelling to
+            type. The key&rsquo;s prefix byte already states its length &mdash; 02 or 03 for a
+            compressed key, 04 for an uncompressed one &mdash; so these take the <em>fixed</em> packing,
+            which spends no word restating it. The genesis block&rsquo;s coinbase key is 58 words; a
+            compressed key is 32.</p>
             <p><strong>&#9450;</strong> and <strong>&#9312;</strong> are worth a note: Unicode counts them
             as <em>alphanumeric</em>, so the decoder&rsquo;s token trim does not strip them. Written flush
             against an address word they would hide it entirely. They are safe here because the format
@@ -1343,6 +1349,10 @@ import init, {
   canonical_encode_at as wasmCanonicalEncodeAt,
   canonical_encode_traced as wasmCanonicalEncodeTraced,
   canonical_decode_raw as wasmCanonicalDecodeRaw,
+  canonical_encode_fixed as wasmCanonicalEncodeFixed,
+  canonical_encode_fixed_at as wasmCanonicalEncodeFixedAt,
+  canonical_encode_fixed_traced as wasmCanonicalEncodeFixedTraced,
+  canonical_decode_raw_fixed as wasmCanonicalDecodeRawFixed,
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
@@ -1969,6 +1979,9 @@ const ADDR_OPS = {
   ONE:         ['\u2460', 'OP_1'],
 };
 const ADDR_SCRIPT = {
+  // P2PK is the one script here that opens on its own data: the key comes
+  // first and ∇ CHECKSIG closes it, so it is the only entry with no lead.
+  P2PK:   { lead: [],                 trail: ['CHECKSIG'] },
   P2PKH:  { lead: ['DUP', 'HASH160'], trail: ['EQUALVERIFY', 'CHECKSIG'] },
   P2SH:   { lead: ['HASH160'],        trail: ['EQUAL'] },
   P2WPKH: { lead: ['ZERO'],           trail: [] },
@@ -1992,11 +2005,30 @@ const addrLegend = type => ((ADDR_SCRIPT[type] || {}).lead || []).concat((ADDR_S
 // flag its own output unreadable — so the count is now read off the encoder,
 // once per size and version, and an artifact's byte length comes from what its
 // words decode to rather than from counting them.
-const ADDR_SIZES = [20, 32];          // hash160, or a 32-byte witness program
+//
+// What a prose artifact can carry, and which packing carries it. A public key
+// states its own length in its prefix byte — 02/03 compressed, 04 uncompressed
+// — so the pad word the self-describing packing spends to carry a length is
+// waste, and keys take the fixed packing instead. Addresses keep the
+// self-describing one their shipped artifacts were written with.
+const ADDR_PROGRAMS = [
+  { bytes: 20, fixed: false },   // hash160: P2PKH, P2SH, P2WPKH
+  { bytes: 32, fixed: false },   // witness program: P2WSH, P2TR
+  { bytes: 33, fixed: true },    // compressed public key: P2PK
+  { bytes: 65, fixed: true },    // uncompressed public key: P2PK
+];
+const addrFixed = n => ADDR_PROGRAMS.some(p => p.bytes === n && p.fixed);
+const addrKnownSize = n => ADDR_PROGRAMS.some(p => p.bytes === n);
+// A key is not an address, and calling its words "address words" in the one
+// place the panel counts them would be wrong in both directions.
+const addrUnit = type => (type === 'P2PK' ? 'key words' : 'address words');
+// The same distinction in the singular, for the verdict badges and the repair
+// notes: what a reader is looking at is a key, not an address.
+const addrNoun = () => (addrState && addrState.type === 'P2PK' ? 'key' : 'address');
 let addrVersion = null;               // the version this build writes, learned from its first rendering
 const addrCountCache = new Map();
 function addrWordCount(nBytes, version = addrVersion) {
-  const key = `${version}:${nBytes}`;
+  const key = `${version}:${nBytes}`;   // the packing follows from nBytes
   if (addrCountCache.has(key)) return addrCountCache.get(key);
   const text = addrProse(new Uint8Array(nBytes), version);
   const count = text === null ? null : addrHarvest(text).length;
@@ -2009,6 +2041,10 @@ const ADDR_PRESETS = [
   { label: 'P2TR',   addr: 'bc1pmfr3p9j00pfxjh0zmgp99y8zftmd3s5pmedqhyptwy6lm87hf5sspknck9' },
   { label: 'P2PKH',  addr: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' },
   { label: 'P2SH',   addr: '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy' },
+  // The genesis block's coinbase output: a bare public key, which is what P2PK
+  // pays to and why it has no address form.
+  { label: 'P2PK',   addr: '04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61de'
+                         + 'b649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f' },
 ];
 
 let addrWords = null;         // BIP39 wordlist, index order
@@ -2063,6 +2099,18 @@ function bech32Decode(addr) {
 async function addrParse(text) {
   const s = (text || '').trim();
   if (!s) throw new Error('');
+  // A raw public key, for a P2PK output. Taken as hex because a bare key has no
+  // address form — that is the whole character of P2PK — and the prefix byte
+  // fixes the length, so a key of the wrong length is named rather than packed.
+  // No base58 address can start with '0' (the alphabet omits it) and bech32
+  // opens on its "bc" prefix, so this branch cannot shadow either.
+  const hex = s.toLowerCase();
+  if (/^0[23][0-9a-f]{64}$/.test(hex) || /^04[0-9a-f]{128}$/.test(hex))
+    return { type: 'P2PK', program: addrUnhex(hex) };
+  if (/^0[234][0-9a-f]*$/.test(hex))
+    throw new Error(hex[1] === '4'
+      ? `an uncompressed (04) public key is 130 hex characters, this is ${hex.length}`
+      : `a compressed (0${hex[1]}) public key is 66 hex characters, this is ${hex.length}`);
   if (s[0] === '1' || s[0] === '3') {
     const { version, program } = await b58check(s);
     return { type: version === 0 ? 'P2PKH' : 'P2SH', program };
@@ -2102,6 +2150,8 @@ function bech32Encode(hrp, witver, program) {
 }
 function addrFormat(type, program) {
   switch (type) {
+    // A key has no address spelling to rebuild, so the hex IS the round trip.
+    case 'P2PK':   return Promise.resolve(addrHex(program));
     case 'P2PKH':  return b58checkEncode(0x00, program);
     case 'P2SH':   return b58checkEncode(0x05, program);
     case 'P2TR':   return Promise.resolve(bech32Encode('bc', 1, program));
@@ -2113,6 +2163,11 @@ function addrFormat(type, program) {
 /// so the script type survives transcription without costing a payload word;
 /// ⓪ is shared by P2WPKH and P2WSH, and the word count separates those.
 function addrTypeFromGlyphs(text, nBytes) {
+  // A public key is only ever a P2PK output here, so its size settles the type
+  // and the closing ∇ is the whole of its markup. Checked first because P2PK
+  // has no leading glyph for the test below to read.
+  if (addrFixed(nBytes))
+    return [...text].some(c => c === ADDR_OPS.CHECKSIG[0]) ? 'P2PK' : null;
   const lead = (text.trim().split(/\s+/)[0] || '');
   const g = [...lead].filter(c => ADDR_MARKUP.has(c));
   const first = g[0];
@@ -2138,11 +2193,30 @@ const addrUnhex = h => Uint8Array.from(h.match(/../g) || [], x => parseInt(x, 16
 // version this build does not know, or decode to a length other than `nBytes`
 // when one is stated.
 function addrDecodeWords(words, nBytes) {
-  const r = JSON.parse(wasmCanonicalDecodeRaw(words.join(' '), 'english', 'bip39'));
-  if (r.error) return null;
-  const program = addrUnhex(r.payload_hex);
-  if (nBytes !== undefined && program.length !== nBytes) return null;
-  return { program, version: r.version };
+  const joined = words.join(' ');
+  const one = (len, fixed) => {
+    const r = JSON.parse(fixed
+      ? wasmCanonicalDecodeRawFixed(joined, 'english', 'bip39', len)
+      : wasmCanonicalDecodeRaw(joined, 'english', 'bip39'));
+    if (r.error) return null;
+    const program = addrUnhex(r.payload_hex);
+    if (len !== undefined && program.length !== len) return null;
+    return { program, version: r.version };
+  };
+  if (nBytes !== undefined) return one(nBytes, addrFixed(nBytes));
+  // Nothing has said which framing to expect. The self-describing packing
+  // states its own length, so one attempt covers every address size; the fixed
+  // packing has to be told, so each key size gets its own. The envelope's
+  // crc32 is what makes trying safe — a wrong framing fails it rather than
+  // handing back a plausible payload.
+  const auto = one(undefined, false);
+  if (auto && !addrFixed(auto.program.length)) return auto;
+  for (const p of ADDR_PROGRAMS) {
+    if (!p.fixed) continue;
+    const d = one(p.bytes, true);
+    if (d) return d;
+  }
+  return auto;   // decoded, but to a length this panel does not render
 }
 
 // An address determines its prose exactly, so the rendering is a pure function
@@ -2158,11 +2232,18 @@ function addrDecodeWords(words, nBytes) {
 const addrProseCache = new Map();
 function addrProse(program, version = addrVersion) {
   const hex = addrHex(program);
-  const key = v => `${v}:${hex}`;
+  const fixed = addrFixed(program.length);
+  // The packing is part of what renders the prose, so it is part of the cache
+  // key — two payloads of different lengths never collide, but the same bytes
+  // under the two packings are two different renderings.
+  const key = v => `${fixed ? 'f' : 'a'}:${v}:${hex}`;
   if (version !== null && addrProseCache.has(key(version))) return addrProseCache.get(key(version));
-  const r = JSON.parse(version === null
-    ? wasmCanonicalEncode(hex, 'english', 'bip39')
-    : wasmCanonicalEncodeAt(hex, 'english', 'bip39', version));
+  const enc = fixed
+    ? (version === null ? wasmCanonicalEncodeFixed(hex, 'english', 'bip39')
+                        : wasmCanonicalEncodeFixedAt(hex, 'english', 'bip39', version))
+    : (version === null ? wasmCanonicalEncode(hex, 'english', 'bip39')
+                        : wasmCanonicalEncodeAt(hex, 'english', 'bip39', version));
+  const r = JSON.parse(enc);
   if (version === null && !r.error) addrVersion = version = r.version;
   const text = r.error ? null : r.encoded_text;
   if (addrProseCache.size > 400) addrProseCache.clear();
@@ -2171,10 +2252,14 @@ function addrProse(program, version = addrVersion) {
 }
 
 function addrRender(program, type) {
-  const r = JSON.parse(wasmCanonicalEncodeTraced(addrHex(program), 'english', 'bip39'));
+  const hex = addrHex(program);
+  const r = JSON.parse(addrFixed(program.length)
+    ? wasmCanonicalEncodeFixedTraced(hex, 'english', 'bip39')
+    : wasmCanonicalEncodeTraced(hex, 'english', 'bip39'));
   if (r.error) throw new Error(r.error);
   addrVersion = r.version;
-  addrProseCache.set(`${r.version}:${addrHex(program)}`, r.encoded_text);   // the checker will ask for this
+  addrProseCache.set(`${addrFixed(program.length) ? 'f' : 'a'}:${r.version}:${hex}`,
+                     r.encoded_text);   // the checker will ask for this
   const lead = addrGlyphs(type, 'lead'), trail = addrGlyphs(type, 'trail');
   return {
     version: r.version,
@@ -2202,8 +2287,8 @@ function addrRead(artifact, nBytes) {
   // judged against the current one — the version a fresh artifact carries.
   const expected = addrWordCount(nBytes, dec ? dec.version : addrVersion);
   if (harvested.length !== expected)
-    return { verdict: 'unreadable', note: `wrong number of address words (${harvested.length}, expected ${expected})` };
-  if (!dec) return { verdict: 'unreadable', note: 'the address words do not decode' };
+    return { verdict: 'unreadable', note: `wrong number of payload words (${harvested.length}, expected ${expected})` };
+  if (!dec) return { verdict: 'unreadable', note: 'the payload words do not decode' };
   const { program, version } = dec;
 
   // Compare against the re-render with markup removed, so spacing around a glyph
@@ -2334,7 +2419,7 @@ function addrSetVerdict(res) {
   const map = {
     verified:   ['ok',   '✓ verified'],
     unverified: ['warn', '⚠ readable, not verified'],
-    mismatch:   ['bad',  '✗ wrong address'],
+    mismatch:   ['bad',  `✗ wrong ${addrNoun()}`],
     unreadable: ['bad',  '✗ unreadable'],
   };
   const [cls, label] = map[res.verdict];
@@ -2442,14 +2527,14 @@ async function addrDecodeRun() {
   const words = addrHarvest(text);
   const dec = words.length ? addrDecodeWords(words) : null;
   if (!dec) {
-    const counts = ADDR_SIZES.map(n => addrWordCount(n));
+    const counts = [...new Set(ADDR_PROGRAMS.map(p => addrWordCount(p.bytes)))].sort((a, b) => a - b);
     return fail(counts.includes(words.length)
-      ? 'the address words do not decode'
-      : `${words.length} address words — a prose address has ${counts.join(' or ')}`);
+      ? 'the payload words do not decode'
+      : `${words.length} payload words — a prose address or key has ${counts.join(', ')}`);
   }
   const nBytes = dec.program.length;
-  if (!ADDR_SIZES.includes(nBytes))
-    return fail(`the words decode to ${nBytes} bytes, which is not an address program`);
+  if (!addrKnownSize(nBytes))
+    return fail(`the words decode to ${nBytes} bytes, which is not an address or a public key`);
   const type = addrTypeFromGlyphs(text, nBytes);
   if (!type) return fail('no opcode symbol, so the script type is unknown');
   const res = addrRead(text, nBytes);
@@ -2460,7 +2545,7 @@ async function addrDecodeRun() {
   // Count prose words only, so the figure means the same thing in both
   // directions — the opcode glyphs are script, not wording.
   const prose = text.split(/\s+/).filter(t => [...t].some(c => !ADDR_MARKUP.has(c)));
-  metaEl.textContent = `${type} · ${words.length} address words · ${prose.length} words total`;
+  metaEl.textContent = `${type} · ${words.length} ${addrUnit(type)} · ${prose.length} words total`;
   document.getElementById('addr-legend').textContent = addrLegend(type);
   addrSetVerdict(res);
 }
@@ -2476,7 +2561,7 @@ async function addrEncodeRun() {
     // Structural facts a reader can act on. The checksum and the hash are machine
     // detail — surfacing them invites checking the prose against them, which is
     // the habit this format exists to remove.
-    metaEl.textContent = `${type} · ${addrHarvest(r.prose).length} address words · ${r.prose.split(/\s+/).length} words total`;
+    metaEl.textContent = `${type} · ${addrHarvest(r.prose).length} ${addrUnit(type)} · ${r.prose.split(/\s+/).length} words total`;
     document.getElementById('addr-legend').textContent = addrLegend(type);
     addrPaint(r.artifact, r.placements);
     addrSetVerdict(addrRead(r.artifact, program.length));
@@ -2563,7 +2648,11 @@ function addrApplyDamage(i) {
   if (!addrState) return;
   const d = addrDamages()[i];
   const damagedProse = d.apply();
-  const lead = addrState.artifact.slice(0, addrState.artifact.length - addrState.prose.length);
+  // Rebuild the markup the way addrRender wrote it. Slicing the lead off the
+  // artifact by length counted the TRAILING glyphs into the lead, so any script
+  // with a trail — P2PKH, P2SH, and now P2PK — had its first prose words eaten.
+  const l2 = addrGlyphs(addrState.type, 'lead');
+  const lead = l2 ? l2 + ' ' : '';
   const t2 = addrGlyphs(addrState.type, 'trail');
   const trail = t2 ? ' ' + t2 : '';
   const artifact = lead + damagedProse + trail;
@@ -2646,7 +2735,8 @@ function addrCheck(artifact, nBytes, budgetMs = ADDR_SEARCH_MS) {
         const r = addrRead(trial.join(' '), nBytes);
         if (r.verdict === 'verified') {
           marks.set(i, { kind: SPELL, suggest: cand,
-            note: `not an address word; “${cand}” restores the address and matches the wording` });
+            note: `not ${addrNoun() === 'key' ? 'a key' : 'an address'} word; “${cand}” restores the `
+                + `${addrNoun()} and matches the wording` });
           return { marks, verdict: 'repairable' };
         }
         if (performance.now() > deadline) return { marks, verdict: 'short' };
@@ -2809,11 +2899,11 @@ function addrPaintDamage(box, artifact, res, budgetMs = ADDR_SEARCH_MS) {
   const badge = {
     'clean':       ['ok',   '\u2713 verified'],
     'cover-damage':['warn', `\u26a0 ${marks.size} wording error${marks.size === 1 ? '' : 's'}`],
-    'repairable':  ['bad',  '\u2717 misspelled address word'],
-    'ambiguous':   ['bad',  '\u2717 wrong address (ambiguous)'],
-    'unlocatable': ['bad',  '\u2717 wrong address'],
-    'short':       ['bad',  '\u2717 missing an address word'],
-    'long':        ['bad',  '\u2717 extra address word'],
+    'repairable':  ['bad',  `\u2717 misspelled ${addrNoun()} word`],
+    'ambiguous':   ['bad',  `\u2717 wrong ${addrNoun()} (ambiguous)`],
+    'unlocatable': ['bad',  `\u2717 wrong ${addrNoun()}`],
+    'short':       ['bad',  `\u2717 missing ${addrNoun() === 'key' ? 'a key' : 'an address'} word`],
+    'long':        ['bad',  `\u2717 extra ${addrNoun()} word`],
     'undecodable': ['bad',  '\u2717 unreadable'],
   }[verdict];
   if (badge) {
