@@ -1361,32 +1361,35 @@ glossia --decode --to cashu &lt; voucher.txt
 <code>cashu_to_words(token, language, wordlist)</code> → <code>{ encoded_text }</code> and
 <code>cashu_from_words(text, language, wordlist)</code> → <code>{ token, repaired }</code>.</p>
 <h2 id="the-envelope"><a class="header" href="#the-envelope">The envelope</a></h2>
-<p>A V4 token is CBOR, and it spends space on things that can be packed tighter:
-each proof's 32-byte secret is stored as 64 hex characters, and every token
-spells out its mint URL and unit. The envelope (all lengths one byte):</p>
+<p>A V4 token is CBOR, and each proof's 32-byte secret is stored in it as 64 hex
+characters. The envelope stores the raw 32 bytes (all lengths one byte):</p>
 <pre><code class="language-text">0x00 cbor..                       a V4 token's CBOR, unchanged (fallback)
-0x01 flags [len url] [len unit] [len memo]
+0x01 flags len url len unit [len memo]
      nkeysets { len id  nproofs { exp secret[32] C[33] } }
 </code></pre>
-<p><code>flags</code> bit 0: a mint URL follows (else <code>https://mint.hashu.io</code>); bit 1: a unit
-follows (else <code>thh</code>); bit 2: a memo follows; bit 3: the URL follows without its
-<code>https://</code>. A proof's amount is <code>2^exp</code>.</p>
+<p><code>flags</code> bit 0: the URL is written without its <code>https://</code>; bit 1: a memo follows.
+A proof's amount is <code>2^exp</code>.</p>
+<p>The mint URL and unit are always written. The format assumes no mint and no
+unit: a default mint would send old tokens to whoever holds that domain later,
+and a default unit would tie Cashu to one currency.</p>
 <p>DLEQ proofs are left out; the receiver checks the token with its mint instead.
 A token the envelope can't hold exactly (a NUT-10 P2PK/HTLC secret, a witness,
 an amount that isn't a power of two) is carried as <code>0x00</code> raw CBOR, so nothing
 but DLEQ is ever dropped.</p>
-<p>The defaults are <a href="https://github.com/asherp/hashu">Hashu</a>'s, whose THH
-vouchers are Cashu tokens. Hashu writes the same envelope (<code>hashu_cli::words</code>),
-and <code>tests/cashu_vector_*.txt</code> pins the two together.</p>
+<p><a href="https://github.com/asherp/hashu">Hashu</a>, whose THH vouchers are Cashu tokens,
+writes the same envelope (<code>hashu_cli::words</code>), and <code>tests/cashu_vector_*.txt</code>
+pins the two together.</p>
 <h2 id="sizes"><a class="header" href="#sizes">Sizes</a></h2>
-<p>Each proof costs 66 bytes, about 100 English words with parity and cover words.
-Measured on <code>mint.hashu.io</code> THH tokens:</p>
+<p>Each proof costs 66 bytes, about 100 English words with parity and cover words;
+the mint URL, unit and any memo cost about 1.4 words per character on top.
+Measured on tokens from <code>https://mint.hashu.io</code> in unit <code>thh</code>:</p>
 <div class="table-wrapper"><table><thead><tr><th>Proofs</th><th><code>cashuB</code> length</th><th>Raw CBOR, canonical</th><th>Envelope, canonical</th></tr></thead><tbody>
-<tr><td>1</td><td>217 chars</td><td>229 words</td><td>126 words</td></tr>
-<tr><td>2</td><td>362 chars</td><td>399 words</td><td>207 words</td></tr>
-<tr><td>3</td><td>510 chars</td><td>545 words</td><td>319 words</td></tr>
+<tr><td>1</td><td>217 chars</td><td>229 words</td><td>144 words</td></tr>
+<tr><td>2</td><td>362 chars</td><td>399 words</td><td>251 words</td></tr>
+<tr><td>3</td><td>510 chars</td><td>545 words</td><td>356 words</td></tr>
 </tbody></table>
 </div>
+<p>A 9-character memo, as in the test vector, adds about 20 words.</p>
 <p>Before this, a <code>cashuB</code> token went through the character-level <code>crypto/cashu</code>
 dialect, which spends a byte on every base64 character (464 words for the
 2-proof token). That path is still used for V3 <code>cashuA</code> tokens and for verse
