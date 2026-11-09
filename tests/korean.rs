@@ -15,6 +15,11 @@ use glossia::{canonical_decode, canonical_encode, decode_from_language, encode_i
 const WORDLIST_TXT: &str = include_str!("../languages/korean/wordlist.txt");
 const PAYLOAD_YAML: &str = include_str!("../languages/korean/payload.yaml");
 const COVER_YAML: &str = include_str!("../languages/korean/cover.yaml");
+const CORPUS_YAML: &str = include_str!("../languages/korean/payload_corpus.yaml");
+
+/// The two Korean payload lists: `default` is BIP39 Korean, `corpus` the
+/// 2^14-word list drawn from the Shiberu frequency corpus.
+const WORDLISTS: [(&str, &str); 2] = [("default", PAYLOAD_YAML), ("corpus", CORPUS_YAML)];
 
 fn yaml_keys(src: &str) -> Vec<String> {
     let doc: serde_yaml::Mapping = serde_yaml::from_str(src).expect("yaml parses");
@@ -27,6 +32,10 @@ fn payload() -> Vec<String> {
 
 fn payload_set() -> HashSet<String> {
     payload().into_iter().collect()
+}
+
+fn set_of(yaml: &str) -> HashSet<String> {
+    yaml_keys(yaml).into_iter().collect()
 }
 
 /// Decompose precomposed Hangul syllables into conjoining jamo (the Hangul
@@ -63,45 +72,65 @@ fn payload_is_the_official_list_in_order_composed() {
 
 #[test]
 fn no_payload_word_plus_particle_is_a_payload_word() {
-    let set = payload_set();
-    for w in &set {
-        for p in KOREAN_PARTICLES {
-            let joined = format!("{w}{p}");
-            assert!(!set.contains(&joined), "{w} + {p} = {joined} is itself a payload word");
-            // And detaching recovers exactly the word that was written.
-            assert_eq!(
-                payload_form(&joined, &|t: &str| set.contains(t)).as_deref(),
-                Some(w.as_str()),
-                "{joined} does not decode to {w}"
-            );
+    for (name, yaml) in WORDLISTS {
+        let set = set_of(yaml);
+        for w in &set {
+            for p in KOREAN_PARTICLES {
+                let joined = format!("{w}{p}");
+                assert!(!set.contains(&joined), "{name}: {w} + {p} = {joined} is itself a payload word");
+                // And detaching recovers exactly the word that was written.
+                assert_eq!(
+                    payload_form(&joined, &|t: &str| set.contains(t)).as_deref(),
+                    Some(w.as_str()),
+                    "{name}: {joined} does not decode to {w}"
+                );
+            }
         }
     }
 }
 
 #[test]
 fn no_cover_word_decodes_as_payload() {
-    let set = payload_set();
     let cover: serde_yaml::Mapping = serde_yaml::from_str(COVER_YAML).expect("yaml parses");
-    for (key, entry) in &cover {
-        let c = key.as_str().expect("string key");
-        assert!(
-            payload_form(&c, &|t: &str| set.contains(t)).is_none(),
-            "cover word {c} would decode as a payload word"
-        );
-        // A cover noun or pronoun with a particle attached must not decode
-        // either: 길 + 이 is the payload word 길이.
-        let takes_particles = ["N", "Pron"].iter().any(|pos| entry.get(*pos).is_some());
-        if !takes_particles {
-            continue;
-        }
-        for p in KOREAN_PARTICLES {
-            let joined = format!("{c}{p}");
+    for (name, yaml) in WORDLISTS {
+        let set = set_of(yaml);
+        for (key, entry) in &cover {
+            let c = key.as_str().expect("string key");
             assert!(
-                payload_form(&joined, &|t: &str| set.contains(t)).is_none(),
-                "{joined} (cover + particle) would decode as a payload word"
+                payload_form(&c, &|t: &str| set.contains(t)).is_none(),
+                "{name}: cover word {c} would decode as a payload word"
             );
+            // A cover noun or pronoun with a particle attached must not decode
+            // either: 길 + 이 is the payload word 길이.
+            let takes_particles = ["N", "Pron"].iter().any(|pos| entry.get(*pos).is_some());
+            if !takes_particles {
+                continue;
+            }
+            for p in KOREAN_PARTICLES {
+                let joined = format!("{c}{p}");
+                assert!(
+                    payload_form(&joined, &|t: &str| set.contains(t)).is_none(),
+                    "{name}: {joined} (cover + particle) would decode as a payload word"
+                );
+            }
         }
     }
+}
+
+#[test]
+fn corpus_list_is_two_to_the_fourteen_composed_hangul_in_order() {
+    let words = yaml_keys(CORPUS_YAML);
+    assert_eq!(words.len(), 1 << 14, "the corpus list carries 14 bits per word");
+    assert_eq!(set_of(CORPUS_YAML).len(), words.len(), "duplicate word");
+    for w in &words {
+        assert!(
+            w.chars().all(|c| ('\u{AC00}'..='\u{D7A3}').contains(&c)),
+            "{w} is not all precomposed Hangul syllables"
+        );
+        assert_eq!(&compose_hangul(&decompose_hangul(w)), w);
+    }
+    // Index order is Hangul code-point order (가나다), frozen once shipped.
+    assert!(words.windows(2).all(|p| p[0] < p[1]), "payload_corpus.yaml is not in Hangul order");
 }
 
 #[test]
@@ -120,19 +149,21 @@ fn is_particle(token: &str) -> bool {
 #[test]
 fn free_form_round_trip_across_dialects() {
     let input = "Glossia speaks Korean now.";
-    for dialect in ["body", "subject", "prose", "payload_only"] {
-        for seed in [0u64, 1, 7, 42] {
-            let (text, _, _, _) = encode_into_language(
-                input, "korean", "default", dialect, None, seed, false, None, None, None, None,
-            )
-            .unwrap_or_else(|e| panic!("{dialect}/{seed} encode: {e}"));
-            assert!(
-                !text.split_whitespace().any(is_particle),
-                "{dialect}/{seed}: a particle was left as its own word: {text}"
-            );
-            let decoded = decode_from_language(&text, "korean", "default", false)
-                .unwrap_or_else(|e| panic!("{dialect}/{seed} decode: {e}\n{text}"));
-            assert_eq!(decoded, input, "{dialect}/{seed}: {text}");
+    for (wl, _) in WORDLISTS {
+        for dialect in ["body", "subject", "prose", "payload_only"] {
+            for seed in [0u64, 1, 7, 42] {
+                let (text, _, _, _) = encode_into_language(
+                    input, "korean", wl, dialect, None, seed, false, None, None, None, None,
+                )
+                .unwrap_or_else(|e| panic!("{wl}/{dialect}/{seed} encode: {e}"));
+                assert!(
+                    !text.split_whitespace().any(is_particle),
+                    "{wl}/{dialect}/{seed}: a particle was left as its own word: {text}"
+                );
+                let decoded = decode_from_language(&text, "korean", wl, false)
+                    .unwrap_or_else(|e| panic!("{wl}/{dialect}/{seed} decode: {e}\n{text}"));
+                assert_eq!(decoded, input, "{wl}/{dialect}/{seed}: {text}");
+            }
         }
     }
 }
@@ -161,17 +192,19 @@ fn canonical_round_trip_and_nfd_input() {
         (0u8..20).collect(),
         (100u8..132).collect(),
     ];
-    for payload in payloads {
-        let text = canonical_encode(&payload, "korean", "default").expect("encode");
-        let d = canonical_decode(&text, "korean", "default").expect("decode");
-        assert_eq!(d.payload, payload);
-        assert!(d.verified, "clean Korean artifact must verify: {text}");
+    for (wl, _) in WORDLISTS {
+        for payload in &payloads {
+            let text = canonical_encode(payload, "korean", wl).expect("encode");
+            let d = canonical_decode(&text, "korean", wl).expect("decode");
+            assert_eq!(&d.payload, payload);
+            assert!(d.verified, "{wl}: clean Korean artifact must verify: {text}");
 
-        // The same prose, decomposed the way the official BIP39 file is, still
-        // decodes to the same bytes.
-        let nfd = decompose_hangul(&text);
-        assert_ne!(nfd, text);
-        let d = canonical_decode(&nfd, "korean", "default").expect("decode NFD");
-        assert_eq!(d.payload, payload, "NFD input decoded differently");
+            // The same prose, decomposed the way the official BIP39 file is, still
+            // decodes to the same bytes.
+            let nfd = decompose_hangul(&text);
+            assert_ne!(nfd, text);
+            let d = canonical_decode(&nfd, "korean", wl).expect("decode NFD");
+            assert_eq!(&d.payload, payload, "{wl}: NFD input decoded differently");
+        }
     }
 }

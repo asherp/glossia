@@ -277,6 +277,8 @@ mod tests {
         // english, czech, german are 2048; latin is 32768.
         assert_eq!(Gf::for_wordlist_len(2048).unwrap().m(), 11);
         assert_eq!(Gf::for_wordlist_len(32768).unwrap().m(), 15);
+        // korean/corpus is 16384.
+        assert_eq!(Gf::for_wordlist_len(16384).unwrap().m(), 14);
     }
 
     #[test]
