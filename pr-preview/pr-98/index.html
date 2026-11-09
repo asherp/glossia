@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="98897c7">
+<meta name="glossia-build" content="c67a814">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -1505,6 +1505,7 @@ const AK_LANGS = [
   { id: 'english', label: 'English', source: 'english/bip39/body' },
   { id: 'latin',   label: 'Latin',   source: 'latin/default/body' },
   { id: 'czech',   label: 'Czech',   source: 'czech/default/body' },
+  { id: 'korean',  label: 'Korean',  source: 'korean/default/body' },
 ];
 const AK_FORMATS = [
   { id: 'ascii7', label: 'ASCII',  word: 'ascii7' },
@@ -1711,6 +1712,7 @@ const ENC_LANGS = [
   { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
   { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
   { id: 'czech',   label: 'Czech',   language: 'czech',   wordlist: 'default', dialect: 'body' },
+  { id: 'korean',  label: 'Korean',  language: 'korean',  wordlist: 'default', dialect: 'body' },
 ];
 function encLangById(id) { return ENC_LANGS.find(l => l.id === id) || ENC_LANGS[0]; }
 
