@@ -37,11 +37,17 @@ grammar:
       payload_wordlist: "base64url"
       rules:
         sentence:
+          lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "Prefix[a] BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"
     b:
       payload_wordlist: "base64url"
       rules:
         sentence:
+          lambda: "λn:(e->t). n"
           cfg_productions:
             - production: "Prefix[b] BODY"
+              weight: 1.0
+              lambda: "λn:(e->t). n"

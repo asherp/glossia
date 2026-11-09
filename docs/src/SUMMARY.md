@@ -8,6 +8,7 @@
 - [Examples](./examples.md)
 - [How It Works](./how-it-works.md)
 - [Canonical Encoding](./canonical-encoding.md)
+- [Cashu Tokens](./cashu-tokens.md)
 - [Prose Quality (Semantic Planning)](./prose-quality.md)
 - [Verse Dialects](./verse-dialects.md)
 - [Grammar](./grammar.md)

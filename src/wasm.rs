@@ -1417,6 +1417,31 @@ pub fn canonical_encode(payload_hex: &str, language: &str, wordlist: &str) -> St
     }
 }
 
+/// A Cashu V4 token (`cashuB…`) as canonical prose, via the compact
+/// envelope in [`crate::cashu`].
+///
+/// Returns JSON `{ encoded_text }` or `{ error }`.
+#[wasm_bindgen]
+pub fn cashu_to_words(token: &str, language: &str, wordlist: &str) -> String {
+    match crate::cashu::cashu_to_words(token, language, wordlist) {
+        Ok(text) => serde_json::json!({ "encoded_text": text }).to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// Canonical prose back to a `cashuB…` token. Text around the paragraph is
+/// ignored.
+///
+/// Returns JSON `{ token, repaired }` (word positions parity repaired) or
+/// `{ error }`.
+#[wasm_bindgen]
+pub fn cashu_from_words(text: &str, language: &str, wordlist: &str) -> String {
+    match crate::cashu::cashu_from_words(text, language, wordlist) {
+        Ok(d) => serde_json::json!({ "token": d.token, "repaired": d.repaired }).to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
 /// Canonical encode at an EXPLICIT format version, rather than the current one.
 ///
 /// The framing follows the version's own rules, so this writes a version-1
