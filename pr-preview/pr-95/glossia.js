@@ -511,8 +511,8 @@ export function canonical_encode_traced(payload_hex, language, wordlist) {
  * Canonical prose back to a `cashuB…` token. Text around the paragraph is
  * ignored.
  *
- * Returns JSON `{ token, repaired }` (word positions parity repaired) or
- * `{ error }`.
+ * Returns JSON `{ token, repaired, mint_key }` (word positions parity
+ * repaired; the mint identity key as hex, or null) or `{ error }`.
  * @param {string} text
  * @param {string} language
  * @param {string} wordlist
@@ -571,6 +571,42 @@ export function cashu_to_words(token, language, wordlist) {
     } finally {
         wasm.__wbindgen_add_to_stack_pointer(16);
         wasm.__wbindgen_export3(deferred4_0, deferred4_1, 1);
+    }
+}
+
+/**
+ * [`cashu_to_words`] with the mint's 32-byte identity key (64 hex
+ * characters) carried beside its URL.
+ *
+ * Returns JSON `{ encoded_text }` or `{ error }`.
+ * @param {string} token
+ * @param {string} mint_key_hex
+ * @param {string} language
+ * @param {string} wordlist
+ * @returns {string}
+ */
+export function cashu_to_words_with_mint_key(token, mint_key_hex, language, wordlist) {
+    let deferred5_0;
+    let deferred5_1;
+    try {
+        const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+        const ptr0 = passStringToWasm0(token, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(mint_key_hex, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(language, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len2 = WASM_VECTOR_LEN;
+        const ptr3 = passStringToWasm0(wordlist, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+        const len3 = WASM_VECTOR_LEN;
+        wasm.cashu_to_words_with_mint_key(retptr, ptr0, len0, ptr1, len1, ptr2, len2, ptr3, len3);
+        var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+        var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+        deferred5_0 = r0;
+        deferred5_1 = r1;
+        return getStringFromWasm0(r0, r1);
+    } finally {
+        wasm.__wbindgen_add_to_stack_pointer(16);
+        wasm.__wbindgen_export3(deferred5_0, deferred5_1, 1);
     }
 }
 

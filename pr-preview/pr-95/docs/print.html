@@ -1364,10 +1364,12 @@ glossia --decode --to cashu &lt; voucher.txt
 <p>A V4 token is CBOR, and each proof's 32-byte secret is stored in it as 64 hex
 characters. The envelope stores the raw 32 bytes (all lengths one byte):</p>
 <pre><code class="language-text">0x00 cbor..                       a V4 token's CBOR, unchanged (fallback)
-0x01 flags len url len unit [len memo]
+0x02 key[32] cbor..               the same, with a mint identity key
+0x01 flags len url [key[32]] len unit [len memo]
      nkeysets { len id  nproofs { exp secret[32] C[33] } }
 </code></pre>
-<p><code>flags</code> bit 0: the URL is written without its <code>https://</code>; bit 1: a memo follows.
+<p><code>flags</code> bit 0: the URL is written without its <code>https://</code>; bit 1: a memo follows;
+bit 2: the mint's identity key follows the URL.
 A proof's amount is <code>2^exp</code>.</p>
 <p>The mint URL and unit are always written. The format assumes no mint and no
 unit: a default mint would send old tokens to whoever holds that domain later,
@@ -1379,6 +1381,14 @@ but DLEQ is ever dropped.</p>
 <p><a href="https://github.com/asherp/hashu">Hashu</a>, whose THH vouchers are Cashu tokens,
 writes the same envelope (<code>hashu_cli::words</code>), and <code>tests/cashu_vector_*.txt</code>
 pins the two together.</p>
+<h2 id="mint-identity-key"><a class="header" href="#mint-identity-key">Mint identity key</a></h2>
+<p>A token can carry its mint's identity: the 32-byte x-only (BIP-340) public key of
+the mint's long-lived root key, written right after the mint URL. A mint URL is
+only a domain name, and a domain can be lost; the key lets a wallet notice when
+the URL now points at a server that cannot prove it is the mint that issued the
+token. The key is not part of the Cashu token: decoding returns a standard
+<code>cashuB</code> token and hands the key back beside it (<code>CashuDecoded::mint_key</code>).
+Encode with <code>cashu_to_words_with_mint_key</code>. It costs about 36 English words.</p>
 <h2 id="sizes"><a class="header" href="#sizes">Sizes</a></h2>
 <p>Each proof costs 66 bytes, about 100 English words with parity and cover words;
 the mint URL, unit and any memo cost about 1.4 words per character on top.
