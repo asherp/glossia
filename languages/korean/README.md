@@ -1,14 +1,25 @@
-# Korean BIP39 Wordlist
+# Korean Wordlists
 
-## Provenance
+Korean ships two payload lists:
 
-The Korean wordlist (`wordlist.txt`) is the **official** BIP-0039 Korean wordlist
+| Wordlist | File | Words | Bits/word |
+|---|---|---|---|
+| `default` | `payload.yaml` | 16,384, from the Shiberu frequency corpus | 14 |
+| `bip39` | `payload_bip39.yaml` | 2,048, the official BIP39 Korean list | 11 |
+
+The default list needs 19 words for 256 bits where BIP39 needs 24. Use
+`--wordlist bip39` when the words must be a BIP39 mnemonic.
+See [Corpus wordlist](#corpus-wordlist-default) below.
+
+## BIP39 provenance
+
+The BIP39 wordlist (`wordlist.txt`) is the **official** BIP-0039 Korean wordlist
 of 2048 words, from the canonical Bitcoin BIPs repository, byte for byte.
 
 **Source URL:** https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/korean.txt
 
 The published file is in NFD: each syllable is stored as its conjoining jamo.
-`payload.yaml` holds the same 2048 words in the same order, converted to NFC
+`payload_bip39.yaml` holds the same 2048 words in the same order, converted to NFC
 (precomposed syllables), which is how Korean text is normally written and what
 the prose carries. Decoding composes Hangul before lookup, so input in either
 form decodes to the same words.
@@ -18,10 +29,13 @@ form decodes to the same words.
 | File | Purpose |
 |------|---------|
 | `wordlist.txt`  | Raw official BIP39 Korean wordlist (NFD, provenance reference) |
-| `payload.yaml`  | The 2048 payload words (NFC) with POS tags |
+| `payload.yaml`  | The default 16,384-word corpus list, see below |
+| `payload_bip39.yaml` | The 2048 BIP39 words (NFC) with POS tags (`--wordlist bip39`) |
 | `cover.yaml`    | Cover words: particles, verbs, adjectives, nouns, pronouns, connectives |
 | `grammar.yaml`  | Grammar with `body`, `subject`, `prose`, `bip39` and `payload_only` dialects |
-| `generate.py`   | How `payload.yaml` and `cover.yaml` were produced |
+| `generate.py`   | How `payload_bip39.yaml` and `cover.yaml` were produced |
+| `payload_provenance.tsv` | Each default-list word's index, POS, Shiberu rank and rate |
+| `generate_corpus.py` | How `payload.yaml` was produced |
 
 ## Grammar notes
 
@@ -70,3 +84,37 @@ affects how the prose reads; decoding is wordlist membership.
 glossia --random 12 --language korean --seed 0
 glossia --language korean 가격 가방 가을
 ```
+
+## Corpus wordlist (default)
+
+The default payload list: 2¹⁴ = 16,384 words (14 bits/word), drawn from:
+
+> Shiberu Korean Word Frequency List 2026 by Shiberu
+> (https://shiberu.app/korean-frequency-list), licensed under CC BY 4.0.
+
+Release 2026.10.28, `ko-frequency-2026.tsv`, sha256
+`6ed27cd6acbd67275517a282220ae47be24efd7d79b49acad079d70c13ccb124`. Shiberu
+builds the list from FineWeb-2, CC-100, Korean web comments (KcBERT, DC Inside,
+NSMC), OpenSubtitles and Korean Wikipedia; see its README for the source credits.
+
+`generate_corpus.py` walks the list in frequency order and keeps a lemma when:
+
+1. it is all Hangul, two to five syllables;
+2. Kiwi (kiwipiepy 0.24.1) analyses it as one morpheme that Kiwi's own lexicon
+   holds, tagged common noun, adverb or prenoun. That drops proper nouns,
+   out-of-vocabulary guesses and run-together phrases;
+3. it is not a cover word and not on the script's blocklist (insults, slurs,
+   sexual terms, loaded political labels);
+4. none of its 14 forms (the word, and the word plus each particle in
+   `KOREAN_PARTICLES`) equals a form of a word already kept, a cover word, or
+   a cover noun plus a particle.
+
+The first 16,384 such words are written in Hangul (가나다) order. The deepest
+word sits at Shiberu rank ~38,000, about 0.9 occurrences per million words.
+Rule 4 is what `codec::payload_form` needs, and `tests/korean.rs` checks it for
+both lists. `experiments/korean_corpus/` has the measurements behind the size
+choice (2¹⁵ is not reachable without names and phrases; 2¹⁶ is not reachable at all).
+
+**Before this list ships, a native Korean speaker should review it.** The
+blocklist is a first pass. Once it ships, the list is append-only and frozen
+like every other payload list.
