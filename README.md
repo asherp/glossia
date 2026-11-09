@@ -41,9 +41,9 @@ archive matching your platform from the
 | Windows x86_64 | `x86_64-pc-windows-msvc.zip` |
 
 ```bash
-# Linux x86_64 — substitute the release you want for v0.6.0
-name=glossia-v0.6.0-x86_64-unknown-linux-gnu
-base=https://github.com/asherp/glossia/releases/download/v0.6.0
+# Linux x86_64 — substitute the release you want for v0.7.0
+name=glossia-v0.7.0-x86_64-unknown-linux-gnu
+base=https://github.com/asherp/glossia/releases/download/v0.7.0
 curl -LO "$base/$name.tar.gz" -LO "$base/$name.tar.gz.sha256"
 sha256sum -c "$name.tar.gz.sha256"
 tar xzf "$name.tar.gz"
