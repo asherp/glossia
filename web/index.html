@@ -1631,7 +1631,9 @@ function akRun() {
   if (!text) { akSetOutput(''); return; }
   try {
     if (akMode === 'encode') {
-      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLang + ' naturally', SEED));
+      // Name the endpoint by path: the meta vocabulary has no word for every
+      // language (no "korean"), but every language has a language/wordlist/dialect path.
+      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLangById(akLang).source + ' naturally', SEED));
       if (r.error) { akShowError(r.error); akSetOutput(''); return; }
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
