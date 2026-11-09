@@ -2003,6 +2003,7 @@ PP -&gt; Prep NP            "from Latin" / "into English"
 <tr><td><strong>English</strong></td><td>BIP39, n-gram, WordNet lemmas</td><td>Full YAML grammar with dialects</td><td>Fully implemented</td></tr>
 <tr><td><strong>Latin</strong></td><td>Custom (65,536 words), Harry Potter</td><td>Full YAML grammar with dialects</td><td>Fully implemented</td></tr>
 <tr><td><strong>Czech</strong></td><td>BIP39 (official, 2,048 words)</td><td>Full YAML grammar (body/subject/prose)</td><td>Fully implemented</td></tr>
+<tr><td><strong>Korean</strong></td><td>Corpus (16,384 words), BIP39 (official, 2,048 words)</td><td>Full YAML grammar (body/subject/prose), attached particles</td><td>Fully implemented</td></tr>
 <tr><td><strong>Math/Primes</strong></td><td>Prime numbers (payload), composites (cover)</td><td>Arithmetic grammar</td><td>Experimental</td></tr>
 <tr><td><strong>Harry Potter</strong></td><td>HP spell vocabulary</td><td>Custom</td><td>Experimental</td></tr>
 <tr><td><strong>French</strong></td><td>BIP39 (text only)</td><td>Not yet</td><td>Planned</td></tr>
@@ -2021,7 +2022,42 @@ glossia --random 12 --language english --seed 0
 
 # Czech (official BIP39 wordlist)
 glossia --random 12 --language czech --seed 0
+
+# Korean (default: 16,384-word corpus list, 14 bits/word)
+glossia --random 12 --language korean --seed 0
+
+# Korean with the official BIP39 wordlist
+glossia --random 12 --language korean --wordlist bip39 --seed 0
 </code></pre>
+<h3 id="korean-particles"><a class="header" href="#korean-particles">Korean particles</a></h3>
+<p>Korean writes case and topic particles onto the noun before them, so a payload
+word reaches the reader as 가격을 or 가이드는 rather than as a bare word. The
+grammar places each particle as a cover <code>Prep</code> word tagged with its function
+(<code>subj</code>, <code>top</code>, <code>obj</code>, <code>loc</code>, <code>com</code>, <code>gen</code>, <code>dir</code>), and the <code>korean</code> morphology
+pass (<code>src/generator/agreement.rs</code>) picks the allomorph the noun's last syllable
+calls for (이/가, 은/는, 을/를, 과/와, 으로/로) and attaches it.</p>
+<p>Decoding detaches it again (<code>codec::payload_form</code>): a token that is not a payload
+word as written is tried with one trailing particle removed. That is only safe
+because no payload word plus a particle is another payload word, and no cover
+noun plus a particle is a payload word (길 + 이 would be 길이, so 길 is not a cover
+word). <code>tests/korean.rs</code> pins both properties over the whole wordlist.</p>
+<p>Hangul is compared in NFC. The official BIP39 file is NFD; decoding composes
+conjoining jamo before lookup (<code>codec::compose_hangul</code>), so prose pasted from a
+system that decomposes it still decodes.</p>
+<h3 id="korean-corpus-wordlist"><a class="header" href="#korean-corpus-wordlist">Korean corpus wordlist</a></h3>
+<p>Korean's default wordlist (<code>payload.yaml</code>) is 2¹⁴ = 16,384 words drawn
+from the Shiberu Korean Word Frequency List 2026 (CC BY 4.0), the way Latin's
+list was drawn from Wiktionary. At 14 bits per word it needs 19 words for 256
+bits where BIP39 Korean needs 24, and every word appears in the corpus at least
+about once per million words. The official BIP39 Korean list stays available as
+<code>--wordlist bip39</code> (<code>payload_bip39.yaml</code>), since only it reads as a BIP39
+mnemonic.</p>
+<p>The list keeps, in frequency order, single dictionary words (common nouns,
+adverbs, prenouns) that Kiwi's lexicon knows, two to five syllables long, and
+only if no particle form of the word collides with another payload word or a
+cover word. <code>languages/korean/generate_corpus.py</code> regenerates it from the
+pinned release; <code>experiments/korean_corpus/</code> measures why 2¹⁴ is the largest
+size the corpus supports cleanly.</p>
 <h2 id="language-file-structure"><a class="header" href="#language-file-structure">Language File Structure</a></h2>
 <p>Each language lives in <code>languages/{language}/</code> and requires:</p>
 <pre><code>languages/my_language/
