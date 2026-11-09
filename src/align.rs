@@ -184,8 +184,16 @@ pub fn align<F>(
 where
     F: Fn(&str) -> bool,
 {
-    let recv = tokenize(received, markup);
-    let rend = tokenize(rendered, markup);
+    // A token that is a payload word only once an attached Korean particle is
+    // detached is compared in its detached form, so the slot it fills is found
+    // the same way the decode harvest finds it (codec::payload_form).
+    let detach = |toks: Vec<String>| -> Vec<String> {
+        toks.into_iter()
+            .map(|w| crate::codec::payload_form(&w, &is_payload).unwrap_or(w))
+            .collect()
+    };
+    let recv = detach(tokenize(received, markup));
+    let rend = detach(tokenize(rendered, markup));
 
     // Payload slot numbers are assigned by walking the RENDERING, because the
     // rendering is the sequence whose length and order are known to be right.

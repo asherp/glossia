@@ -91,7 +91,7 @@ fn apply_highlighting(
                 // For madlib mode, replace payload words with [POS] placeholders
                 words.iter().map(|word| {
                     let word_clean = normalize_token_for_bip39(word);
-                    let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+                    let is_payload = !word_clean.is_empty() && glossia::generator::is_payload_token(&word_clean, payload_set);
                     let is_merkle = merkle_set.map(|s| !word_clean.is_empty() && s.contains(&word_clean)).unwrap_or(false);
 
                     if is_payload || is_merkle {
@@ -116,7 +116,7 @@ fn apply_highlighting(
             } else {
                 words.iter().map(|word| {
                     let word_clean = normalize_token_for_bip39(word);
-                    let is_payload = !word_clean.is_empty() && payload_set.contains(&word_clean);
+                    let is_payload = !word_clean.is_empty() && glossia::generator::is_payload_token(&word_clean, payload_set);
                     let is_merkle = merkle_set.map(|s| !word_clean.is_empty() && s.contains(&word_clean)).unwrap_or(false);
 
                     if is_payload {
@@ -2031,7 +2031,8 @@ fn main() {
                 text
                     .split_whitespace()
                     .map(normalize_token_for_bip39)
-                    .filter(|w| !w.is_empty() && payload_set.contains(w))
+                    .filter(|w| !w.is_empty())
+                    .filter_map(|w| glossia::codec::payload_form(&w, &|t: &str| payload_set.contains(t)))
                     .collect()
             };
             
@@ -2122,7 +2123,7 @@ fn main() {
             } else {
                 for word in &words {
                     let normalized = normalize_token_for_bip39(word);
-                    if !normalized.is_empty() && payload_set.contains(&normalized) {
+                    if !normalized.is_empty() && glossia::generator::is_payload_token(&normalized, &payload_set) {
                         // Count characters in BIP39 word (use normalized length)
                         bip39_chars += normalized.chars().count();
                     } else {

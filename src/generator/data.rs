@@ -1499,7 +1499,7 @@ pub fn detect_dialect_with(input_words: &[String], filter: &DialectFilter) -> Ve
     // Normalize input words to lowercase, stripping trailing punctuation
     let normalized: Vec<String> = input_words
         .iter()
-        .map(|w| w.trim_end_matches('.').trim_end_matches(',').to_lowercase())
+        .map(|w| crate::codec::compose_hangul(&w.trim_end_matches('.').trim_end_matches(',').to_lowercase()))
         .filter(|w| !w.is_empty())
         .collect();
 
@@ -1543,8 +1543,14 @@ pub fn detect_dialect_with(input_words: &[String], filter: &DialectFilter) -> Ve
             // invariant, which is what makes the issue #14 `min_hit_rate` filter a
             // trustworthy confidence signal rather than a length-sensitive one.
             let mut hits = 0usize;
+            // A Korean payload word arrives with its particle attached (사과를),
+            // so a token counts if it is a payload word as written or after
+            // detaching one particle -- exactly what decoding accepts
+            // (`codec::payload_form`). Tokens in other scripts take only the
+            // first check, so their scores are unchanged.
+            let in_list = |t: &str| binary_search_sorted_words(sorted_words, t);
             for (word, &count) in &input_counts {
-                if binary_search_sorted_words(sorted_words, word) {
+                if crate::codec::payload_form(word, &in_list).is_some() {
                     hits += count;
                 }
             }

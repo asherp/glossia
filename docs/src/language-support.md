@@ -9,6 +9,7 @@ Glossia supports multiple languages. Each language provides its own wordlists, g
 | **English** | BIP39, n-gram, WordNet lemmas | Full YAML grammar with dialects | Fully implemented |
 | **Latin** | Custom (65,536 words), Harry Potter | Full YAML grammar with dialects | Fully implemented |
 | **Czech** | BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose) | Fully implemented |
+| **Korean** | Corpus (16,384 words), BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose), attached particles | Fully implemented |
 | **Math/Primes** | Prime numbers (payload), composites (cover) | Arithmetic grammar | Experimental |
 | **Harry Potter** | HP spell vocabulary | Custom | Experimental |
 | **French** | BIP39 (text only) | Not yet | Planned |
@@ -28,7 +29,49 @@ glossia --random 12 --language english --seed 0
 
 # Czech (official BIP39 wordlist)
 glossia --random 12 --language czech --seed 0
+
+# Korean (default: 16,384-word corpus list, 14 bits/word)
+glossia --random 12 --language korean --seed 0
+
+# Korean with the official BIP39 wordlist
+glossia --random 12 --language korean --wordlist bip39 --seed 0
 ```
+
+### Korean particles
+
+Korean writes case and topic particles onto the noun before them, so a payload
+word reaches the reader as 가격을 or 가이드는 rather than as a bare word. The
+grammar places each particle as a cover `Prep` word tagged with its function
+(`subj`, `top`, `obj`, `loc`, `com`, `gen`, `dir`), and the `korean` morphology
+pass (`src/generator/agreement.rs`) picks the allomorph the noun's last syllable
+calls for (이/가, 은/는, 을/를, 과/와, 으로/로) and attaches it.
+
+Decoding detaches it again (`codec::payload_form`): a token that is not a payload
+word as written is tried with one trailing particle removed. That is only safe
+because no payload word plus a particle is another payload word, and no cover
+noun plus a particle is a payload word (길 + 이 would be 길이, so 길 is not a cover
+word). `tests/korean.rs` pins both properties over the whole wordlist.
+
+Hangul is compared in NFC. The official BIP39 file is NFD; decoding composes
+conjoining jamo before lookup (`codec::compose_hangul`), so prose pasted from a
+system that decomposes it still decodes.
+
+### Korean corpus wordlist
+
+Korean's default wordlist (`payload.yaml`) is 2¹⁴ = 16,384 words drawn
+from the Shiberu Korean Word Frequency List 2026 (CC BY 4.0), the way Latin's
+list was drawn from Wiktionary. At 14 bits per word it needs 19 words for 256
+bits where BIP39 Korean needs 24, and every word appears in the corpus at least
+about once per million words. The official BIP39 Korean list stays available as
+`--wordlist bip39` (`payload_bip39.yaml`), since only it reads as a BIP39
+mnemonic.
+
+The list keeps, in frequency order, single dictionary words (common nouns,
+adverbs, prenouns) that Kiwi's lexicon knows, two to five syllables long, and
+only if no particle form of the word collides with another payload word or a
+cover word. `languages/korean/generate_corpus.py` regenerates it from the
+pinned release; `experiments/korean_corpus/` measures why 2¹⁴ is the largest
+size the corpus supports cleanly.
 
 ## Language File Structure
 

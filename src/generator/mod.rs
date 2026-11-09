@@ -15,4 +15,4 @@ pub use data::{load_payload_words, load_payload_words_for_wordlist, load_cover_w
 pub use data::get_wordlist_path;
 pub use cache::{SequenceCache, print_sentence_kinds_once};
 pub use semantics::SemanticModel;
-pub use utils::{normalize_token_for_bip39, wrap_payload_with_bars, wrap_payload_with_color, word_wrap, capitalize, payload_fits, get_grammar, get_dialect_config, mode_to_dialect, starts_with_vowel_sound};
+pub use utils::{normalize_token_for_bip39, is_payload_token, wrap_payload_with_bars, wrap_payload_with_color, word_wrap, capitalize, payload_fits, get_grammar, get_dialect_config, mode_to_dialect, starts_with_vowel_sound};

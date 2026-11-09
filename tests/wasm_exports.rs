@@ -261,3 +261,42 @@ fn malformed_json_is_an_error_not_a_panic() {
     ));
     assert_eq!(bad_erasures["kind"], "bad_erasures");
 }
+
+#[test]
+fn api_key_panel_round_trips_korean_by_endpoint_path() {
+    // The home page's API-key panel names languages by path, since the meta
+    // vocabulary has no "korean". Encode, then decode back to the key.
+    let key = "sk-test-1234567890abcdef";
+    for source in ["english/bip39/body", "latin/default/body", "czech/default/body", "korean/default/body"] {
+        let enc: serde_json::Value = serde_json::from_str(&glossia::wasm::transcode(
+            key, &format!("encode into {source} naturally"), 42,
+        ))
+        .unwrap();
+        assert!(enc.get("error").map_or(true, |e| e.is_null()), "{source} encode: {enc}");
+        let prose = enc["output"].as_str().unwrap().trim().to_string();
+        let dec: serde_json::Value = serde_json::from_str(&glossia::wasm::transcode(
+            &prose, &format!("transcode from {source} into ascii7"), 42,
+        ))
+        .unwrap();
+        assert!(dec.get("error").map_or(true, |e| e.is_null()), "{source} decode: {dec}");
+        assert_eq!(dec["output"].as_str().unwrap().trim(), key, "{source}: {prose}");
+    }
+}
+
+#[test]
+fn korean_prose_is_detected_as_korean() {
+    // Korean payload words arrive with particles attached (사과를), so detection
+    // must detach them the way decoding does, or Korean prose scores zero hits
+    // and the pages fall back to English ("No payload words found").
+    for hex in ["48656c6c6f", "00112233445566778899aabbccddeeff"] {
+        let enc: serde_json::Value =
+            serde_json::from_str(&glossia::wasm::encode_raw_base_n(hex, "korean", "default", "body", 42)).unwrap();
+        let prose = enc["encoded_text"].as_str().expect("encoded_text").to_string();
+        let matches: serde_json::Value =
+            serde_json::from_str(&glossia::wasm::detect_dialect_from_text(&prose)).unwrap();
+        assert_eq!(matches[0]["language"], "korean", "{prose}\n{matches}");
+        let dec: serde_json::Value =
+            serde_json::from_str(&glossia::wasm::decode_raw_base_n(&prose, "korean", "default", 0)).unwrap();
+        assert!(dec.get("error").map_or(true, |e| e.is_null()), "{dec}");
+    }
+}

@@ -41,6 +41,7 @@ export const MSG_LANGS = [
   { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
   { id: 'czech',   label: 'Czech',   language: 'czech',   wordlist: 'default', dialect: 'body' },
   { id: 'german',  label: 'German',  language: 'german',  wordlist: 'default', dialect: 'body' },
+  { id: 'korean',  label: 'Korean',  language: 'korean',  wordlist: 'default', dialect: 'body' },
 ];
 export function msgLangById(id) { return MSG_LANGS.find(l => l.id === id) || MSG_LANGS[0]; }
 
@@ -179,16 +180,37 @@ export const EMDASH = ' — ';
 
 function capWords(s) { return s.replace(/(^|\s)(\p{L})/gu, (_, sp, c) => sp + c.toUpperCase()); }
 
+// Korean writes case particles onto the noun (사과 + 를 -> 사과를), so a prose
+// token can carry a payload word plus a particle. Same list and order as
+// KOREAN_PARTICLES in src/codec.rs.
+const KOREAN_PARTICLES = ['이', '가', '은', '는', '을', '를', '에', '에서', '와', '과', '의', '로', '으로'];
+
+// The payload word a prose token carries, or '' if none: the token itself, or
+// the token with one trailing Korean particle detached. Mirrors
+// codec::payload_form, so the pages highlight and slim exactly what decodes.
+// `set` holds lowercased NFC payload words (what the wasm decoders return).
+export function payloadForm(token, set) {
+  const t = (token || '').normalize('NFC').toLowerCase();
+  if (!t) return '';
+  if (set.has(t)) return t;
+  for (const p of KOREAN_PARTICLES) {
+    if (t.length > p.length && t.endsWith(p)) {
+      const stem = t.slice(0, -p.length);
+      if (set.has(stem)) return stem;
+    }
+  }
+  return '';
+}
+
 // Slim a body's prose down to just its payload words, in order — dropping the
 // cover words. The decoder filters prose against the wordlist, so the result
 // still decodes to the same bytes; payload words are lowercased to their
 // canonical wordlist form. Used for the cover-off view (see renderArtifact).
 function payloadOnlyProse(prose, words) {
-  const set = new Set((words || []).map(w => w.toLowerCase()));
+  const set = new Set((words || []).map(w => w.normalize('NFC').toLowerCase()));
   return prose.split(/\s+/)
-    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
-    .filter(t => t && set.has(t.toLowerCase()))
-    .map(t => t.toLowerCase())
+    .map(t => payloadForm(t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''), set))
+    .filter(Boolean)
     .join(' ');
 }
 

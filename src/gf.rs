@@ -38,7 +38,7 @@ const PRIMITIVE: [u32; 17] = [
     0x11D,   // m=8:  x⁸ + x⁴ + x³ + x² + 1
     0x211,   // m=9:  x⁹ + x⁴ + 1
     0x409,   // m=10: x¹⁰ + x³ + 1
-    0x805,   // m=11: x¹¹ + x² + 1        — english, czech, german
+    0x805,   // m=11: x¹¹ + x² + 1        — english, czech, german, korean
     0x1053,  // m=12: x¹² + x⁶ + x⁴ + x + 1
     0x201B,  // m=13: x¹³ + x⁴ + x³ + x + 1
     0x4443,  // m=14: x¹⁴ + x¹⁰ + x⁶ + x + 1
@@ -277,6 +277,8 @@ mod tests {
         // english, czech, german are 2048; latin is 32768.
         assert_eq!(Gf::for_wordlist_len(2048).unwrap().m(), 11);
         assert_eq!(Gf::for_wordlist_len(32768).unwrap().m(), 15);
+        // korean (default) is 16384.
+        assert_eq!(Gf::for_wordlist_len(16384).unwrap().m(), 14);
     }
 
     #[test]

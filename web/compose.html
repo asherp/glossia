@@ -430,6 +430,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
             <option value="latin">Latina</option>
             <option value="czech">Čeština</option>
             <option value="german">Deutsch</option>
+            <option value="korean">한국어</option>
           </select>
 
           <div class="check-row">
@@ -693,7 +694,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 </div>
 
 <script type="module">
-import { init, sealMessage, renderArtifact, decodeMessage, skimArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { init, sealMessage, renderArtifact, decodeMessage, skimArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang, payloadForm } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, fetchBoard,
          seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
          deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
@@ -707,7 +708,7 @@ $('c-relays').value = DEFAULT_RELAYS.join(', ');
 // Default the encoding language to the visitor's browser language when we
 // support it, otherwise keep English. Only the initial selection is set — the
 // user can still change it. Keyed by ISO 639-1 subtag → our option value.
-const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin' };
+const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin', ko: 'korean' };
 (function pickBrowserLang() {
   const supported = new Set([...$('c-lang').options].map(o => o.value));
   const prefs = navigator.languages?.length ? navigator.languages : [navigator.language];
@@ -722,7 +723,7 @@ const LANG_BY_BCP47 = { en: 'english', de: 'german', cs: 'czech', la: 'latin' };
 const baseLang = $('c-lang').value;
 
 // A demo message in the spirit of each language; English falls back to the rest.
-const DEFAULT_MSG = { english: 'Free Samourai', german: 'Die Gedanken sind frei', czech: 'Soukromí není zločin.', latin: 'Veritas in numeris' };
+const DEFAULT_MSG = { english: 'Free Samourai', german: 'Die Gedanken sind frei', czech: 'Soukromí není zločin.', latin: 'Veritas in numeris', korean: '사생활은 범죄가 아니다.' };
 const defaultMsgFor = (lang) => DEFAULT_MSG[lang] || DEFAULT_MSG.english;
 const isDefaultMsg = (s) => Object.values(DEFAULT_MSG).includes(s.trim());
 $('c-msg').value = defaultMsgFor($('c-lang').value);   // seed to match the picked language
@@ -749,6 +750,7 @@ const DET_MARKERS = {
 };
 function detectInputLang(text) {
   const raw = (text || '').toLowerCase();
+  if (/[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/.test(raw)) return 'korean';   // Hangul: decisive
   if (/[řěůčšžňťď]/.test(raw)) return 'czech';          // háček letters: decisive (only Czech among our four)
   if (/[äöüß]/.test(raw)) return 'german';              // umlaut / eszett: decisive
   const t = ' ' + raw.replace(/[^a-z]+/g, ' ').trim() + ' ';   // ascii, space-padded so ' der ' etc. match word-bounded
@@ -777,8 +779,9 @@ function maybeAutoLang() {
 function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x)); }
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function renderProse(prose, words) {
-  const set = new Set((words || []).map(w => w.toLowerCase()));
-  return escapeHtml(prose).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<b class="pw">${w}</b>` : w);
+  const set = new Set((words || []).map(w => w.normalize('NFC').toLowerCase()));
+  // Any script's letters (Czech č, Hangul), with a Korean particle detached.
+  return escapeHtml(prose).replace(/[\p{L}\p{M}\p{N}]+/gu, (w) => payloadForm(w, set) ? `<b class="pw">${w}</b>` : w);
 }
 function splitProse(text) {
   text = (text || '').trim();
