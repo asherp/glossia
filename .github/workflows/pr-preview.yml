@@ -72,9 +72,27 @@ jobs:
       # bundled wasm-opt and runs the size pass configured under
       # [package.metadata.wasm-pack.profile.release] in Cargo.toml; a system
       # binary gets picked up instead and can reject modern wasm features.
+      # wasm-pack downloads wasm-bindgen and binaryen (wasm-opt) into this
+      # cache on first use, from GitHub releases, with a single attempt each.
+      - name: Cache wasm-pack tools
+        if: github.event.action != 'closed'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/.wasm-pack
+          key: wasm-pack-tools-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+          restore-keys: wasm-pack-tools-${{ runner.os }}-
+
       - name: Build WASM
         if: github.event.action != 'closed'
-        run: ./build_web.sh
+        run: |
+          # Retry so one 5xx on wasm-pack's tool downloads doesn't fail the job.
+          # A real build error fails all three attempts.
+          for attempt in 1 2 3; do
+            ./build_web.sh && exit 0
+            echo "::warning::build_web.sh failed (attempt $attempt of 3)"
+            [ "$attempt" = 3 ] || sleep 30
+          done
+          exit 1
 
       - name: Install mdBook
         if: github.event.action != 'closed'
