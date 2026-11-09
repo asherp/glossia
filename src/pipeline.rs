@@ -326,7 +326,8 @@ fn meta_word_to_language(word: &str) -> Option<(&str, &str)> {
         "npub" => Some(("crypto/nostr", "pub")),
         "nsec" => Some(("crypto/nostr", "sec")),
         "lightning" | "ln" => Some(("crypto/ln", "main")),
-        "cashu" => Some(("crypto/cashu", "a")),
+        // V4 (`cashuB`) is the current token format; V3 is `cashu/a`.
+        "cashu" => Some(("crypto/cashu", "b")),
         "email" => Some(("cs", "email")),
         "bip39" => Some(("cs", "sig_bip39")),
         _ => None,
@@ -755,6 +756,9 @@ impl Pipeline {
     /// Every pipeline factors through binary:
     ///   Source → decode to bytes → encode from bytes → Target
     pub fn execute(&self, input: &str) -> Result<String, PipelineError> {
+        if let Some((output, _)) = self.cashu_shortcut(input) {
+            return Ok(output);
+        }
         let source = self.resolve_source(input)?;
         let target = &self.target;
 
@@ -780,6 +784,62 @@ impl Pipeline {
                 "unsupported pipeline: {} -> {}",
                 source, target
             ))),
+        }
+    }
+
+    /// Cashu V4 tokens to and from prose go through the compact envelope in
+    /// [`crate::cashu`] (canonical prose, about half the words of encoding
+    /// the base64 text), rather than the character-level `crypto/cashu`
+    /// dialect. Returns the output and the source it was read as, or `None`
+    /// to fall through to the general pipeline: a V3 token, a verse or other
+    /// non-default dialect, prose that isn't a cashu envelope (such as text
+    /// written by an older release).
+    fn cashu_shortcut(&self, input: &str) -> Option<(String, Endpoint)> {
+        let is_cashu = |l: &str| l == "cashu" || l == "crypto/cashu";
+        let natural = |l: &str| !is_cashu(l) && !l.starts_with("crypto/");
+        let wordlist_for = |language: &str, wordlist: &str| -> String {
+            if wordlist == "default" {
+                crate::generator::default_wordlist(language).to_string()
+            } else {
+                wordlist.to_string()
+            }
+        };
+        match (&self.source, &self.target) {
+            // cashuB… → prose
+            (
+                Endpoint::Auto | Endpoint::Language { .. },
+                Endpoint::Language { language, wordlist, dialect },
+            ) if natural(language)
+                && dialect == "body"
+                && input.trim_start().starts_with("cashuB")
+                && match &self.source {
+                    Endpoint::Language { language: l, .. } => is_cashu(l),
+                    _ => true,
+                } =>
+            {
+                let wl = wordlist_for(language, wordlist);
+                let words = crate::cashu::cashu_to_words(input, language, &wl).ok()?;
+                if self.verbose {
+                    eprintln!("Cashu token: compact envelope as canonical {}/{}", language, wl);
+                }
+                Some((words, Endpoint::language_full("crypto/cashu", "base64url", "b")))
+            }
+            // prose → cashuB…
+            (src, Endpoint::Language { language: target, .. }) if is_cashu(target) => {
+                let (language, wordlist) = match src {
+                    Endpoint::Auto => ("english".to_string(), "bip39".to_string()),
+                    Endpoint::Language { language, wordlist, .. } if natural(language) => {
+                        (language.clone(), wordlist_for(language, wordlist))
+                    }
+                    _ => return None,
+                };
+                let d = crate::cashu::cashu_from_words(input, &language, &wordlist).ok()?;
+                if self.verbose && !d.repaired.is_empty() {
+                    eprintln!("Cashu token: parity repaired {} word(s)", d.repaired.len());
+                }
+                Some((d.token, Endpoint::language_full(&language, &wordlist, "body")))
+            }
+            _ => None,
         }
     }
 
@@ -1153,6 +1213,15 @@ impl Pipeline {
 
     /// Execute the pipeline, returning rich results for UI display.
     pub fn execute_rich(&self, input: &str) -> Result<PipelineResult, PipelineError> {
+        if let Some((output, source)) = self.cashu_shortcut(input) {
+            return Ok(PipelineResult {
+                output,
+                payload_words: Vec::new(),
+                data_mode: None,
+                stats: None,
+                resolved_source: Some(source),
+            });
+        }
         let source = self.resolve_source(input)?;
         let target = &self.target;
 

@@ -1417,6 +1417,52 @@ pub fn canonical_encode(payload_hex: &str, language: &str, wordlist: &str) -> St
     }
 }
 
+/// A Cashu V4 token (`cashuB…`) as canonical prose, via the compact
+/// envelope in [`crate::cashu`].
+///
+/// Returns JSON `{ encoded_text }` or `{ error }`.
+#[wasm_bindgen]
+pub fn cashu_to_words(token: &str, language: &str, wordlist: &str) -> String {
+    match crate::cashu::cashu_to_words(token, language, wordlist) {
+        Ok(text) => serde_json::json!({ "encoded_text": text }).to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// [`cashu_to_words`] with the mint's 32-byte identity key (64 hex
+/// characters) carried beside its URL.
+///
+/// Returns JSON `{ encoded_text }` or `{ error }`.
+#[wasm_bindgen]
+pub fn cashu_to_words_with_mint_key(token: &str, mint_key_hex: &str, language: &str, wordlist: &str) -> String {
+    let key: Option<crate::cashu::MintKey> = codec::hex_decode(mint_key_hex).and_then(|b| b.try_into().ok());
+    let Some(key) = key else {
+        return serde_json::json!({ "error": "mint key must be 64 hex characters" }).to_string();
+    };
+    match crate::cashu::cashu_to_words_with_mint_key(token, Some(&key), language, wordlist) {
+        Ok(text) => serde_json::json!({ "encoded_text": text }).to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
+/// Canonical prose back to a `cashuB…` token. Text around the paragraph is
+/// ignored.
+///
+/// Returns JSON `{ token, repaired, mint_key }` (word positions parity
+/// repaired; the mint identity key as hex, or null) or `{ error }`.
+#[wasm_bindgen]
+pub fn cashu_from_words(text: &str, language: &str, wordlist: &str) -> String {
+    match crate::cashu::cashu_from_words(text, language, wordlist) {
+        Ok(d) => serde_json::json!({
+            "token": d.token,
+            "repaired": d.repaired,
+            "mint_key": d.mint_key.map(|k| codec::hex_encode(&k)),
+        })
+        .to_string(),
+        Err(e) => serde_json::json!({ "error": e.to_string() }).to_string(),
+    }
+}
+
 /// Canonical encode at an EXPLICIT format version, rather than the current one.
 ///
 /// The framing follows the version's own rules, so this writes a version-1
