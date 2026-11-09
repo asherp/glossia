@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="ec8a5e9">
+<meta name="glossia-build" content="aaf3ced">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -1406,7 +1406,7 @@ import init, {
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
-import { sealMessage, renderArtifact, decodeMessage, EMDASH } from './glossia-msg.js';
+import { sealMessage, renderArtifact, decodeMessage, EMDASH, payloadForm } from './glossia-msg.js';
 
 let ready = false;
 let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
@@ -1417,7 +1417,8 @@ const SEED = 42n;               // fixed seed -> deterministic prose
 // "bip39" dialect, so the seed round-trips byte-for-byte. English and Czech use
 // 2^11 (2048-word) lists — same word count as the seed; English even shares the
 // BIP39 wordlist, so the seed words appear verbatim in the prose. Latin uses a
-// 2^15 list, so the same 12-word seed becomes ~9 Latin words.
+// 2^15 list, so the same 12-word seed becomes ~9 Latin words; Korean's
+// default list is 2^14, so it becomes ~10 Korean words.
 //   source    : prose endpoint  — bip39-dialect prose in this language
 //   rawTarget : bare endpoint   — bare payload words in this language
 const LANGS = [
@@ -1438,7 +1439,7 @@ function escapeHtml(s) {
 
 // Normalize a word for payload-set membership: lowercase, strip non-alphanumerics
 // (Unicode-aware, so Czech/Latin accents are kept).
-function norm(w) { return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+function norm(w) { return w.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
 function normSet(words) { return new Set((words || []).map(norm).filter(Boolean)); }
 
 // Wrap each prose word that is a payload word in <u>…</u>; whitespace preserved.
@@ -1448,7 +1449,8 @@ function underlineProse(text, payloadSet) {
     if (/^\s+$/.test(tok)) return tok.replace(/\n/g, '<br>');
     const n = norm(tok);
     const esc = escapeHtml(tok);
-    return (n && payloadSet.has(n)) ? '<u>' + esc + '</u>' : esc;
+    // payloadForm also accepts a Korean payload word with its particle attached.
+    return (n && payloadForm(n, payloadSet)) ? '<u>' + esc + '</u>' : esc;
   }).join('');
 }
 
@@ -1470,9 +1472,8 @@ let coverEnc = true;   // Encrypted Message panel
 // lowercase), so the payload-only view normalizes them to lowercase.
 function payloadTokens(text, set) {
   return text.split(/\s+/)
-    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
-    .filter(t => t && set.has(norm(t)))
-    .map(t => t.toLowerCase());
+    .map(t => payloadForm(norm(t), set))   // detaches a Korean particle
+    .filter(Boolean);
 }
 function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
 
@@ -1504,6 +1505,7 @@ const AK_LANGS = [
   { id: 'english', label: 'English', source: 'english/bip39/body' },
   { id: 'latin',   label: 'Latin',   source: 'latin/default/body' },
   { id: 'czech',   label: 'Czech',   source: 'czech/default/body' },
+  { id: 'korean',  label: 'Korean',  source: 'korean/default/body' },
 ];
 const AK_FORMATS = [
   { id: 'ascii7', label: 'ASCII',  word: 'ascii7' },
@@ -1629,7 +1631,9 @@ function akRun() {
   if (!text) { akSetOutput(''); return; }
   try {
     if (akMode === 'encode') {
-      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLang + ' naturally', SEED));
+      // Name the endpoint by path: the meta vocabulary has no word for every
+      // language (no "korean"), but every language has a language/wordlist/dialect path.
+      const r = JSON.parse(wasmTranscode(text, 'encode into ' + akLangById(akLang).source + ' naturally', SEED));
       if (r.error) { akShowError(r.error); akSetOutput(''); return; }
       akDetFmt = r.data_mode || '';
       const out = (r.output || '').trim();
@@ -1710,6 +1714,7 @@ const ENC_LANGS = [
   { id: 'english', label: 'English', language: 'english', wordlist: 'bip39',   dialect: 'body' },
   { id: 'latin',   label: 'Latin',   language: 'latin',   wordlist: 'default', dialect: 'body' },
   { id: 'czech',   label: 'Czech',   language: 'czech',   wordlist: 'default', dialect: 'body' },
+  { id: 'korean',  label: 'Korean',  language: 'korean',  wordlist: 'default', dialect: 'body' },
 ];
 function encLangById(id) { return ENC_LANGS.find(l => l.id === id) || ENC_LANGS[0]; }
 
