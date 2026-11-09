@@ -42,9 +42,25 @@ jobs:
         if: github.event.action != 'closed'
         uses: Swatinem/rust-cache@v2
 
+      # Download the pinned release directly, with retries. The rustwasm
+      # installer script makes one attempt and fails the job on any 5xx from
+      # GitHub's release CDN; if the download still fails, build from source.
       - name: Install wasm-pack
         if: github.event.action != 'closed'
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        env:
+          WASM_PACK_VERSION: "0.13.1"
+        run: |
+          set -euo pipefail
+          name="wasm-pack-v${WASM_PACK_VERSION}-x86_64-unknown-linux-musl"
+          url="https://github.com/rustwasm/wasm-pack/releases/download/v${WASM_PACK_VERSION}/${name}.tar.gz"
+          if curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 -o "$RUNNER_TEMP/wasm-pack.tgz" "$url"; then
+            tar -xzf "$RUNNER_TEMP/wasm-pack.tgz" -C "$RUNNER_TEMP"
+            install -m 755 "$RUNNER_TEMP/$name/wasm-pack" "${CARGO_HOME:-$HOME/.cargo}/bin/wasm-pack"
+          else
+            echo "::warning::wasm-pack download failed; building it from source"
+            cargo install wasm-pack --locked --version "$WASM_PACK_VERSION"
+          fi
+          wasm-pack --version
 
       # NOTE: do not install a system `wasm-opt` here. wasm-pack uses its own
       # bundled wasm-opt and runs the size pass configured under
