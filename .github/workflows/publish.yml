@@ -131,6 +131,17 @@ jobs:
           #
           # The tag list comes from the API rather than the checkout, which is
           # shallow and carries no tags.
+          # Publishing from the GitHub web UI ("Draft a new release" with a new
+          # tag) creates the page first and the tag push second, so the page
+          # can already exist here. Creating it again would fail this job after
+          # the crates are already on crates.io, and that would skip the
+          # binaries. Keep the page the person wrote, and let the binaries
+          # attach to it.
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists; keeping it."
+            exit 0
+          fi
+
           tags="$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" --jq '.[].name' \
                   | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)"
           prev="$(printf '%s\n%s\n' "$tags" "$GITHUB_REF_NAME" \
