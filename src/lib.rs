@@ -87,7 +87,7 @@ pub use codec::{
 // Re-export pipeline types and functions
 pub use pipeline::{Pipeline, Endpoint, Verb, PipelineError, encode_into_language, decode_from_language, cached_payload_tree};
 
-pub use cashu::{cashu_from_words, cashu_to_words, CashuDecoded, CashuError};
+pub use cashu::{cashu_from_words, cashu_to_words, cashu_to_words_with_mint_key, CashuDecoded, CashuError, MintKey};
 pub use canonical::{
     canonical_decode, canonical_decode_fixed, canonical_decode_raw, canonical_decode_raw_fixed,
     canonical_encode, canonical_encode_at, canonical_encode_fixed, canonical_encode_fixed_at,

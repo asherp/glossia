@@ -12,12 +12,14 @@
 //!
 //! ```text
 //! 0x00 cbor..                       a V4 token's CBOR, unchanged (fallback)
-//! 0x01 flags len url len unit [len memo]
+//! 0x02 key[32] cbor..               the same, with a mint identity key
+//! 0x01 flags len url [key[32]] len unit [len memo]
 //!      nkeysets { len id  nproofs { exp secret[32] C[33] } }
 //! ```
 //!
 //! `flags` bit 0: the URL is written without its `https://`; bit 1: a
-//! memo follows. The mint URL and unit are always written: the format
+//! memo follows; bit 2: the mint's 32-byte identity key follows the URL
+//! (see [`MintKey`]). The mint URL and unit are always written: the format
 //! assumes no mint and no unit. A proof's amount is `2^exp`. DLEQ
 //! proofs are left out (the receiver checks the token with its mint
 //! instead). A token the envelope can't hold exactly (a NUT-10 locked
@@ -31,8 +33,16 @@ use crate::codec::{base64_decode, base64_encode};
 
 const RAW: u8 = 0x00;
 const COMPACT: u8 = 0x01;
+const RAW_WITH_MINT_KEY: u8 = 0x02;
 const HTTPS_IMPLIED: u8 = 1;
 const HAS_MEMO: u8 = 2;
+const HAS_MINT_KEY: u8 = 4;
+
+/// A mint's identity: the 32-byte x-only (BIP-340) public key of its
+/// offline root key. Carried beside the mint URL so a wallet can tell when
+/// that URL no longer points at the mint that issued the token. It is not
+/// part of the Cashu token and is dropped when the prose becomes `cashuB`.
+pub type MintKey = [u8; 32];
 
 /// Why a token could not be written or read as prose.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -63,12 +73,25 @@ pub struct CashuDecoded {
     pub token: String,
     /// Word positions parity repaired (empty when the text arrived intact).
     pub repaired: Vec<usize>,
+    /// The mint identity key the prose carried, if any.
+    pub mint_key: Option<MintKey>,
 }
 
 /// `cashuB…` → canonical prose in `language`/`wordlist`.
 pub fn cashu_to_words(token: &str, language: &str, wordlist: &str) -> Result<String, CashuError> {
+    cashu_to_words_with_mint_key(token, None, language, wordlist)
+}
+
+/// [`cashu_to_words`], carrying the mint's identity key beside its URL
+/// (about 27 English words).
+pub fn cashu_to_words_with_mint_key(
+    token: &str,
+    mint_key: Option<&MintKey>,
+    language: &str,
+    wordlist: &str,
+) -> Result<String, CashuError> {
     let cbor = token_cbor(token.trim()).ok_or(CashuError::NotV4Token)?;
-    canonical_encode(&pack(&cbor), language, wordlist).map_err(CashuError::Canonical)
+    canonical_encode(&pack(&cbor, mint_key), language, wordlist).map_err(CashuError::Canonical)
 }
 
 /// Canonical prose → `cashuB…`. Text around the paragraph (a greeting, a
@@ -86,8 +109,10 @@ pub fn cashu_from_words(text: &str, language: &str, wordlist: &str) -> Result<Ca
             }
             match canonical_decode(&text[a..b], language, wordlist) {
                 Ok(d) => {
-                    if let Some(token) = unpack(&d.payload).and_then(|c| cbor_token(&c)) {
-                        return Ok(CashuDecoded { token, repaired: d.repaired });
+                    if let Some((cbor, mint_key)) = unpack(&d.payload) {
+                        if let Some(token) = cbor_token(&cbor) {
+                            return Ok(CashuDecoded { token, repaired: d.repaired, mint_key });
+                        }
                     }
                     first_err.get_or_insert(CashuError::NotCashu);
                 }
@@ -153,18 +178,31 @@ fn cbor_token(cbor: &[u8]) -> Option<String> {
     Some(format!("cashuB{b64}"))
 }
 
-fn pack(cbor: &[u8]) -> Vec<u8> {
-    compact(cbor).unwrap_or_else(|| {
-        let mut out = vec![RAW];
+fn pack(cbor: &[u8], mint_key: Option<&MintKey>) -> Vec<u8> {
+    compact(cbor, mint_key).unwrap_or_else(|| {
+        let mut out = match mint_key {
+            Some(k) => {
+                let mut v = vec![RAW_WITH_MINT_KEY];
+                v.extend_from_slice(k);
+                v
+            }
+            None => vec![RAW],
+        };
         out.extend_from_slice(cbor);
         out
     })
 }
 
-fn unpack(packed: &[u8]) -> Option<Vec<u8>> {
-    match *packed.first()? {
-        RAW => Some(packed[1..].to_vec()),
-        COMPACT => expand(&packed[1..]),
+/// The envelope → a V4 token's CBOR and the mint identity key, if any.
+fn unpack(packed: &[u8]) -> Option<(Vec<u8>, Option<MintKey>)> {
+    let (&tag, rest) = packed.split_first()?;
+    match tag {
+        RAW => Some((rest.to_vec(), None)),
+        RAW_WITH_MINT_KEY => {
+            let key: MintKey = rest.get(..32)?.try_into().ok()?;
+            Some((rest[32..].to_vec(), Some(key)))
+        }
+        COMPACT => expand(rest),
         _ => None,
     }
 }
@@ -183,7 +221,7 @@ fn push_short(out: &mut Vec<u8>, bytes: &[u8]) -> Option<()> {
 
 /// A V4 token's CBOR → the compact envelope, or `None` if it would lose
 /// anything other than DLEQ proofs.
-fn compact(cbor: &[u8]) -> Option<Vec<u8>> {
+fn compact(cbor: &[u8], mint_key: Option<&MintKey>) -> Option<Vec<u8>> {
     let v: Value = ciborium::de::from_reader(cbor).ok()?;
     let top = v.as_map()?;
     if top
@@ -208,6 +246,10 @@ fn compact(cbor: &[u8]) -> Option<Vec<u8>> {
             push_short(&mut head, rest.as_bytes())?;
         }
         None => push_short(&mut head, mint.as_bytes())?,
+    }
+    if let Some(k) = mint_key {
+        flags |= HAS_MINT_KEY;
+        head.extend_from_slice(k);
     }
     push_short(&mut head, unit.as_bytes())?;
     if let Some(memo) = memo {
@@ -280,11 +322,12 @@ impl<'a> Reader<'a> {
     }
 }
 
-/// The compact envelope (after its tag byte) → a V4 token's CBOR.
-fn expand(body: &[u8]) -> Option<Vec<u8>> {
+/// The compact envelope (after its tag byte) → a V4 token's CBOR and the
+/// mint identity key, if any.
+fn expand(body: &[u8]) -> Option<(Vec<u8>, Option<MintKey>)> {
     let mut r = Reader(body);
     let flags = r.byte()?;
-    if flags & !(HTTPS_IMPLIED | HAS_MEMO) != 0 {
+    if flags & !(HTTPS_IMPLIED | HAS_MEMO | HAS_MINT_KEY) != 0 {
         return None;
     }
     let m = r.text()?;
@@ -292,6 +335,11 @@ fn expand(body: &[u8]) -> Option<Vec<u8>> {
         format!("https://{m}")
     } else {
         m
+    };
+    let mint_key = if flags & HAS_MINT_KEY != 0 {
+        Some(MintKey::try_from(r.take(32)?).ok()?)
+    } else {
+        None
     };
     let unit = r.text()?;
     let memo = if flags & HAS_MEMO != 0 {
@@ -332,9 +380,8 @@ fn expand(body: &[u8]) -> Option<Vec<u8>> {
     top.push((t("t"), Value::Array(keysets)));
     let mut out = Vec::new();
     ciborium::ser::into_writer(&Value::Map(top), &mut out).ok()?;
-    Some(out)
+    Some((out, mint_key))
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -359,10 +406,54 @@ mod tests {
         assert_eq!(cashu_to_words(&back.token, "english", "bip39").unwrap(), words);
     }
 
+    /// The same token with a mint identity key (secp256k1's generator, as
+    /// an x-only key), as Hashu writes it.
+    const VECTOR_MINT_KEY: &str = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    const VECTOR_WORDS_MINT_KEY: &str = include_str!("../tests/cashu_vector_words_mint_key.txt");
+
+    #[test]
+    fn hashu_vector_with_mint_key_round_trips() {
+        let key: MintKey = crate::codec::hex_decode(VECTOR_MINT_KEY).unwrap().try_into().unwrap();
+        let words = cashu_to_words_with_mint_key(VECTOR_TOKEN.trim(), Some(&key), "english", "bip39").unwrap();
+        assert_eq!(words, VECTOR_WORDS_MINT_KEY.trim());
+        let back = cashu_from_words(VECTOR_WORDS_MINT_KEY, "english", "bip39").unwrap();
+        assert_eq!(back.mint_key, Some(key));
+        // Still a standard token: the key is not in it.
+        let plain = cashu_from_words(VECTOR_WORDS, "english", "bip39").unwrap();
+        assert_eq!(back.token, plain.token);
+        assert_eq!(plain.mint_key, None);
+    }
+
+    #[test]
+    fn mint_key_survives_the_raw_fallback() {
+        let key: MintKey = [7; 32];
+        let t = |s: &str| Value::Text(s.to_string());
+        let proof = Value::Map(vec![
+            (t("a"), Value::Integer(3.into())),
+            (t("s"), t(&"ab".repeat(32))),
+            (t("c"), Value::Bytes(vec![2; 33])),
+        ]);
+        let tok = Value::Map(vec![
+            (t("m"), t("https://mint.example")),
+            (t("u"), t("sat")),
+            (t("t"), Value::Array(vec![Value::Map(vec![
+                (t("i"), Value::Bytes(vec![0; 8])),
+                (t("p"), Value::Array(vec![proof])),
+            ])])),
+        ]);
+        let mut cbor = Vec::new();
+        ciborium::ser::into_writer(&tok, &mut cbor).unwrap();
+        assert_eq!(pack(&cbor, Some(&key))[0], RAW_WITH_MINT_KEY);
+        let token = cbor_token(&cbor).unwrap();
+        let words = cashu_to_words_with_mint_key(&token, Some(&key), "english", "bip39").unwrap();
+        let back = cashu_from_words(&words, "english", "bip39").unwrap();
+        assert_eq!((back.token, back.mint_key), (token, Some(key)));
+    }
+
     #[test]
     fn compact_shrinks_the_token() {
         let cbor = token_cbor(VECTOR_TOKEN.trim()).unwrap();
-        let packed = pack(&cbor);
+        let packed = pack(&cbor, None);
         assert_eq!(packed[0], COMPACT);
         assert!(packed.len() * 100 < cbor.len() * 70, "{} vs {}", packed.len(), cbor.len());
     }
@@ -393,7 +484,7 @@ mod tests {
         ]);
         let mut cbor = Vec::new();
         ciborium::ser::into_writer(&tok, &mut cbor).unwrap();
-        assert_eq!(pack(&cbor)[0], RAW);
+        assert_eq!(pack(&cbor, None)[0], RAW);
         let token = cbor_token(&cbor).unwrap();
         let words = cashu_to_words(&token, "english", "bip39").unwrap();
         assert_eq!(cashu_from_words(&words, "english", "bip39").unwrap().token, token);
