@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+"""Generate languages/korean/payload.yaml and cover.yaml.
+
+The payload is the official BIP-0039 Korean wordlist (wordlist.txt, stored
+there in NFD exactly as published), converted to NFC so that prose carries
+precomposed Hangul syllables. Order is preserved: index i in payload.yaml is
+index i in the BIP39 list.
+
+This script records how the files were first produced. Both files are
+append-only once shipped; regenerating must not reorder or drop entries.
+
+Usage: python3 languages/korean/generate.py
+"""
+import os
+import unicodedata
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Particles the agreement pass attaches to the preceding noun. Kept in sync
+# with KOREAN_PARTICLES in src/codec.rs and the allomorph table in
+# src/generator/agreement.rs.
+PARTICLES = "이 가 은 는 을 를 에 에서 와 과 의 로 으로".split()
+
+# Payload words that read as adverbs. They take the Adv slot only, never a
+# noun slot, because a particle attached to an adverb is ungrammatical.
+ADVERBS = set(
+    "가끔 갑자기 같이 결국 계속 그냥 너무 다시 매우 먼저 미리 바로 벌써 "
+    "아마 아직 아까 언제나 오래 오히려 자주 잠시 점점 제일 조금 함께 항상 "
+    "혹시 훨씬 가장 거의 더욱 마침내 서로 모두 일부러 저절로 마치 어쩌면 "
+    "이미 곧 늘 꼭 또 왜 많이 멀리 빨리 재빨리 모조리 차라리 함부로 수시로 "
+    "스스로 의외로 이대로 맘대로 제대로 저절로 홀로 이렇게 저렇게 예컨대 "
+    "힘껏 얼른 방금 절대 달리 높이 활짝".split()
+)
+# Prenouns (관형사): they stand only before a noun.
+PRENOUNS = set("온갖 각종 여러 모든 웬".split())
+# Adverbs that are also common nouns ("계속", "조금", "모두"): both tags.
+ADV_AND_NOUN = set("계속 조금 모두 처음 오늘 내일 어제 대부분 그동안 이번 다음 지금 정말 진짜 "
+                   "자꾸 아무리 역시 오랫동안 요즘 금방".split())
+
+
+def payload_entries(words):
+    out = []
+    for w in words:
+        if w in ADV_AND_NOUN:
+            out.append((w, [("N", 1.0), ("Adv", 0.6)]))
+        elif w in ADVERBS or w.endswith("히"):
+            out.append((w, [("Adv", 1.0)]))
+        elif w in PRENOUNS or (w.endswith("적") and len(w) >= 3):
+            # Sino-Korean -적 forms stand before a noun ("구체적 계획").
+            out.append((w, [("Adj", 1.0), ("N", 0.3)]))
+        else:
+            out.append((w, [("N", 1.0)]))
+    return out
+
+
+# Cover vocabulary. Words that turn out to be payload words are dropped.
+COVER = {
+    "Prep": [
+        # (word, refinement). Allomorph pairs share a refinement; the
+        # agreement pass picks the form that fits the preceding syllable.
+        ("이", "subj"), ("가", "subj"),
+        ("은", "top"), ("는", "top"),
+        ("을", "obj"), ("를", "obj"),
+        ("에", "loc"), ("에서", "loc"),
+        ("와", "com"), ("과", "com"),
+        ("의", "gen"),
+        ("로", "dir"), ("으로", "dir"),
+    ],
+    "V": [
+        (w, "tr") for w in
+        "보았다 만들었다 찾았다 기억했다 좋아했다 바꾸었다 열었다 가졌다 지켰다 "
+        "그렸다 읽었다 옮겼다 받았다 남겼다 모았다 나누었다 기다렸다 품었다 "
+        "키웠다 적었다 샀다 보냈다 불렀다 알았다 배웠다 믿었다 따랐다 얻었다 "
+        "쌓았다 세웠다 고쳤다 닫았다 채웠다 건넸다 떠올렸다 살폈다 다듬었다 "
+        "봤다 썼다 쳤다 줬다 폈다 놨다 탔다 깼다 찼다 팠다 짰다 쥐었다".split()
+    ] + [
+        (w, "intr") for w in
+        "있었다 왔다 갔다 남았다 머물렀다 빛났다 사라졌다 나타났다 돌아왔다 "
+        "잠들었다 자랐다 웃었다 흘렀다 섰다 앉았다 떠났다 도착했다 피어났다 "
+        "멈췄다 쉬었다 기울었다 울렸다 났다 떴다 컸다 잤다 졌다 빛났다 늘었다".split()
+    ],
+    "Adj": [
+        (w, None) for w in
+        "작은 큰 새로운 오래된 조용한 따뜻한 차가운 밝은 어두운 깊은 넓은 높은 "
+        "낮은 푸른 붉은 하얀 검은 맑은 먼 가까운 긴 짧은 낡은 젊은 귀한 "
+        "단단한 부드러운 무거운 가벼운 착한 슬픈 기쁜 고요한 낯선 익숙한 "
+        "소박한 화려한 정직한 둥근 아름다운".split()
+    ],
+    "N": [
+        (w, None) for w in
+        "사람 아이 나무 바다 하늘 마을 집 길 강 산 별 달 해 바람 꽃 돌 물 불 빛 "
+        "새 책 편지 노래 이야기 시간 마음 손 눈 꿈 문 창 상자 열쇠 지도 등불 "
+        "우물 다리 탑 배 섬 숲 들판 언덕 그림자 발자국 촛불 종 깃발 등대".split()
+    ],
+    "Pron": [(w, None) for w in "그 그녀 우리 그들 누군가 나 너".split()],
+    "Prefix": [
+        (w, None) for w in
+        "그리고 그래서 하지만 그런데 그러나 또한 한편 그때".split()
+    ],
+}
+
+
+def main():
+    raw = [l.strip() for l in open(os.path.join(HERE, "wordlist.txt"), encoding="utf-8") if l.strip()]
+    assert len(raw) == 2048, len(raw)
+    words = [unicodedata.normalize("NFC", w) for w in raw]
+    assert len(set(words)) == 2048
+    payload = set(words)
+
+    with open(os.path.join(HERE, "payload.yaml"), "w", encoding="utf-8") as f:
+        f.write(
+            "# Korean BIP39 Payload Wordlist for Glossia\n"
+            "# Source: official BIP-0039 Korean wordlist (2048 words)\n"
+            "#   https://github.com/bitcoin/bips/blob/master/bip-0039/korean.txt\n"
+            "#\n"
+            "# The published list is NFD (decomposed jamo); these keys are its NFC\n"
+            "# (precomposed syllable) forms, in the same order. Decoding composes\n"
+            "# Hangul before lookup, so NFD input matches too.\n"
+            "#\n"
+            "# POS tags: nouns are N; -히 words and a hand-picked set are Adv;\n"
+            "# Sino-Korean -적 forms are Adj (with an N fallback). POS only guides\n"
+            "# cover-text generation; decoding is wordlist membership.\n"
+            "#\n"
+            "# Order is the canonical BIP39 order: APPEND-ONLY and frozen.\n"
+            "# Generated by languages/korean/generate.py.\n"
+            "#\n"
+        )
+        for w, tags in payload_entries(words):
+            f.write(f"{w}:\n")
+            for pos, wt in tags:
+                f.write(f"  {pos}: {wt}\n")
+
+    dropped = []
+    with open(os.path.join(HERE, "cover.yaml"), "w", encoding="utf-8") as f:
+        f.write(
+            "# Korean cover words for Glossia\n"
+            "# These fill non-payload grammar slots and MUST NOT appear in\n"
+            "# languages/korean/payload.yaml (disjointness is enforced at compile time).\n"
+            "#\n"
+            "# Korean has no articles, so there is no Det category. Case and topic\n"
+            "# particles are Prep words with a refinement naming their function\n"
+            "# (subj, top, obj, loc, com, gen, dir). The agreement pass\n"
+            "# (morphology: korean) picks the allomorph that fits the preceding\n"
+            "# syllable and attaches the particle to it, so 사과 + 을 is written 사과를.\n"
+            "#\n"
+            "# Verbs are cover-only (the BIP39 list holds none) and carry a\n"
+            "# refinement: tr (takes an object) or intr.\n"
+            "# Generated by languages/korean/generate.py.\n"
+            "#\n"
+        )
+        seen = set()
+        for pos, entries in COVER.items():
+            for w, ref in entries:
+                if w in payload:
+                    dropped.append(w)
+                    continue
+                # A cover word must not decode as a payload word once the
+                # decoder strips a trailing particle from it.
+                if any(w.endswith(p) and w[: -len(p)] in payload for p in PARTICLES):
+                    dropped.append(w)
+                    continue
+                # A cover noun or pronoun takes particles, and the result must
+                # not be a payload word either (길 + 이 is 길이).
+                if pos in ("N", "Pron") and any(w + p in payload for p in PARTICLES):
+                    dropped.append(w)
+                    continue
+                if w in seen:
+                    continue
+                seen.add(w)
+                f.write(f"{w}:\n  {pos}: 1.0\n")
+                if ref:
+                    f.write(f"  refinement: {ref}\n")
+    print("dropped (payload collisions):", " ".join(dropped))
+
+
+if __name__ == "__main__":
+    main()

@@ -9,7 +9,7 @@ use super::cache::SequenceCache;
 use super::semantics::{SemanticModel, Sel};
 use super::utils::{
     payload_fits, get_grammar, start_nonterminal_for_pos, capitalize,
-    normalize_token_for_bip39, starts_with_vowel_sound, is_bare_verb_form,
+    normalize_token_for_bip39, is_payload_token, starts_with_vowel_sound, is_bare_verb_form,
     is_likely_transitive_verb,
 };
 
@@ -46,7 +46,7 @@ fn join_words_with_payload_grammar(
     for (_i, word) in words.iter().enumerate() {
         let word_clean = normalize_token_for_bip39(word);
         let word_lower = word.to_lowercase();
-        let is_payload = (!word_clean.is_empty() && payload_set.contains(&word_clean))
+        let is_payload = (!word_clean.is_empty() && is_payload_token(&word_clean, &payload_set))
             || payload_set.contains(&word_lower);
         let is_newline = word.contains('\n') || word == "<br>";
 
@@ -975,7 +975,14 @@ pub fn fill_slots_traced<R: Rng>(
     // determiners and noun casing, so payload words and round-tripping are
     // unaffected.
     if let Some(ag) = agreement {
-        ag.apply(&emitted_slots, &emitted_refs, &mut out);
+        // A merged token (a Korean particle written onto its noun) is removed
+        // from both the words and the trace, so the trace stays aligned with
+        // the whitespace-split output.
+        let merged = ag.apply(&emitted_slots, &emitted_refs, &mut out);
+        for &i in merged.iter().rev() {
+            out.remove(i);
+            trace.remove(i);
+        }
     }
 
     debug_assert_eq!(trace.len(), out.len(), "trace must stay aligned with emitted tokens");
@@ -1665,7 +1672,7 @@ pub fn generate_text_traced<R: Rng>(
             let sentence_text: String = sentence_words.iter()
                 .map(|w| {
                     let word_clean = normalize_token_for_bip39(w);
-                    if !word_clean.is_empty() && payload_set.contains(&word_clean) {
+                    if !word_clean.is_empty() && is_payload_token(&word_clean, &payload_set) {
                         // In library version, don't apply highlighting - just return the word
                         w.clone()
                     } else {
@@ -2002,7 +2009,7 @@ pub fn generate_text_traced<R: Rng>(
         let actual_payload_count = sentence_words.iter()
             .filter(|word| {
                 let word_clean = normalize_token_for_bip39(word);
-                !word_clean.is_empty() && validation_payload_set.contains(&word_clean)
+                !word_clean.is_empty() && is_payload_token(&word_clean, &validation_payload_set)
             })
             .count();
 
@@ -2027,7 +2034,7 @@ pub fn generate_text_traced<R: Rng>(
                     let word_clean = word_with_punct.trim_end_matches('.').to_lowercase();
                     let pos_str = slot.as_str();
                     // Mark payload words with * and show their allowed POS tags
-                    if payload_set.contains(&word_clean) && current_payload_idx < payload.len() {
+                    if is_payload_token(&word_clean, &payload_set) && current_payload_idx < payload.len() {
                         let payload_tok = &payload[current_payload_idx];
                         let allowed_pos: Vec<String> = payload_tok.allowed.iter().map(|p| p.to_string()).collect();
                         word_pos_mapping.push(format!("{}*:{}[{}]", word_clean, pos_str, allowed_pos.join(",")));
@@ -2049,7 +2056,7 @@ pub fn generate_text_traced<R: Rng>(
         });
         let sentence_contains_payload = sentence_words.iter().any(|word| {
             let word_clean = normalize_token_for_bip39(word);
-            !word_clean.is_empty() && validation_payload_set.contains(&word_clean)
+            !word_clean.is_empty() && is_payload_token(&word_clean, &validation_payload_set)
         });
         
         // Accept sentence if it has payload words OR if forced placements placed payload words
@@ -2065,7 +2072,7 @@ pub fn generate_text_traced<R: Rng>(
                 let sentence_text: String = sentence_words.iter()
                     .map(|w| {
                         let word_clean = normalize_token_for_bip39(w);
-                        if !word_clean.is_empty() && payload_set.contains(&word_clean) {
+                        if !word_clean.is_empty() && is_payload_token(&word_clean, &payload_set) {
                             // In library version, don't apply highlighting - just return the word
                             w.clone()
                         } else {
@@ -2350,7 +2357,7 @@ fn generate_text_segmented<R: Rng>(
         let actual_payload_count = sentence_words.iter()
             .filter(|word| {
                 let word_clean = normalize_token_for_bip39(word);
-                !word_clean.is_empty() && original_payload_set.contains(&word_clean)
+                !word_clean.is_empty() && is_payload_token(&word_clean, &original_payload_set)
             })
             .count();
 

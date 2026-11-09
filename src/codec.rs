@@ -123,11 +123,100 @@ pub fn hex_encode(bytes: &[u8]) -> String {
 /// to `①absorb` and the payload word is silently lost. Decorative markup around
 /// prose must come from non-alphanumeric symbols.
 pub fn normalize_token(word: &str) -> String {
-    word.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase()
+    compose_hangul(&word.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+}
+
+// Hangul composition constants (Unicode §3.12, "Conjoining Jamo Behavior").
+const HANGUL_S_BASE: u32 = 0xAC00;
+const HANGUL_L_BASE: u32 = 0x1100;
+const HANGUL_V_BASE: u32 = 0x1161;
+const HANGUL_T_BASE: u32 = 0x11A7;
+const HANGUL_L_COUNT: u32 = 19;
+const HANGUL_V_COUNT: u32 = 21;
+const HANGUL_T_COUNT: u32 = 28;
+
+/// Compose conjoining Hangul jamo into precomposed syllables.
+///
+/// This is the Hangul part of Unicode canonical composition (NFC), done
+/// algorithmically: a leading consonant followed by a vowel, and optionally a
+/// trailing consonant, becomes one syllable. The official BIP39 Korean list is
+/// published in NFD, and text pasted from some systems arrives decomposed, while
+/// Glossia's Korean wordlist and prose are NFC; composing every received token
+/// lets both forms decode. Text with no conjoining jamo is returned unchanged,
+/// so no other script is affected.
+pub fn compose_hangul(s: &str) -> String {
+    let is_jamo = |c: char| ('\u{1100}'..='\u{11FF}').contains(&c);
+    if !s.chars().any(is_jamo) {
+        return s.to_string();
+    }
+    let mut out: Vec<char> = Vec::with_capacity(s.len());
+    for c in s.chars() {
+        let cp = c as u32;
+        if let Some(&last) = out.last() {
+            let lp = last as u32;
+            // L + V -> LV syllable
+            if (HANGUL_L_BASE..HANGUL_L_BASE + HANGUL_L_COUNT).contains(&lp)
+                && (HANGUL_V_BASE..HANGUL_V_BASE + HANGUL_V_COUNT).contains(&cp)
+            {
+                let l = lp - HANGUL_L_BASE;
+                let v = cp - HANGUL_V_BASE;
+                let syl = HANGUL_S_BASE + (l * HANGUL_V_COUNT + v) * HANGUL_T_COUNT;
+                *out.last_mut().unwrap() = char::from_u32(syl).unwrap();
+                continue;
+            }
+            // LV + T -> LVT syllable
+            let s_index = lp.wrapping_sub(HANGUL_S_BASE);
+            if s_index < HANGUL_L_COUNT * HANGUL_V_COUNT * HANGUL_T_COUNT
+                && s_index % HANGUL_T_COUNT == 0
+                && (HANGUL_T_BASE + 1..HANGUL_T_BASE + HANGUL_T_COUNT).contains(&cp)
+            {
+                let syl = lp + (cp - HANGUL_T_BASE);
+                *out.last_mut().unwrap() = char::from_u32(syl).unwrap();
+                continue;
+            }
+        }
+        out.push(c);
+    }
+    out.into_iter().collect()
+}
+
+/// Korean case and topic particles that Korean prose writes attached to the
+/// noun before them (사과 + 를 → 사과를). Kept in sync with the allomorph table
+/// in `generator::agreement` and with `languages/korean/cover.yaml`.
+pub const KOREAN_PARTICLES: &[&str] = &[
+    "이", "가", "은", "는", "을", "를", "에", "에서", "와", "과", "의", "로", "으로",
+];
+
+/// Recover a payload word from a token that carries an attached particle.
+///
+/// Returns the token itself when it is already a payload word, and otherwise
+/// the token with one trailing Korean particle removed when that leaves a
+/// payload word. Returns `None` when neither holds. The whole token is always
+/// tried first, so a payload word that happens to end in a particle's syllable
+/// (국가 ends in 가) is never shortened. Tokens without a trailing Hangul
+/// particle, which is every token in every other language, take only the first
+/// check.
+///
+/// Correctness rests on two properties of the Korean data, both pinned by
+/// tests: no payload word plus a particle is itself a payload word, and no cover
+/// word minus a particle is a payload word.
+pub fn payload_form<F: Fn(&str) -> bool>(token: &str, is_payload: &F) -> Option<String> {
+    if is_payload(token) {
+        return Some(token.to_string());
+    }
+    for p in KOREAN_PARTICLES {
+        if let Some(stem) = token.strip_suffix(p) {
+            if !stem.is_empty() && is_payload(stem) {
+                return Some(stem.to_string());
+            }
+        }
+    }
+    None
 }
 
 /// Harvest payload words from received text: split on whitespace, normalize each
-/// token, and keep the ones `is_payload` accepts.
+/// token, and keep the ones `is_payload` accepts, detaching an attached Korean
+/// particle where that is what makes a token a payload word ([`payload_form`]).
 ///
 /// This is the canonical decode-side tokenizer — the inverse of embedding payload
 /// words in prose. Cover words are dropped simply by failing the predicate, which
@@ -135,7 +224,8 @@ pub fn normalize_token(word: &str) -> String {
 pub fn payload_tokens<F: Fn(&str) -> bool>(text: &str, is_payload: F) -> Vec<String> {
     text.split_whitespace()
         .map(|w| normalize_token(w))
-        .filter(|w| !w.is_empty() && is_payload(w))
+        .filter(|w| !w.is_empty())
+        .filter_map(|w| payload_form(&w, &is_payload))
         .collect()
 }
 
@@ -204,8 +294,10 @@ impl Markup {
 
     /// Normalize a token, stripping declared markup as well as non-alphanumerics.
     pub fn normalize_token(&self, word: &str) -> String {
-        word.trim_matches(|c: char| !c.is_alphanumeric() || self.chars.contains(&c))
-            .to_lowercase()
+        compose_hangul(
+            &word.trim_matches(|c: char| !c.is_alphanumeric() || self.chars.contains(&c))
+                .to_lowercase(),
+        )
     }
 }
 
@@ -218,7 +310,8 @@ pub fn payload_tokens_with_markup<F: Fn(&str) -> bool>(
 ) -> Vec<String> {
     text.split_whitespace()
         .map(|w| markup.normalize_token(w))
-        .filter(|w| !w.is_empty() && is_payload(w))
+        .filter(|w| !w.is_empty())
+        .filter_map(|w| payload_form(&w, &is_payload))
         .collect()
 }
 

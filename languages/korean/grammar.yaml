@@ -1,0 +1,242 @@
+# Korean Grammar Rules — Montague Grammar with CCG Combinators
+#
+# Each rule specifies a lambda term for semantic composition.
+#
+# Type inventory (Montague Grammar):
+#   e     = entity
+#   t     = truth value (sentence/proposition)
+#   A → B = function from A to B
+#
+# Korean-specific notes:
+#   - Verb-final (SOV). Every sentence ends in a cover verb in the plain past
+#     declarative (-았다/-었다/-했다); the BIP39 Korean list holds no verbs.
+#   - No articles (no Det), like Latin and Czech.
+#   - Case and topic are marked by postpositional particles, modelled as Prep
+#     words with a refinement naming their function:
+#       Prep[subj] 이/가   Prep[top] 은/는   Prep[obj] 을/를
+#       Prep[loc]  에/에서 Prep[com] 와/과   Prep[gen] 의   Prep[dir] 으로/로
+#     A particle is written attached to the noun before it. The agreement pass
+#     (morphology: korean, src/generator/agreement.rs) picks the allomorph that
+#     fits the noun's last syllable and attaches it; decoding strips it again
+#     (codec::payload_tokens), so attachment never changes what decodes.
+#   - Prep is placed after its noun, so it composes as a postposition: the
+#     lambda terms below apply the particle to the NP it follows.
+#   - Payload Adj words are Sino-Korean -적 forms, which stand before a noun.
+#   - V carries a refinement: V[tr] takes an object particle, V[intr] does not.
+
+grammar:
+  name: "Korean Grammar"
+  codec: bitpack
+  default_wordlist: default
+  morphology: korean
+
+  types:
+    - name: "N"
+      lambda_type: "e -> t"
+
+    - name: "V"
+      lambda_type: "e -> (e -> t)"
+
+    - name: "Adj"
+      lambda_type: "e -> e"
+
+    - name: "Adv"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Prep"
+      lambda_type: "e -> (e -> t)"
+
+    - name: "Conj"
+      lambda_type: "t -> (t -> t)"
+
+    - name: "Cop"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Modal"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Aux"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "To"
+      lambda_type: "(e -> t) -> (e -> t)"
+
+    - name: "Dot"
+      lambda_type: "t"
+
+    - name: "Prefix"
+      lambda_type: "t -> t"
+
+    - name: "Pron"
+      lambda_type: "e"
+
+  # Base rules (body dialect)
+  rules:
+    sentence:
+      # S = topic/subject, then the verb phrase, verb last.
+      lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+      cfg_productions:
+        - production: "NP Prep[top] VP Dot"
+          weight: 0.45
+          # N-은 [VP]: topic-marked subject
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+        - production: "NP Prep[subj] VP Dot"
+          weight: 0.30
+          # N-이 [VP]: subject-marked
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+        - production: "NP Prep[top] Adv VP Dot"
+          weight: 0.15
+          # adverb modifies the verb phrase
+          lambda: "λnp:(e->t). λadv:((e->t)->(e->t)). λvp:((e->t)->t). vp(np)"
+        - production: "Adv NP Prep[subj] VP Dot"
+          weight: 0.10
+          # fronted adverb
+          lambda: "λadv:((e->t)->(e->t)). λnp:(e->t). λvp:((e->t)->t). vp(np)"
+
+    noun_phrase:
+      # NP : e → t. Bare noun, adjective + noun, or genitive chain N-의 N.
+      lambda: "λn:(e->t). n"
+      cfg_productions:
+        - production: "N"
+          weight: 1.0
+          lambda: "λn:(e->t). n"
+        - production: "Adj N"
+          weight: 0.5
+          lambda: "λadj:(e->e). λn:(e->t). adj(n)"
+        - production: "N Prep[gen] N"
+          weight: 0.3
+          # N-의 N: the particle relates the possessor to the head noun
+          lambda: "λn1:(e->t). λgen:(e->(e->t)). λn2:(e->t). gen(n1)(n2)"
+
+    verb_phrase:
+      # VP : (e → t) → t. Arguments precede the verb.
+      lambda: "λv:(e->(e->t)). v"
+      cfg_productions:
+        - production: "NP Prep[obj] V[tr]"
+          weight: 0.40
+          # N-을 V: transitive
+          lambda: "λnp:(e->t). λobj:(e->(e->t)). λv:(e->(e->t)). v(obj(np))"
+        - production: "NP Prep[loc] V[intr]"
+          weight: 0.20
+          # N-에 V: locative with an intransitive verb
+          lambda: "λnp:(e->t). λloc:(e->(e->t)). λv:(e->(e->t)). loc(np)(v)"
+        - production: "NP Prep[com] NP Prep[obj] V[tr]"
+          weight: 0.15
+          # N-와 N-을 V: coordinated object
+          lambda: "λnp1:(e->t). λcom:(e->(e->t)). λnp2:(e->t). λobj:(e->(e->t)). λv:(e->(e->t)). v(obj(com(np1)(np2)))"
+        - production: "NP Prep[loc] NP Prep[obj] V[tr]"
+          weight: 0.15
+          # N-에서 N-을 V: locative adjunct, then object
+          lambda: "λnp1:(e->t). λloc:(e->(e->t)). λnp2:(e->t). λobj:(e->(e->t)). λv:(e->(e->t)). loc(np1)(v(obj(np2)))"
+        - production: "NP Prep[dir] V[intr]"
+          weight: 0.10
+          # N-으로 V: direction
+          lambda: "λnp:(e->t). λdir:(e->(e->t)). λv:(e->(e->t)). dir(np)(v)"
+
+  dialects:
+    subject:
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+      rules:
+        sentence:
+          # S = Prefix? SContent
+          lambda: "λs:t. s"
+          cfg_productions:
+            - production: "Prefix SContent"
+              weight: 0.3
+              lambda: "λpfx:(t->t). λs:t. pfx(s)"
+            - production: "SContent"
+              weight: 0.7
+              lambda: "λs:t. s"
+
+        sentence_content:
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+          cfg_productions:
+            - production: "NP Prep[top] VP Dot"
+              weight: 0.5
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP Prep[subj] VP Dot"
+              weight: 0.3
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "NP Prep[top] Adv VP Dot"
+              weight: 0.2
+              lambda: "λnp:(e->t). λadv:((e->t)->(e->t)). λvp:((e->t)->t). vp(np)"
+
+    prose:
+      # Longer sentences: a sentence-initial connective, pronoun subjects,
+      # and stacked adjuncts before the verb.
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+      rules:
+        sentence:
+          lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+          cfg_productions:
+            - production: "NP Prep[top] VP Dot"
+              weight: 0.30
+              lambda: "λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "Prefix NP Prep[top] VP Dot"
+              weight: 0.20
+              lambda: "λpfx:(t->t). λnp:(e->t). λvp:((e->t)->t). pfx(vp(np))"
+            - production: "NP Prep[subj] NP Prep[loc] VP Dot"
+              weight: 0.20
+              lambda: "λnp1:(e->t). λloc:(e->(e->t)). λnp2:(e->t). λvp:((e->t)->t). loc(np2)(vp(np1))"
+            - production: "Adv NP Prep[top] VP Dot"
+              weight: 0.15
+              lambda: "λadv:((e->t)->(e->t)). λnp:(e->t). λvp:((e->t)->t). vp(np)"
+            - production: "Prefix Adv NP Prep[subj] VP Dot"
+              weight: 0.15
+              lambda: "λpfx:(t->t). λadv:((e->t)->(e->t)). λnp:(e->t). λvp:((e->t)->t). pfx(vp(np))"
+
+        noun_phrase:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N"
+              weight: 0.5
+              lambda: "λn:(e->t). n"
+            - production: "Adj N"
+              weight: 0.3
+              lambda: "λadj:(e->e). λn:(e->t). adj(n)"
+            - production: "N Prep[gen] N"
+              weight: 0.15
+              lambda: "λn1:(e->t). λgen:(e->(e->t)). λn2:(e->t). gen(n1)(n2)"
+            - production: "Pron"
+              weight: 0.05
+              lambda: "λpron:e. pron"
+
+    # BIP39 transcode: re-express a BIP39 seed as Korean prose.
+    # Uses base_n (rebase) instead of bitpack to avoid padding-word overhead;
+    # inherits the base (body) rules. Mirror of the Czech bip39 dialect.
+    bip39:
+      codec: base_n
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+
+    payload_only:
+      # Payload words only, with no particles or verbs.
+      payload_wordlist: "default"
+      cover_wordlist: "default"
+      rules:
+        sentence:
+          lambda: "λn:(e->t). n"
+          cfg_productions:
+            - production: "N Dot"
+              weight: 0.3
+              lambda: "λn:(e->t). n"
+            - production: "N N Dot"
+              weight: 0.2
+              lambda: "λn:(e->t). n"
+            - production: "N N N Dot"
+              weight: 0.15
+              lambda: "λn:(e->t). n"
+            - production: "N N N N Dot"
+              weight: 0.1
+              lambda: "λn:(e->t). n"
+            - production: "N N N N N Dot"
+              weight: 0.05
+              lambda: "λn:(e->t). n"
+            - production: "Adv N Dot"
+              weight: 0.1
+              lambda: "λadv:((e->t)->(e->t)). λn:(e->t). n"
+            - production: "Adv N N Dot"
+              weight: 0.1
+              lambda: "λadv:((e->t)->(e->t)). λn:(e->t). n"

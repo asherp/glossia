@@ -92,10 +92,24 @@ pub fn normalize_token_for_bip39(s: &str) -> String {
         t = Cow::Owned(bare);
     }
 
-    // Strip leading/trailing punctuation/quotes, but preserve alphanumeric content
+    // Strip leading/trailing punctuation/quotes, but preserve alphanumeric content.
+    // Hangul is kept as word content too: Korean words are written entirely in
+    // it, so an ASCII-only test would strip them to nothing. The test stays
+    // ASCII for every other script, so no other language's matching changes.
     t.trim()
-        .trim_matches(|c: char| !c.is_ascii_alphanumeric())
+        .trim_matches(|c: char| !c.is_ascii_alphanumeric() && !is_hangul(c))
         .to_lowercase()
+}
+
+/// True when a normalized token is a payload word, either as written or once
+/// an attached Korean particle is detached (`codec::payload_form`).
+pub fn is_payload_token(clean: &str, payload_set: &std::collections::HashSet<String>) -> bool {
+    crate::codec::payload_form(clean, &|w: &str| payload_set.contains(w)).is_some()
+}
+
+/// True for Hangul syllables and jamo (precomposed, conjoining, compatibility).
+fn is_hangul(c: char) -> bool {
+    matches!(c as u32, 0xAC00..=0xD7A3 | 0x1100..=0x11FF | 0x3130..=0x318F)
 }
 
 /// Check if a word starts with a vowel sound (needed for a/an selection).

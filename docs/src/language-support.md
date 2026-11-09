@@ -9,6 +9,7 @@ Glossia supports multiple languages. Each language provides its own wordlists, g
 | **English** | BIP39, n-gram, WordNet lemmas | Full YAML grammar with dialects | Fully implemented |
 | **Latin** | Custom (65,536 words), Harry Potter | Full YAML grammar with dialects | Fully implemented |
 | **Czech** | BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose) | Fully implemented |
+| **Korean** | BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose), attached particles | Fully implemented |
 | **Math/Primes** | Prime numbers (payload), composites (cover) | Arithmetic grammar | Experimental |
 | **Harry Potter** | HP spell vocabulary | Custom | Experimental |
 | **French** | BIP39 (text only) | Not yet | Planned |
@@ -28,7 +29,29 @@ glossia --random 12 --language english --seed 0
 
 # Czech (official BIP39 wordlist)
 glossia --random 12 --language czech --seed 0
+
+# Korean (official BIP39 wordlist)
+glossia --random 12 --language korean --seed 0
 ```
+
+### Korean particles
+
+Korean writes case and topic particles onto the noun before them, so a payload
+word reaches the reader as 가격을 or 가이드는 rather than as a bare word. The
+grammar places each particle as a cover `Prep` word tagged with its function
+(`subj`, `top`, `obj`, `loc`, `com`, `gen`, `dir`), and the `korean` morphology
+pass (`src/generator/agreement.rs`) picks the allomorph the noun's last syllable
+calls for (이/가, 은/는, 을/를, 과/와, 으로/로) and attaches it.
+
+Decoding detaches it again (`codec::payload_form`): a token that is not a payload
+word as written is tried with one trailing particle removed. That is only safe
+because no payload word plus a particle is another payload word, and no cover
+noun plus a particle is a payload word (길 + 이 would be 길이, so 길 is not a cover
+word). `tests/korean.rs` pins both properties over the whole wordlist.
+
+Hangul is compared in NFC. The official BIP39 file is NFD; decoding composes
+conjoining jamo before lookup (`codec::compose_hangul`), so prose pasted from a
+system that decomposes it still decodes.
 
 ## Language File Structure
 
