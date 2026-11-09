@@ -694,7 +694,7 @@ body[data-hl="on"] .preview[data-style="terminal"]    .pv-prose .pw { font-weigh
 </div>
 
 <script type="module">
-import { init, sealMessage, renderArtifact, decodeMessage, skimArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang } from './glossia-msg.js';
+import { init, sealMessage, renderArtifact, decodeMessage, skimArtifact, encodeSeedPhrase, decodeSeedPhrase, detectLang, payloadForm } from './glossia-msg.js';
 import { generateIdentity, identityFromNsec, identityFromNwrite, buildEvent, publishEvent, fetchBoard,
          seedPayloadHex, parseSeedPayloadHex, DEFAULT_RELAYS,
          deriveIdentity, resolveContentKey, isNread, nreadFromKey } from './glossia-nostr.js';
@@ -779,8 +779,9 @@ function maybeAutoLang() {
 function parseRelays(s) { return s.split(/[\s,]+/).map(x => x.trim()).filter(x => /^wss?:\/\//.test(x)); }
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function renderProse(prose, words) {
-  const set = new Set((words || []).map(w => w.toLowerCase()));
-  return escapeHtml(prose).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<b class="pw">${w}</b>` : w);
+  const set = new Set((words || []).map(w => w.normalize('NFC').toLowerCase()));
+  // Any script's letters (Czech č, Hangul), with a Korean particle detached.
+  return escapeHtml(prose).replace(/[\p{L}\p{M}\p{N}]+/gu, (w) => payloadForm(w, set) ? `<b class="pw">${w}</b>` : w);
 }
 function splitProse(text) {
   text = (text || '').trim();

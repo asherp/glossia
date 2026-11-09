@@ -282,3 +282,21 @@ fn api_key_panel_round_trips_korean_by_endpoint_path() {
         assert_eq!(dec["output"].as_str().unwrap().trim(), key, "{source}: {prose}");
     }
 }
+
+#[test]
+fn korean_prose_is_detected_as_korean() {
+    // Korean payload words arrive with particles attached (사과를), so detection
+    // must detach them the way decoding does, or Korean prose scores zero hits
+    // and the pages fall back to English ("No payload words found").
+    for hex in ["48656c6c6f", "00112233445566778899aabbccddeeff"] {
+        let enc: serde_json::Value =
+            serde_json::from_str(&glossia::wasm::encode_raw_base_n(hex, "korean", "default", "body", 42)).unwrap();
+        let prose = enc["encoded_text"].as_str().expect("encoded_text").to_string();
+        let matches: serde_json::Value =
+            serde_json::from_str(&glossia::wasm::detect_dialect_from_text(&prose)).unwrap();
+        assert_eq!(matches[0]["language"], "korean", "{prose}\n{matches}");
+        let dec: serde_json::Value =
+            serde_json::from_str(&glossia::wasm::decode_raw_base_n(&prose, "korean", "default", 0)).unwrap();
+        assert!(dec.get("error").map_or(true, |e| e.is_null()), "{dec}");
+    }
+}

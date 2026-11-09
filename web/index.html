@@ -1406,7 +1406,7 @@ import init, {
 } from './glossia.js';
 // Shared, authenticated message pipeline (also used by the bulletin board):
 // AES-256-GCM, with the plumbing carried as a Latin "— attribution" trailer.
-import { sealMessage, renderArtifact, decodeMessage, EMDASH } from './glossia-msg.js';
+import { sealMessage, renderArtifact, decodeMessage, EMDASH, payloadForm } from './glossia-msg.js';
 
 let ready = false;
 let currentLang = 'english';    // TARGET language (the right-side buttons), persists across modes
@@ -1439,7 +1439,7 @@ function escapeHtml(s) {
 
 // Normalize a word for payload-set membership: lowercase, strip non-alphanumerics
 // (Unicode-aware, so Czech/Latin accents are kept).
-function norm(w) { return w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
+function norm(w) { return w.normalize('NFC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, ''); }
 function normSet(words) { return new Set((words || []).map(norm).filter(Boolean)); }
 
 // Wrap each prose word that is a payload word in <u>…</u>; whitespace preserved.
@@ -1449,7 +1449,8 @@ function underlineProse(text, payloadSet) {
     if (/^\s+$/.test(tok)) return tok.replace(/\n/g, '<br>');
     const n = norm(tok);
     const esc = escapeHtml(tok);
-    return (n && payloadSet.has(n)) ? '<u>' + esc + '</u>' : esc;
+    // payloadForm also accepts a Korean payload word with its particle attached.
+    return (n && payloadForm(n, payloadSet)) ? '<u>' + esc + '</u>' : esc;
   }).join('');
 }
 
@@ -1471,9 +1472,8 @@ let coverEnc = true;   // Encrypted Message panel
 // lowercase), so the payload-only view normalizes them to lowercase.
 function payloadTokens(text, set) {
   return text.split(/\s+/)
-    .map(t => t.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
-    .filter(t => t && set.has(norm(t)))
-    .map(t => t.toLowerCase());
+    .map(t => payloadForm(norm(t), set))   // detaches a Korean particle
+    .filter(Boolean);
 }
 function payloadOnlyText(text, set) { return payloadTokens(text, set).join(' '); }
 

@@ -348,7 +348,7 @@ body[data-style="terminal"] .empty { font-family:'IBM Plex Mono',monospace; font
 </aside>
 
 <script type="module">
-import { init, decodeMessage, skimArtifact } from './glossia-msg.js';
+import { init, decodeMessage, skimArtifact, payloadForm } from './glossia-msg.js';
 import { fetchBoard, isNpub, resolveContentKey, DEFAULT_RELAYS } from './glossia-nostr.js';
 
 const $ = (id) => document.getElementById(id);
@@ -431,13 +431,14 @@ setEngine('loading');
 // ── helpers ───────────────────────────────────────────────────────────
 function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 function boldPayload(text, words) {
-  const set = new Set((words || []).map(w => w.toLowerCase()));
-  return escapeHtml(text).replace(/[A-Za-zÀ-ÿ]+/g, (w) => set.has(w.toLowerCase()) ? `<b class="pw">${w}</b>` : w);
+  const set = new Set((words || []).map(w => w.normalize('NFC').toLowerCase()));
+  // Any script's letters (Czech č, Hangul), with a Korean particle detached.
+  return escapeHtml(text).replace(/[\p{L}\p{M}\p{N}]+/gu, (w) => payloadForm(w, set) ? `<b class="pw">${w}</b>` : w);
 }
 // the payload words alone, in order — the raw encoded tokens, cover words dropped
 function payloadOnly(text, words) {
-  const set = new Set((words || []).map(w => w.toLowerCase()));
-  const kept = (text.match(/[A-Za-zÀ-ÿ]+/g) || []).filter(w => set.has(w.toLowerCase()));
+  const set = new Set((words || []).map(w => w.normalize('NFC').toLowerCase()));
+  const kept = (text.match(/[\p{L}\p{M}\p{N}]+/gu) || []).map(w => payloadForm(w, set)).filter(Boolean);
   return escapeHtml(kept.join(' '));
 }
 // split "<body> — <attribution>" for display
