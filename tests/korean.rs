@@ -13,13 +13,13 @@ use glossia::codec::{compose_hangul, payload_form, KOREAN_PARTICLES};
 use glossia::{canonical_decode, canonical_encode, decode_from_language, encode_into_language};
 
 const WORDLIST_TXT: &str = include_str!("../languages/korean/wordlist.txt");
-const PAYLOAD_YAML: &str = include_str!("../languages/korean/payload.yaml");
+const PAYLOAD_YAML: &str = include_str!("../languages/korean/payload_bip39.yaml");
 const COVER_YAML: &str = include_str!("../languages/korean/cover.yaml");
-const CORPUS_YAML: &str = include_str!("../languages/korean/payload_corpus.yaml");
+const CORPUS_YAML: &str = include_str!("../languages/korean/payload.yaml");
 
-/// The two Korean payload lists: `default` is BIP39 Korean, `corpus` the
-/// 2^14-word list drawn from the Shiberu frequency corpus.
-const WORDLISTS: [(&str, &str); 2] = [("default", PAYLOAD_YAML), ("corpus", CORPUS_YAML)];
+/// The two Korean payload lists: `default` is the 2^14-word list drawn from
+/// the Shiberu frequency corpus, `bip39` the official BIP39 Korean list.
+const WORDLISTS: [(&str, &str); 2] = [("default", CORPUS_YAML), ("bip39", PAYLOAD_YAML)];
 
 fn yaml_keys(src: &str) -> Vec<String> {
     let doc: serde_yaml::Mapping = serde_yaml::from_str(src).expect("yaml parses");
@@ -130,7 +130,7 @@ fn corpus_list_is_two_to_the_fourteen_composed_hangul_in_order() {
         assert_eq!(&compose_hangul(&decompose_hangul(w)), w);
     }
     // Index order is Hangul code-point order (가나다), frozen once shipped.
-    assert!(words.windows(2).all(|p| p[0] < p[1]), "payload_corpus.yaml is not in Hangul order");
+    assert!(words.windows(2).all(|p| p[0] < p[1]), "payload.yaml is not in Hangul order");
 }
 
 #[test]
@@ -205,6 +205,24 @@ fn canonical_round_trip_and_nfd_input() {
             assert_ne!(nfd, text);
             let d = canonical_decode(&nfd, "korean", wl).expect("decode NFD");
             assert_eq!(&d.payload, payload, "{wl}: NFD input decoded differently");
+        }
+    }
+}
+
+#[test]
+fn canonical_prose_does_not_decode_under_the_other_list() {
+    // The lists share 1,864 words at different indices, so the words alone do
+    // not say which list a text used. The canonical envelope does: decoding
+    // under the wrong list must fail or refuse to verify, never return bytes.
+    let payload: Vec<u8> = (0u8..32).collect();
+    for (enc, dec) in [("default", "bip39"), ("bip39", "default")] {
+        let text = canonical_encode(&payload, "korean", enc).expect("encode");
+        match canonical_decode(&text, "korean", dec) {
+            Err(_) => {}
+            Ok(d) => assert!(
+                !d.verified && d.payload != payload,
+                "{enc} prose decoded as {dec}: {text}"
+            ),
         }
     }
 }

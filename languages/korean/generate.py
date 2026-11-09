@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate languages/korean/payload.yaml and cover.yaml.
+"""Generate languages/korean/payload_bip39.yaml and cover.yaml.
 
 The payload is the official BIP-0039 Korean wordlist (wordlist.txt, stored
 there in NFD exactly as published), converted to NFC so that prose carries
-precomposed Hangul syllables. Order is preserved: index i in payload.yaml is
+precomposed Hangul syllables. Order is preserved: index i in payload_bip39.yaml is
 index i in the BIP39 list.
 
 This script records how the files were first produced. Both files are
@@ -107,7 +107,7 @@ def main():
     assert len(set(words)) == 2048
     payload = set(words)
 
-    with open(os.path.join(HERE, "payload.yaml"), "w", encoding="utf-8") as f:
+    with open(os.path.join(HERE, "payload_bip39.yaml"), "w", encoding="utf-8") as f:
         f.write(
             "# Korean BIP39 Payload Wordlist for Glossia\n"
             "# Source: official BIP-0039 Korean wordlist (2048 words)\n"
@@ -135,7 +135,7 @@ def main():
         f.write(
             "# Korean cover words for Glossia\n"
             "# These fill non-payload grammar slots and MUST NOT appear in\n"
-            "# languages/korean/payload.yaml (disjointness is enforced at compile time).\n"
+            "# languages/korean/payload.yaml or payload_bip39.yaml (disjointness is enforced at compile time).\n"
             "#\n"
             "# Korean has no articles, so there is no Det category. Case and topic\n"
             "# particles are Prep words with a refinement naming their function\n"

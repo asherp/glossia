@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Generate languages/korean/payload_corpus.yaml: a 16,384-word (2^14) Korean
-payload list drawn from a frequency corpus, the way Latin's list was drawn
+"""Generate languages/korean/payload.yaml, Korean's default payload list:
+16,384 words (2^14) drawn from a frequency corpus, the way Latin's list was drawn
 from Wiktionary.
 
 Source: Shiberu Korean Word Frequency List 2026 by Shiberu
@@ -27,8 +27,8 @@ Selection, in Shiberu rank order (most frequent first):
 
 The kept words are written in Hangul (code point) order, which is 가나다
 order and the order the BIP39 Korean list uses. **Index i is the i-th key of
-payload_corpus.yaml. Once shipped, the file is append-only and frozen.**
-payload_corpus_provenance.tsv records each word's Shiberu rank and rate.
+payload.yaml. Once shipped, the file is append-only and frozen.**
+payload_provenance.tsv records each word's Shiberu rank and rate.
 
 Usage:
     pip install kiwipiepy==0.24.1
@@ -162,22 +162,23 @@ def main():
         sys.exit(f"only {len(kept)} words survived; need {SIZE}")
 
     kept.sort(key=lambda e: e[0])
-    out = os.path.join(HERE, "payload_corpus.yaml")
+    out = os.path.join(HERE, "payload.yaml")
     with open(out, "w", encoding="utf-8") as f:
         f.write(
-            "# Korean corpus payload wordlist for Glossia (2^14 = 16,384 words, 14 bits/word)\n"
+            "# Korean payload wordlist for Glossia (2^14 = 16,384 words, 14 bits/word)\n"
+            "# The official BIP39 Korean list is payload_bip39.yaml (--wordlist bip39).\n"
             "# Source: Shiberu Korean Word Frequency List 2026 by Shiberu\n"
             "#   (https://shiberu.app/korean-frequency-list), licensed under CC BY 4.0.\n"
             "#   Release 2026.10.28. Selection: languages/korean/generate_corpus.py.\n"
             "#\n"
             "# Index i is the i-th key below (Hangul order). APPEND-ONLY and frozen.\n"
-            "# Shiberu rank and rate per word: payload_corpus_provenance.tsv.\n"
+            "# Shiberu rank and rate per word: payload_provenance.tsv.\n"
             "#\n")
         for w, cat, _, _ in kept:
             f.write(f"{w}:\n")
             for tag, weight in pos_entry(w, cat):
                 f.write(f"  {tag}: {weight}\n")
-    with open(os.path.join(HERE, "payload_corpus_provenance.tsv"), "w", encoding="utf-8") as f:
+    with open(os.path.join(HERE, "payload_provenance.tsv"), "w", encoding="utf-8") as f:
         f.write("index\tword\tpos\tshiberu_rank\tper_million\n")
         for i, (w, cat, rank, pm) in enumerate(kept):
             f.write(f"{i}\t{w}\t{cat}\t{rank}\t{pm}\n")

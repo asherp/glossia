@@ -9,7 +9,7 @@ Glossia supports multiple languages. Each language provides its own wordlists, g
 | **English** | BIP39, n-gram, WordNet lemmas | Full YAML grammar with dialects | Fully implemented |
 | **Latin** | Custom (65,536 words), Harry Potter | Full YAML grammar with dialects | Fully implemented |
 | **Czech** | BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose) | Fully implemented |
-| **Korean** | BIP39 (official, 2,048 words), corpus (16,384 words) | Full YAML grammar (body/subject/prose), attached particles | Fully implemented |
+| **Korean** | Corpus (16,384 words), BIP39 (official, 2,048 words) | Full YAML grammar (body/subject/prose), attached particles | Fully implemented |
 | **Math/Primes** | Prime numbers (payload), composites (cover) | Arithmetic grammar | Experimental |
 | **Harry Potter** | HP spell vocabulary | Custom | Experimental |
 | **French** | BIP39 (text only) | Not yet | Planned |
@@ -30,11 +30,11 @@ glossia --random 12 --language english --seed 0
 # Czech (official BIP39 wordlist)
 glossia --random 12 --language czech --seed 0
 
-# Korean (official BIP39 wordlist)
+# Korean (default: 16,384-word corpus list, 14 bits/word)
 glossia --random 12 --language korean --seed 0
 
-# Korean corpus wordlist (16,384 words, 14 bits/word)
-glossia --random 12 --language korean --wordlist corpus --seed 0
+# Korean with the official BIP39 wordlist
+glossia --random 12 --language korean --wordlist bip39 --seed 0
 ```
 
 ### Korean particles
@@ -58,12 +58,13 @@ system that decomposes it still decodes.
 
 ### Korean corpus wordlist
 
-`--wordlist corpus` selects `payload_corpus.yaml`: 2¹⁴ = 16,384 words drawn
+Korean's default wordlist (`payload.yaml`) is 2¹⁴ = 16,384 words drawn
 from the Shiberu Korean Word Frequency List 2026 (CC BY 4.0), the way Latin's
 list was drawn from Wiktionary. At 14 bits per word it needs 19 words for 256
 bits where BIP39 Korean needs 24, and every word appears in the corpus at least
-about once per million words. It is not a BIP39 mnemonic, so it sits beside the
-official list rather than replacing it, and BIP39 stays Korean's default.
+about once per million words. The official BIP39 Korean list stays available as
+`--wordlist bip39` (`payload_bip39.yaml`), since only it reads as a BIP39
+mnemonic.
 
 The list keeps, in frequency order, single dictionary words (common nouns,
 adverbs, prenouns) that Kiwi's lexicon knows, two to five syllables long, and
