@@ -300,3 +300,20 @@ fn korean_prose_is_detected_as_korean() {
         assert!(dec.get("error").map_or(true, |e| e.is_null()), "{dec}");
     }
 }
+
+#[test]
+fn korean_seed_phrase_uses_the_bip39_list() {
+    // The bulletin's seed phrase encodes a key with the Korean BIP39 list,
+    // not Korean's default corpus list: every payload word must be BIP39 Korean.
+    let bip39: std::collections::HashSet<String> =
+        serde_json::from_str::<Vec<String>>(&glossia::wasm::get_payload_words("korean", "bip39")).unwrap().into_iter().collect();
+    let hex = "00112233445566778899aabbccddeeff0011223344556677";
+    let enc: serde_json::Value =
+        serde_json::from_str(&glossia::wasm::encode_raw_base_n(hex, "korean", "bip39", "body", 42)).unwrap();
+    let words: Vec<String> = serde_json::from_value(enc["payload_words"].clone()).unwrap();
+    assert!(!words.is_empty() && words.iter().all(|w| bip39.contains(w)), "{enc}");
+    let prose = enc["encoded_text"].as_str().unwrap();
+    let dec: serde_json::Value =
+        serde_json::from_str(&glossia::wasm::decode_raw_base_n(prose, "korean", "bip39", 24)).unwrap();
+    assert_eq!(dec["decoded_hex"], hex, "{prose}");
+}

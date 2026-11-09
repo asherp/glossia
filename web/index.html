@@ -1413,24 +1413,6 @@ let currentLang = 'english';    // TARGET language (the right-side buttons), per
 let detectedLang = 'english';   // SOURCE language auto-detected from the left box (both modes)
 const SEED = 42n;               // fixed seed -> deterministic prose
 
-// Languages offered for the BIP39 panel. Each has a word-preserving base_n
-// "bip39" dialect, so the seed round-trips byte-for-byte. English and Czech use
-// 2^11 (2048-word) lists — same word count as the seed; English even shares the
-// BIP39 wordlist, so the seed words appear verbatim in the prose. Latin uses a
-// 2^15 list, so the same 12-word seed becomes ~9 Latin words; Korean's
-// default list is 2^14, so it becomes ~10 Korean words.
-//   source    : prose endpoint  — bip39-dialect prose in this language
-//   rawTarget : bare endpoint   — bare payload words in this language
-const LANGS = [
-  { id: 'english', label: 'English', source: 'english/bip39/bip39', rawTarget: 'english/bip39/raw' },
-  { id: 'latin',   label: 'Latin',   source: 'latin/default/bip39', rawTarget: 'latin/default/raw' },
-  { id: 'czech',   label: 'Czech',   source: 'czech/default/bip39', rawTarget: 'czech/default/raw' },
-  { id: 'german',  label: 'German',  source: 'german/default/bip39', rawTarget: 'german/default/raw' },
-  { id: 'korean',  label: 'Korean',  source: 'korean/default/bip39', rawTarget: 'korean/default/raw' },
-];
-
-function langById(id) { return LANGS.find(l => l.id === id) || LANGS[0]; }
-
 function escapeHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;

@@ -347,28 +347,41 @@ export function detectLang(prose) {
 // wordlist). Callers append a checksum to the key before encoding (see
 // glossia-nostr.js) so a mistyped word is caught on load.
 
+// A seed phrase is a mnemonic, so it uses each language's BIP39 list where one
+// exists. English's and Korean's message lists differ from their BIP39 lists
+// (English's default IS bip39; Korean's default is the 2^14 corpus list), Czech
+// and German ship only their BIP39 list, and Latin has no BIP39 list at all, so
+// it keeps its own.
+const SEED_WORDLISTS = { english: 'bip39', korean: 'bip39' };
+export function seedWordlist(langId) {
+  const lang = msgLangById(langId);
+  return SEED_WORDLISTS[lang.id] || lang.wordlist;
+}
+
 // hex string (any byte length) -> { prose, payloadWords, langId }. `bestOf`
 // (default 1) samples that many cover realizations and keeps the densest /
 // most coherent, same as renderArtifact -- it only changes cover words, never
 // the payload, so decoding is unaffected.
 export function encodeSeedPhrase(hex, langId = 'english', bestOf = 1) {
   const lang = msgLangById(langId);
+  const wl = seedWordlist(lang.id);
   const n = Math.max(1, Math.floor(bestOf));
   const r = JSON.parse(
     n > 1
-      ? wasmEncodeRawBaseNBestOf(hex, lang.language, lang.wordlist, lang.dialect, SEED, n)
-      : wasmEncodeRawBaseN(hex, lang.language, lang.wordlist, lang.dialect, SEED));
+      ? wasmEncodeRawBaseNBestOf(hex, lang.language, wl, lang.dialect, SEED, n)
+      : wasmEncodeRawBaseN(hex, lang.language, wl, lang.dialect, SEED));
   if (r.error) throw new Error(r.error);
   return { prose: (r.encoded_text || '').trim(), payloadWords: r.payload_words || [], langId: lang.id };
 }
 
 // prose paragraph + known byte length -> { hex, payloadWords, langId }. Decodes
-// in the given language, or the one auto-detected from the prose.
-export function decodeSeedPhrase(prose, byteCount, langId) {
+// in the given language, or the one auto-detected from the prose, using its seed
+// wordlist unless `wordlist` names another (to read an older seed phrase).
+export function decodeSeedPhrase(prose, byteCount, langId, wordlist) {
   const text = (prose || '').trim();
   if (!text) throw new Error('empty seed phrase');
   const lang = msgLangById(langId || detectLang(text));
-  const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, lang.wordlist, byteCount));
+  const r = JSON.parse(wasmDecodeRawBaseN(text, lang.language, wordlist || seedWordlist(lang.id), byteCount));
   if (r.error) throw new Error(r.error);
   return { hex: r.decoded_hex || '', payloadWords: r.payload_words || [], langId: lang.id };
 }

@@ -1559,13 +1559,17 @@ $('c-load').addEventListener('click', () => { $('c-load-err').textContent = ''; 
 // (count 0) and let the payload length pick the layout — the checksum rejects a
 // wrong-language decode, so the first that verifies wins. Returns { identity,
 // readKey } (readKey is null for a signing-key-only seed).
+// Seed phrases use each language's BIP39 list; Korean ones saved before that
+// change used its default (corpus) list, so that is tried last.
 function boardFromSeed(prose) {
   const seen = new Set();
-  for (const lang of [detectLang(prose), 'english', 'latin', 'czech']) {
-    if (seen.has(lang)) continue;
-    seen.add(lang);
+  const tries = [[detectLang(prose)], ['english'], ['latin'], ['czech'], ['german'], ['korean'], ['korean', 'default']];
+  for (const [lang, wl] of tries) {
+    const key = lang + '/' + (wl || '');
+    if (seen.has(key)) continue;
+    seen.add(key);
     try {
-      const { hex } = decodeSeedPhrase(prose, 0, lang);   // 0 = decode all; length selects the layout
+      const { hex } = decodeSeedPhrase(prose, 0, lang, wl);   // 0 = decode all; length selects the layout
       return parseSeedPayloadHex(hex);
     } catch { /* try the next language */ }
   }
