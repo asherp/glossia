@@ -4,22 +4,21 @@
 //! written with [`canonical_encode`](crate::canonical_encode), so it gets the
 //! canonical form's checksum and Reed–Solomon parity: a few mistyped words
 //! are repaired on the way back. The envelope roughly halves the token. A V4
-//! token stores each 32-byte secret as 64 hex characters and spells out
-//! its mint and unit; the envelope stores the raw secret and leaves out the
-//! mint and unit when they are the defaults. A 2-proof token is about 207
-//! English words instead of about 400.
+//! token stores each 32-byte secret as 64 hex characters; the envelope
+//! stores the raw 32 bytes. A 2-proof token is about 250 English words
+//! instead of about 400.
 //!
 //! Envelope (all lengths one byte), shared with Hashu's `hashu_cli::words`:
 //!
 //! ```text
 //! 0x00 cbor..                       a V4 token's CBOR, unchanged (fallback)
-//! 0x01 flags [len url] [len unit] [len memo]
+//! 0x01 flags len url len unit [len memo]
 //!      nkeysets { len id  nproofs { exp secret[32] C[33] } }
 //! ```
 //!
-//! `flags` bit 0: a mint URL follows (else `https://mint.hashu.io`); bit 1:
-//! a unit follows (else `thh`); bit 2: a memo follows; bit 3: the URL
-//! follows without its `https://`. A proof's amount is `2^exp`. DLEQ
+//! `flags` bit 0: the URL is written without its `https://`; bit 1: a
+//! memo follows. The mint URL and unit are always written: the format
+//! assumes no mint and no unit. A proof's amount is `2^exp`. DLEQ
 //! proofs are left out (the receiver checks the token with its mint
 //! instead). A token the envelope can't hold exactly (a NUT-10 locked
 //! secret, a witness, an amount that isn't a power of two) is carried as
@@ -30,16 +29,10 @@ use ciborium::value::Value;
 use crate::canonical::{canonical_decode, canonical_encode, CanonicalError};
 use crate::codec::{base64_decode, base64_encode};
 
-/// The mint and unit the compact envelope assumes when its flags say so.
-pub const DEFAULT_MINT: &str = "https://mint.hashu.io";
-pub const DEFAULT_UNIT: &str = "thh";
-
 const RAW: u8 = 0x00;
 const COMPACT: u8 = 0x01;
-const HAS_MINT: u8 = 1;
-const HAS_UNIT: u8 = 2;
-const HAS_MEMO: u8 = 4;
-const HTTPS_IMPLIED: u8 = 8;
+const HTTPS_IMPLIED: u8 = 1;
+const HAS_MEMO: u8 = 2;
 
 /// Why a token could not be written or read as prose.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -207,20 +200,16 @@ fn compact(cbor: &[u8]) -> Option<Vec<u8>> {
     };
     let mut flags = 0u8;
     let mut head = Vec::new();
-    if mint != DEFAULT_MINT {
-        flags |= HAS_MINT;
-        match mint.strip_prefix("https://") {
-            Some(rest) => {
-                flags |= HTTPS_IMPLIED;
-                push_short(&mut head, rest.as_bytes())?;
-            }
-            None => push_short(&mut head, mint.as_bytes())?,
+    // The mint and unit are always written: the format favours no mint
+    // and no unit.
+    match mint.strip_prefix("https://") {
+        Some(rest) => {
+            flags |= HTTPS_IMPLIED;
+            push_short(&mut head, rest.as_bytes())?;
         }
+        None => push_short(&mut head, mint.as_bytes())?,
     }
-    if unit != DEFAULT_UNIT {
-        flags |= HAS_UNIT;
-        push_short(&mut head, unit.as_bytes())?;
-    }
+    push_short(&mut head, unit.as_bytes())?;
     if let Some(memo) = memo {
         flags |= HAS_MEMO;
         push_short(&mut head, memo.as_bytes())?;
@@ -295,21 +284,16 @@ impl<'a> Reader<'a> {
 fn expand(body: &[u8]) -> Option<Vec<u8>> {
     let mut r = Reader(body);
     let flags = r.byte()?;
-    let mint = if flags & HAS_MINT != 0 {
-        let m = r.text()?;
-        if flags & HTTPS_IMPLIED != 0 {
-            format!("https://{m}")
-        } else {
-            m
-        }
+    if flags & !(HTTPS_IMPLIED | HAS_MEMO) != 0 {
+        return None;
+    }
+    let m = r.text()?;
+    let mint = if flags & HTTPS_IMPLIED != 0 {
+        format!("https://{m}")
     } else {
-        DEFAULT_MINT.to_string()
+        m
     };
-    let unit = if flags & HAS_UNIT != 0 {
-        r.text()?
-    } else {
-        DEFAULT_UNIT.to_string()
-    };
+    let unit = r.text()?;
     let memo = if flags & HAS_MEMO != 0 {
         Some(r.text()?)
     } else {
@@ -376,11 +360,11 @@ mod tests {
     }
 
     #[test]
-    fn compact_halves_the_token() {
+    fn compact_shrinks_the_token() {
         let cbor = token_cbor(VECTOR_TOKEN.trim()).unwrap();
         let packed = pack(&cbor);
         assert_eq!(packed[0], COMPACT);
-        assert!(packed.len() * 100 < cbor.len() * 55, "{} vs {}", packed.len(), cbor.len());
+        assert!(packed.len() * 100 < cbor.len() * 70, "{} vs {}", packed.len(), cbor.len());
     }
 
     #[test]
