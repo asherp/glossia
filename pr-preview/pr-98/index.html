@@ -17,7 +17,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Glossia">
-<meta name="glossia-build" content="2b58949">
+<meta name="glossia-build" content="98897c7">
 <script>
   // Which build is this page? Two rounds of "the feature you shipped isn't
   // here" turned out to be a cache serving the previous deploy, so the answer
@@ -1417,7 +1417,8 @@ const SEED = 42n;               // fixed seed -> deterministic prose
 // "bip39" dialect, so the seed round-trips byte-for-byte. English and Czech use
 // 2^11 (2048-word) lists — same word count as the seed; English even shares the
 // BIP39 wordlist, so the seed words appear verbatim in the prose. Latin uses a
-// 2^15 list, so the same 12-word seed becomes ~9 Latin words.
+// 2^15 list, so the same 12-word seed becomes ~9 Latin words; Korean's
+// default list is 2^14, so it becomes ~10 Korean words.
 //   source    : prose endpoint  — bip39-dialect prose in this language
 //   rawTarget : bare endpoint   — bare payload words in this language
 const LANGS = [
